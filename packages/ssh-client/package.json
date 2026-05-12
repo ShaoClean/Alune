@@ -1,0 +1,19 @@
+{
+  "name": "@remote-git/ssh-client",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "ssh2": "^1.15.0",
+    "@remote-git/shared": "*"
+  },
+  "devDependencies": {
+    "@types/ssh2": "^1.15.0",
+    "typescript": "^5.4.0"
+  }
+}
