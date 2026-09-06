@@ -5,6 +5,15 @@ const api = axios.create({
   timeout: 30000,
 });
 
+export const aiApi = {
+  config: () => api.get('/ai/config').then((r) => r.data),
+  models: () => api.get('/ai/models').then((r) => r.data),
+  test: (data: { model?: string; prompt?: string; protocol?: 'responses' | 'messages' }) =>
+    api.post('/ai/test', data, { timeout: 120000 }).then((r) => r.data),
+  responses: (data: any) => api.post('/ai/responses', data, { timeout: 120000 }).then((r) => r.data),
+  messages: (data: any) => api.post('/ai/messages', data, { timeout: 120000 }).then((r) => r.data),
+};
+
 // Connection APIs
 export const connectionApi = {
   list: () => api.get('/connections').then((r) => r.data),

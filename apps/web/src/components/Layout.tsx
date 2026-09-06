@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout as AntLayout, Menu } from 'antd';
-import { ApartmentOutlined, FolderOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, ApiOutlined, FolderOutlined } from '@ant-design/icons';
 
 const { Content, Sider } = AntLayout;
 
@@ -19,11 +19,18 @@ export function Layout() {
       icon: <FolderOutlined />,
       label: 'Repositories',
     },
+    {
+      key: '/ai',
+      icon: <ApiOutlined />,
+      label: 'AI Gateway',
+    },
   ];
 
   const selectedKey = location.pathname.startsWith('/repositories')
     ? '/repositories'
-    : '/';
+    : location.pathname.startsWith('/ai')
+      ? '/ai'
+      : '/';
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>
