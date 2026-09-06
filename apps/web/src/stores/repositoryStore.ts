@@ -25,17 +25,25 @@ interface RepositoryState {
   fetchRemotes: (id: string) => Promise<void>;
 }
 
-export const useRepositoryStore = create<RepositoryState>((set) => ({
-  repositories: [],
-  currentRepo: null,
-  status: null,
-  log: [],
-  branches: [],
-  stashes: [],
-  remotes: [],
-  diff: '',
-  loading: false,
-  error: null,
+export const useRepositoryStore = create<RepositoryState>((set) => {
+  let statusRequest = 0;
+  let logRequest = 0;
+  let diffRequest = 0;
+  let branchRequest = 0;
+  let stashRequest = 0;
+  let remoteRequest = 0;
+
+  return {
+    repositories: [],
+    currentRepo: null,
+    status: null,
+    log: [],
+    branches: [],
+    stashes: [],
+    remotes: [],
+    diff: '',
+    loading: false,
+    error: null,
 
   fetchRepositories: async (connectionId) => {
     set({ loading: true, error: null });
@@ -64,57 +72,64 @@ export const useRepositoryStore = create<RepositoryState>((set) => ({
 
   setCurrentRepo: (repo) => set({ currentRepo: repo }),
 
-  fetchStatus: async (id) => {
-    try {
-      const status = await repositoryApi.status(id);
-      set({ status });
-    } catch (err: any) {
-      set({ error: err.message });
-    }
-  },
+    fetchStatus: async (id) => {
+      const request = ++statusRequest;
+      try {
+        const status = await repositoryApi.status(id);
+        if (request === statusRequest) set({ status, error: null });
+      } catch (err: any) {
+        if (request === statusRequest) set({ error: err.message });
+      }
+    },
 
-  fetchLog: async (id, params) => {
-    try {
-      const log = await repositoryApi.log(id, params);
-      set({ log });
-    } catch (err: any) {
-      set({ error: err.message });
-    }
-  },
+    fetchLog: async (id, params) => {
+      const request = ++logRequest;
+      try {
+        const log = await repositoryApi.log(id, params);
+        if (request === logRequest) set({ log, error: null });
+      } catch (err: any) {
+        if (request === logRequest) set({ error: err.message });
+      }
+    },
 
-  fetchDiff: async (id, params) => {
-    try {
-      const diff = await repositoryApi.diff(id, params);
-      set({ diff });
-    } catch (err: any) {
-      set({ error: err.message });
-    }
-  },
+    fetchDiff: async (id, params) => {
+      const request = ++diffRequest;
+      try {
+        const diff = await repositoryApi.diff(id, params);
+        if (request === diffRequest) set({ diff, error: null });
+      } catch (err: any) {
+        if (request === diffRequest) set({ error: err.message });
+      }
+    },
 
-  fetchBranches: async (id) => {
-    try {
-      const branches = await repositoryApi.branches(id);
-      set({ branches });
-    } catch (err: any) {
-      set({ error: err.message });
-    }
-  },
+    fetchBranches: async (id) => {
+      const request = ++branchRequest;
+      try {
+        const branches = await repositoryApi.branches(id);
+        if (request === branchRequest) set({ branches, error: null });
+      } catch (err: any) {
+        if (request === branchRequest) set({ error: err.message });
+      }
+    },
 
-  fetchStashes: async (id) => {
-    try {
-      const stashes = await repositoryApi.stashes(id);
-      set({ stashes });
-    } catch (err: any) {
-      set({ error: err.message });
-    }
-  },
+    fetchStashes: async (id) => {
+      const request = ++stashRequest;
+      try {
+        const stashes = await repositoryApi.stashes(id);
+        if (request === stashRequest) set({ stashes, error: null });
+      } catch (err: any) {
+        if (request === stashRequest) set({ error: err.message });
+      }
+    },
 
-  fetchRemotes: async (id) => {
-    try {
-      const remotes = await repositoryApi.remotes(id);
-      set({ remotes });
-    } catch (err: any) {
-      set({ error: err.message });
-    }
-  },
-}));
+    fetchRemotes: async (id) => {
+      const request = ++remoteRequest;
+      try {
+        const remotes = await repositoryApi.remotes(id);
+        if (request === remoteRequest) set({ remotes, error: null });
+      } catch (err: any) {
+        if (request === remoteRequest) set({ error: err.message });
+      }
+    },
+  };
+});

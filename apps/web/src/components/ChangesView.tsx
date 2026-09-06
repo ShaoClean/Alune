@@ -1,68 +1,83 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Button, Input, Popconfirm, message } from 'antd';
 import {
-  Table,
-  Button,
-  Space,
-  Input,
-  Tag,
-  message,
-  Popconfirm,
-} from 'antd';
-import {
-  PlusOutlined,
+  CheckOutlined,
+  DeleteOutlined,
+  FileAddOutlined,
+  FolderOpenOutlined,
   MinusOutlined,
+  PlusOutlined,
+  ReloadOutlined,
   SendOutlined,
   UndoOutlined,
-  ReloadOutlined,
 } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
+import { EmptyState, FileIcon, PanelHeader, StatusBadge } from './ui';
 
 interface Props {
   repoId: string;
   onRefresh: () => void;
+  onSelectFile?: (file: any) => void;
+  selectedFile?: string | null;
 }
 
-const statusColors: Record<string, string> = {
-  added: 'green',
-  modified: 'orange',
-  deleted: 'red',
-  renamed: 'purple',
-  untracked: 'default',
-  ignored: 'default',
+const statusLabels: Record<string, string> = {
+  added: 'A',
+  modified: 'M',
+  deleted: 'D',
+  renamed: 'R',
+  copied: 'C',
+  untracked: 'U',
+  ignored: 'I',
 };
 
-export function ChangesView({ repoId, onRefresh }: Props) {
+const statusWords: Record<string, string> = {
+  added: 'Added',
+  modified: 'Modified',
+  deleted: 'Deleted',
+  renamed: 'Renamed',
+  copied: 'Copied',
+  untracked: 'Untracked',
+  ignored: 'Ignored',
+};
+
+export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: Props) {
   const { status, diff, fetchStatus, fetchDiff } = useRepositoryStore();
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [commitMessage, setCommitMessage] = useState('');
   const [commitDescription, setCommitDescription] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const stagedFiles = status?.files?.filter((f: any) => f.staged) || [];
-  const unstagedFiles = status?.files?.filter((f: any) => !f.staged) || [];
+  const files = status?.files || [];
+  const stagedFiles = useMemo(() => files.filter((file: any) => file.staged), [files]);
+  const unstagedFiles = useMemo(() => files.filter((file: any) => !file.staged), [files]);
 
-  const handleStage = async (files: string[]) => {
+  const refreshStatus = async () => {
+    await fetchStatus(repoId);
+    onRefresh();
+  };
+
+  const runFileAction = async (action: 'stage' | 'unstage', paths: string[]) => {
     setLoading(true);
     try {
-      await gitApi.stage(repoId, files);
+      await gitApi[action](repoId, paths);
       await fetchStatus(repoId);
-      message.success('Files staged');
+      message.success(action === 'stage' ? `${paths.length} file${paths.length > 1 ? 's' : ''} staged` : `${paths.length} file${paths.length > 1 ? 's' : ''} unstaged`);
     } catch (err: any) {
-      message.error(err.message);
+      message.error(err.message || 'Git operation failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUnstage = async (files: string[]) => {
+  const discardFile = async (path: string) => {
     setLoading(true);
     try {
-      await gitApi.unstage(repoId, files);
+      await gitApi.checkout(repoId, [path]);
       await fetchStatus(repoId);
-      message.success('Files unstaged');
+      message.success(`Discarded changes in ${path}`);
     } catch (err: any) {
-      message.error(err.message);
+      message.error(err.message || 'Unable to discard this file');
     } finally {
       setLoading(false);
     }
@@ -70,165 +85,84 @@ export function ChangesView({ repoId, onRefresh }: Props) {
 
   const handleCommit = async () => {
     if (!commitMessage.trim()) {
-      message.warning('Please enter a commit message');
+      message.warning('Add a commit message first');
       return;
     }
     setLoading(true);
     try {
-      await gitApi.commit(repoId, commitMessage, commitDescription || undefined);
+      await gitApi.commit(repoId, commitMessage.trim(), commitDescription.trim() || undefined);
       setCommitMessage('');
       setCommitDescription('');
       await fetchStatus(repoId);
-      message.success('Committed successfully');
+      message.success('Commit created');
     } catch (err: any) {
-      message.error(err.message);
+      message.error(err.message || 'Commit failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileClick = async (file: string, staged: boolean) => {
-    setSelectedFile(file);
-    await fetchDiff(repoId, { file, staged });
+  const handleDiff = async (file: any) => {
+    onSelectFile?.(file);
+    try {
+      await fetchDiff(repoId, { file: file.path, staged: file.staged });
+    } catch {
+      // The store exposes the error state; keep the selected file visible.
+    }
   };
 
-  const handlePush = async () => {
+  const handleSync = async (operation: 'push' | 'pull') => {
     setLoading(true);
     try {
-      await gitApi.push(repoId);
-      message.success('Push successful');
-      onRefresh();
+      await gitApi[operation](repoId);
+      message.success(operation === 'push' ? 'Push completed' : 'Pull completed');
+      await refreshStatus();
     } catch (err: any) {
-      message.error(err.message);
+      message.error(err.message || `${operation} failed`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePull = async () => {
-    setLoading(true);
-    try {
-      await gitApi.pull(repoId);
-      message.success('Pull successful');
-      onRefresh();
-    } catch (err: any) {
-      message.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const renderFileRow = (file: any) => (
+    <div className={`file-row${selectedFile === file.path ? ' file-row--selected' : ''}`} key={`${file.staged}-${file.path}`} onClick={() => void handleDiff(file)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter') void handleDiff(file); }}>
+      <span className={`file-row__status file-row__status--${file.status}`} title={statusWords[file.status] || file.status}>{statusLabels[file.status] || '?'}</span>
+      <FileIcon path={file.path} status={file.status} />
+      <span className="file-row__path" title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}>{file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}</span>
+      <span className="file-row__stats">{file.additions ? <span className="additions">+{file.additions}</span> : null}{file.deletions ? <span className="deletions">−{file.deletions}</span> : null}</span>
+      <div className="file-row__actions" onClick={(event) => event.stopPropagation()}>
+        {file.staged ? <Button type="text" size="small" icon={<MinusOutlined />} aria-label={`Unstage ${file.path}`} loading={loading} onClick={() => void runFileAction('unstage', [file.path])} /> : <Button type="text" size="small" icon={<PlusOutlined />} aria-label={`Stage ${file.path}`} loading={loading} onClick={() => void runFileAction('stage', [file.path])} />}
+        {!file.staged && file.status !== 'untracked' && <Popconfirm title="Discard this file's changes?" description="This cannot be undone." onConfirm={() => void discardFile(file.path)}><Button type="text" danger size="small" icon={<DeleteOutlined />} aria-label={`Discard ${file.path}`} loading={loading} /></Popconfirm>}
+      </div>
+    </div>
+  );
 
-  const fileColumns = (isStaged: boolean) => [
-    {
-      title: 'File',
-      dataIndex: 'path',
-      key: 'path',
-      ellipsis: true,
-      render: (path: string) => (
-        <a onClick={() => handleFileClick(path, isStaged)}>{path}</a>
-      ),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => (
-        <Tag color={statusColors[status] || 'default'}>{status}</Tag>
-      ),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 80,
-      render: (_: any, record: any) => (
-        <Button
-          size="small"
-          icon={isStaged ? <MinusOutlined /> : <PlusOutlined />}
-          onClick={() => isStaged ? handleUnstage([record.path]) : handleStage([record.path])}
-        />
-      ),
-    },
-  ];
+  const renderGroup = (title: string, groupFiles: any[], staged: boolean) => groupFiles.length > 0 ? (
+    <div className="change-group" key={title}>
+      <div className="change-group__header">
+        <div className="change-group__title">{staged ? <CheckOutlined /> : <FolderOpenOutlined />} {title} <span className="count-badge">{groupFiles.length}</span></div>
+        <div className="change-group__actions">
+          <Button type="text" size="small" disabled={loading} onClick={() => void runFileAction(staged ? 'unstage' : 'stage', groupFiles.map((file) => file.path))}>{staged ? 'Unstage all' : 'Stage all'}</Button>
+        </div>
+      </div>
+      {groupFiles.map(renderFileRow)}
+    </div>
+  ) : null;
 
   return (
-    <div>
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh}>Refresh</Button>
-        <Button icon={<SendOutlined />} onClick={handlePush} loading={loading}>Push</Button>
-        <Button icon={<UndoOutlined />} onClick={handlePull} loading={loading}>Pull</Button>
-      </Space>
-
-      {stagedFiles.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <strong>Staged Changes ({stagedFiles.length})</strong>
-            <Button size="small" onClick={() => handleUnstage(stagedFiles.map((f: any) => f.path))}>
-              Unstage All
-            </Button>
-          </div>
-          <Table
-            dataSource={stagedFiles}
-            columns={fileColumns(true)}
-            rowKey="path"
-            size="small"
-            pagination={false}
-          />
-        </div>
-      )}
-
-      {unstagedFiles.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <strong>Unstaged Changes ({unstagedFiles.length})</strong>
-            <Button size="small" onClick={() => handleStage(unstagedFiles.map((f: any) => f.path))}>
-              Stage All
-            </Button>
-          </div>
-          <Table
-            dataSource={unstagedFiles}
-            columns={fileColumns(false)}
-            rowKey="path"
-            size="small"
-            pagination={false}
-          />
-        </div>
-      )}
-
-      {stagedFiles.length > 0 && (
-        <div style={{ marginBottom: 16, padding: 16, background: '#fafafa', borderRadius: 4 }}>
-          <Input
-            placeholder="Commit message"
-            value={commitMessage}
-            onChange={(e) => setCommitMessage(e.target.value)}
-            style={{ marginBottom: 8 }}
-          />
-          <Input.TextArea
-            placeholder="Description (optional)"
-            value={commitDescription}
-            onChange={(e) => setCommitDescription(e.target.value)}
-            rows={3}
-            style={{ marginBottom: 8 }}
-          />
-          <Popconfirm
-            title="Are you sure you want to commit?"
-            onConfirm={handleCommit}
-          >
-            <Button type="primary" loading={loading}>
-              Commit
-            </Button>
-          </Popconfirm>
-        </div>
-      )}
-
-      {selectedFile && diff && (
-        <div style={{ marginTop: 16 }}>
-          <strong>Diff: {selectedFile}</strong>
-          <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, overflow: 'auto', maxHeight: 500 }}>
-            {diff}
-          </pre>
-        </div>
-      )}
-    </div>
+    <section className="workspace-panel">
+      <PanelHeader title="Changes" count={files.length} description="Review, stage, and commit your working tree" icon={<FileAddOutlined />} extra={<><Button type="text" icon={<ReloadOutlined />} aria-label="Refresh changes" onClick={() => void refreshStatus()}>Refresh</Button><Button type="primary" icon={<SendOutlined />} loading={loading} onClick={() => void handleSync('push')}>Push</Button><Button icon={<UndoOutlined />} loading={loading} onClick={() => void handleSync('pull')}>Pull</Button></>} />
+      {files.length === 0 ? <EmptyState title="Working tree clean" description="There are no staged or unstaged changes in this repository." action={<Button icon={<ReloadOutlined />} onClick={() => void refreshStatus()}>Refresh status</Button>} /> : <div className="changes-content">
+        {renderGroup('Staged changes', stagedFiles, true)}
+        {renderGroup('Changes', unstagedFiles, false)}
+        {stagedFiles.length > 0 && <div className="commit-box">
+          <div className="commit-box__heading"><span>Commit staged changes</span><span>{stagedFiles.length} file{stagedFiles.length > 1 ? 's' : ''} ready</span></div>
+          <Input placeholder="Summary · describe the change" value={commitMessage} onChange={(event) => setCommitMessage(event.target.value)} onPressEnter={() => void handleCommit()} />
+          <Input.TextArea placeholder="Description (optional)" value={commitDescription} onChange={(event) => setCommitDescription(event.target.value)} rows={3} />
+          <div className="commit-box__footer"><span className="commit-box__hint">Commit only includes files in Staged changes.</span><Button type="primary" icon={<CheckOutlined />} loading={loading} onClick={() => void handleCommit()}>Commit staged</Button></div>
+        </div>}
+      </div>}
+      {diff && <div className="changes-diff-hint"><StatusBadge status="ready" label="Diff loaded in the detail panel" /></div>}
+    </section>
   );
 }

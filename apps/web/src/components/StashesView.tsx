@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
-import { Table, Button, Space, message, Popconfirm } from 'antd';
+import { useEffect, useState } from 'react';
+import { Button, Input, Modal, Popconfirm, message } from 'antd';
+import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
+import { EmptyState, formatRelativeDate, PanelHeader } from './ui';
 
 interface Props {
   repoId: string;
@@ -10,102 +12,61 @@ interface Props {
 
 export function StashesView({ repoId, onRefresh }: Props) {
   const { stashes, fetchStashes } = useRepositoryStore();
+  const [loading, setLoading] = useState(false);
+  const [stashModalVisible, setStashModalVisible] = useState(false);
+  const [stashMessage, setStashMessage] = useState('');
 
   useEffect(() => {
-    fetchStashes(repoId);
-  }, [repoId]);
+    void fetchStashes(repoId);
+  }, [repoId, fetchStashes]);
 
-  const handlePop = async (index?: number) => {
+  const refresh = async () => {
+    await fetchStashes(repoId);
+    onRefresh();
+  };
+
+  const runStashAction = async (action: 'stashPop' | 'stashApply' | 'stashDrop', index: number) => {
+    setLoading(true);
     try {
-      await gitApi.stashPop(repoId, index);
-      message.success('Stash popped');
-      onRefresh();
-      fetchStashes(repoId);
+      await gitApi[action](repoId, index);
+      message.success(action === 'stashPop' ? 'Stash popped' : action === 'stashApply' ? 'Stash applied' : 'Stash dropped');
+      await refresh();
     } catch (err: any) {
-      message.error(err.message);
+      message.error(err.message || 'Stash operation failed');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleApply = async (index?: number) => {
+  const createStash = async () => {
+    setLoading(true);
     try {
-      await gitApi.stashApply(repoId, index);
-      message.success('Stash applied');
-      onRefresh();
-      fetchStashes(repoId);
-    } catch (err: any) {
-      message.error(err.message);
-    }
-  };
-
-  const handleDrop = async (index?: number) => {
-    try {
-      await gitApi.stashDrop(repoId, index);
-      message.success('Stash dropped');
-      fetchStashes(repoId);
-    } catch (err: any) {
-      message.error(err.message);
-    }
-  };
-
-  const handleStash = async () => {
-    try {
-      await gitApi.stash(repoId);
+      await gitApi.stash(repoId, stashMessage.trim() || undefined);
+      setStashMessage('');
+      setStashModalVisible(false);
       message.success('Changes stashed');
-      onRefresh();
-      fetchStashes(repoId);
+      await refresh();
     } catch (err: any) {
-      message.error(err.message);
+      message.error(err.message || 'Unable to create stash');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const columns = [
-    {
-      title: 'Index',
-      dataIndex: 'index',
-      key: 'index',
-      width: 60,
-    },
-    {
-      title: 'Branch',
-      dataIndex: 'branch',
-      key: 'branch',
-      width: 150,
-    },
-    {
-      title: 'Message',
-      dataIndex: 'message',
-      key: 'message',
-      ellipsis: true,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 200,
-      render: (_: any, record: any) => (
-        <Space>
-          <Button size="small" onClick={() => handlePop(record.index)}>Pop</Button>
-          <Button size="small" onClick={() => handleApply(record.index)}>Apply</Button>
-          <Popconfirm title="Drop this stash?" onConfirm={() => handleDrop(record.index)}>
-            <Button size="small" danger>Drop</Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
 
   return (
-    <div>
-      <Space style={{ marginBottom: 16 }}>
-        <Button type="primary" onClick={handleStash}>Stash Current Changes</Button>
-      </Space>
-
-      <Table
-        dataSource={stashes}
-        columns={columns}
-        rowKey="index"
-        size="small"
-        pagination={false}
-      />
-    </div>
+    <section className="workspace-panel">
+      <PanelHeader title="Stashes" count={stashes.length} description="Temporarily shelve work without committing" icon={<InboxOutlined />} extra={<><Button type="text" icon={<ReloadOutlined />} aria-label="Refresh stashes" onClick={() => void refresh()}>Refresh</Button><Button type="primary" icon={<PlusOutlined />} onClick={() => setStashModalVisible(true)}>Stash changes</Button></>} />
+      {stashes.length === 0 ? <EmptyState title="No stashes" description="A stash is a safe place to put work in progress while you switch context." action={<Button type="primary" icon={<PlusOutlined />} onClick={() => setStashModalVisible(true)}>Stash current changes</Button>} /> : <div className="stash-list">
+        {stashes.map((stash: any) => <article className="stash-card" key={stash.index}>
+          <div className="stash-card__top"><InboxOutlined /><strong>stash@&#123;{stash.index}&#125;</strong>{stash.branch && <span className="stash-card__meta">on {stash.branch}</span>}</div>
+          <div className="stash-card__message">{stash.message || 'Working tree snapshot'}</div>
+          <div className="stash-card__meta">{formatRelativeDate(stash.date)} · Snapshot {stash.index + 1}</div>
+          <div className="stash-card__actions"><Button size="small" onClick={() => void runStashAction('stashApply', stash.index)} loading={loading}>Apply</Button><Button size="small" type="primary" ghost onClick={() => void runStashAction('stashPop', stash.index)} loading={loading}>Pop</Button><Popconfirm title="Drop this stash?" description="This snapshot cannot be recovered." onConfirm={() => void runStashAction('stashDrop', stash.index)}><Button size="small" danger icon={<DeleteOutlined />} aria-label={`Drop stash ${stash.index}`}>Drop</Button></Popconfirm></div>
+        </article>)}
+      </div>}
+      <Modal title="Stash current changes" open={stashModalVisible} onCancel={() => setStashModalVisible(false)} onOk={() => void createStash()} confirmLoading={loading} okText="Create stash">
+        <Input autoFocus placeholder="Optional message" value={stashMessage} onChange={(event) => setStashMessage(event.target.value)} onPressEnter={() => void createStash()} />
+      </Modal>
+    </section>
   );
 }

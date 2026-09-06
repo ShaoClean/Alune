@@ -1,39 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Button, Input, Modal, Popconfirm, Select, Space, message } from 'antd';
 import {
-  Card,
-  Table,
-  Button,
-  Space,
-  Tag,
-  Modal,
-  Input,
-  message,
-  Popconfirm,
-} from 'antd';
-import {
-  PlusOutlined,
+  BranchesOutlined,
   DeleteOutlined,
+  FolderOpenOutlined,
+  PlusOutlined,
+  ReloadOutlined,
   SearchOutlined,
-  FolderOutlined,
 } from '@ant-design/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { EmptyState, formatBranchName, LoadingState, StatusBadge } from '../components/ui';
 
 export function RepositoriesPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const connectionId = searchParams.get('connectionId') || undefined;
   const { connections, fetchConnections } = useConnectionStore();
-  const {
-    repositories,
-    loading,
-    fetchRepositories,
-    scanRepositories,
-    addRepository,
-    deleteRepository,
-  } = useRepositoryStore();
-
+  const { repositories, loading, fetchRepositories, scanRepositories, addRepository, deleteRepository } = useRepositoryStore();
+  const [search, setSearch] = useState('');
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [scanPath, setScanPath] = useState('/home');
   const [scanResults, setScanResults] = useState<string[]>([]);
@@ -41,21 +27,33 @@ export function RepositoriesPage() {
   const [addingPath, setAddingPath] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchConnections();
-    fetchRepositories(connectionId);
+    void fetchConnections();
+    void fetchRepositories(connectionId);
   }, [connectionId, fetchConnections, fetchRepositories]);
+
+  const visibleRepositories = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return repositories;
+    return repositories.filter((repo: any) => `${repo.name} ${repo.path} ${repo.currentBranch || ''}`.toLowerCase().includes(query));
+  }, [repositories, search]);
+
+  const selectedConnection = connections.find((connection: any) => connection.id === connectionId);
+
+  const chooseConnection = (value: string) => {
+    if (value) setSearchParams({ connectionId: value });
+    else setSearchParams({});
+  };
 
   const handleScan = async () => {
     if (!connectionId) {
-      message.warning('Please select a connection first');
+      message.warning('Select a connection before scanning');
       return;
     }
     setScanLoading(true);
     try {
-      const results = await scanRepositories(connectionId, scanPath);
-      setScanResults(results);
+      setScanResults(await scanRepositories(connectionId, scanPath));
     } catch (err: any) {
-      message.error(err.message);
+      message.error(err.message || 'Failed to scan path');
     } finally {
       setScanLoading(false);
     }
@@ -67,152 +65,89 @@ export function RepositoriesPage() {
     try {
       await addRepository(connectionId, path);
       message.success('Repository added');
-      fetchRepositories(connectionId);
+      void fetchRepositories(connectionId);
     } catch (err: any) {
-      message.error(err.message);
+      message.error(err.message || 'Failed to add repository');
     } finally {
       setAddingPath(null);
     }
   };
 
-  const columns = [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      render: (name: string, record: any) => (
-        <Button type="link" onClick={() => navigate(`/repositories/${record.id}`)}>
-          <FolderOutlined /> {name}
-        </Button>
-      ),
-    },
-    {
-      title: 'Path',
-      dataIndex: 'path',
-      key: 'path',
-      ellipsis: true,
-    },
-    {
-      title: 'Branch',
-      dataIndex: 'currentBranch',
-      key: 'currentBranch',
-      render: (branch: string) => branch && <Tag color="blue">{branch}</Tag>,
-    },
-    {
-      title: 'Status',
-      key: 'status',
-      render: (_: any, record: any) => {
-        if (record.isDirty === undefined) return <Tag>Unknown</Tag>;
-        return record.isDirty ? <Tag color="warning">Dirty</Tag> : <Tag color="success">Clean</Tag>;
-      },
-    },
-    {
-      title: 'Ahead/Behind',
-      key: 'aheadBehind',
-      render: (_: any, record: any) => {
-        const { ahead = 0, behind = 0 } = record;
-        if (ahead === 0 && behind === 0) return '-';
-        return (
-          <Space size={4}>
-            {ahead > 0 && <Tag color="green">↑{ahead}</Tag>}
-            {behind > 0 && <Tag color="red">↓{behind}</Tag>}
-          </Space>
-        );
-      },
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: any) => (
-        <Space>
-          <Popconfirm title="Remove this repository?" onConfirm={() => deleteRepository(record.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
-  const connectionName = connections.find((c) => c.id === connectionId)?.name;
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteRepository(id);
+      message.success('Repository removed');
+    } catch (err: any) {
+      message.error(err.message || 'Failed to remove repository');
+    }
+  };
 
   return (
     <div>
-      <Card
-        title={
-          connectionName ? `Repositories - ${connectionName}` : 'Repositories'
-        }
-        extra={
-          <Space>
-            <Button
-              icon={<PlusOutlined />}
-              onClick={() => setScanModalVisible(true)}
-              disabled={!connectionId}
-            >
-              Scan &amp; Add
-            </Button>
-          </Space>
-        }
-      >
-        <Table
-          dataSource={repositories}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          pagination={false}
-        />
-      </Card>
+      <div className="page-heading">
+        <div>
+          <h2>Repositories</h2>
+          <p>{selectedConnection ? `Repositories available on ${selectedConnection.name}.` : 'Browse every registered repository across your remote workspaces.'}</p>
+        </div>
+        <div className="page-heading__actions">
+          <Button icon={<ReloadOutlined />} aria-label="Refresh repositories" onClick={() => void fetchRepositories(connectionId)}>Refresh</Button>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!connectionId} onClick={() => setScanModalVisible(true)}>Scan &amp; add</Button>
+        </div>
+      </div>
 
-      <Modal
-        title="Scan Remote Directories"
-        open={scanModalVisible}
-        onCancel={() => setScanModalVisible(false)}
-        footer={null}
-        width={700}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Space>
-            <Input
-              value={scanPath}
-              onChange={(e) => setScanPath(e.target.value)}
-              placeholder="Remote path to scan"
-              style={{ width: 400 }}
+      <div className="content-card">
+        <div className="content-card__header">
+          <Space wrap>
+            <Select
+              allowClear
+              value={connectionId}
+              onChange={chooseConnection}
+              placeholder="All connections"
+              className="connection-filter"
+              options={connections.map((connection: any) => ({ value: connection.id, label: connection.name }))}
             />
-            <Button
-              icon={<SearchOutlined />}
-              loading={scanLoading}
-              onClick={handleScan}
-            >
-              Scan
-            </Button>
+            <Input className="repo-search" allowClear prefix={<SearchOutlined />} placeholder="Search repositories" value={search} onChange={(event) => setSearch(event.target.value)} />
           </Space>
-          {scanResults.length > 0 && (
-            <div>
-              {scanResults.map((path) => (
-                <div
-                  key={path}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '8px 0',
-                    borderBottom: '1px solid #f0f0f0',
-                  }}
-                >
-                  <span>{path}</span>
-                  <Button
-                    size="small"
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    loading={addingPath === path}
-                    onClick={() => handleAdd(path)}
-                  >
-                    Add
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </Space>
+          <span className="count-badge">{visibleRepositories.length} shown</span>
+        </div>
+        {loading && repositories.length === 0 ? <LoadingState label="Loading repositories…" /> : visibleRepositories.length === 0 ? (
+          <EmptyState title={search ? 'No matching repositories' : 'No repositories registered'} description={search ? 'Try a different name, path, or branch.' : connectionId ? 'Scan a remote directory to discover Git repositories.' : 'Choose a connection to scan for repositories, or add one from Connections.'} action={!search && connectionId ? <Button type="primary" icon={<SearchOutlined />} onClick={() => setScanModalVisible(true)}>Scan remote path</Button> : undefined} />
+        ) : (
+          <div className="repository-grid">
+            {visibleRepositories.map((repo: any) => {
+              const dirty = repo.isDirty === true;
+              return (
+                <article className="repository-card" key={repo.id}>
+                  <div className="repository-card__top">
+                    <div className="repository-card__title"><FolderOpenOutlined /><span>{repo.name}</span></div>
+                    <StatusBadge status={dirty ? 'dirty' : repo.isDirty === false ? 'clean' : 'offline'} label={dirty ? 'Changes' : repo.isDirty === false ? 'Clean' : 'Unknown'} />
+                  </div>
+                  <div className="repository-card__path" title={repo.path}>{repo.path}</div>
+                  <div className="repository-card__metrics">
+                    <span className="repository-card__metric"><BranchesOutlined /> {repo.currentBranch ? formatBranchName(repo.currentBranch) : 'No branch'}</span>
+                    {(repo.ahead || 0) > 0 && <span className="repository-card__metric repository-card__metric--ahead">↑{repo.ahead}</span>}
+                    {(repo.behind || 0) > 0 && <span className="repository-card__metric repository-card__metric--behind">↓{repo.behind}</span>}
+                  </div>
+                  <div className="repository-card__actions">
+                    <Button size="small" type="primary" onClick={() => navigate(`/repositories/${repo.id}`)}>Open workspace</Button>
+                    <Popconfirm title="Remove this repository?" onConfirm={() => void handleDelete(repo.id)}>
+                      <Button size="small" danger icon={<DeleteOutlined />} aria-label={`Delete ${repo.name}`} />
+                    </Popconfirm>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <Modal title="Scan remote directories" open={scanModalVisible} onCancel={() => setScanModalVisible(false)} footer={null} width={650}>
+        <p className="modal-description">Search up to four levels below a path for folders containing a <code>.git</code> directory.</p>
+        <Space.Compact block>
+          <Input value={scanPath} onChange={(event) => setScanPath(event.target.value)} placeholder="/home/developer" />
+          <Button type="primary" icon={<SearchOutlined />} loading={scanLoading} onClick={() => void handleScan()}>Scan</Button>
+        </Space.Compact>
+        {scanResults.length > 0 ? <div className="scan-results">{scanResults.map((path) => <div className="scan-result" key={path}><span>{path}</span><Button size="small" type="primary" icon={<PlusOutlined />} loading={addingPath === path} onClick={() => void handleAdd(path)}>Add</Button></div>)}</div> : <div className="modal-empty">Run a scan to see discovered repositories.</div>}
       </Modal>
     </div>
   );

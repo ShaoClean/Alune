@@ -3,6 +3,7 @@ import { connectionApi } from '../api';
 
 interface ConnectionState {
   connections: any[];
+  testResults: Record<string, { success: boolean; error?: string }>;
   loading: boolean;
   error: string | null;
   fetchConnections: () => Promise<void>;
@@ -13,6 +14,7 @@ interface ConnectionState {
 
 export const useConnectionStore = create<ConnectionState>((set) => ({
   connections: [],
+  testResults: {},
   loading: false,
   error: null,
 
@@ -38,6 +40,8 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   },
 
   testConnection: async (id) => {
-    return connectionApi.test(id);
+    const result = await connectionApi.test(id);
+    set((state) => ({ testResults: { ...state.testResults, [id]: result } }));
+    return result;
   },
 }));

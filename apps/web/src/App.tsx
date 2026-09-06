@@ -7,7 +7,25 @@ const queryClient = new QueryClient();
 
 function App() {
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#1677ff' } }}>
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#2563eb',
+          colorInfo: '#2563eb',
+          colorSuccess: '#16a34a',
+          colorWarning: '#d97706',
+          colorError: '#dc2626',
+          borderRadius: 6,
+          fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        },
+        components: {
+          Button: { controlHeight: 32, borderRadius: 5 },
+          Input: { controlHeight: 34 },
+          Select: { controlHeight: 34 },
+          Card: { borderRadiusLG: 8 },
+        },
+      }}
+    >
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>
