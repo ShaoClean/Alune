@@ -38,7 +38,7 @@ const navItems: { key: Panel; label: string; icon: React.ReactNode }[] = [
 export function RepositoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentRepo, status, branches, stashes, diff, diffLoading, diffError, setCurrentRepo, fetchStatus, fetchLog, fetchBranches, fetchStashes, fetchRemotes, fetchDiff, error } = useRepositoryStore();
+  const { currentRepo, openRepositories, status, branches, stashes, diff, diffLoading, diffError, setCurrentRepo, resetWorkspace, fetchStatus, fetchLog, fetchBranches, fetchStashes, fetchRemotes, fetchDiff, error } = useRepositoryStore();
   const [activePanel, setActivePanel] = useState<Panel>('changes');
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -53,6 +53,7 @@ export function RepositoryDetailPage() {
     setPageError(null);
     setSelectedFile(null);
     setSelectedCommit(null);
+    resetWorkspace();
     void Promise.all([repositoryApi.get(id), fetchStatus(id), fetchLog(id), fetchBranches(id), fetchRemotes(id)])
       .then(([repo]) => {
         if (!cancelled) setCurrentRepo(repo);
@@ -64,9 +65,10 @@ export function RepositoryDetailPage() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [id, fetchBranches, fetchLog, fetchRemotes, fetchStatus, setCurrentRepo]);
+  }, [id, fetchBranches, fetchLog, fetchRemotes, fetchStatus, resetWorkspace, setCurrentRepo]);
 
-  const repository = currentRepo?.id === id ? currentRepo : null;
+  const repository = currentRepo?.id === id ? currentRepo : openRepositories.find((repo: any) => repo.id === id) || null;
+  const switchingRepository = currentRepo?.id !== id;
   const changeCount = status?.files?.length || 0;
   const activeLabel = navItems.find((item) => item.key === activePanel)?.label || 'Changes';
 
@@ -106,7 +108,7 @@ export function RepositoryDetailPage() {
 
   const detailTitle = useMemo(() => selectedFile?.path || selectedCommit?.shortHash || 'Inspector', [selectedCommit, selectedFile]);
 
-  if (loading) return <LoadingState label="Opening repository workspace…" />;
+  if (loading || switchingRepository) return <LoadingState label="Opening repository workspace…" />;
   if (pageError || (!repository && error)) return <ErrorState title="Repository unavailable" description={pageError || error} onRetry={() => window.location.reload()} />;
   if (!repository) return <ErrorState title="Repository not found" description="This repository may have been removed or is no longer reachable." onRetry={() => navigate('/repositories')} />;
 

@@ -19,6 +19,7 @@ import {
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { StatusBadge } from './ui';
+import { RepositoryTabs } from './RepositoryTabs';
 
 const navItems = [
   { key: '/', label: 'Connections', icon: <ApartmentOutlined /> },
@@ -33,7 +34,7 @@ export function Layout() {
   const [treeOpen, setTreeOpen] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { connections, testResults, fetchConnections } = useConnectionStore();
-  const { repositories, currentRepo, fetchRepositories } = useRepositoryStore();
+  const { repositories, openRepositories, currentRepo, fetchRepositories, openRepository, closeRepository } = useRepositoryStore();
 
   useEffect(() => {
     void fetchConnections();
@@ -54,6 +55,24 @@ export function Layout() {
     ...connection,
     repositories: repositories.filter((repo: any) => repo.connectionId === connection.id),
   }));
+
+  const activeRepositoryId = location.pathname.match(/^\/repositories\/([^/]+)/)?.[1];
+  const activeRepository = openRepositories.find((repo: any) => repo.id === activeRepositoryId)
+    || (currentRepo?.id === activeRepositoryId ? currentRepo : null);
+
+  const handleOpenRepository = (repo: any) => {
+    openRepository(repo);
+    navigate(`/repositories/${repo.id}`);
+  };
+
+  const handleCloseRepository = (id: string) => {
+    const closedIndex = openRepositories.findIndex((repo: any) => repo.id === id);
+    const isActive = activeRepositoryId === id;
+    const nextRepository = openRepositories[closedIndex + 1] || openRepositories[closedIndex - 1];
+
+    closeRepository(id);
+    if (isActive) navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
+  };
 
   return (
     <div className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}${mobileNavOpen ? ' app-shell--mobile-open' : ''}`}>
@@ -115,9 +134,9 @@ export function Layout() {
                   {connection.repositories.map((repo: any) => (
                     <button
                       type="button"
-                      className={`tree-node tree-node--repo${currentRepo?.id === repo.id ? ' tree-node--selected' : ''}`}
+                      className={`tree-node tree-node--repo${activeRepository?.id === repo.id ? ' tree-node--selected' : ''}`}
                       key={repo.id}
-                      onClick={() => navigate(`/repositories/${repo.id}`)}
+                      onClick={() => handleOpenRepository(repo)}
                     >
                       <BranchesOutlined className="tree-node__icon" />
                       <span className="tree-node__label">{repo.name}</span>
@@ -148,16 +167,17 @@ export function Layout() {
             <span className="breadcrumb-root">RemoteGit</span>
             <span className="breadcrumb-divider">/</span>
             <span>{navItems.find((item) => item.key === selectedKey)?.label}</span>
-            {currentRepo && location.pathname.includes(currentRepo.id) && <><span className="breadcrumb-divider">/</span><strong>{currentRepo.name}</strong></>}
+            {activeRepository && <><span className="breadcrumb-divider">/</span><strong>{activeRepository.name}</strong></>}
           </div>
           <div className="topbar-actions">
             <StatusBadge status="connected" label="API online" subtle />
             <button type="button" className="topbar-icon" aria-label="Team"><TeamOutlined /></button>
           </div>
         </header>
+        {selectedKey === '/repositories' && <RepositoryTabs repositories={openRepositories} activeId={activeRepository?.id} onSelect={(id) => navigate(`/repositories/${id}`)} onClose={handleCloseRepository} onOpenRepository={() => navigate('/repositories')} />}
         <div className="app-content"><Outlet /></div>
         <footer className="status-bar">
-          <div className="status-bar__left"><CloudSyncOutlined /> <span>RemoteGit connected</span>{currentRepo && <><span className="status-bar__separator">•</span><span className="status-bar__path">{currentRepo.path || 'Repository workspace'}</span></>}</div>
+          <div className="status-bar__left"><CloudSyncOutlined /> <span>RemoteGit connected</span>{activeRepository && <><span className="status-bar__separator">•</span><span className="status-bar__path">{activeRepository.path || 'Repository workspace'}</span></>}</div>
           <div className="status-bar__right"><span>Last refresh {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
         </footer>
       </main>

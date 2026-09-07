@@ -3,6 +3,7 @@ import { repositoryApi } from '../api';
 
 interface RepositoryState {
   repositories: any[];
+  openRepositories: any[];
   currentRepo: any | null;
   status: any | null;
   log: any[];
@@ -18,7 +19,10 @@ interface RepositoryState {
   scanRepositories: (connectionId: string, path: string) => Promise<string[]>;
   addRepository: (connectionId: string, path: string) => Promise<any>;
   deleteRepository: (id: string) => Promise<void>;
+  openRepository: (repo: any) => void;
+  closeRepository: (id: string) => void;
   setCurrentRepo: (repo: any) => void;
+  resetWorkspace: () => void;
   fetchStatus: (id: string) => Promise<void>;
   fetchLog: (id: string, params?: any) => Promise<void>;
   fetchDiff: (id: string, params?: any) => Promise<void>;
@@ -37,6 +41,7 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
 
   return {
     repositories: [],
+    openRepositories: [],
     currentRepo: null,
     status: null,
     log: [],
@@ -71,16 +76,72 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
 
   deleteRepository: async (id) => {
     await repositoryApi.delete(id);
-    set((state) => ({ repositories: state.repositories.filter((r) => r.id !== id) }));
+    set((state) => ({
+      repositories: state.repositories.filter((r) => r.id !== id),
+      openRepositories: state.openRepositories.filter((r) => r.id !== id),
+      currentRepo: state.currentRepo?.id === id ? null : state.currentRepo,
+    }));
   },
 
-  setCurrentRepo: (repo) => set({ currentRepo: repo }),
+  openRepository: (repo) => set((state) => {
+    const existing = state.openRepositories.find((item) => item.id === repo.id);
+    const openRepositories = existing
+      ? state.openRepositories.map((item) => item.id === repo.id ? { ...item, ...repo } : item)
+      : [...state.openRepositories, repo];
+    return { openRepositories, currentRepo: existing ? { ...existing, ...repo } : repo };
+  }),
+
+  closeRepository: (id) => set((state) => ({
+    openRepositories: state.openRepositories.filter((repo) => repo.id !== id),
+    currentRepo: state.currentRepo?.id === id ? null : state.currentRepo,
+  })),
+
+  setCurrentRepo: (repo) => set((state) => {
+    const existing = state.openRepositories.find((item) => item.id === repo.id);
+    const openRepositories = existing
+      ? state.openRepositories.map((item) => item.id === repo.id ? { ...item, ...repo } : item)
+      : [...state.openRepositories, repo];
+    return { currentRepo: existing ? { ...existing, ...repo } : repo, openRepositories };
+  }),
+
+  resetWorkspace: () => {
+    statusRequest += 1;
+    logRequest += 1;
+    diffRequest += 1;
+    branchRequest += 1;
+    stashRequest += 1;
+    remoteRequest += 1;
+    set({
+      status: null,
+      log: [],
+      branches: [],
+      stashes: [],
+      remotes: [],
+      diff: '',
+      diffLoading: false,
+      diffError: null,
+      error: null,
+    });
+  },
 
     fetchStatus: async (id) => {
       const request = ++statusRequest;
       try {
         const status = await repositoryApi.status(id);
-        if (request === statusRequest) set({ status, error: null });
+        if (request === statusRequest) set((state) => {
+          const statusSummary = {
+            currentBranch: status.branch,
+            ahead: status.ahead,
+            behind: status.behind,
+            isDirty: status.files?.length > 0,
+          };
+          return {
+            status,
+            error: null,
+            currentRepo: state.currentRepo?.id === id ? { ...state.currentRepo, ...statusSummary } : state.currentRepo,
+            openRepositories: state.openRepositories.map((repo) => repo.id === id ? { ...repo, ...statusSummary } : repo),
+          };
+        });
       } catch (err: any) {
         if (request === statusRequest) set({ error: err.message });
       }

@@ -18,7 +18,7 @@ export function RepositoriesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const connectionId = searchParams.get('connectionId') || undefined;
   const { connections, fetchConnections } = useConnectionStore();
-  const { repositories, loading, fetchRepositories, scanRepositories, addRepository, deleteRepository } = useRepositoryStore();
+  const { repositories, loading, fetchRepositories, scanRepositories, addRepository, deleteRepository, openRepository } = useRepositoryStore();
   const [search, setSearch] = useState('');
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [scanPath, setScanPath] = useState('/home');
@@ -129,7 +129,7 @@ export function RepositoriesPage() {
                     {(repo.behind || 0) > 0 && <span className="repository-card__metric repository-card__metric--behind">↓{repo.behind}</span>}
                   </div>
                   <div className="repository-card__actions">
-                    <Button size="small" type="primary" onClick={() => navigate(`/repositories/${repo.id}`)}>Open workspace</Button>
+                    <Button size="small" type="primary" onClick={() => { openRepository(repo); navigate(`/repositories/${repo.id}`); }}>Open workspace</Button>
                     <Popconfirm title="Remove this repository?" onConfirm={() => void handleDelete(repo.id)}>
                       <Button size="small" danger icon={<DeleteOutlined />} aria-label={`Delete ${repo.name}`} />
                     </Popconfirm>
