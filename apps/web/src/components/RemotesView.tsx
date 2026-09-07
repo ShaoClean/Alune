@@ -22,14 +22,14 @@ export function RemotesView({ repoId }: Props) {
   return (
     <section className="workspace-panel">
       <PanelHeader
-        title="Remotes"
+        title="远程"
         count={remotes.length}
-        description="Remote endpoints configured for this repository"
+        description="此仓库配置的远程端点"
         icon={<LinkOutlined />}
-        extra={<Button type="text" icon={<ReloadOutlined />} aria-label="Refresh remotes" onClick={() => void fetchRemotes(repoId)} loading={loading}>Refresh</Button>}
+        extra={<Button type="text" icon={<ReloadOutlined />} aria-label="刷新远程" onClick={() => void fetchRemotes(repoId)} loading={loading}>刷新</Button>}
       />
       {remotes.length === 0 && !loading ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No remotes configured" />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无配置远程仓库" />
       ) : (
         <div className="remote-list">
           {remotes.map((remote: any) => (
@@ -39,20 +39,20 @@ export function RemotesView({ repoId }: Props) {
                 <strong>{remote.name}</strong>
               </div>
               <div className="remote-card__url">
-                <span className="remote-card__label">Fetch</span>
+                <span className="remote-card__label">获取</span>
                 <Typography.Text ellipsis={{ tooltip: remote.fetchUrl }}>{remote.fetchUrl || '—'}</Typography.Text>
-                <Button type="text" size="small" icon={<CopyOutlined />} aria-label={`Copy ${remote.name} fetch URL`} onClick={() => void copy(remote.fetchUrl)} />
+                <Button type="text" size="small" icon={<CopyOutlined />} aria-label={`复制 ${remote.name} 的获取地址`} onClick={() => void copy(remote.fetchUrl)} />
               </div>
               <div className="remote-card__url">
-                <span className="remote-card__label">Push</span>
+                <span className="remote-card__label">推送</span>
                 <Typography.Text ellipsis={{ tooltip: remote.pushUrl }}>{remote.pushUrl || '—'}</Typography.Text>
-                <Button type="text" size="small" icon={<CopyOutlined />} aria-label={`Copy ${remote.name} push URL`} onClick={() => void copy(remote.pushUrl)} />
+                <Button type="text" size="small" icon={<CopyOutlined />} aria-label={`复制 ${remote.name} 的推送地址`} onClick={() => void copy(remote.pushUrl)} />
               </div>
             </div>
           ))}
         </div>
       )}
-      {remotes.length > 0 && <Space className="panel-footnote"><Typography.Text type="secondary">Use the workspace actions to fetch, pull, or push.</Typography.Text></Space>}
+      {remotes.length > 0 && <Space className="panel-footnote"><Typography.Text type="secondary">使用工作区操作来获取、拉取或推送。</Typography.Text></Space>}
     </section>
   );
 }

@@ -49,11 +49,11 @@ export function ConnectionsPage() {
   const handleAdd = async (values: ConnectionFormValues) => {
     try {
       await addConnection(values);
-      message.success('Connection added');
+      message.success('连接已添加');
       setModalVisible(false);
       form.resetFields();
     } catch (err: any) {
-      message.error(err.message || 'Failed to add connection');
+      message.error(err.message || '添加连接失败');
     }
   };
 
@@ -62,10 +62,10 @@ export function ConnectionsPage() {
     try {
       const result = await testConnection(id);
       setTestResults((previous) => ({ ...previous, [id]: result }));
-      if (result.success) message.success('Connection successful');
-      else message.error(result.error || 'Connection failed');
+      if (result.success) message.success('连接成功');
+      else message.error(result.error || '连接失败');
     } catch (err: any) {
-      message.error(err.message || 'Connection failed');
+      message.error(err.message || '连接失败');
     } finally {
       setTestLoading(null);
     }
@@ -74,9 +74,9 @@ export function ConnectionsPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteConnection(id);
-      message.success('Connection removed');
+      message.success('连接已移除');
     } catch (err: any) {
-      message.error(err.message || 'Failed to remove connection');
+      message.error(err.message || '移除连接失败');
     }
   };
 
@@ -84,23 +84,23 @@ export function ConnectionsPage() {
     <div>
       <div className="page-heading">
         <div>
-          <h2>Connections</h2>
-          <p>Manage the SSH workspaces that power your remote repositories.</p>
+          <h2>SSH 连接</h2>
+          <p>管理用于访问远程仓库的 SSH 工作区。</p>
         </div>
         <div className="page-heading__actions">
-          <Button icon={<ReloadOutlined />} aria-label="Refresh connections" onClick={() => void fetchConnections()}>Refresh</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>Add connection</Button>
+          <Button icon={<ReloadOutlined />} aria-label="刷新连接" onClick={() => void fetchConnections()}>刷新</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>添加连接</Button>
         </div>
       </div>
 
       <div className="stat-strip">
-        <div className="stat-card"><div className="stat-card__label">Configured connections</div><div className="stat-card__value">{connections.length}</div><div className="stat-card__hint">SSH endpoints in this workspace</div></div>
-        <div className="stat-card"><div className="stat-card__label">Verified online</div><div className="stat-card__value">{Object.values(testResults).filter((result) => result.success).length}</div><div className="stat-card__hint">Based on the latest connection test</div></div>
-        <div className="stat-card"><div className="stat-card__label">Repositories</div><div className="stat-card__value">Open resource tree</div><div className="stat-card__hint">Browse repositories from the sidebar</div></div>
+        <div className="stat-card"><div className="stat-card__label">已配置连接</div><div className="stat-card__value">{connections.length}</div><div className="stat-card__hint">当前工作区中的 SSH 端点</div></div>
+        <div className="stat-card"><div className="stat-card__label">已验证在线</div><div className="stat-card__value">{Object.values(testResults).filter((result) => result.success).length}</div><div className="stat-card__hint">根据最近一次连接测试</div></div>
+        <div className="stat-card"><div className="stat-card__label">仓库</div><div className="stat-card__value">打开资源树</div><div className="stat-card__hint">从侧边栏浏览仓库</div></div>
       </div>
 
-      {loading && connections.length === 0 ? <LoadingState label="Loading SSH connections…" /> : connections.length === 0 ? (
-        <div className="content-card"><EmptyState title="Connect a remote workspace" description="Add an SSH connection to scan and work with repositories on another machine." action={<Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>Add your first connection</Button>} /></div>
+      {loading && connections.length === 0 ? <LoadingState label="正在加载 SSH 连接…" /> : connections.length === 0 ? (
+        <div className="content-card"><EmptyState title="连接远程工作区" description="添加 SSH 连接，以扫描并操作另一台机器上的仓库。" action={<Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>添加第一个连接</Button>} /></div>
       ) : (
         <div className="connection-grid">
           {connections.map((connection: any) => {
@@ -110,17 +110,17 @@ export function ConnectionsPage() {
               <article className="connection-card" key={connection.id}>
                 <div className="connection-card__top">
                   <div className="connection-card__title"><ApartmentOutlined /> <span>{connection.name}</span></div>
-                  <StatusBadge status={state} label={result?.success ? 'Online' : result?.success === false ? 'Auth failed' : 'Not tested'} />
+                  <StatusBadge status={state} label={result?.success ? '在线' : result?.success === false ? '认证失败' : '未测试'} />
                 </div>
                 <div className="connection-card__meta">
-                  <div><strong>Host</strong> {connection.username}@{connection.host}:{connection.port}</div>
-                  <div><strong>Auth</strong> {connection.authType === 'privateKey' ? 'Private key' : connection.authType === 'sshAgent' ? 'SSH agent' : 'Password'}</div>
+                  <div><strong>主机</strong> {connection.username}@{connection.host}:{connection.port}</div>
+                  <div><strong>认证</strong> {connection.authType === 'privateKey' ? '私钥' : connection.authType === 'sshAgent' ? 'SSH Agent' : '密码'}</div>
                 </div>
                 <div className="connection-card__actions">
-                  <Button size="small" icon={<LinkOutlined />} loading={testLoading === connection.id} onClick={() => void handleTest(connection.id)}>Test connection</Button>
-                  <Button size="small" type="primary" ghost icon={<FolderOpenOutlined />} onClick={() => navigate(`/repositories?connectionId=${connection.id}`)}>Repositories</Button>
-                  <Popconfirm title="Delete this connection?" description="Repositories stored for this connection will no longer be reachable." onConfirm={() => void handleDelete(connection.id)}>
-                    <Button size="small" danger icon={<DeleteOutlined />} aria-label={`Delete ${connection.name}`} />
+                  <Button size="small" icon={<LinkOutlined />} loading={testLoading === connection.id} onClick={() => void handleTest(connection.id)}>测试连接</Button>
+                  <Button size="small" type="primary" ghost icon={<FolderOpenOutlined />} onClick={() => navigate(`/repositories?connectionId=${connection.id}`)}>查看仓库</Button>
+                  <Popconfirm title="删除此连接？" description="与此连接关联的仓库将无法访问。" onConfirm={() => void handleDelete(connection.id)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} aria-label={`删除 ${connection.name}`} />
                   </Popconfirm>
                 </div>
                 {result?.error && <div className="connection-card__error"><WarningOutlined /> {result.error}</div>}
@@ -130,17 +130,17 @@ export function ConnectionsPage() {
         </div>
       )}
 
-      <Modal title="Add SSH connection" open={modalVisible} onCancel={() => setModalVisible(false)} onOk={() => void form.submit()} okText="Save connection">
+      <Modal title="添加 SSH 连接" open={modalVisible} onCancel={() => setModalVisible(false)} onOk={() => void form.submit()} okText="保存连接">
         <Form form={form} layout="vertical" onFinish={handleAdd} initialValues={{ port: 22, authType: 'password' }}>
-          <Form.Item name="name" label="Connection name" rules={[{ required: true, message: 'Enter a name' }]}><Input prefix={<SafetyCertificateOutlined />} placeholder="Build server" /></Form.Item>
+          <Form.Item name="name" label="连接名称" rules={[{ required: true, message: '请输入名称' }]}><Input prefix={<SafetyCertificateOutlined />} placeholder="构建服务器" /></Form.Item>
           <div className="form-grid-2">
-            <Form.Item name="host" label="Host" rules={[{ required: true, message: 'Enter a host' }]}><Input placeholder="192.168.1.100" /></Form.Item>
-            <Form.Item name="port" label="Port" rules={[{ required: true }]}><InputNumber min={1} max={65535} className="full-width" /></Form.Item>
+            <Form.Item name="host" label="主机" rules={[{ required: true, message: '请输入主机地址' }]}><Input placeholder="192.168.1.100" /></Form.Item>
+            <Form.Item name="port" label="端口" rules={[{ required: true, message: '请输入端口' }]}><InputNumber min={1} max={65535} className="full-width" /></Form.Item>
           </div>
-          <Form.Item name="username" label="Username" rules={[{ required: true, message: 'Enter a username' }]}><Input placeholder="developer" /></Form.Item>
-          <Form.Item name="authType" label="Authentication method"><Select options={[{ value: 'password', label: 'Password' }, { value: 'privateKey', label: 'Private key' }, { value: 'sshAgent', label: 'SSH agent' }]} /></Form.Item>
+          <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}><Input placeholder="developer" /></Form.Item>
+          <Form.Item name="authType" label="认证方式"><Select options={[{ value: 'password', label: '密码' }, { value: 'privateKey', label: '私钥' }, { value: 'sshAgent', label: 'SSH Agent' }]} /></Form.Item>
           <Form.Item noStyle shouldUpdate={(previous, current) => previous.authType !== current.authType}>
-            {({ getFieldValue }) => getFieldValue('authType') === 'password' ? <Form.Item name="password" label="Password"><Input.Password /></Form.Item> : getFieldValue('authType') === 'privateKey' ? <><Form.Item name="privateKeyPath" label="Private key path"><Input placeholder="~/.ssh/id_rsa" /></Form.Item><Form.Item name="passphrase" label="Passphrase"><Input.Password /></Form.Item></> : null}
+            {({ getFieldValue }) => getFieldValue('authType') === 'password' ? <Form.Item name="password" label="密码"><Input.Password /></Form.Item> : getFieldValue('authType') === 'privateKey' ? <><Form.Item name="privateKeyPath" label="私钥路径"><Input placeholder="~/.ssh/id_rsa" /></Form.Item><Form.Item name="passphrase" label="密钥口令"><Input.Password /></Form.Item></> : null}
           </Form.Item>
         </Form>
       </Modal>

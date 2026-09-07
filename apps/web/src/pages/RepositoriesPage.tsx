@@ -46,14 +46,14 @@ export function RepositoriesPage() {
 
   const handleScan = async () => {
     if (!connectionId) {
-      message.warning('Select a connection before scanning');
+      message.warning('扫描前请选择连接');
       return;
     }
     setScanLoading(true);
     try {
       setScanResults(await scanRepositories(connectionId, scanPath));
     } catch (err: any) {
-      message.error(err.message || 'Failed to scan path');
+      message.error(err.message || '扫描路径失败');
     } finally {
       setScanLoading(false);
     }
@@ -64,10 +64,10 @@ export function RepositoriesPage() {
     setAddingPath(path);
     try {
       await addRepository(connectionId, path);
-      message.success('Repository added');
+      message.success('仓库已添加');
       void fetchRepositories(connectionId);
     } catch (err: any) {
-      message.error(err.message || 'Failed to add repository');
+      message.error(err.message || '添加仓库失败');
     } finally {
       setAddingPath(null);
     }
@@ -76,9 +76,9 @@ export function RepositoriesPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteRepository(id);
-      message.success('Repository removed');
+      message.success('仓库已移除');
     } catch (err: any) {
-      message.error(err.message || 'Failed to remove repository');
+      message.error(err.message || '移除仓库失败');
     }
   };
 
@@ -86,12 +86,12 @@ export function RepositoriesPage() {
     <div>
       <div className="page-heading">
         <div>
-          <h2>Repositories</h2>
-          <p>{selectedConnection ? `Repositories available on ${selectedConnection.name}.` : 'Browse every registered repository across your remote workspaces.'}</p>
+          <h2>仓库</h2>
+          <p>{selectedConnection ? `${selectedConnection.name} 上可用的仓库。` : '浏览所有远程工作区中已登记的仓库。'}</p>
         </div>
         <div className="page-heading__actions">
-          <Button icon={<ReloadOutlined />} aria-label="Refresh repositories" onClick={() => void fetchRepositories(connectionId)}>Refresh</Button>
-          <Button type="primary" icon={<PlusOutlined />} disabled={!connectionId} onClick={() => setScanModalVisible(true)}>Scan &amp; add</Button>
+          <Button icon={<ReloadOutlined />} aria-label="刷新仓库" onClick={() => void fetchRepositories(connectionId)}>刷新</Button>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!connectionId} onClick={() => setScanModalVisible(true)}>扫描并添加</Button>
         </div>
       </div>
 
@@ -102,16 +102,16 @@ export function RepositoriesPage() {
               allowClear
               value={connectionId}
               onChange={chooseConnection}
-              placeholder="All connections"
+              placeholder="全部连接"
               className="connection-filter"
               options={connections.map((connection: any) => ({ value: connection.id, label: connection.name }))}
             />
-            <Input className="repo-search" allowClear prefix={<SearchOutlined />} placeholder="Search repositories" value={search} onChange={(event) => setSearch(event.target.value)} />
+            <Input className="repo-search" allowClear prefix={<SearchOutlined />} placeholder="搜索仓库" value={search} onChange={(event) => setSearch(event.target.value)} />
           </Space>
-          <span className="count-badge">{visibleRepositories.length} shown</span>
+          <span className="count-badge">{visibleRepositories.length} 个</span>
         </div>
-        {loading && repositories.length === 0 ? <LoadingState label="Loading repositories…" /> : visibleRepositories.length === 0 ? (
-          <EmptyState title={search ? 'No matching repositories' : 'No repositories registered'} description={search ? 'Try a different name, path, or branch.' : connectionId ? 'Scan a remote directory to discover Git repositories.' : 'Choose a connection to scan for repositories, or add one from Connections.'} action={!search && connectionId ? <Button type="primary" icon={<SearchOutlined />} onClick={() => setScanModalVisible(true)}>Scan remote path</Button> : undefined} />
+        {loading && repositories.length === 0 ? <LoadingState label="正在加载仓库…" /> : visibleRepositories.length === 0 ? (
+          <EmptyState title={search ? '没有匹配的仓库' : '暂无已登记的仓库'} description={search ? '请尝试其他名称、路径或分支。' : connectionId ? '扫描远程目录以发现 Git 仓库。' : '选择一个连接来扫描仓库，或前往“连接”页添加连接。'} action={!search && connectionId ? <Button type="primary" icon={<SearchOutlined />} onClick={() => setScanModalVisible(true)}>扫描远程路径</Button> : undefined} />
         ) : (
           <div className="repository-grid">
             {visibleRepositories.map((repo: any) => {
@@ -120,18 +120,18 @@ export function RepositoriesPage() {
                 <article className="repository-card" key={repo.id}>
                   <div className="repository-card__top">
                     <div className="repository-card__title"><FolderOpenOutlined /><span>{repo.name}</span></div>
-                    <StatusBadge status={dirty ? 'dirty' : repo.isDirty === false ? 'clean' : 'offline'} label={dirty ? 'Changes' : repo.isDirty === false ? 'Clean' : 'Unknown'} />
+                    <StatusBadge status={dirty ? 'dirty' : repo.isDirty === false ? 'clean' : 'offline'} label={dirty ? '有改动' : repo.isDirty === false ? '干净' : '未知'} />
                   </div>
                   <div className="repository-card__path" title={repo.path}>{repo.path}</div>
                   <div className="repository-card__metrics">
-                    <span className="repository-card__metric"><BranchesOutlined /> {repo.currentBranch ? formatBranchName(repo.currentBranch) : 'No branch'}</span>
+                    <span className="repository-card__metric"><BranchesOutlined /> {repo.currentBranch ? formatBranchName(repo.currentBranch) : '无分支'}</span>
                     {(repo.ahead || 0) > 0 && <span className="repository-card__metric repository-card__metric--ahead">↑{repo.ahead}</span>}
                     {(repo.behind || 0) > 0 && <span className="repository-card__metric repository-card__metric--behind">↓{repo.behind}</span>}
                   </div>
                   <div className="repository-card__actions">
-                    <Button size="small" type="primary" onClick={() => { openRepository(repo); navigate(`/repositories/${repo.id}`); }}>Open workspace</Button>
-                    <Popconfirm title="Remove this repository?" onConfirm={() => void handleDelete(repo.id)}>
-                      <Button size="small" danger icon={<DeleteOutlined />} aria-label={`Delete ${repo.name}`} />
+                    <Button size="small" type="primary" onClick={() => { openRepository(repo); navigate(`/repositories/${repo.id}`); }}>打开工作区</Button>
+                    <Popconfirm title="移除此仓库？" onConfirm={() => void handleDelete(repo.id)}>
+                      <Button size="small" danger icon={<DeleteOutlined />} aria-label={`删除 ${repo.name}`} />
                     </Popconfirm>
                   </div>
                 </article>
@@ -141,13 +141,13 @@ export function RepositoriesPage() {
         )}
       </div>
 
-      <Modal title="Scan remote directories" open={scanModalVisible} onCancel={() => setScanModalVisible(false)} footer={null} width={650}>
-        <p className="modal-description">Search up to four levels below a path for folders containing a <code>.git</code> directory.</p>
+      <Modal title="扫描远程目录" open={scanModalVisible} onCancel={() => setScanModalVisible(false)} footer={null} width={650}>
+        <p className="modal-description">在路径下最多向下搜索四层，查找包含 <code>.git</code> 目录的文件夹。</p>
         <Space.Compact block>
           <Input value={scanPath} onChange={(event) => setScanPath(event.target.value)} placeholder="/home/developer" />
-          <Button type="primary" icon={<SearchOutlined />} loading={scanLoading} onClick={() => void handleScan()}>Scan</Button>
+          <Button type="primary" icon={<SearchOutlined />} loading={scanLoading} onClick={() => void handleScan()}>扫描</Button>
         </Space.Compact>
-        {scanResults.length > 0 ? <div className="scan-results">{scanResults.map((path) => <div className="scan-result" key={path}><span>{path}</span><Button size="small" type="primary" icon={<PlusOutlined />} loading={addingPath === path} onClick={() => void handleAdd(path)}>Add</Button></div>)}</div> : <div className="modal-empty">Run a scan to see discovered repositories.</div>}
+        {scanResults.length > 0 ? <div className="scan-results">{scanResults.map((path) => <div className="scan-result" key={path}><span>{path}</span><Button size="small" type="primary" icon={<PlusOutlined />} loading={addingPath === path} onClick={() => void handleAdd(path)}>添加</Button></div>)}</div> : <div className="modal-empty">执行扫描后将显示发现的仓库。</div>}
       </Modal>
     </div>
   );

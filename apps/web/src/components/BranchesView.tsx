@@ -32,12 +32,12 @@ export function BranchesView({ repoId, onRefresh }: Props) {
     setLoading(true);
     try {
       await gitApi.createBranch(repoId, newBranchName.trim(), true);
-      message.success(`Branch “${newBranchName.trim()}” created and checked out`);
+      message.success(`分支“${newBranchName.trim()}”已创建并切换`);
       setCreateModalVisible(false);
       setNewBranchName('');
       await refresh();
     } catch (err: any) {
-      message.error(err.message || 'Unable to create branch');
+      message.error(err.message || '无法创建分支');
     } finally {
       setLoading(false);
     }
@@ -47,10 +47,10 @@ export function BranchesView({ repoId, onRefresh }: Props) {
     setLoading(true);
     try {
       await gitApi.switchBranch(repoId, name);
-      message.success(`Switched to “${name}”`);
+      message.success(`已切换到“${name}”`);
       await refresh();
     } catch (err: any) {
-      message.error(err.message || 'Unable to switch branch');
+      message.error(err.message || '无法切换分支');
     } finally {
       setLoading(false);
     }
@@ -60,10 +60,10 @@ export function BranchesView({ repoId, onRefresh }: Props) {
     setLoading(true);
     try {
       await gitApi.deleteBranch(repoId, name);
-      message.success(`Branch “${name}” deleted`);
+      message.success(`分支“${name}”已删除`);
       await refresh();
     } catch (err: any) {
-      message.error(err.message || 'Unable to delete branch');
+      message.error(err.message || '无法删除分支');
     } finally {
       setLoading(false);
     }
@@ -74,24 +74,24 @@ export function BranchesView({ repoId, onRefresh }: Props) {
       <div className="branch-row__main">
         <BranchesOutlined className={branch.isCurrent ? 'branch-icon--current' : undefined} />
         <span className="branch-row__name" title={branch.name}>{branch.name}</span>
-        {branch.isCurrent && <StatusBadge status="connected" label="Current" />}
+        {branch.isCurrent && <StatusBadge status="connected" label="当前" />}
         {branch.upstream && <span className="branch-row__meta">↔ {branch.upstream}</span>}
       </div>
       <div className="branch-row__actions">
-        {!branch.isCurrent && !branch.isRemote && <Button size="small" icon={<SwapOutlined />} loading={loading} onClick={() => void handleSwitchBranch(branch.name)}>Switch</Button>}
-        {!branch.isCurrent && !branch.isRemote && <Popconfirm title={`Delete “${branch.name}”?`} description="Unmerged changes may be lost." onConfirm={() => void handleDeleteBranch(branch.name)}><Button size="small" danger icon={<DeleteOutlined />} aria-label={`Delete ${branch.name}`} /></Popconfirm>}
+        {!branch.isCurrent && !branch.isRemote && <Button size="small" icon={<SwapOutlined />} loading={loading} onClick={() => void handleSwitchBranch(branch.name)}>切换</Button>}
+        {!branch.isCurrent && !branch.isRemote && <Popconfirm title={`删除“${branch.name}”？`} description="未合并的改动可能会丢失。" onConfirm={() => void handleDeleteBranch(branch.name)}><Button size="small" danger icon={<DeleteOutlined />} aria-label={`删除 ${branch.name}`} /></Popconfirm>}
       </div>
     </div>
   );
 
   return (
     <section className="workspace-panel">
-      <PanelHeader title="Branches" count={branches.length} description="Local and remote refs for this repository" icon={<BranchesOutlined />} extra={<><Button type="text" icon={<ReloadOutlined />} aria-label="Refresh branches" onClick={() => void refresh()} loading={loading}>Refresh</Button><Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>New branch</Button></>} />
-      {branches.length === 0 ? <EmptyState title="No branches found" description="Refresh after connecting to inspect the repository refs." /> : <div className="branch-list">
-        <div className="branch-section"><div className="branch-section__title">Local · {localBranches.length}</div>{localBranches.map(renderBranch)}</div>
-        {remoteBranches.length > 0 && <div className="branch-section"><div className="branch-section__title">Remote · {remoteBranches.length}</div>{remoteBranches.map(renderBranch)}</div>}
+      <PanelHeader title="分支" count={branches.length} description="此仓库的本地和远程引用" icon={<BranchesOutlined />} extra={<><Button type="text" icon={<ReloadOutlined />} aria-label="刷新分支" onClick={() => void refresh()} loading={loading}>刷新</Button><Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>新建分支</Button></>} />
+      {branches.length === 0 ? <EmptyState title="未找到分支" description="连接后刷新，以查看仓库引用。" /> : <div className="branch-list">
+        <div className="branch-section"><div className="branch-section__title">本地 · {localBranches.length}</div>{localBranches.map(renderBranch)}</div>
+        {remoteBranches.length > 0 && <div className="branch-section"><div className="branch-section__title">远程 · {remoteBranches.length}</div>{remoteBranches.map(renderBranch)}</div>}
       </div>}
-      <Modal title="Create branch" open={createModalVisible} onOk={() => void handleCreateBranch()} onCancel={() => setCreateModalVisible(false)} confirmLoading={loading} okText="Create and switch">
+      <Modal title="新建分支" open={createModalVisible} onOk={() => void handleCreateBranch()} onCancel={() => setCreateModalVisible(false)} confirmLoading={loading} okText="创建并切换">
         <Input autoFocus placeholder="feature/my-change" value={newBranchName} onChange={(event) => setNewBranchName(event.target.value)} onPressEnter={() => void handleCreateBranch()} />
       </Modal>
     </section>

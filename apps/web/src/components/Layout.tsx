@@ -22,9 +22,9 @@ import { StatusBadge } from './ui';
 import { RepositoryTabs } from './RepositoryTabs';
 
 const navItems = [
-  { key: '/', label: 'Connections', icon: <ApartmentOutlined /> },
-  { key: '/repositories', label: 'Repositories', icon: <FolderOpenOutlined /> },
-  { key: '/ai', label: 'AI Gateway', icon: <ApiOutlined /> },
+  { key: '/', label: '连接', icon: <ApartmentOutlined /> },
+  { key: '/repositories', label: '仓库', icon: <FolderOpenOutlined /> },
+  { key: '/ai', label: 'AI 网关', icon: <ApiOutlined /> },
 ];
 
 export function Layout() {
@@ -76,8 +76,8 @@ export function Layout() {
 
   return (
     <div className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}${mobileNavOpen ? ' app-shell--mobile-open' : ''}`}>
-      <aside className="activity-bar" aria-label="Primary navigation">
-        <button className="brand-mark" type="button" aria-label="RemoteGit home" onClick={() => navigate('/')}>
+      <aside className="activity-bar" aria-label="主导航">
+        <button className="brand-mark" type="button" aria-label="RemoteGit 首页" onClick={() => navigate('/')}>
           <CodeOutlined />
         </button>
         <nav className="activity-bar__nav">
@@ -96,34 +96,34 @@ export function Layout() {
           ))}
         </nav>
         <div className="activity-bar__bottom">
-          <Tooltip title={collapsed ? 'Settings' : undefined} placement="right">
-            <button type="button" className="activity-button" aria-label="Settings"><SettingOutlined /><span>Settings</span></button>
+          <Tooltip title={collapsed ? '设置' : undefined} placement="right">
+            <button type="button" className="activity-button" aria-label="设置"><SettingOutlined /><span>设置</span></button>
           </Tooltip>
-          <Tooltip title={collapsed ? 'Help' : undefined} placement="right">
-            <button type="button" className="activity-button" aria-label="Help"><QuestionCircleOutlined /><span>Help</span></button>
+          <Tooltip title={collapsed ? '帮助' : undefined} placement="right">
+            <button type="button" className="activity-button" aria-label="帮助"><QuestionCircleOutlined /><span>帮助</span></button>
           </Tooltip>
         </div>
       </aside>
 
-      <aside className="resource-sidebar" aria-label="Workspace resources">
+      <aside className="resource-sidebar" aria-label="工作区资源">
         <div className="resource-sidebar__header">
           <div>
             <div className="eyebrow">REMOTE GIT</div>
-            <h1>Workspace</h1>
+            <h1>工作区</h1>
           </div>
-          <Button type="text" className="sidebar-toggle" aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'} icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setCollapsed(!collapsed)} />
+          <Button type="text" className="sidebar-toggle" aria-label={collapsed ? '展开导航' : '收起导航'} icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setCollapsed(!collapsed)} />
         </div>
         <div className="resource-sidebar__content">
           <div className="sidebar-section__heading">
-            <span>Resources</span>
+            <span>资源</span>
             <span className="sidebar-section__count">{connections.length + repositories.length}</span>
           </div>
           <button type="button" className="tree-section-toggle" onClick={() => setTreeOpen(!treeOpen)}>
-            {treeOpen ? <DownOutlined /> : <UpOutlined />} <span>Remote workspaces</span>
+            {treeOpen ? <DownOutlined /> : <UpOutlined />} <span>远程工作区</span>
           </button>
           {treeOpen && (
             <div className="resource-tree">
-              {connectionGroups.length === 0 && <div className="tree-empty">No connections yet</div>}
+              {connectionGroups.length === 0 && <div className="tree-empty">暂无连接</div>}
               {connectionGroups.map((connection: any) => (
                 <div className="tree-group" key={connection.id}>
                   <div className="tree-node tree-node--connection">
@@ -148,17 +148,17 @@ export function Layout() {
             </div>
           )}
           <button type="button" className="sidebar-link" onClick={() => navigate('/repositories')}>
-            <FolderOpenOutlined /> Browse all repositories
+            <FolderOpenOutlined /> 浏览全部仓库
           </button>
         </div>
         <div className="resource-sidebar__footer">
-          <StatusBadge status="ready" label="Workspace ready" />
+          <StatusBadge status="ready" label="工作区就绪" />
           <span className="sidebar-footer__version">v0.1</span>
         </div>
       </aside>
 
       <div className="mobile-nav-trigger">
-        <Button type="text" icon={<MenuUnfoldOutlined />} aria-label="Open navigation" onClick={() => setMobileNavOpen(!mobileNavOpen)} />
+        <Button type="text" icon={<MenuUnfoldOutlined />} aria-label="打开导航" onClick={() => setMobileNavOpen(!mobileNavOpen)} />
       </div>
 
       <main className="app-main">
@@ -170,15 +170,15 @@ export function Layout() {
             {activeRepository && <><span className="breadcrumb-divider">/</span><strong>{activeRepository.name}</strong></>}
           </div>
           <div className="topbar-actions">
-            <StatusBadge status="connected" label="API online" subtle />
-            <button type="button" className="topbar-icon" aria-label="Team"><TeamOutlined /></button>
+            <StatusBadge status="connected" label="API 在线" subtle />
+            <button type="button" className="topbar-icon" aria-label="团队"><TeamOutlined /></button>
           </div>
         </header>
         {selectedKey === '/repositories' && <RepositoryTabs repositories={openRepositories} activeId={activeRepository?.id} onSelect={(id) => navigate(`/repositories/${id}`)} onClose={handleCloseRepository} onOpenRepository={() => navigate('/repositories')} />}
         <div className="app-content"><Outlet /></div>
         <footer className="status-bar">
-          <div className="status-bar__left"><CloudSyncOutlined /> <span>RemoteGit connected</span>{activeRepository && <><span className="status-bar__separator">•</span><span className="status-bar__path">{activeRepository.path || 'Repository workspace'}</span></>}</div>
-          <div className="status-bar__right"><span>Last refresh {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
+          <div className="status-bar__left"><CloudSyncOutlined /> <span>RemoteGit 已连接</span>{activeRepository && <><span className="status-bar__separator">•</span><span className="status-bar__path">{activeRepository.path || '仓库工作区'}</span></>}</div>
+          <div className="status-bar__right"><span>上次刷新 {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span></div>
         </footer>
       </main>
     </div>

@@ -110,7 +110,7 @@ export function EmptyState({
   );
 }
 
-export function LoadingState({ label = 'Loading workspace…' }: { label?: string }) {
+export function LoadingState({ label = '正在加载工作区…' }: { label?: string }) {
   return (
     <div className="loading-state">
       <Spin />
@@ -120,7 +120,7 @@ export function LoadingState({ label = 'Loading workspace…' }: { label?: strin
 }
 
 export function ErrorState({
-  title = 'Unable to load this view',
+  title = '无法加载当前页面',
   description,
   onRetry,
 }: {
@@ -134,8 +134,8 @@ export function ErrorState({
       type="error"
       showIcon
       message={title}
-      description={description || 'Check the connection and try again.'}
-      action={onRetry ? <button className="text-button" type="button" onClick={onRetry}>Retry</button> : undefined}
+      description={description || '请检查连接后重试。'}
+      action={onRetry ? <button className="text-button" type="button" onClick={onRetry}>重试</button> : undefined}
     />
   );
 }
@@ -145,11 +145,11 @@ export function formatRelativeDate(value?: string | Date) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   const seconds = Math.round((Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  if (seconds < 60) return '刚刚';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} 小时前`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)} 天前`;
+  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 export function formatBranchName(value?: string) {

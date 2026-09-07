@@ -33,13 +33,13 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusWords: Record<string, string> = {
-  added: 'Added',
-  modified: 'Modified',
-  deleted: 'Deleted',
-  renamed: 'Renamed',
-  copied: 'Copied',
-  untracked: 'Untracked',
-  ignored: 'Ignored',
+  added: '新增',
+  modified: '修改',
+  deleted: '删除',
+  renamed: '重命名',
+  copied: '复制',
+  untracked: '未跟踪',
+  ignored: '已忽略',
 };
 
 export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: Props) {
@@ -62,9 +62,9 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
     try {
       await gitApi[action](repoId, paths);
       await fetchStatus(repoId);
-      message.success(action === 'stage' ? `${paths.length} file${paths.length > 1 ? 's' : ''} staged` : `${paths.length} file${paths.length > 1 ? 's' : ''} unstaged`);
+      message.success(action === 'stage' ? `${paths.length} 个文件已暂存` : `${paths.length} 个文件已取消暂存`);
     } catch (err: any) {
-      message.error(err.message || 'Git operation failed');
+      message.error(err.message || 'Git 操作失败');
     } finally {
       setLoading(false);
     }
@@ -75,9 +75,9 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
     try {
       await gitApi.checkout(repoId, [path]);
       await fetchStatus(repoId);
-      message.success(`Discarded changes in ${path}`);
+      message.success(`已丢弃 ${path} 的改动`);
     } catch (err: any) {
-      message.error(err.message || 'Unable to discard this file');
+      message.error(err.message || '无法丢弃此文件的改动');
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
 
   const handleCommit = async () => {
     if (!commitMessage.trim()) {
-      message.warning('Add a commit message first');
+      message.warning('请先填写提交信息');
       return;
     }
     setLoading(true);
@@ -94,9 +94,9 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
       setCommitMessage('');
       setCommitDescription('');
       await fetchStatus(repoId);
-      message.success('Commit created');
+      message.success('提交已创建');
     } catch (err: any) {
-      message.error(err.message || 'Commit failed');
+      message.error(err.message || '提交失败');
     } finally {
       setLoading(false);
     }
@@ -115,10 +115,10 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
     setLoading(true);
     try {
       await gitApi[operation](repoId);
-      message.success(operation === 'push' ? 'Push completed' : 'Pull completed');
+      message.success(operation === 'push' ? '推送完成' : '拉取完成');
       await refreshStatus();
     } catch (err: any) {
-      message.error(err.message || `${operation} failed`);
+      message.error(err.message || `${operation === 'push' ? '推送' : '拉取'}失败`);
     } finally {
       setLoading(false);
     }
@@ -131,8 +131,8 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
       <span className="file-row__path" title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}>{file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}</span>
       <span className="file-row__stats">{file.additions ? <span className="additions">+{file.additions}</span> : null}{file.deletions ? <span className="deletions">−{file.deletions}</span> : null}</span>
       <div className="file-row__actions" onClick={(event) => event.stopPropagation()}>
-        {file.staged ? <Button type="text" size="small" icon={<MinusOutlined />} aria-label={`Unstage ${file.path}`} loading={loading} onClick={() => void runFileAction('unstage', [file.path])} /> : <Button type="text" size="small" icon={<PlusOutlined />} aria-label={`Stage ${file.path}`} loading={loading} onClick={() => void runFileAction('stage', [file.path])} />}
-        {!file.staged && file.status !== 'untracked' && <Popconfirm title="Discard this file's changes?" description="This cannot be undone." onConfirm={() => void discardFile(file.path)}><Button type="text" danger size="small" icon={<DeleteOutlined />} aria-label={`Discard ${file.path}`} loading={loading} /></Popconfirm>}
+        {file.staged ? <Button type="text" size="small" icon={<MinusOutlined />} aria-label={`取消暂存 ${file.path}`} loading={loading} onClick={() => void runFileAction('unstage', [file.path])} /> : <Button type="text" size="small" icon={<PlusOutlined />} aria-label={`暂存 ${file.path}`} loading={loading} onClick={() => void runFileAction('stage', [file.path])} />}
+        {!file.staged && file.status !== 'untracked' && <Popconfirm title="丢弃此文件的改动？" description="此操作不可撤销。" onConfirm={() => void discardFile(file.path)}><Button type="text" danger size="small" icon={<DeleteOutlined />} aria-label={`丢弃 ${file.path}`} loading={loading} /></Popconfirm>}
       </div>
     </div>
   );
@@ -142,7 +142,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
       <div className="change-group__header">
         <div className="change-group__title">{staged ? <CheckOutlined /> : <FolderOpenOutlined />} {title} <span className="count-badge">{groupFiles.length}</span></div>
         <div className="change-group__actions">
-          <Button type="text" size="small" disabled={loading} onClick={() => void runFileAction(staged ? 'unstage' : 'stage', groupFiles.map((file) => file.path))}>{staged ? 'Unstage all' : 'Stage all'}</Button>
+          <Button type="text" size="small" disabled={loading} onClick={() => void runFileAction(staged ? 'unstage' : 'stage', groupFiles.map((file) => file.path))}>{staged ? '全部取消暂存' : '全部暂存'}</Button>
         </div>
       </div>
       {groupFiles.map(renderFileRow)}
@@ -151,18 +151,18 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
 
   return (
     <section className="workspace-panel">
-      <PanelHeader title="Changes" count={files.length} description="Review, stage, and commit your working tree" icon={<FileAddOutlined />} extra={<><Button type="text" icon={<ReloadOutlined />} aria-label="Refresh changes" onClick={() => void refreshStatus()}>Refresh</Button><Button type="primary" icon={<SendOutlined />} loading={loading} onClick={() => void handleSync('push')}>Push</Button><Button icon={<UndoOutlined />} loading={loading} onClick={() => void handleSync('pull')}>Pull</Button></>} />
-      {files.length === 0 ? <EmptyState title="Working tree clean" description="There are no staged or unstaged changes in this repository." action={<Button icon={<ReloadOutlined />} onClick={() => void refreshStatus()}>Refresh status</Button>} /> : <div className="changes-content">
-        {renderGroup('Staged changes', stagedFiles, true)}
-        {renderGroup('Changes', unstagedFiles, false)}
+      <PanelHeader title="改动" count={files.length} description="查看、暂存并提交工作区改动" icon={<FileAddOutlined />} extra={<><Button type="text" icon={<ReloadOutlined />} aria-label="刷新改动" onClick={() => void refreshStatus()}>刷新</Button><Button type="primary" icon={<SendOutlined />} loading={loading} onClick={() => void handleSync('push')}>推送</Button><Button icon={<UndoOutlined />} loading={loading} onClick={() => void handleSync('pull')}>拉取</Button></>} />
+      {files.length === 0 ? <EmptyState title="工作区干净" description="此仓库没有已暂存或未暂存的改动。" action={<Button icon={<ReloadOutlined />} onClick={() => void refreshStatus()}>刷新状态</Button>} /> : <div className="changes-content">
+        {renderGroup('已暂存的改动', stagedFiles, true)}
+        {renderGroup('改动', unstagedFiles, false)}
         {stagedFiles.length > 0 && <div className="commit-box">
-          <div className="commit-box__heading"><span>Commit staged changes</span><span>{stagedFiles.length} file{stagedFiles.length > 1 ? 's' : ''} ready</span></div>
-          <Input placeholder="Summary · describe the change" value={commitMessage} onChange={(event) => setCommitMessage(event.target.value)} onPressEnter={() => void handleCommit()} />
-          <Input.TextArea placeholder="Description (optional)" value={commitDescription} onChange={(event) => setCommitDescription(event.target.value)} rows={3} />
-          <div className="commit-box__footer"><span className="commit-box__hint">Commit only includes files in Staged changes.</span><Button type="primary" icon={<CheckOutlined />} loading={loading} onClick={() => void handleCommit()}>Commit staged</Button></div>
+          <div className="commit-box__heading"><span>提交已暂存的改动</span><span>{stagedFiles.length} 个文件已就绪</span></div>
+          <Input placeholder="摘要 · 描述这次改动" value={commitMessage} onChange={(event) => setCommitMessage(event.target.value)} onPressEnter={() => void handleCommit()} />
+          <Input.TextArea placeholder="描述（可选）" value={commitDescription} onChange={(event) => setCommitDescription(event.target.value)} rows={3} />
+          <div className="commit-box__footer"><span className="commit-box__hint">提交只会包含“已暂存的改动”中的文件。</span><Button type="primary" icon={<CheckOutlined />} loading={loading} onClick={() => void handleCommit()}>提交已暂存内容</Button></div>
         </div>}
       </div>}
-      {diff && <div className="changes-diff-hint"><StatusBadge status="ready" label="Diff loaded in the detail panel" /></div>}
+      {diff && <div className="changes-diff-hint"><StatusBadge status="ready" label="差异已加载到详情面板" /></div>}
     </section>
   );
 }

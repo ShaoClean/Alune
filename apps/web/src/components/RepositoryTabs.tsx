@@ -12,8 +12,8 @@ export function RepositoryTabs({ repositories, activeId, onSelect, onClose, onOp
   if (repositories.length === 0) return null;
 
   return (
-    <div className="repository-tabs" aria-label="Open repositories">
-      <div className="repository-tabs__scroll" role="tablist" aria-label="Open repository tabs">
+    <div className="repository-tabs" aria-label="已打开的仓库">
+      <div className="repository-tabs__scroll" role="tablist" aria-label="已打开的仓库标签页">
         {repositories.map((repo) => {
           const active = repo.id === activeId;
           return (
@@ -28,12 +28,12 @@ export function RepositoryTabs({ repositories, activeId, onSelect, onClose, onOp
               >
                 <FolderOpenOutlined />
                 <span className="repository-tab__name">{repo.name}</span>
-                {repo.isDirty && <span className="repository-tab__dirty" aria-label="Has changes" />}
+                {repo.isDirty && <span className="repository-tab__dirty" aria-label="有改动" />}
               </button>
               <button
                 type="button"
                 className="repository-tab__close"
-                aria-label={`Close ${repo.name}`}
+                aria-label={`关闭 ${repo.name}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   onClose(repo.id);
@@ -47,7 +47,7 @@ export function RepositoryTabs({ repositories, activeId, onSelect, onClose, onOp
       </div>
       <button type="button" className="repository-tabs__open" onClick={onOpenRepository}>
         <PlusOutlined />
-        <span>Open repository</span>
+        <span>打开仓库</span>
       </button>
     </div>
   );
