@@ -12,9 +12,9 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   QuestionCircleOutlined,
+  RightOutlined,
   SettingOutlined,
   TeamOutlined,
-  UpOutlined,
 } from '@ant-design/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -76,87 +76,98 @@ export function Layout() {
 
   return (
     <div className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}${mobileNavOpen ? ' app-shell--mobile-open' : ''}`}>
-      <aside className="activity-bar" aria-label="主导航">
-        <button className="brand-mark" type="button" aria-label="RemoteGit 首页" onClick={() => navigate('/')}>
-          <CodeOutlined />
-        </button>
-        <nav className="activity-bar__nav">
-          {navItems.map((item) => (
-            <Tooltip key={item.key} title={collapsed ? item.label : undefined} placement="right">
-              <button
-                type="button"
-                className={`activity-button${selectedKey === item.key ? ' activity-button--active' : ''}`}
-                aria-label={item.label}
-                onClick={() => navigate(item.key)}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            </Tooltip>
-          ))}
-        </nav>
-        <div className="activity-bar__bottom">
-          <Tooltip title={collapsed ? '设置' : undefined} placement="right">
-            <button type="button" className="activity-button" aria-label="设置"><SettingOutlined /><span>设置</span></button>
-          </Tooltip>
-          <Tooltip title={collapsed ? '帮助' : undefined} placement="right">
-            <button type="button" className="activity-button" aria-label="帮助"><QuestionCircleOutlined /><span>帮助</span></button>
-          </Tooltip>
-        </div>
-      </aside>
-
-      <aside className="resource-sidebar" aria-label="工作区资源">
-        <div className="resource-sidebar__header">
-          <div>
-            <div className="eyebrow">REMOTE GIT</div>
-            <h1>工作区</h1>
-          </div>
+      <aside className="app-sidebar" aria-label="主导航">
+        <div className="app-sidebar__header">
+          <button className="app-brand" type="button" aria-label="RemoteGit 首页" onClick={() => navigate('/')}>
+            <span className="app-brand__mark"><CodeOutlined /></span>
+            <span className="app-brand__text">RemoteGit</span>
+          </button>
           <Button type="text" className="sidebar-toggle" aria-label={collapsed ? '展开导航' : '收起导航'} icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setCollapsed(!collapsed)} />
         </div>
-        <div className="resource-sidebar__content">
-          <div className="sidebar-section__heading">
-            <span>资源</span>
-            <span className="sidebar-section__count">{connections.length + repositories.length}</span>
-          </div>
-          <button type="button" className="tree-section-toggle" onClick={() => setTreeOpen(!treeOpen)}>
-            {treeOpen ? <DownOutlined /> : <UpOutlined />} <span>远程工作区</span>
-          </button>
-          {treeOpen && (
-            <div className="resource-tree">
-              {connectionGroups.length === 0 && <div className="tree-empty">暂无连接</div>}
-              {connectionGroups.map((connection: any) => (
-                <div className="tree-group" key={connection.id}>
-                  <div className="tree-node tree-node--connection">
-                    <span className={`connection-dot connection-dot--${connection.status || (testResults[connection.id]?.success ? 'connected' : testResults[connection.id] ? 'error' : 'disconnected')}`} />
-                    <span className="tree-node__label">{connection.name}</span>
-                    <span className="tree-node__meta">{connection.repositories.length}</span>
-                  </div>
-                  {connection.repositories.map((repo: any) => (
-                    <button
-                      type="button"
-                      className={`tree-node tree-node--repo${activeRepository?.id === repo.id ? ' tree-node--selected' : ''}`}
-                      key={repo.id}
-                      onClick={() => handleOpenRepository(repo)}
-                    >
-                      <BranchesOutlined className="tree-node__icon" />
-                      <span className="tree-node__label">{repo.name}</span>
-                      {repo.isDirty && <span className="tree-node__dirty" />}
-                    </button>
-                  ))}
-                </div>
-              ))}
+
+        <div className="app-sidebar__content">
+          <nav className="sidebar-primary-nav" aria-label="主菜单">
+            {navItems.map((item) => (
+              <Tooltip key={item.key} title={collapsed ? item.label : undefined} placement="right">
+                <button
+                  type="button"
+                  className={`sidebar-nav-item${selectedKey === item.key ? ' sidebar-nav-item--active' : ''}`}
+                  aria-label={item.label}
+                  aria-current={selectedKey === item.key ? 'page' : undefined}
+                  onClick={() => navigate(item.key)}
+                >
+                  <span className="sidebar-nav-item__icon">{item.icon}</span>
+                  <span className="sidebar-nav-item__label">{item.label}</span>
+                </button>
+              </Tooltip>
+            ))}
+          </nav>
+
+          <div className="sidebar-divider" />
+
+          <section className="sidebar-workspace" aria-label="工作区资源">
+            <div className="sidebar-section__heading">
+              <span>工作区</span>
+              <span className="sidebar-section__count">{connections.length + repositories.length}</span>
             </div>
-          )}
-          <button type="button" className="sidebar-link" onClick={() => navigate('/repositories')}>
-            <FolderOpenOutlined /> 浏览全部仓库
-          </button>
+            <button type="button" className="sidebar-workspace__toggle" onClick={() => setTreeOpen(!treeOpen)}>
+              <FolderOpenOutlined className="sidebar-workspace__icon" />
+              <span>远程工作区</span>
+              <span className="sidebar-workspace__chevron">{treeOpen ? <DownOutlined /> : <RightOutlined />}</span>
+            </button>
+            {treeOpen && (
+              <div className="resource-tree">
+                {connectionGroups.length === 0 && <div className="tree-empty">暂无连接</div>}
+                {connectionGroups.map((connection: any) => (
+                  <div className="tree-group" key={connection.id}>
+                    <div className="tree-node tree-node--connection">
+                      <span className={`connection-dot connection-dot--${connection.status || (testResults[connection.id]?.success ? 'connected' : testResults[connection.id] ? 'error' : 'disconnected')}`} />
+                      <span className="tree-node__label">{connection.name}</span>
+                      <span className="tree-node__meta">{connection.repositories.length}</span>
+                    </div>
+                    {connection.repositories.map((repo: any) => (
+                      <button
+                        type="button"
+                        className={`tree-node tree-node--repo${activeRepository?.id === repo.id ? ' tree-node--selected' : ''}`}
+                        key={repo.id}
+                        onClick={() => handleOpenRepository(repo)}
+                      >
+                        <BranchesOutlined className="tree-node__icon" />
+                        <span className="tree-node__label">{repo.name}</span>
+                        {repo.isDirty && <span className="tree-node__dirty" />}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+            <button type="button" className="sidebar-link" onClick={() => navigate('/repositories')}>
+              <FolderOpenOutlined /> <span>浏览全部仓库</span>
+            </button>
+          </section>
         </div>
-        <div className="resource-sidebar__footer">
-          <StatusBadge status="ready" label="工作区就绪" />
-          <span className="sidebar-footer__version">v0.1</span>
+
+        <div className="app-sidebar__footer">
+          <div className="sidebar-footer__actions">
+            <Tooltip title={collapsed ? '设置' : undefined} placement="right">
+              <button type="button" className="sidebar-footer__item" aria-label="设置"><SettingOutlined /><span>设置</span></button>
+            </Tooltip>
+            <Tooltip title={collapsed ? '帮助' : undefined} placement="right">
+              <button type="button" className="sidebar-footer__item" aria-label="帮助"><QuestionCircleOutlined /><span>帮助</span></button>
+            </Tooltip>
+          </div>
+          <div className="sidebar-footer__account">
+            <span className="sidebar-footer__avatar"><CodeOutlined /></span>
+            <div className="sidebar-footer__account-copy">
+              <strong>RemoteGit</strong>
+              <span>工作区就绪</span>
+            </div>
+            <span className="sidebar-footer__version">v0.1</span>
+          </div>
         </div>
       </aside>
 
+      {mobileNavOpen && <button type="button" className="sidebar-backdrop" aria-label="关闭导航" onClick={() => setMobileNavOpen(false)} />}
       <div className="mobile-nav-trigger">
         <Button type="text" icon={<MenuUnfoldOutlined />} aria-label="打开导航" onClick={() => setMobileNavOpen(!mobileNavOpen)} />
       </div>
