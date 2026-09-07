@@ -71,11 +71,11 @@ export class GitCommands {
   }
 
   async log(repoPath: string, options?: LogOptions): Promise<CommitInfo[]> {
-    const count = options?.count || 50;
-    const skip = options?.skip || 0;
+    const count = Number(options?.count) || 50;
+    const skip = Number(options?.skip) || 0;
     const format = '--format="%H%x00%h%x00%s%x00%an%x00%ae%x00%aI%x00%D"';
 
-    let cmd = this._git(repoPath, `log ${format} --count=${count} --skip=${skip}`);
+    let cmd = this._git(repoPath, `log ${format} --max-count=${count} --skip=${skip}`);
     if (options?.branch) cmd += ` ${options.branch}`;
     if (options?.file) cmd += ` -- "${options.file}"`;
     if (options?.author) cmd += ` --author="${options.author}"`;
