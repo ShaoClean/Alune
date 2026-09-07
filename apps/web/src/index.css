@@ -252,6 +252,8 @@ button { cursor: pointer; }
 .diff-line--remove { display: block; margin-inline: -15px; padding-inline: 15px; background: var(--diff-remove); }
 .diff-line--meta { display: block; margin-inline: -15px; padding-inline: 15px; color: #5374af; background: #f2f6ff; }
 .diff-empty { display: flex; align-items: center; justify-content: center; min-height: 180px; padding: 20px; color: var(--text-muted); font-size: 12px; text-align: center; }
+.diff-error { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; min-height: 180px; padding: 20px; color: var(--red); font-size: 12px; text-align: center; }
+.diff-error span { max-width: 260px; color: var(--text-muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 .diff-toolbar { display: flex; align-items: center; gap: 4px; }
 .diff-mode { color: var(--text-muted); font-size: 10px; }
 

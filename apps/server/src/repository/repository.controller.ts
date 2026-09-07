@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Delete, Param, ParseUUIDPipe, Query, Body } from '@nestjs/common';
 import { RepositoryService } from './repository.service';
+import type { DiffOptions } from '@remote-git/shared';
 
 @Controller('repositories')
 export class RepositoryController {
@@ -47,7 +48,13 @@ export class RepositoryController {
 
   @Get(':id/diff')
   async getDiff(@Param('id', ParseUUIDPipe) id: string, @Query() query: any) {
-    return this.repoService.getDiff(id, query);
+    const options: DiffOptions = {
+      file: typeof query.file === 'string' ? query.file : undefined,
+      staged: query.staged === true || query.staged === 'true' || query.staged === '1',
+      commit: typeof query.commit === 'string' ? query.commit : undefined,
+      parentCommit: typeof query.parentCommit === 'string' ? query.parentCommit : undefined,
+    };
+    return this.repoService.getDiff(id, options);
   }
 
   @Get(':id/branches')

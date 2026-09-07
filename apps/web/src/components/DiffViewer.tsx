@@ -10,9 +10,11 @@ interface Props {
   title?: string;
   splitView?: boolean;
   onClose?: () => void;
+  loading?: boolean;
+  error?: string | null;
 }
 
-export function DiffViewer({ oldCode = '', newCode = '', diff, title, splitView = false, onClose }: Props) {
+export function DiffViewer({ oldCode = '', newCode = '', diff, title, splitView = false, onClose, loading = false, error }: Props) {
   const [mode, setMode] = useState<'unified' | 'split'>(splitView ? 'split' : 'unified');
   const hasDiff = Boolean(diff || oldCode || newCode);
 
@@ -37,7 +39,7 @@ export function DiffViewer({ oldCode = '', newCode = '', diff, title, splitView 
         </div>
       </div>
       <div className="diff-shell__body">
-        {!hasDiff ? <div className="diff-empty">Select a changed file or commit to inspect its diff.</div> : diff ? renderRawDiff() : <ReactDiffViewer oldValue={oldCode} newValue={newCode} splitView={mode === 'split'} compareMethod={DiffMethod.WORDS} leftTitle="Original" rightTitle="Modified" />}
+        {loading ? <div className="diff-empty">Loading diff…</div> : error ? <div className="diff-error"><strong>Unable to load diff</strong><span>{error}</span></div> : !hasDiff ? <div className="diff-empty">Select a changed file or commit to inspect its diff.</div> : diff ? renderRawDiff() : <ReactDiffViewer oldValue={oldCode} newValue={newCode} splitView={mode === 'split'} compareMethod={DiffMethod.WORDS} leftTitle="Original" rightTitle="Modified" />}
       </div>
     </div>
   );

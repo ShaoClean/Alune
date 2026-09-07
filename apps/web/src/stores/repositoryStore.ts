@@ -10,6 +10,8 @@ interface RepositoryState {
   stashes: any[];
   remotes: any[];
   diff: string;
+  diffLoading: boolean;
+  diffError: string | null;
   loading: boolean;
   error: string | null;
   fetchRepositories: (connectionId?: string) => Promise<void>;
@@ -42,6 +44,8 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
     stashes: [],
     remotes: [],
     diff: '',
+    diffLoading: false,
+    diffError: null,
     loading: false,
     error: null,
 
@@ -94,11 +98,12 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
 
     fetchDiff: async (id, params) => {
       const request = ++diffRequest;
+      set({ diff: '', diffLoading: true, diffError: null });
       try {
         const diff = await repositoryApi.diff(id, params);
-        if (request === diffRequest) set({ diff, error: null });
+        if (request === diffRequest) set({ diff, diffLoading: false, diffError: null, error: null });
       } catch (err: any) {
-        if (request === diffRequest) set({ error: err.message });
+        if (request === diffRequest) set({ diff: '', diffLoading: false, diffError: err.message, error: err.message });
       }
     },
 

@@ -38,7 +38,7 @@ const navItems: { key: Panel; label: string; icon: React.ReactNode }[] = [
 export function RepositoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentRepo, status, branches, stashes, diff, setCurrentRepo, fetchStatus, fetchLog, fetchBranches, fetchStashes, fetchRemotes, fetchDiff, error } = useRepositoryStore();
+  const { currentRepo, status, branches, stashes, diff, diffLoading, diffError, setCurrentRepo, fetchStatus, fetchLog, fetchBranches, fetchStashes, fetchRemotes, fetchDiff, error } = useRepositoryStore();
   const [activePanel, setActivePanel] = useState<Panel>('changes');
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -164,8 +164,8 @@ export function RepositoryDetailPage() {
               <div className="detail-meta"><div className="detail-meta__item"><span className="detail-meta__label">Message</span><span className="detail-meta__value">{selectedCommit.message}</span></div><div className="detail-meta__item"><span className="detail-meta__label">Author</span><span className="detail-meta__value">{selectedCommit.author} · {selectedCommit.email}</span></div><div className="detail-meta__item"><span className="detail-meta__label">Committed</span><span className="detail-meta__value">{selectedCommit.date ? new Date(selectedCommit.date).toLocaleString() : '—'}</span></div><div className="detail-meta__item"><span className="detail-meta__label">Commit</span><span className="detail-meta__value detail-meta__value--mono">{selectedCommit.hash}</span></div></div>
               <div className="commit-file-list"><div className="branch-section__title">Refs</div>{(selectedCommit.refs || []).length > 0 ? selectedCommit.refs.map((ref: string) => <RefBadge key={ref} value={ref} />) : <span className="detail-meta__value">No refs</span>}</div>
             </div>
-            <div className="detail-diff"><DiffViewer diff={diff} title={`Commit ${selectedCommit.shortHash}`} /></div>
-          </div> : selectedFile ? <DiffViewer diff={diff} title={detailTitle} onClose={() => setSelectedFile(null)} /> : <div className="workspace-detail workspace-detail--empty"><div className="detail-empty-icon"><FileIcon path="preview.ts" /></div><h3>Inspector</h3><p>Select a file in Changes or a commit in History to inspect its diff and metadata.</p></div>}
+            <div className="detail-diff"><DiffViewer diff={diff} loading={diffLoading} error={diffError} title={`Commit ${selectedCommit.shortHash}`} /></div>
+          </div> : selectedFile ? <DiffViewer diff={diff} loading={diffLoading} error={diffError} title={detailTitle} onClose={() => setSelectedFile(null)} /> : <div className="workspace-detail workspace-detail--empty"><div className="detail-empty-icon"><FileIcon path="preview.ts" /></div><h3>Inspector</h3><p>Select a file in Changes or a commit in History to inspect its diff and metadata.</p></div>}
         </aside>
       </div>
     </div>
