@@ -20,6 +20,14 @@ export interface CommitInfo {
   refs?: string[];
 }
 
+export interface CommitFile {
+  path: string;
+  oldPath?: string;
+  status: 'added' | 'modified' | 'deleted' | 'renamed' | 'copied';
+  additions?: number;
+  deletions?: number;
+}
+
 export interface FileStatus {
   path: string;
   oldPath?: string;

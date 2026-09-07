@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, message } from 'antd';
+import type { CommitFile } from '@remote-git/shared';
 import {
   ArrowLeftOutlined,
   BranchesOutlined,
@@ -27,6 +28,22 @@ import { ErrorState, LoadingState, StatusBadge, formatBranchName, formatRelative
 type Panel = 'changes' | 'history' | 'branches' | 'stashes' | 'remotes';
 type SelectedFile = { path: string; status: string; staged: boolean };
 
+const commitStatusLabels: Record<CommitFile['status'], string> = {
+  added: 'A',
+  modified: 'M',
+  deleted: 'D',
+  renamed: 'R',
+  copied: 'C',
+};
+
+const commitStatusWords: Record<CommitFile['status'], string> = {
+  added: '新增',
+  modified: '修改',
+  deleted: '删除',
+  renamed: '重命名',
+  copied: '复制',
+};
+
 const navItems: { key: Panel; label: string; icon: React.ReactNode }[] = [
   { key: 'changes', label: '改动', icon: <FileSearchOutlined /> },
   { key: 'history', label: '提交历史', icon: <HistoryOutlined /> },
@@ -38,11 +55,12 @@ const navItems: { key: Panel; label: string; icon: React.ReactNode }[] = [
 export function RepositoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentRepo, openRepositories, status, branches, stashes, diff, diffLoading, diffError, setCurrentRepo, resetWorkspace, fetchStatus, fetchLog, fetchBranches, fetchStashes, fetchRemotes, fetchDiff, error } = useRepositoryStore();
+  const { currentRepo, openRepositories, status, branches, stashes, commitFiles, commitFilesLoading, commitFilesError, diff, diffLoading, diffError, setCurrentRepo, resetWorkspace, fetchStatus, fetchLog, fetchBranches, fetchStashes, fetchRemotes, fetchCommitFiles, fetchDiff, error } = useRepositoryStore();
   const [activePanel, setActivePanel] = useState<Panel>('changes');
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
+  const [selectedCommitFile, setSelectedCommitFile] = useState<CommitFile | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<any | null>(null);
   const [syncing, setSyncing] = useState<'fetch' | 'pull' | 'push' | null>(null);
 
@@ -52,6 +70,7 @@ export function RepositoryDetailPage() {
     setLoading(true);
     setPageError(null);
     setSelectedFile(null);
+    setSelectedCommitFile(null);
     setSelectedCommit(null);
     resetWorkspace();
     void Promise.all([repositoryApi.get(id), fetchStatus(id), fetchLog(id), fetchBranches(id), fetchRemotes(id)])
@@ -97,13 +116,44 @@ export function RepositoryDetailPage() {
 
   const handleSelectFile = (file: any) => {
     setSelectedFile({ path: file.path, status: file.status, staged: file.staged });
+    setSelectedCommitFile(null);
     setSelectedCommit(null);
   };
 
   const handleSelectCommit = (commit: any) => {
     setSelectedCommit(commit);
     setSelectedFile(null);
+    setSelectedCommitFile(null);
+    if (id) void fetchCommitFiles(id, commit.hash);
     if (id) void fetchDiff(id, { commit: commit.hash });
+  };
+
+  const handleSelectCommitFile = (file: CommitFile) => {
+    setSelectedCommitFile(file);
+    if (id && selectedCommit) void fetchDiff(id, { commit: selectedCommit.hash, file: file.path });
+  };
+
+  const handleSelectAllCommitFiles = () => {
+    setSelectedCommitFile(null);
+    if (id && selectedCommit) void fetchDiff(id, { commit: selectedCommit.hash });
+  };
+
+  const renderCommitFileRow = (file: CommitFile) => {
+    const displayPath = file.oldPath ? `${file.oldPath} → ${file.path}` : file.path;
+    return (
+      <button
+        type="button"
+        className={`commit-file-row${selectedCommitFile?.path === file.path ? ' commit-file-row--selected' : ''}`}
+        key={`${file.status}-${file.oldPath || ''}-${file.path}`}
+        onClick={() => handleSelectCommitFile(file)}
+        title={`查看 ${displayPath} 的差异`}
+      >
+        <span className={`commit-file-row__status commit-file-row__status--${file.status}`} title={commitStatusWords[file.status]}>{commitStatusLabels[file.status]}</span>
+        <FileIcon path={file.path} status={file.status} />
+        <span className="commit-file-row__path">{displayPath}</span>
+        <span className="commit-file-row__stats">{file.additions ? <span className="additions">+{file.additions}</span> : null}{file.deletions ? <span className="deletions">−{file.deletions}</span> : null}</span>
+      </button>
+    );
   };
 
   const detailTitle = useMemo(() => selectedFile?.path || selectedCommit?.shortHash || '检查器', [selectedCommit, selectedFile]);
@@ -152,7 +202,7 @@ export function RepositoryDetailPage() {
         <nav className="workspace-nav" aria-label="仓库面板">
           <div className="workspace-nav__label">仓库</div>
           <button type="button" className="workspace-nav__item" onClick={() => navigate('/repositories')}><ArrowLeftOutlined /> 返回仓库列表</button>
-          {navItems.map((item) => <button key={item.key} type="button" className={`workspace-nav__item${activePanel === item.key ? ' workspace-nav__item--active' : ''}`} onClick={() => { setActivePanel(item.key); setSelectedFile(null); setSelectedCommit(null); }} aria-current={activePanel === item.key ? 'page' : undefined}>{item.icon}<span>{item.label}</span>{item.key === 'changes' && changeCount > 0 && <span className="count-badge">{changeCount}</span>}{item.key === 'branches' && branches.length > 0 && <span className="count-badge">{branches.length}</span>}{item.key === 'stashes' && stashes.length > 0 && <span className="count-badge">{stashes.length}</span>}</button>)}
+          {navItems.map((item) => <button key={item.key} type="button" className={`workspace-nav__item${activePanel === item.key ? ' workspace-nav__item--active' : ''}`} onClick={() => { setActivePanel(item.key); setSelectedFile(null); setSelectedCommitFile(null); setSelectedCommit(null); }} aria-current={activePanel === item.key ? 'page' : undefined}>{item.icon}<span>{item.label}</span>{item.key === 'changes' && changeCount > 0 && <span className="count-badge">{changeCount}</span>}{item.key === 'branches' && branches.length > 0 && <span className="count-badge">{branches.length}</span>}{item.key === 'stashes' && stashes.length > 0 && <span className="count-badge">{stashes.length}</span>}</button>)}
         </nav>
         <div className="workspace-main-panel">
           <div className="workspace-panel-label">{activeLabel}</div>
@@ -160,13 +210,17 @@ export function RepositoryDetailPage() {
         </div>
         <aside className="workspace-panel workspace-panel--detail" aria-label="仓库详情">
           {selectedCommit ? <div className="workspace-detail">
-            <div className="workspace-detail__header"><div><h3>提交详情</h3><p>{selectedCommit.shortHash}</p></div><Button type="text" icon={<FileSearchOutlined />} aria-label="关闭提交详情" onClick={() => setSelectedCommit(null)} /></div>
+            <div className="workspace-detail__header"><div><h3>提交详情</h3><p>{selectedCommit.shortHash}</p></div><Button type="text" icon={<FileSearchOutlined />} aria-label="关闭提交详情" onClick={() => { setSelectedCommit(null); setSelectedCommitFile(null); }} /></div>
             <div className="workspace-detail__body">
               <div className="detail-avatar">{selectedCommit.author?.split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2).toUpperCase()}</div>
               <div className="detail-meta"><div className="detail-meta__item"><span className="detail-meta__label">提交信息</span><span className="detail-meta__value">{selectedCommit.message}</span></div><div className="detail-meta__item"><span className="detail-meta__label">作者</span><span className="detail-meta__value">{selectedCommit.author} · {selectedCommit.email}</span></div><div className="detail-meta__item"><span className="detail-meta__label">提交时间</span><span className="detail-meta__value">{selectedCommit.date ? new Date(selectedCommit.date).toLocaleString('zh-CN') : '—'}</span></div><div className="detail-meta__item"><span className="detail-meta__label">提交</span><span className="detail-meta__value detail-meta__value--mono">{selectedCommit.hash}</span></div></div>
-              <div className="commit-file-list"><div className="branch-section__title">引用</div>{(selectedCommit.refs || []).length > 0 ? selectedCommit.refs.map((ref: string) => <RefBadge key={ref} value={ref} />) : <span className="detail-meta__value">暂无引用</span>}</div>
+              <div className="commit-file-list">
+                <div className="commit-file-list__header"><span>文件变更</span><span className="commit-file-list__header-actions">{selectedCommitFile && <Button type="text" size="small" onClick={handleSelectAllCommitFiles}>查看全部</Button>}{commitFilesLoading ? <span className="commit-file-list__loading">加载中…</span> : <span className="count-badge">{commitFiles.length}</span>}</span></div>
+                {commitFilesError ? <div className="commit-file-list__message commit-file-list__message--error">无法加载文件列表：{commitFilesError}</div> : commitFilesLoading ? <div className="commit-file-list__message">正在读取此次提交涉及的文件…</div> : commitFiles.length > 0 ? commitFiles.map(renderCommitFileRow) : <div className="commit-file-list__message">此次提交没有可显示的文件变更。</div>}
+              </div>
+              <div className="commit-ref-list"><div className="branch-section__title">引用</div>{(selectedCommit.refs || []).length > 0 ? selectedCommit.refs.map((ref: string) => <RefBadge key={ref} value={ref} />) : <span className="detail-meta__value">暂无引用</span>}</div>
             </div>
-            <div className="detail-diff"><DiffViewer diff={diff} loading={diffLoading} error={diffError} title={`提交 ${selectedCommit.shortHash}`} /></div>
+            <div className="detail-diff"><DiffViewer diff={diff} loading={diffLoading} error={diffError} title={selectedCommitFile?.path || `提交 ${selectedCommit.shortHash}`} /></div>
           </div> : selectedFile ? <DiffViewer diff={diff} loading={diffLoading} error={diffError} title={detailTitle} onClose={() => setSelectedFile(null)} /> : <div className="workspace-detail workspace-detail--empty"><div className="detail-empty-icon"><FileIcon path="preview.ts" /></div><h3>检查器</h3><p>选择“改动”中的文件或“提交历史”中的提交，以查看差异和元数据。</p></div>}
         </aside>
       </div>

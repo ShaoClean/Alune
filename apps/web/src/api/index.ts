@@ -38,6 +38,8 @@ export const repositoryApi = {
   status: (id: string) => api.get(`/repositories/${id}/status`).then((r) => r.data),
   log: (id: string, params?: any) =>
     api.get(`/repositories/${id}/log`, { params }).then((r) => r.data),
+  commitFiles: (id: string, commit: string, parentCommit?: string) =>
+    api.get(`/repositories/${id}/commit-files`, { params: { commit, parentCommit } }).then((r) => r.data),
   diff: (id: string, params?: any) =>
     api.get(`/repositories/${id}/diff`, { params }).then((r) => r.data),
   branches: (id: string) => api.get(`/repositories/${id}/branches`).then((r) => r.data),

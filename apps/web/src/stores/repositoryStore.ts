@@ -10,6 +10,9 @@ interface RepositoryState {
   branches: any[];
   stashes: any[];
   remotes: any[];
+  commitFiles: any[];
+  commitFilesLoading: boolean;
+  commitFilesError: string | null;
   diff: string;
   diffLoading: boolean;
   diffError: string | null;
@@ -25,6 +28,7 @@ interface RepositoryState {
   resetWorkspace: () => void;
   fetchStatus: (id: string) => Promise<void>;
   fetchLog: (id: string, params?: any) => Promise<void>;
+  fetchCommitFiles: (id: string, commit: string, parentCommit?: string) => Promise<void>;
   fetchDiff: (id: string, params?: any) => Promise<void>;
   fetchBranches: (id: string) => Promise<void>;
   fetchStashes: (id: string) => Promise<void>;
@@ -35,6 +39,7 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
   let statusRequest = 0;
   let logRequest = 0;
   let diffRequest = 0;
+  let commitFilesRequest = 0;
   let branchRequest = 0;
   let stashRequest = 0;
   let remoteRequest = 0;
@@ -48,6 +53,9 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
     branches: [],
     stashes: [],
     remotes: [],
+    commitFiles: [],
+    commitFilesLoading: false,
+    commitFilesError: null,
     diff: '',
     diffLoading: false,
     diffError: null,
@@ -108,6 +116,7 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
     statusRequest += 1;
     logRequest += 1;
     diffRequest += 1;
+    commitFilesRequest += 1;
     branchRequest += 1;
     stashRequest += 1;
     remoteRequest += 1;
@@ -117,6 +126,9 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
       branches: [],
       stashes: [],
       remotes: [],
+      commitFiles: [],
+      commitFilesLoading: false,
+      commitFilesError: null,
       diff: '',
       diffLoading: false,
       diffError: null,
@@ -154,6 +166,17 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
         if (request === logRequest) set({ log, error: null });
       } catch (err: any) {
         if (request === logRequest) set({ error: err.message });
+      }
+    },
+
+    fetchCommitFiles: async (id, commit, parentCommit) => {
+      const request = ++commitFilesRequest;
+      set({ commitFiles: [], commitFilesLoading: true, commitFilesError: null });
+      try {
+        const commitFiles = await repositoryApi.commitFiles(id, commit, parentCommit);
+        if (request === commitFilesRequest) set({ commitFiles, commitFilesLoading: false, commitFilesError: null, error: null });
+      } catch (err: any) {
+        if (request === commitFilesRequest) set({ commitFiles: [], commitFilesLoading: false, commitFilesError: err.message, error: err.message });
       }
     },
 

@@ -167,6 +167,13 @@ export class RepositoryService {
     return git.diff(repo.path, options);
   }
 
+  async getCommitFiles(id: string, commit: string, parentCommit?: string) {
+    const repo = await this.get(id);
+    const conn = await this.connectionService.ensureConnected(repo.connectionId);
+    const git = new GitCommands(conn);
+    return git.commitFiles(repo.path, commit, parentCommit);
+  }
+
   async getBranches(id: string) {
     const repo = await this.get(id);
     const conn = await this.connectionService.ensureConnected(repo.connectionId);

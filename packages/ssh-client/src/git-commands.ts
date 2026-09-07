@@ -5,6 +5,7 @@ import type {
   BranchInfo,
   StashEntry,
   RemoteInfo,
+  CommitFile,
   DiffOptions,
   LogOptions,
 } from '@remote-git/shared';
@@ -96,21 +97,47 @@ export class GitCommands {
   async diff(repoPath: string, options?: DiffOptions): Promise<string> {
     let args = 'diff';
     if (options?.staged) args += ' --staged';
-    if (options?.file) args += ` -- "${options.file}"`;
     if (options?.commit) {
       if (options.parentCommit) {
-        args = `diff ${options.parentCommit} ${options.commit}`;
+        args = `diff ${this._quoteArg(options.parentCommit)} ${this._quoteArg(options.commit)}`;
       } else {
-        args = `diff ${options.commit}^..${options.commit}`;
+        // `show` also handles the first commit in a repository, which has no
+        // `<commit>^` parent to use in a `git diff` range.
+        args = `show --first-parent --format= --patch ${this._quoteArg(options.commit)}`;
       }
-      if (options?.file) args += ` -- "${options.file}"`;
     }
+    if (options?.file) args += ` -- ${this._quoteArg(options.file)}`;
 
     const result = await this.connection.execCommand(this._git(repoPath, args));
     if (result.exitCode !== 0) {
       throw new Error(`git diff failed: ${result.stderr}`);
     }
     return result.stdout;
+  }
+
+  async commitFiles(repoPath: string, commit: string, parentCommit?: string): Promise<CommitFile[]> {
+    const commitArg = this._quoteArg(commit);
+    const nameStatusArgs = parentCommit
+      ? `diff --no-color --name-status -z -M ${this._quoteArg(parentCommit)} ${commitArg}`
+      : `show --first-parent --format= --name-status -z --find-renames ${commitArg}`;
+    const nameStatusResult = await this.connection.execCommand(this._git(repoPath, nameStatusArgs));
+    if (nameStatusResult.exitCode !== 0) {
+      throw new Error(`git commit files failed: ${nameStatusResult.stderr}`);
+    }
+
+    const files = this._parseCommitNameStatus(nameStatusResult.stdout);
+    if (files.length === 0) return files;
+
+    const numstatArgs = parentCommit
+      ? `diff --no-color --numstat -z -M ${this._quoteArg(parentCommit)} ${commitArg}`
+      : `show --first-parent --format= --no-patch --numstat -z --find-renames ${commitArg}`;
+    const numstatResult = await this.connection.execCommand(this._git(repoPath, numstatArgs));
+    if (numstatResult.exitCode !== 0) {
+      throw new Error(`git commit file stats failed: ${numstatResult.stderr}`);
+    }
+
+    const stats = this._parseCommitNumstat(numstatResult.stdout);
+    return files.map((file, index) => ({ ...file, ...(stats[index] || {}) }));
   }
 
   async branchList(repoPath: string): Promise<BranchInfo[]> {
@@ -210,6 +237,66 @@ export class GitCommands {
     }
 
     return null;
+  }
+
+  private _parseCommitNameStatus(output: string): CommitFile[] {
+    const tokens = output.split('\0');
+    const files: CommitFile[] = [];
+    const statusMap: Record<string, CommitFile['status']> = {
+      A: 'added',
+      M: 'modified',
+      D: 'deleted',
+      R: 'renamed',
+      C: 'copied',
+    };
+
+    for (let index = 0; index < tokens.length;) {
+      const statusToken = tokens[index++];
+      if (!statusToken) continue;
+
+      const code = statusToken[0];
+      const status = statusMap[code] || 'modified';
+      if (code === 'R' || code === 'C') {
+        const oldPath = tokens[index++] || '';
+        const path = tokens[index++] || '';
+        if (path) files.push({ path, oldPath, status });
+      } else {
+        const path = tokens[index++] || '';
+        if (path) files.push({ path, status });
+      }
+    }
+
+    return files;
+  }
+
+  private _parseCommitNumstat(output: string): Array<Pick<CommitFile, 'additions' | 'deletions'>> {
+    const tokens = output.split('\0');
+    const stats: Array<Pick<CommitFile, 'additions' | 'deletions'>> = [];
+
+    const parseCount = (value: string): number | undefined => {
+      if (!/^\d+$/.test(value)) return undefined;
+      return Number(value);
+    };
+
+    for (let index = 0; index < tokens.length;) {
+      const statToken = tokens[index++];
+      if (!statToken) continue;
+
+      const firstTab = statToken.indexOf('\t');
+      const secondTab = statToken.indexOf('\t', firstTab + 1);
+      if (firstTab < 0 || secondTab < 0) continue;
+
+      const additions = parseCount(statToken.slice(0, firstTab));
+      const deletions = parseCount(statToken.slice(firstTab + 1, secondTab));
+      const path = statToken.slice(secondTab + 1);
+
+      // With -z, rename/copy entries put the old and new paths in the two
+      // tokens following an empty path field.
+      if (!path) index += 2;
+      stats.push({ additions, deletions });
+    }
+
+    return stats;
   }
 
   private _parseLogLine(line: string): CommitInfo | null {

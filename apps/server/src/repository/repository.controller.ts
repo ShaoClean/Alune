@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, ParseUUIDPipe, Query, Body } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Delete, Param, ParseUUIDPipe, Query, Body } from '@nestjs/common';
 import { RepositoryService } from './repository.service';
 import type { DiffOptions } from '@remote-git/shared';
 
@@ -44,6 +44,16 @@ export class RepositoryController {
   @Get(':id/log')
   async getLog(@Param('id', ParseUUIDPipe) id: string, @Query() query: any) {
     return this.repoService.getLog(id, query);
+  }
+
+  @Get(':id/commit-files')
+  async getCommitFiles(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('commit') commit?: string,
+    @Query('parentCommit') parentCommit?: string,
+  ) {
+    if (!commit) throw new BadRequestException('commit is required');
+    return this.repoService.getCommitFiles(id, commit, parentCommit);
   }
 
   @Get(':id/diff')
