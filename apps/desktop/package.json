@@ -1,0 +1,16 @@
+{
+  "name": "desktop",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/stage.mjs",
+    "start": "electron dist/app",
+    "pack": "electron-builder --projectDir dist/app --config ../../electron-builder.cjs --dir",
+    "dist": "electron-builder --projectDir dist/app --config ../../electron-builder.cjs",
+    "test": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "server": "*",
+    "web": "*"
+  }
+}

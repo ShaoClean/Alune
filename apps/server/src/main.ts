@@ -1,13 +1,8 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { startServer } from './bootstrap';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
-    credentials: true,
-  });
-  await app.listen(3000);
-  console.log('Server running on http://localhost:3000');
+  const app = await startServer();
+  app.enableShutdownHooks();
+  console.log(`Server running on ${await app.getUrl()}`);
 }
-bootstrap();
+void bootstrap();

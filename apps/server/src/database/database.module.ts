@@ -4,17 +4,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-const DB_DIR = path.join(os.homedir(), '.remote-git');
-const DB_PATH = path.join(DB_DIR, 'remote-git.db');
-
 @Global()
 @Module({
   providers: [
     {
       provide: 'DATABASE',
       useFactory: () => {
-        fs.mkdirSync(DB_DIR, { recursive: true });
-        const db = new Database(DB_PATH);
+        const dbDir = process.env.REMOTE_GIT_DATA_DIR || path.join(os.homedir(), '.remote-git');
+        fs.mkdirSync(dbDir, { recursive: true, mode: 0o700 });
+        const db = new Database(path.join(dbDir, 'remote-git.db'));
         db.pragma('journal_mode = WAL');
         db.pragma('foreign_keys = ON');
         return db;

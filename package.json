@@ -5,9 +5,16 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "desktop:build": "turbo build --filter=desktop",
+    "desktop:dev": "npm run desktop:build && npm run start -w desktop",
+    "desktop:pack": "npm run desktop:build && npm run pack -w desktop",
+    "desktop:dist": "npm run desktop:build && npm run dist -w desktop",
+    "desktop:test": "npm run test -w desktop",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {
+    "electron": "44.2.0",
+    "electron-builder": "^26.15.3",
     "prettier": "^3.8.3",
     "turbo": "^2.9.12",
     "typescript": "^6.0.3"

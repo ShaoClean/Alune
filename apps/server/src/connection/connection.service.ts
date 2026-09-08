@@ -1,15 +1,19 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, OnModuleDestroy } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { SSHConnectionPool, SSHConnection } from '@remote-git/ssh-client';
 import type { SSHConnectionConfig } from '@remote-git/shared';
 
 @Injectable()
-export class ConnectionService {
+export class ConnectionService implements OnModuleDestroy {
   private pool = new SSHConnectionPool();
 
   constructor(@Inject('DATABASE') private db: Database.Database) {
     this._initTable();
+  }
+
+  onModuleDestroy() {
+    this.pool.disconnectAll();
   }
 
   private _initTable() {
