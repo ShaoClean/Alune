@@ -3,7 +3,6 @@ import { Layout } from '../components/Layout';
 import { ConnectionsPage } from '../pages/ConnectionsPage';
 import { RepositoriesPage } from '../pages/RepositoriesPage';
 import { RepositoryDetailPage } from '../pages/RepositoryDetailPage';
-import { AiGatewayPage } from '../pages/AiGatewayPage';
 
 export const router = createBrowserRouter([
   {
@@ -21,10 +20,6 @@ export const router = createBrowserRouter([
       {
         path: 'repositories/:id',
         element: <RepositoryDetailPage />,
-      },
-      {
-        path: 'ai',
-        element: <AiGatewayPage />,
       },
     ],
   },

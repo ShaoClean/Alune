@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Tooltip } from 'antd';
 import {
-  ApiOutlined,
   ApartmentOutlined,
   BranchesOutlined,
   CloudSyncOutlined,
@@ -14,17 +13,14 @@ import {
   QuestionCircleOutlined,
   RightOutlined,
   SettingOutlined,
-  TeamOutlined,
 } from '@ant-design/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { StatusBadge } from './ui';
 import { RepositoryTabs } from './RepositoryTabs';
 
 const navItems = [
   { key: '/', label: '连接', icon: <ApartmentOutlined /> },
   { key: '/repositories', label: '仓库', icon: <FolderOpenOutlined /> },
-  { key: '/ai', label: 'AI 网关', icon: <ApiOutlined /> },
 ];
 
 export function Layout() {
@@ -47,7 +43,6 @@ export function Layout() {
 
   const selectedKey = useMemo(() => {
     if (location.pathname.startsWith('/repositories')) return '/repositories';
-    if (location.pathname.startsWith('/ai')) return '/ai';
     return '/';
   }, [location.pathname]);
 
@@ -168,27 +163,12 @@ export function Layout() {
       </aside>
 
       {mobileNavOpen && <button type="button" className="sidebar-backdrop" aria-label="关闭导航" onClick={() => setMobileNavOpen(false)} />}
-      <div className="mobile-nav-trigger">
-        <Button type="text" icon={<MenuUnfoldOutlined />} aria-label="打开导航" onClick={() => setMobileNavOpen(!mobileNavOpen)} />
-      </div>
 
       <main className="app-main">
-        <header className="app-topbar">
-          <div className="breadcrumb-wrap">
-            <span className="breadcrumb-root">RemoteGit</span>
-            <span className="breadcrumb-divider">/</span>
-            <span>{navItems.find((item) => item.key === selectedKey)?.label}</span>
-            {activeRepository && <><span className="breadcrumb-divider">/</span><strong>{activeRepository.name}</strong></>}
-          </div>
-          <div className="topbar-actions">
-            <StatusBadge status="connected" label="API 在线" subtle />
-            <button type="button" className="topbar-icon" aria-label="团队"><TeamOutlined /></button>
-          </div>
-        </header>
         {selectedKey === '/repositories' && <RepositoryTabs repositories={openRepositories} activeId={activeRepository?.id} onSelect={(id) => navigate(`/repositories/${id}`)} onClose={handleCloseRepository} onOpenRepository={() => navigate('/repositories')} />}
         <div className="app-content"><Outlet /></div>
         <footer className="status-bar">
-          <div className="status-bar__left"><CloudSyncOutlined /> <span>RemoteGit 已连接</span>{activeRepository && <><span className="status-bar__separator">•</span><span className="status-bar__path">{activeRepository.path || '仓库工作区'}</span></>}</div>
+          <div className="status-bar__left"><Button type="text" className="mobile-nav-trigger" icon={<MenuUnfoldOutlined />} aria-label="打开导航" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen(!mobileNavOpen)} /><CloudSyncOutlined /> <span>RemoteGit 已连接</span>{activeRepository && <><span className="status-bar__separator">•</span><span className="status-bar__path">{activeRepository.path || '仓库工作区'}</span></>}</div>
           <div className="status-bar__right"><span>上次刷新 {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span></div>
         </footer>
       </main>

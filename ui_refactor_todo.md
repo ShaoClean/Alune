@@ -2,25 +2,24 @@
 
 > 目标：参考 GitLens 在 VS Code 中的「侧栏导航 + 仓库工作区 + Git 信息密度」设计思路，重构 RemoteGit Web 前端。
 >
-> 当前基线：`11931b4 feat: add AI gateway integration`
+> 原始重构基线：`11931b4`
 >
-> 原则：保留现有 Git / SSH / AI Gateway 能力，优先重做前端信息架构、视觉层级和交互反馈；本文件完成前不开始大规模 UI 改动。
+> 原则：保留现有 Git / SSH 能力，优先重做前端信息架构、视觉层级和交互反馈；本文件完成前不开始大规模 UI 改动。
 
 ## 0. 基线盘点与约束
 
 - [ ] 盘点现有路由、页面、组件和 Zustand 数据流
-- [ ] 盘点现有 API 能力：连接、仓库、status、diff、log、branch、stash、remote、AI Gateway
+- [ ] 盘点现有 API 能力：连接、仓库、status、diff、log、branch、stash、remote
 - [ ] 确认 Git 状态数据结构，统一 staged / unstaged / untracked / renamed 等状态映射
 - [ ] 确认当前项目的启动、构建和测试命令
 - [ ] 保留现有后端接口和业务行为，UI 重构不改变 API 契约
-- [ ] 保留当前 AI Gateway 页面能力，后续仅统一其视觉语言
 
 ## 1. 信息架构与页面骨架
 
 ### 1.1 全局应用壳层
 
 - [ ] 将当前 Ant Design 默认 Layout 调整为 GitLens 风格的深色应用壳层
-- [ ] 设计左侧窄图标栏：连接、仓库、AI Gateway、设置/帮助入口
+- [ ] 设计左侧窄图标栏：连接、仓库、设置/帮助入口
 - [ ] 设计可展开的二级导航区：连接列表、仓库列表和仓库分组
 - [ ] 增加顶部工作区栏：当前仓库、当前分支、同步状态、刷新和更多操作
 - [ ] 增加底部状态栏：连接状态、当前路径、最后刷新时间
@@ -28,7 +27,7 @@
 
 ### 1.2 路由与上下文
 
-- [ ] 保持现有路由可用：Connections、Repositories、Repository Detail、AI Gateway
+- [ ] 保持现有路由可用：Connections、Repositories、Repository Detail
 - [ ] 让仓库详情页成为主要工作区，不再依赖单一的 Tabs 平铺所有功能
 - [ ] 建立当前连接 / 当前仓库 / 当前分支的上下文展示
 - [ ] 增加空状态、加载状态、错误状态和连接失效状态的页面级承载
@@ -143,15 +142,7 @@
 - [ ] 展示 remote 名称、fetch URL 和 push URL
 - [ ] 为复制 URL、刷新和远程同步预留操作入口
 
-## 9. AI Gateway 视觉统一
-
-- [ ] 保留现有协议、模型、Prompt 和测试请求能力
-- [ ] 将 AI Gateway 调整为与应用壳层一致的面板布局
-- [ ] 将网关地址、API Key 配置状态、协议和模型选择分组展示
-- [ ] 优化请求执行中的 loading、成功、失败和原始响应折叠区
-- [ ] 增加响应耗时、HTTP 状态和模型信息的紧凑摘要
-
-## 10. 交互细节与可用性
+## 9. 交互细节与可用性
 
 - [ ] 所有图标按钮补充 Tooltip 和可访问名称
 - [ ] 统一键盘焦点、hover、active、disabled 和 selected 状态
@@ -161,7 +152,7 @@
 - [ ] 为树、列表、diff 和详情面板增加合理的滚动容器
 - [ ] 检查中英文文案长度对布局的影响
 
-## 11. 响应式与视觉验收
+## 10. 响应式与视觉验收
 
 - [ ] 桌面宽屏：三栏工作区布局稳定，文件名和提交信息不异常截断
 - [ ] 中等宽度：辅助栏可收起，主内容保持可操作
@@ -170,15 +161,15 @@
 - [ ] 检查 hover / focus / selected / disabled 等状态的视觉一致性
 - [ ] 检查空仓库、无改动、无分支、无 stash、无远程等边界状态
 
-## 12. 验证与交付
+## 11. 验证与交付
 
 - [ ] 执行前端 TypeScript 检查和生产构建
 - [ ] 执行现有后端测试，确认 UI 调整未影响 API
-- [ ] 启动本地前后端，验证 Connections、Repositories、Repository Detail、AI Gateway
+- [ ] 启动本地前后端，验证 Connections、Repositories、Repository Detail
 - [ ] 验证 stage、unstage、commit、push、pull、切换分支和查看 diff 主流程
 - [ ] 检查浏览器控制台无新增错误和明显警告
 - [ ] 汇总本轮完成项、已知限制和后续可选优化
-- [ ] 将 UI 重构作为独立 commit 提交，避免与之前的 AI Gateway commit 混在一起
+- [ ] 将 UI 重构作为独立 commit 提交
 
 ## 建议实施顺序
 
@@ -189,8 +180,7 @@
 5. History + Commit Detail
 6. Branches / Stashes / Remotes
 7. Connections / Repositories
-8. AI Gateway 视觉统一
-9. 响应式、可访问性和全流程验证
+8. 响应式、可访问性和全流程验证
 
 ## 本轮暂不处理
 
