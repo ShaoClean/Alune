@@ -39,11 +39,13 @@ npm run desktop:test  # 构建后执行桌面集成测试
 
 ```sh
 npm version patch --no-git-tag-version --workspaces=false
+RELEASE_TAG="v$(node -p 'require("./package.json").version')"
+node apps/desktop/scripts/release.mjs tag "$RELEASE_TAG"
 git add package.json package-lock.json
 git commit -m "chore: bump desktop version"
-git tag v1.0.1  # 使用本次实际版本
+git tag "$RELEASE_TAG"
 git push origin HEAD
-git push origin v1.0.1
+git push origin "$RELEASE_TAG"
 ```
 
 Actions 使用 macOS arm64/x64、Windows x64、Linux x64 原生 runner，重建 Electron 的 SQLite 模块、执行测试并生成安装包。构建步骤禁用发布；最终发布任务核对所有平台附件、更新元数据的大小与 SHA-512，再生成 `SHA256SUMS`。附件全部上传到草稿后才公开 Release。上传失败保留草稿，允许重跑；已公开的 Release 不允许覆盖。构建失败则不创建 Release。
