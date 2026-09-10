@@ -1,0 +1,86 @@
+name: 'Bug 报告 / Bug report'
+description: '报告功能异常、崩溃或与预期不一致的行为。'
+title: '[Bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先搜索已有 Issues，并提供可复现的信息。无法确定原因也可以提交，不需要先找出根因。
+        请勿上传真实数据库、SSH 密码、私钥、访问令牌；日志和截图中的服务器地址、用户名与仓库路径请先脱敏。
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景与问题
+      description: '用简短文字说明出现了什么异常，以及对使用造成的影响。'
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本
+      description: '填写“设置 → 版本更新”中的版本；源码运行请附分支或提交。'
+      placeholder: '例如 0.1.2；development @ <commit>'
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 运行环境
+      description: '填写与问题有关的环境，无关或不清楚的项目可标注。'
+      value: |
+        - 本机系统与版本：
+        - 本机架构（arm64 / x64）：
+        - 使用方式（安装包 / 源码桌面端 / 网页）：
+        - 安装或升级方式（如相关）：
+        - 远端系统 / Shell / Git 版本（如相关，不含连接凭证）：
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: '从初始状态开始列出操作；偶发问题请说明发生频率和已尝试的操作。'
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 观察到……
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: '描述实际结果及可见错误提示。'
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+      description: '说明按照你的理解应该发生什么。'
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 日志与截图
+      description: '可选。粘贴脱敏后的错误日志，或上传能够说明问题的截图。'
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: '可选。写出修复后应满足的行为，维护者可在排查后补充。'
+      placeholder: |
+        - [ ] 按复现步骤操作时……。
+        - [ ] 异常情况下……。
+  - type: textarea
+    id: verification
+    attributes:
+      label: 验证方案
+      description: '可选。补充受影响平台、回归场景或可用于验证的最小示例。'
+  - type: textarea
+    id: context
+    attributes:
+      label: 补充资料
+      description: '可选。说明首次出现的版本、临时绕过方法和相关 Issue；根因推测请注明。'

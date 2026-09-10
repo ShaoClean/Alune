@@ -2,6 +2,12 @@
 
 通过 SSH 管理远程服务器上的 Git 仓库。桌面端采用 Electron，内置 React 界面、NestJS 服务和 SQLite，无需用户安装 Node.js 或单独启动后端。
 
+## 待办与贡献
+
+在[公开 TODO 看板](https://github.com/users/ShaoClean/projects/1)查看任务进度：`Todo → In Progress → Done`。具体需求、讨论与验收标准维护在关联的 Issues 中。
+
+欢迎通过[Issue 模板](https://github.com/ShaoClean/remote-git/issues/new/choose)提交功能建议、Bug 报告和优化建议。提交 PR 时请填写自动加载的模板，关联对应 Issue 并记录验证结果，详见[贡献指南](.github/CONTRIBUTING.md)。
+
 ## 开发与打包
 
 开发环境使用 Node.js 22.12+ 和 npm。首次构建需要下载 Electron 和原生依赖；原生模块没有预编译包时，需要系统 C++ 编译工具（macOS：Xcode Command Line Tools；Windows：Visual Studio C++ Build Tools 和 Python；Linux：编译工具链和 Python）。

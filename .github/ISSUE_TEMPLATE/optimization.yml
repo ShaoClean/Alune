@@ -1,0 +1,67 @@
+name: '优化建议 / Improvement'
+description: '改善现有功能的性能、布局、易用性或可靠性。'
+title: '[优化] '
+labels: ['optimization']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先搜索已有 Issues。描述当前行为与期望改善；发现明确的功能错误时，也可以使用 Bug 报告模板。
+        已有排查结论请附可公开的证据，并区分历史观察、已确认原因与待验证假设。
+        请勿提交 SSH 密码、私钥、访问令牌或包含私人服务器信息的原始日志。
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景与问题
+      description: '当前体验有什么问题？在什么版本、环境或操作场景下出现？有无耗时或截图证据？'
+    validations:
+      required: true
+  - type: textarea
+    id: goals
+    attributes:
+      label: 目标
+      description: '描述希望改善的用户体验或指标；没有测量依据时不要填写臆测的性能承诺。'
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 需求与范围
+      description: '说明要调整的行为、需保留的现有能力、边界情况与本次范围。'
+      placeholder: |
+        - 调整内容：
+        - 需要保留的行为：
+        - 边界情况：
+        - 暂不包含：
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: 方案建议与代码线索
+      description: '可选。记录根因、相关代码、候选方案与替代方案；区分已确认事实和建议。'
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: '使用 Markdown 任务清单，描述改善后的可验证行为及兼容要求。'
+      placeholder: |
+        - [ ] 在……场景中，用户能够……。
+        - [ ] 现有……行为保持可用。
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: 验证方案
+      description: '提供改动前后的对比方式、代表性数据规模及回归场景；未知内容可留待维护者补充。'
+  - type: textarea
+    id: questions
+    attributes:
+      label: 风险与待确认
+      description: '记录迁移、兼容性、性能取舍和仍需决定的方案；没有则填写“暂无”。'
+  - type: textarea
+    id: context
+    attributes:
+      label: 补充资料
+      description: '可附脱敏日志、截图、已有排查结论及关联 Issue。'

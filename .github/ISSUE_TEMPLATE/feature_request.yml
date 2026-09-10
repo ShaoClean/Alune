@@ -1,0 +1,67 @@
+name: '功能建议 / Feature request'
+description: '提出新能力、使用场景或尚需探索的功能方案。'
+title: '[功能] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢帮助改进 RemoteGit！请先搜索已有 Issues；尚未确定的方案请明确标注“待确认”，不必预先设计完整实现。
+        请勿提交 SSH 密码、私钥、访问令牌或包含私人服务器信息的原始日志。
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景与问题
+      description: '说明使用场景、当前限制，以及哪些用户会遇到这个问题。'
+      placeholder: '当我在……时，目前只能……，因此……。'
+    validations:
+      required: true
+  - type: textarea
+    id: goals
+    attributes:
+      label: 目标
+      description: '描述用户希望获得的结果；探索性需求请说明本阶段要回答的问题。'
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 需求与范围
+      description: '写出主要交互、使用条件、边界情况，以及本次不包含的内容。'
+      placeholder: |
+        - 核心场景：
+        - 预期交互：
+        - 边界情况：
+        - 暂不包含：
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: 方案建议与代码线索
+      description: '可选。提供候选方案、替代方案、相关模块或参考链接；请区分事实与建议。'
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: '使用 Markdown 任务清单，描述可以观察或验证的结果。'
+      placeholder: |
+        - [ ] 用户执行……后能够……。
+        - [ ] 遇到……时显示明确反馈，并支持……。
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: 验证方案
+      description: '建议如何复现使用场景并验证完成情况；不知道时可填写“待维护者补充”。'
+  - type: textarea
+    id: questions
+    attributes:
+      label: 风险与待确认
+      description: '列出尚未决定的交互、兼容性、依赖或权限问题；没有则填写“暂无”。'
+  - type: textarea
+    id: context
+    attributes:
+      label: 补充资料
+      description: '可附脱敏截图、草图、关联 Issue、文档及当前应用版本。'
