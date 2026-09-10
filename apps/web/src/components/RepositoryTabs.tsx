@@ -8,7 +8,13 @@ interface Props {
   onOpenRepository: () => void;
 }
 
-export function RepositoryTabs({ repositories, activeId, onSelect, onClose, onOpenRepository }: Props) {
+export function RepositoryTabs({
+  repositories,
+  activeId,
+  onSelect,
+  onClose,
+  onOpenRepository,
+}: Props) {
   if (repositories.length === 0) return null;
 
   return (
@@ -17,7 +23,11 @@ export function RepositoryTabs({ repositories, activeId, onSelect, onClose, onOp
         {repositories.map((repo) => {
           const active = repo.id === activeId;
           return (
-            <div className={`repository-tab${active ? ' repository-tab--active' : ''}`} key={repo.id} role="presentation">
+            <div
+              className={`repository-tab${active ? ' repository-tab--active' : ''}`}
+              key={repo.id}
+              role="presentation"
+            >
               <button
                 type="button"
                 role="tab"
@@ -45,7 +55,12 @@ export function RepositoryTabs({ repositories, activeId, onSelect, onClose, onOp
           );
         })}
       </div>
-      <button type="button" className="repository-tabs__open" onClick={onOpenRepository}>
+      <button
+        type="button"
+        className="repository-tabs__open"
+        aria-label="打开仓库"
+        onClick={onOpenRepository}
+      >
         <PlusOutlined />
         <span>打开仓库</span>
       </button>

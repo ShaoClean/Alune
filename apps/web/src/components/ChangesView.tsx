@@ -8,18 +8,20 @@ import {
   MinusOutlined,
   PlusOutlined,
   ReloadOutlined,
-  SendOutlined,
-  UndoOutlined,
+  SearchOutlined,
+  DownOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
-import { EmptyState, FileIcon, PanelHeader, StatusBadge } from './ui';
+import { EmptyState, FileIcon, PanelHeader } from './ui';
+import { EMPTY_DRAFT, useCommitDraftStore } from '../stores/commitDraftStore';
 
 interface Props {
   repoId: string;
-  onRefresh: () => void;
+  onRefresh: () => Promise<void>;
   onSelectFile?: (file: any) => void;
-  selectedFile?: string | null;
+  selectedFile?: { path: string; staged: boolean } | null;
 }
 
 const statusLabels: Record<string, string> = {
@@ -43,9 +45,11 @@ const statusWords: Record<string, string> = {
 };
 
 export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: Props) {
-  const { status, diff, fetchStatus, fetchDiff } = useRepositoryStore();
-  const [commitMessage, setCommitMessage] = useState('');
-  const [commitDescription, setCommitDescription] = useState('');
+  const { status, fetchStatus } = useRepositoryStore();
+  const draft = useCommitDraftStore((state) => state.drafts[repoId] || EMPTY_DRAFT);
+  const { updateDraft, clearSubmittedDraft } = useCommitDraftStore();
+  const [query, setQuery] = useState('');
+  const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
 
   const files = status?.files || [];
@@ -53,8 +57,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
   const unstagedFiles = useMemo(() => files.filter((file: any) => !file.staged), [files]);
 
   const refreshStatus = async () => {
-    await fetchStatus(repoId);
-    onRefresh();
+    await onRefresh();
   };
 
   const runFileAction = async (action: 'stage' | 'unstage', paths: string[]) => {
@@ -62,7 +65,9 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
     try {
       await gitApi[action](repoId, paths);
       await fetchStatus(repoId);
-      message.success(action === 'stage' ? `${paths.length} 个文件已暂存` : `${paths.length} 个文件已取消暂存`);
+      message.success(
+        action === 'stage' ? `${paths.length} 个文件已暂存` : `${paths.length} 个文件已取消暂存`,
+      );
     } catch (err: any) {
       message.error(err.message || 'Git 操作失败');
     } finally {
@@ -84,15 +89,15 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
   };
 
   const handleCommit = async () => {
-    if (!commitMessage.trim()) {
+    if (loading || stagedFiles.length === 0) return;
+    if (!draft.message.trim()) {
       message.warning('请先填写提交信息');
       return;
     }
     setLoading(true);
     try {
-      await gitApi.commit(repoId, commitMessage.trim(), commitDescription.trim() || undefined);
-      setCommitMessage('');
-      setCommitDescription('');
+      await gitApi.commit(repoId, draft.message.trim(), draft.description.trim() || undefined);
+      clearSubmittedDraft(repoId, draft);
       await fetchStatus(repoId);
       message.success('提交已创建');
     } catch (err: any) {
@@ -102,67 +107,194 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
     }
   };
 
-  const handleDiff = async (file: any) => {
-    onSelectFile?.(file);
-    try {
-      await fetchDiff(repoId, { file: file.path, staged: file.staged });
-    } catch {
-      // The store exposes the error state; keep the selected file visible.
-    }
-  };
-
-  const handleSync = async (operation: 'push' | 'pull') => {
-    setLoading(true);
-    try {
-      await gitApi[operation](repoId);
-      message.success(operation === 'push' ? '推送完成' : '拉取完成');
-      await refreshStatus();
-    } catch (err: any) {
-      message.error(err.message || `${operation === 'push' ? '推送' : '拉取'}失败`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const renderFileRow = (file: any) => (
-    <div className={`file-row${selectedFile === file.path ? ' file-row--selected' : ''}`} key={`${file.staged}-${file.path}`} onClick={() => void handleDiff(file)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter') void handleDiff(file); }}>
-      <span className={`file-row__status file-row__status--${file.status}`} title={statusWords[file.status] || file.status}>{statusLabels[file.status] || '?'}</span>
-      <FileIcon path={file.path} status={file.status} />
-      <span className="file-row__path" title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}>{file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}</span>
-      <span className="file-row__stats">{file.additions ? <span className="additions">+{file.additions}</span> : null}{file.deletions ? <span className="deletions">−{file.deletions}</span> : null}</span>
-      <div className="file-row__actions" onClick={(event) => event.stopPropagation()}>
-        {file.staged ? <Button type="text" size="small" icon={<MinusOutlined />} aria-label={`取消暂存 ${file.path}`} loading={loading} onClick={() => void runFileAction('unstage', [file.path])} /> : <Button type="text" size="small" icon={<PlusOutlined />} aria-label={`暂存 ${file.path}`} loading={loading} onClick={() => void runFileAction('stage', [file.path])} />}
-        {!file.staged && file.status !== 'untracked' && <Popconfirm title="丢弃此文件的改动？" description="此操作不可撤销。" onConfirm={() => void discardFile(file.path)}><Button type="text" danger size="small" icon={<DeleteOutlined />} aria-label={`丢弃 ${file.path}`} loading={loading} /></Popconfirm>}
+    <div
+      className={`file-row${selectedFile?.path === file.path && selectedFile?.staged === file.staged ? ' file-row--selected' : ''}`}
+      key={`${file.staged}-${file.path}`}
+    >
+      <button
+        type="button"
+        className="file-row__select"
+        aria-label={`查看差异 ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
+        aria-pressed={selectedFile?.path === file.path && selectedFile?.staged === file.staged}
+        onClick={() => onSelectFile?.(file)}
+      >
+        <span
+          className={`file-row__status file-row__status--${file.status}`}
+          title={statusWords[file.status] || file.status}
+        >
+          {statusLabels[file.status] || '?'}
+        </span>
+        <FileIcon path={file.path} status={file.status} />
+        <span
+          className="file-row__path"
+          title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
+        >
+          <strong>
+            {file.oldPath ? `${file.oldPath.split('/').pop()} → ` : ''}
+            {file.path.split('/').pop()}
+          </strong>
+          <small>
+            {file.path.includes('/')
+              ? file.path.slice(0, file.path.lastIndexOf('/'))
+              : '仓库根目录'}
+          </small>
+        </span>
+        <span className="file-row__stats">
+          {file.additions ? <span className="additions">+{file.additions}</span> : null}
+          {file.deletions ? <span className="deletions">−{file.deletions}</span> : null}
+        </span>
+      </button>
+      <div className="file-row__actions">
+        {file.staged ? (
+          <Button
+            type="text"
+            size="small"
+            icon={<MinusOutlined />}
+            aria-label={`取消暂存 ${file.path}`}
+            loading={loading}
+            onClick={() => void runFileAction('unstage', [file.path])}
+          />
+        ) : (
+          <Button
+            type="text"
+            size="small"
+            icon={<PlusOutlined />}
+            aria-label={`暂存 ${file.path}`}
+            loading={loading}
+            onClick={() => void runFileAction('stage', [file.path])}
+          />
+        )}
+        {!file.staged && file.status !== 'untracked' && (
+          <Popconfirm
+            title="丢弃此文件的改动？"
+            description="此操作不可撤销。"
+            onConfirm={() => void discardFile(file.path)}
+          >
+            <Button
+              type="text"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              aria-label={`丢弃 ${file.path}`}
+              loading={loading}
+            />
+          </Popconfirm>
+        )}
       </div>
     </div>
   );
 
-  const renderGroup = (title: string, groupFiles: any[], staged: boolean) => groupFiles.length > 0 ? (
-    <div className="change-group" key={title}>
-      <div className="change-group__header">
-        <div className="change-group__title">{staged ? <CheckOutlined /> : <FolderOpenOutlined />} {title} <span className="count-badge">{groupFiles.length}</span></div>
-        <div className="change-group__actions">
-          <Button type="text" size="small" disabled={loading} onClick={() => void runFileAction(staged ? 'unstage' : 'stage', groupFiles.map((file) => file.path))}>{staged ? '全部取消暂存' : '全部暂存'}</Button>
+  const renderGroup = (title: string, groupFiles: any[], staged: boolean) =>
+    groupFiles.length > 0 ? (
+      <div className="change-group" key={title}>
+        <div className="change-group__header">
+          <button
+            type="button"
+            className="change-group__title"
+            aria-expanded={!closedGroups[title]}
+            onClick={() => setClosedGroups((groups) => ({ ...groups, [title]: !groups[title] }))}
+          >
+            {closedGroups[title] ? <RightOutlined /> : <DownOutlined />}
+            {staged ? <CheckOutlined /> : <FolderOpenOutlined />} {title}{' '}
+            <span className="count-badge">{groupFiles.length}</span>
+          </button>
+          <div className="change-group__actions">
+            <Button
+              type="text"
+              size="small"
+              disabled={loading}
+              onClick={() =>
+                void runFileAction(
+                  staged ? 'unstage' : 'stage',
+                  groupFiles.map((file) => file.path),
+                )
+              }
+            >
+              {staged ? '全部取消暂存' : '全部暂存'}
+            </Button>
+          </div>
         </div>
+        {!closedGroups[title] &&
+          groupFiles
+            .filter((file) =>
+              `${file.path} ${file.oldPath || ''}`
+                .toLowerCase()
+                .includes(query.trim().toLowerCase()),
+            )
+            .map(renderFileRow)}
       </div>
-      {groupFiles.map(renderFileRow)}
-    </div>
-  ) : null;
+    ) : null;
 
   return (
-    <section className="workspace-panel">
-      <PanelHeader title="改动" count={files.length} description="查看、暂存并提交工作区改动" icon={<FileAddOutlined />} extra={<><Button type="text" icon={<ReloadOutlined />} aria-label="刷新改动" onClick={() => void refreshStatus()}>刷新</Button><Button type="primary" icon={<SendOutlined />} loading={loading} onClick={() => void handleSync('push')}>推送</Button><Button icon={<UndoOutlined />} loading={loading} onClick={() => void handleSync('pull')}>拉取</Button></>} />
-      {files.length === 0 ? <EmptyState title="工作区干净" description="此仓库没有已暂存或未暂存的改动。" action={<Button icon={<ReloadOutlined />} onClick={() => void refreshStatus()}>刷新状态</Button>} /> : <div className="changes-content">
-        {renderGroup('已暂存的改动', stagedFiles, true)}
-        {renderGroup('改动', unstagedFiles, false)}
-        {stagedFiles.length > 0 && <div className="commit-box">
-          <div className="commit-box__heading"><span>提交已暂存的改动</span><span>{stagedFiles.length} 个文件已就绪</span></div>
-          <Input placeholder="摘要 · 描述这次改动" value={commitMessage} onChange={(event) => setCommitMessage(event.target.value)} onPressEnter={() => void handleCommit()} />
-          <Input.TextArea placeholder="描述（可选）" value={commitDescription} onChange={(event) => setCommitDescription(event.target.value)} rows={3} />
-          <div className="commit-box__footer"><span className="commit-box__hint">提交只会包含“已暂存的改动”中的文件。</span><Button type="primary" icon={<CheckOutlined />} loading={loading} onClick={() => void handleCommit()}>提交已暂存内容</Button></div>
-        </div>}
-      </div>}
-      {diff && <div className="changes-diff-hint"><StatusBadge status="ready" label="差异已加载到详情面板" /></div>}
+    <section className="workspace-panel changes-panel">
+      <PanelHeader title="改动" count={files.length} icon={<FileAddOutlined />} />
+      <div className="changes-filter">
+        <Input
+          aria-label="筛选改动文件"
+          placeholder="筛选文件…"
+          prefix={<SearchOutlined />}
+          allowClear
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </div>
+      <div className="changes-content">
+        {files.length === 0 ? (
+          <EmptyState
+            title="工作区干净"
+            description="此仓库没有已暂存或未暂存的改动。"
+            action={
+              <Button icon={<ReloadOutlined />} onClick={() => void refreshStatus()}>
+                刷新状态
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            {renderGroup('未暂存', unstagedFiles, false)}
+            {renderGroup('已暂存', stagedFiles, true)}
+            {query &&
+              !files.some((file: any) =>
+                `${file.path} ${file.oldPath || ''}`
+                  .toLowerCase()
+                  .includes(query.trim().toLowerCase()),
+              ) && <p className="changes-no-results">没有匹配的文件</p>}
+          </>
+        )}
+      </div>
+      <div className="commit-box">
+        <div className="commit-box__heading">
+          <strong>提交改动</strong>
+          <span>{stagedFiles.length} 个文件已暂存</span>
+        </div>
+        <Input
+          aria-label="提交摘要"
+          placeholder="摘要 · 描述这次改动"
+          value={draft.message}
+          disabled={loading}
+          onChange={(event) => updateDraft(repoId, { message: event.target.value })}
+        />
+        <Input.TextArea
+          aria-label="提交描述"
+          placeholder="描述（可选）"
+          value={draft.description}
+          disabled={loading}
+          onChange={(event) => updateDraft(repoId, { description: event.target.value })}
+          rows={2}
+        />
+        <Button
+          type="primary"
+          block
+          icon={<CheckOutlined />}
+          loading={loading}
+          disabled={!stagedFiles.length || !draft.message.trim()}
+          onClick={() => void handleCommit()}
+        >
+          提交已暂存内容{stagedFiles.length > 0 ? ` · ${stagedFiles.length}` : ''}
+        </Button>
+        <div className="commit-box__hint">提交仅包含已暂存的文件</div>
+      </div>
     </section>
   );
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import './workspace-layout.css';
 import { hydrateWorkspace } from './stores/workspaceStore';
 
 // Mount only after asynchronous desktop preferences have been restored.
