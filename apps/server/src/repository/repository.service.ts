@@ -1,12 +1,15 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, GatewayTimeoutException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { ConnectionService } from '../connection/connection.service';
 import { GitCommands } from '@remote-git/ssh-client';
-import type { Repository, CommitInfo, FileStatus, BranchInfo, StashEntry, RemoteInfo, DiffOptions, LogOptions } from '@remote-git/shared';
+import { REPOSITORY_STATUS_TIMEOUT_MS } from '@remote-git/shared';
+import type { Repository, RepositoryStatus, DiffOptions, LogOptions } from '@remote-git/shared';
 
 @Injectable()
 export class RepositoryService {
+  private statusRequests = new Map<string, Promise<RepositoryStatus>>();
+
   constructor(
     @Inject('DATABASE') private db: Database.Database,
     private connectionService: ConnectionService,
@@ -105,26 +108,13 @@ export class RepositoryService {
 
     const rows = this.db.prepare(query).all(...params) as any[];
 
-    const repositories: Repository[] = [];
-    for (const row of rows) {
-      const repo: Repository = {
-        id: row.id,
-        connectionId: row.connection_id,
-        name: row.name,
-        path: row.path,
-      };
-      try {
-        const conn = await this.connectionService.ensureConnected(row.connection_id);
-        const git = new GitCommands(conn);
-        const status = await git.status(row.path);
-        repo.currentBranch = status.branch;
-        repo.ahead = status.ahead;
-        repo.behind = status.behind;
-        repo.isDirty = status.files.length > 0;
-      } catch {}
-      repositories.push(repo);
-    }
-    return repositories;
+    // Registration is local data. An offline host must never delay this response.
+    return rows.map((row) => ({
+      id: row.id,
+      connectionId: row.connection_id,
+      name: row.name,
+      path: row.path,
+    }));
   }
 
   async get(id: string): Promise<Repository> {
@@ -146,11 +136,31 @@ export class RepositoryService {
     this.db.prepare('UPDATE repositories SET pinned = ? WHERE id = ?').run(pinned ? 1 : 0, id);
   }
 
-  async getStatus(id: string) {
-    const repo = await this.get(id);
-    const conn = await this.connectionService.ensureConnected(repo.connectionId);
-    const git = new GitCommands(conn);
-    return git.status(repo.path);
+  getStatus(id: string): Promise<RepositoryStatus> {
+    const pending = this.statusRequests.get(id);
+    if (pending) return pending;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new GatewayTimeoutException('远程状态查询超时，请重试');
+        controller.abort(error);
+        reject(error);
+      }, REPOSITORY_STATUS_TIMEOUT_MS);
+    });
+    const work = (async () => {
+      const repo = await this.get(id);
+      const conn = await this.connectionService.ensureConnected(repo.connectionId);
+      // A connection may finish after this request's deadline. Do not start Git then.
+      controller.signal.throwIfAborted();
+      return new GitCommands(conn).status(repo.path, controller.signal);
+    })();
+    const request = Promise.race([work, timeout]).finally(() => {
+      clearTimeout(timer);
+      this.statusRequests.delete(id);
+    });
+    this.statusRequests.set(id, request);
+    return request;
   }
 
   async getLog(id: string, options?: LogOptions) {

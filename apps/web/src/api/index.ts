@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@remote-git/shared';
 
 const api = axios.create({
   baseURL: '/api',
@@ -26,7 +27,11 @@ export const repositoryApi = {
   delete: (id: string) => api.delete(`/repositories/${id}`).then((r) => r.data),
   pin: (id: string, pinned: boolean) =>
     api.post(`/repositories/${id}/pin`, { pinned }).then((r) => r.data),
-  status: (id: string) => api.get(`/repositories/${id}/status`).then((r) => r.data),
+  status: (id: string, signal?: AbortSignal) =>
+    api.get(`/repositories/${id}/status`, {
+      signal,
+      timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
+    }).then((r) => r.data),
   log: (id: string, params?: any) =>
     api.get(`/repositories/${id}/log`, { params }).then((r) => r.data),
   commitFiles: (id: string, commit: string, parentCommit?: string) =>

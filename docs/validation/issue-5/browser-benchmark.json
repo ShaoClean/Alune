@@ -1,0 +1,63 @@
+{
+  "viewport": [
+    1512,
+    756
+  ],
+  "cacheDisabled": true,
+  "results": [
+    {
+      "version": "before",
+      "run": 1,
+      "registryVisibleMs": 2059.7999999523163,
+      "registeredCount": 24,
+      "firstVisibleStatusMs": 2059.899999976158,
+      "visibleStatusCompleteMs": 2059.899999976158,
+      "visibleCount": 12
+    },
+    {
+      "version": "before",
+      "run": 2,
+      "registryVisibleMs": 1938.6000000238419,
+      "registeredCount": 24,
+      "firstVisibleStatusMs": 1938.7999999523163,
+      "visibleStatusCompleteMs": 1938.7999999523163,
+      "visibleCount": 12
+    },
+    {
+      "version": "before",
+      "run": 3,
+      "registryVisibleMs": 2004,
+      "registeredCount": 24,
+      "firstVisibleStatusMs": 2004.1000000238419,
+      "visibleStatusCompleteMs": 2004.1999999284744,
+      "visibleCount": 12
+    },
+    {
+      "version": "after",
+      "run": 1,
+      "registryVisibleMs": 211.09999990463257,
+      "registeredCount": 24,
+      "firstVisibleStatusMs": 1256.5,
+      "visibleStatusCompleteMs": 1401.7999999523163,
+      "visibleCount": 9
+    },
+    {
+      "version": "after",
+      "run": 2,
+      "registryVisibleMs": 167.79999995231628,
+      "registeredCount": 24,
+      "firstVisibleStatusMs": 1247.5,
+      "visibleStatusCompleteMs": 1281.6000000238419,
+      "visibleCount": 9
+    },
+    {
+      "version": "after",
+      "run": 3,
+      "registryVisibleMs": 416.39999997615814,
+      "registeredCount": 24,
+      "firstVisibleStatusMs": 1464.1000000238419,
+      "visibleStatusCompleteMs": 1464.1999999284744,
+      "visibleCount": 9
+    }
+  ]
+}

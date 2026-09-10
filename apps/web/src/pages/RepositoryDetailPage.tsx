@@ -21,6 +21,8 @@ import {
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { BranchesView } from '../components/BranchesView';
+import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicator';
+import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { ChangesView } from '../components/ChangesView';
 import { DiffViewer } from '../components/DiffViewer';
 import { HistoryView } from '../components/HistoryView';
@@ -94,6 +96,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     fetchDiff,
     error,
   } = useRepositoryStore();
+  const { entry: statusEntry, stale: statusStale } = useRepositoryStatus(id || '');
   const [activePanel, setActivePanel] = useState<Panel>('changes');
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -111,15 +114,15 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     setSelectedCommitFile(null);
     setSelectedCommit(null);
     resetWorkspace(id);
-    void Promise.all([
-      repositoryApi.get(id),
-      fetchStatus(id),
-      fetchLog(id),
-      fetchBranches(id),
-      fetchRemotes(id),
-    ])
-      .then(([repo]) => {
-        if (!cancelled) setCurrentRepo(repo);
+    const cached = useRepositoryStore.getState().repositories.find((repo) => repo.id === id)
+      || useRepositoryStore.getState().openRepositories.find((repo) => repo.id === id);
+    // Opening a workspace needs only its registration. Remote panels load on demand.
+    void (cached ? Promise.resolve(cached) : repositoryApi.get(id))
+      .then((repo) => {
+        if (!cancelled) {
+          setCurrentRepo(repo);
+          void fetchStatus(id);
+        }
       })
       .catch((err: any) => {
         if (!cancelled) setPageError(err.message || '仓库不可用');
@@ -129,8 +132,9 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       });
     return () => {
       cancelled = true;
+      resetWorkspace();
     };
-  }, [id, fetchBranches, fetchLog, fetchRemotes, fetchStatus, resetWorkspace, setCurrentRepo]);
+  }, [id, fetchStatus, resetWorkspace, setCurrentRepo]);
 
   const repository =
     currentRepo?.id === id
@@ -194,9 +198,9 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     setInspectorOpen(false);
   };
 
-  const handleRefresh = async () => {
+  const handleRefresh = async (afterMutation = false) => {
     if (!id) return;
-    await fetchStatus(id);
+    await fetchStatus(id, afterMutation);
     if (activePanel === 'history') await fetchLog(id);
     if (activePanel === 'branches') await fetchBranches(id);
     if (activePanel === 'stashes') await fetchStashes(id);
@@ -211,7 +215,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       message.success(
         operation === 'fetch' ? '获取完成' : operation === 'pull' ? '拉取完成' : '推送完成',
       );
-      await handleRefresh();
+      await handleRefresh(true);
     } catch (err: any) {
       message.error(
         err.message ||
@@ -320,8 +324,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           selectedHash={selectedCommit?.hash}
         />
       );
-    if (activePanel === 'branches') return <BranchesView repoId={id} onRefresh={handleRefresh} />;
-    if (activePanel === 'stashes') return <StashesView repoId={id} onRefresh={handleRefresh} />;
+    if (activePanel === 'branches') return <BranchesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
+    if (activePanel === 'stashes') return <StashesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
     return <RemotesView repoId={id} />;
   };
 
@@ -345,11 +349,11 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           <button
             type="button"
             className="workspace-branch"
-            title={status?.branch || '游离 HEAD'}
+            title={status ? status.branch || '游离 HEAD' : '分支未知'}
             onClick={() => selectPanel('branches')}
           >
             <BranchesOutlined />
-            <span>{status?.branch ? formatBranchName(status.branch) : '游离 HEAD'}</span>
+            <span>{status ? (status.branch ? formatBranchName(status.branch) : '游离 HEAD') : '分支未知'}</span>
             <DownOutlined />
           </button>
         </div>
@@ -380,26 +384,31 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
             size="small"
             icon={<CloudOutlined />}
             aria-label="拉取"
-            title={`拉取 · 落后 ${status?.behind || 0} 个提交`}
+            title={status ? `拉取 · 落后 ${status.behind} 个提交` : '拉取 · 状态未知'}
             disabled={syncing !== null}
             loading={syncing === 'pull'}
             onClick={() => void runSync('pull')}
           >
-            拉取{status?.behind > 0 && <span className="count-badge">{status.behind}</span>}
+            拉取{status && status.behind > 0 && <span className="count-badge">{status.behind}</span>}
           </Button>
           <Button
             type="primary"
             size="small"
             icon={<SendOutlined />}
             aria-label="推送"
-            title={`推送 · 领先 ${status?.ahead || 0} 个提交`}
+            title={status ? `推送 · 领先 ${status.ahead} 个提交` : '推送 · 状态未知'}
             disabled={syncing !== null}
             loading={syncing === 'push'}
             onClick={() => void runSync('push')}
           >
-            推送{status?.ahead > 0 && <span className="count-badge">{status.ahead}</span>}
+            推送{status && status.ahead > 0 && <span className="count-badge">{status.ahead}</span>}
           </Button>
         </div>
+      </div>
+      <div className="repository-status-notice" role="status">
+        <RepositoryStatusIndicator id={id!} />
+        {statusEntry?.error && <span>{statusEntry.error}</span>}
+        {(statusEntry?.phase === 'error' || statusStale) && <button type="button" className="text-button" onClick={() => void fetchStatus(id!)}>重试状态</button>}
       </div>
       {error && (
         <div className="workspace-error" role="alert">
@@ -468,8 +477,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           </button>
         </Dropdown>
         <span className="workspace-sync-summary" title={repository.path}>
-          {status ? (changeCount ? `${changeCount} 个文件有改动` : '工作区干净') : '正在读取状态'} ·
-          ↑{status?.ahead || 0} ↓{status?.behind || 0}
+          {status ? `${statusStale ? '旧状态 · ' : ''}${changeCount ? `${changeCount} 个文件有改动` : '工作区干净'} · ↑${status.ahead} ↓${status.behind}` : statusEntry?.phase === 'error' ? '状态读取失败' : '正在读取状态'}
         </span>
       </nav>
       <div className={`workspace-body${hasInspector ? '' : ' workspace-body--single'}`}>

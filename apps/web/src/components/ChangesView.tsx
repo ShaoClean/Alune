@@ -13,8 +13,9 @@ import {
   RightOutlined,
 } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { gitApi } from '../api';
-import { EmptyState, FileIcon, PanelHeader } from './ui';
+import { EmptyState, ErrorState, FileIcon, LoadingState, PanelHeader } from './ui';
 import { EMPTY_DRAFT, useCommitDraftStore } from '../stores/commitDraftStore';
 
 interface Props {
@@ -45,6 +46,7 @@ const statusWords: Record<string, string> = {
 };
 
 export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: Props) {
+  const { entry, stale } = useRepositoryStatus(repoId);
   const { status, fetchStatus } = useRepositoryStore();
   const draft = useCommitDraftStore((state) => state.drafts[repoId] || EMPTY_DRAFT);
   const { updateDraft, clearSubmittedDraft } = useCommitDraftStore();
@@ -64,7 +66,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
     setLoading(true);
     try {
       await gitApi[action](repoId, paths);
-      await fetchStatus(repoId);
+      await fetchStatus(repoId, true);
       message.success(
         action === 'stage' ? `${paths.length} 个文件已暂存` : `${paths.length} 个文件已取消暂存`,
       );
@@ -79,7 +81,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
     setLoading(true);
     try {
       await gitApi.checkout(repoId, [path]);
-      await fetchStatus(repoId);
+      await fetchStatus(repoId, true);
       message.success(`已丢弃 ${path} 的改动`);
     } catch (err: any) {
       message.error(err.message || '无法丢弃此文件的改动');
@@ -98,7 +100,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
     try {
       await gitApi.commit(repoId, draft.message.trim(), draft.description.trim() || undefined);
       clearSubmittedDraft(repoId, draft);
-      await fetchStatus(repoId);
+      await fetchStatus(repoId, true);
       message.success('提交已创建');
     } catch (err: any) {
       message.error(err.message || '提交失败');
@@ -228,7 +230,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
 
   return (
     <section className="workspace-panel changes-panel">
-      <PanelHeader title="改动" count={files.length} icon={<FileAddOutlined />} />
+      <PanelHeader title="改动" count={status ? files.length : undefined} icon={<FileAddOutlined />} />
       <div className="changes-filter">
         <Input
           aria-label="筛选改动文件"
@@ -240,10 +242,12 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
         />
       </div>
       <div className="changes-content">
-        {files.length === 0 ? (
+        {!status ? (entry?.phase === 'error'
+          ? <ErrorState title="无法读取仓库状态" description={entry.error} onRetry={() => void refreshStatus()} />
+          : <LoadingState label="正在读取仓库状态…" />) : files.length === 0 ? (
           <EmptyState
-            title="工作区干净"
-            description="此仓库没有已暂存或未暂存的改动。"
+            title={stale ? '上次读取时工作区干净' : '工作区干净'}
+            description={stale ? '当前状态尚未确认，请刷新后查看。' : '此仓库没有已暂存或未暂存的改动。'}
             action={
               <Button icon={<ReloadOutlined />} onClick={() => void refreshStatus()}>
                 刷新状态

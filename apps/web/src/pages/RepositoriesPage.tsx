@@ -11,14 +11,16 @@ import {
 } from '@ant-design/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { EmptyState, formatBranchName, LoadingState, StatusBadge } from '../components/ui';
+import { EmptyState, ErrorState, formatBranchName, LoadingState } from '../components/ui';
+
+import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicator';
 
 export function RepositoriesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const connectionId = searchParams.get('connectionId') || undefined;
   const { connections, fetchConnections } = useConnectionStore();
-  const { repositories, loading, fetchRepositories, scanRepositories, addRepository, deleteRepository, openRepository } = useRepositoryStore();
+  const { repositories, listLoading, listLoaded, listError, repositoryStatuses, refreshRepositoryStatuses, fetchRepositories, scanRepositories, addRepository, deleteRepository, openRepository } = useRepositoryStore();
   const [search, setSearch] = useState('');
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [scanPath, setScanPath] = useState('/home');
@@ -39,6 +41,11 @@ export function RepositoriesPage() {
   }, [repositories, search, connectionId]);
 
   const selectedConnection = connections.find((connection: any) => connection.id === connectionId);
+
+  const refresh = () => {
+    void fetchRepositories();
+    void refreshRepositoryStatuses();
+  };
 
   const chooseConnection = (value: string) => {
     if (value) setSearchParams({ connectionId: value });
@@ -91,7 +98,7 @@ export function RepositoriesPage() {
           <p>{selectedConnection ? `${selectedConnection.name} 上可用的仓库。` : '浏览所有远程工作区中已登记的仓库。'}</p>
         </div>
         <div className="page-heading__actions">
-          <Button icon={<ReloadOutlined />} aria-label="刷新仓库" onClick={() => void fetchRepositories(connectionId)}>刷新</Button>
+          <Button icon={<ReloadOutlined />} loading={listLoading} aria-label="刷新仓库" onClick={refresh}>刷新</Button>
           <Button type="primary" icon={<PlusOutlined />} disabled={!connectionId} onClick={() => setScanModalVisible(true)}>扫描并添加</Button>
         </div>
       </div>
@@ -109,28 +116,30 @@ export function RepositoriesPage() {
             />
             <Input className="repo-search" allowClear prefix={<SearchOutlined />} placeholder="搜索仓库" value={search} onChange={(event) => setSearch(event.target.value)} />
           </Space>
-          <span className="count-badge">{visibleRepositories.length} 个</span>
+          <span className="count-badge">{listLoaded ? `${visibleRepositories.length} 个` : '—'}</span>
         </div>
-        {loading && repositories.length === 0 ? <LoadingState label="正在加载仓库…" /> : visibleRepositories.length === 0 ? (
-          <EmptyState title={search ? '没有匹配的仓库' : '暂无已登记的仓库'} description={search ? '请尝试其他名称、路径或分支。' : connectionId ? '扫描远程目录以发现 Git 仓库。' : '选择一个连接来扫描仓库，或前往“连接”页添加连接。'} action={!search && connectionId ? <Button type="primary" icon={<SearchOutlined />} onClick={() => setScanModalVisible(true)}>扫描远程路径</Button> : undefined} />
+        {listError && <ErrorState title={listLoaded ? '仓库列表刷新失败，已保留原有列表' : '已登记仓库加载失败'} description={listError} onRetry={refresh} />}
+        {!listLoaded && repositories.length === 0 ? (!listError && <LoadingState label="正在加载已登记仓库…" />) : visibleRepositories.length === 0 ? (
+          listLoaded && !listError && <EmptyState title={search || connectionId ? '没有匹配的仓库' : '暂无已登记的仓库'} description={search ? '请尝试其他名称、路径或分支。' : connectionId ? '此连接下没有已登记仓库，可扫描远程目录添加。' : '选择一个连接来扫描仓库，或前往“连接”页添加连接。'} action={!search && connectionId ? <Button type="primary" icon={<SearchOutlined />} onClick={() => setScanModalVisible(true)}>扫描远程路径</Button> : undefined} />
         ) : (
           <div className="repository-grid">
             {visibleRepositories.map((repo: any) => {
-              const dirty = repo.isDirty === true;
+              const entry = repositoryStatuses[repo.id];
               return (
                 <article className="repository-card" key={repo.id}>
                   <div className="repository-card__top">
                     <div className="repository-card__title"><FolderOpenOutlined /><span>{repo.name}</span></div>
-                    <StatusBadge status={dirty ? 'dirty' : repo.isDirty === false ? 'clean' : 'offline'} label={dirty ? '有改动' : repo.isDirty === false ? '干净' : '未知'} />
+                    <RepositoryStatusIndicator id={repo.id} />
                   </div>
                   <div className="repository-card__path" title={repo.path}>{repo.path}</div>
                   <div className="repository-card__metrics">
-                    <span className="repository-card__metric"><BranchesOutlined /> {repo.currentBranch ? formatBranchName(repo.currentBranch) : '无分支'}</span>
+                    <span className="repository-card__metric"><BranchesOutlined /> {entry?.data ? (formatBranchName(entry.data.branch) === '—' ? '游离 HEAD' : formatBranchName(entry.data.branch)) : '分支未知'}</span>
                     {(repo.ahead || 0) > 0 && <span className="repository-card__metric repository-card__metric--ahead">↑{repo.ahead}</span>}
                     {(repo.behind || 0) > 0 && <span className="repository-card__metric repository-card__metric--behind">↓{repo.behind}</span>}
                   </div>
                   <div className="repository-card__actions">
                     <Button size="small" type="primary" onClick={() => { openRepository(repo); navigate(`/repositories/${repo.id}`); }}>打开工作区</Button>
+                    <Button size="small" aria-label={`刷新 ${repo.name} 状态`} loading={entry?.phase === 'loading' || entry?.phase === 'queued'} onClick={() => void refreshRepositoryStatuses([repo.id])}>{entry?.phase === 'error' ? '重试状态' : '刷新状态'}</Button>
                     <Popconfirm title="移除此仓库？" onConfirm={() => void handleDelete(repo.id)}>
                       <Button size="small" danger icon={<DeleteOutlined />} aria-label={`删除 ${repo.name}`} />
                     </Popconfirm>

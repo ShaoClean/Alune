@@ -109,14 +109,31 @@ export class SSHConnection extends EventEmitter {
     this._connecting = false;
   }
 
-  async execCommand(command: string, cwd?: string): Promise<CommandResult> {
+  async execCommand(command: string, cwd?: string, signal?: AbortSignal): Promise<CommandResult> {
+    signal?.throwIfAborted();
     const client = this._ensureConnected();
     const fullCommand = cwd ? `cd "${cwd}" && ${command}` : command;
 
     return new Promise((resolve, reject) => {
+      let channel: ClientChannel | undefined;
+      const cleanup = () => signal?.removeEventListener('abort', abort);
+      const abort = () => {
+        cleanup();
+        reject(signal?.reason ?? new Error('Command cancelled'));
+        // Close only this command's channel, preserving other work on the connection.
+        channel?.close();
+      };
+      signal?.addEventListener('abort', abort, { once: true });
       client.exec(fullCommand, (err, stream) => {
         if (err) {
+          cleanup();
           reject(err);
+          return;
+        }
+        channel = stream;
+        stream.on('error', (error: Error) => { cleanup(); reject(error); });
+        if (signal?.aborted) {
+          stream.close();
           return;
         }
 
@@ -132,6 +149,7 @@ export class SSHConnection extends EventEmitter {
         });
 
         stream.on('close', (exitCode: number | null) => {
+          cleanup();
           resolve({ exitCode, stdout, stderr });
         });
       });

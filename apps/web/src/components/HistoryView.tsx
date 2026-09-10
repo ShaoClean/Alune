@@ -13,7 +13,7 @@ interface Props {
 const initials = (author: string) => author.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?';
 
 export function HistoryView({ repoId, onSelectCommit, selectedHash }: Props) {
-  const { log, loading, fetchLog } = useRepositoryStore();
+  const { log, logLoading: loading, fetchLog } = useRepositoryStore();
 
   useEffect(() => {
     void fetchLog(repoId);

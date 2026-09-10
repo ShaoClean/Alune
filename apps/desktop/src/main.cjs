@@ -141,7 +141,7 @@ async function start() {
     app.once('before-quit', () => clearTimeout(timer));
   }
   if (smokeTest) {
-    await require('./smoke.cjs')({ window, origin, token, updates, closeBackend, version: app.getVersion() });
+    await require('./smoke.cjs')({ window, origin, token, updates, closeBackend, backend, version: app.getVersion() });
     app.quit();
   }
 }

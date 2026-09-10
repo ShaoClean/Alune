@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function RemotesView({ repoId }: Props) {
-  const { remotes, loading, fetchRemotes } = useRepositoryStore();
+  const { remotes, remotesLoading: loading, fetchRemotes } = useRepositoryStore();
 
   useEffect(() => {
     void fetchRemotes(repoId);

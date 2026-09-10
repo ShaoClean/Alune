@@ -1,0 +1,53 @@
+{
+  "baseline": "9c260f6",
+  "node": "v25.5.0",
+  "platform": "darwin/arm64",
+  "simulatedLatency": {
+    "firstRepoMs": 800,
+    "otherReposMs": 40
+  },
+  "results": [
+    {
+      "legacy": true,
+      "run": 1,
+      "count": 24,
+      "registryMs": 1801.35,
+      "remoteCompleteMs": 1801.37
+    },
+    {
+      "legacy": true,
+      "run": 2,
+      "count": 24,
+      "registryMs": 1766.83,
+      "remoteCompleteMs": 1766.83
+    },
+    {
+      "legacy": true,
+      "run": 3,
+      "count": 24,
+      "registryMs": 1759.09,
+      "remoteCompleteMs": 1759.1
+    },
+    {
+      "legacy": false,
+      "run": 1,
+      "count": 24,
+      "registryMs": 3.49,
+      "remoteCompleteMs": 932.59
+    },
+    {
+      "legacy": false,
+      "run": 2,
+      "count": 24,
+      "registryMs": 4.02,
+      "remoteCompleteMs": 924.86
+    },
+    {
+      "legacy": false,
+      "run": 3,
+      "count": 24,
+      "registryMs": 0.63,
+      "remoteCompleteMs": 919.58
+    }
+  ]
+}

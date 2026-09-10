@@ -21,7 +21,7 @@ export class GitCommands {
     return `git -C ${this._quoteArg(repoPath)} ${args}`;
   }
 
-  async status(repoPath: string): Promise<{
+  async status(repoPath: string, signal?: AbortSignal): Promise<{
     branch: string;
     ahead: number;
     behind: number;
@@ -29,6 +29,8 @@ export class GitCommands {
   }> {
     const result = await this.connection.execCommand(
       this._git(repoPath, 'status --porcelain=v2 --branch'),
+      undefined,
+      signal,
     );
 
     if (result.exitCode !== 0) {

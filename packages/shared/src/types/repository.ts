@@ -10,6 +10,18 @@ export interface Repository {
   lastCommit?: CommitInfo;
 }
 
+export interface RepositoryStatus {
+  branch: string;
+  ahead: number;
+  behind: number;
+  files: FileStatus[];
+}
+
+// The server bounds SSH + Git work; the client allows a little time for transport.
+export const REPOSITORY_STATUS_TIMEOUT_MS = 10_000;
+export const REPOSITORY_STATUS_REQUEST_TIMEOUT_MS = 12_000;
+export const REPOSITORY_STATUS_CACHE_MS = 60_000;
+
 export interface CommitInfo {
   hash: string;
   shortHash: string;

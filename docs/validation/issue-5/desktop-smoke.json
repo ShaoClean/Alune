@@ -1,0 +1,23 @@
+{
+  "electron": "44.2.0",
+  "platform": "darwin/arm64",
+  "isolatedUserData": true,
+  "remoteConnections": "simulated; no real SSH hosts",
+  "rendererColdRegistryVisibleMs": [
+    78.1,
+    83.7
+  ],
+  "finalBuildExitCode": 0,
+  "passed": [
+    "offline registration visible",
+    "status retry after recovery",
+    "stale status retained after second failure",
+    "SQLite CRUD",
+    "authentication and renderer sandbox",
+    "tree sorting and folding",
+    "long list edge scrolling",
+    "layout persistence",
+    "backend shutdown",
+    "preferences restored across process restart"
+  ]
+}

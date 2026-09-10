@@ -3,6 +3,8 @@ import type { DragEvent, KeyboardEvent } from 'react';
 import { BranchesOutlined, DownOutlined, FolderOpenOutlined, HolderOutlined, RightOutlined } from '@ant-design/icons';
 import type { Repository } from '@remote-git/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
+import { RepositoryStatusIndicator } from './RepositoryStatusIndicator';
+import { useRepositoryStore } from '../stores/repositoryStore';
 import { canMoveTreeItem, orderItems } from '../stores/sidebarOrder';
 import type { Placement, TreeItem } from '../stores/sidebarOrder';
 
@@ -21,6 +23,7 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
     treeOpen, setTreeOpen, collapsedConnectionIds, setConnectionCollapsed,
     connectionOrder, repositoryOrderByConnection, moveTreeItem,
   } = useWorkspaceStore();
+  const { listLoaded, listError, fetchRepositories } = useRepositoryStore();
   const [dragging, setDragging] = useState<TreeItem | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -167,6 +170,8 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
             if (dragSource.current || Date.now() < suppressClickUntil.current) { event.preventDefault(); event.stopPropagation(); }
           }}
         >
+          {listError ? <div className="tree-empty" role="alert">仓库列表加载失败 <button type="button" className="text-button" onClick={() => void fetchRepositories()}>重试</button></div>
+            : !listLoaded && <div className="tree-empty" role="status">正在加载已登记仓库…</div>}
           {groups.length === 0 && <div className="tree-empty">暂无连接</div>}
           {groups.map((connection) => {
             const item: TreeItem = { kind: 'connection', id: connection.id };
@@ -192,7 +197,7 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
                         <button type="button" className="tree-node__action" onClick={() => onOpenRepository(repo)} aria-current={activeId === repo.id ? 'page' : undefined}>
                           <BranchesOutlined className="tree-node__icon" />
                           <span className="tree-node__label" title={repo.path}>{repo.name}</span>
-                          {repo.isDirty && <span className="tree-node__dirty" />}
+                          <RepositoryStatusIndicator id={repo.id} compact />
                         </button>
                       </div>
                     );

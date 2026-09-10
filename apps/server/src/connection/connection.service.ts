@@ -7,6 +7,7 @@ import type { SSHConnectionConfig } from '@remote-git/shared';
 @Injectable()
 export class ConnectionService implements OnModuleDestroy {
   private pool = new SSHConnectionPool();
+  private connecting = new Map<string, Promise<SSHConnection>>();
 
   constructor(@Inject('DATABASE') private db: Database.Database) {
     this._initTable();
@@ -104,10 +105,13 @@ export class ConnectionService implements OnModuleDestroy {
   }
 
   async ensureConnected(id: string): Promise<SSHConnection> {
-    let conn = this.pool.getConnection(id);
-    if (!conn || !conn.connected) {
+    const pending = this.connecting.get(id);
+    if (pending) return pending;
+    const existing = this.pool.getConnection(id);
+    if (existing?.connected) return existing;
+    const request = (async () => {
       const config = await this.get(id);
-      conn = this.pool.createConnection(id, {
+      const conn = this.pool.createConnection(id, {
         host: config.host,
         port: config.port,
         username: config.username,
@@ -116,7 +120,10 @@ export class ConnectionService implements OnModuleDestroy {
         passphrase: config.passphrase,
       });
       await conn.connect();
-    }
-    return conn;
+      return conn;
+    })().finally(() => this.connecting.delete(id));
+    // Concurrent status reads for one host must share its connection attempt.
+    this.connecting.set(id, request);
+    return request;
   }
 }
