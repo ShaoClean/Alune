@@ -8,8 +8,12 @@ const { promisify } = require('node:util');
 const { createMacInstaller, appBundlePath, takeInstallError } = require('../src/mac-installer.cjs');
 
 const exec = promisify(execFile);
-const exitCode = (child) => child.exitCode !== null || child.signalCode !== null
-  ? Promise.resolve(child.exitCode) : new Promise((resolve) => child.once('exit', resolve));
+const exitCode = (child) => {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve(child.exitCode);
+  // The installer unrefs its detached helper so Electron can quit; tests must keep waiting alive.
+  child.ref();
+  return new Promise((resolve) => child.once('exit', resolve));
+};
 async function stop(child) {
   if (child.exitCode === null && child.signalCode === null) { child.kill(); await exitCode(child); }
 }
