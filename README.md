@@ -50,7 +50,7 @@ git push origin "$RELEASE_TAG"
 
 Actions 使用 macOS arm64/x64、Windows x64、Linux x64 原生 runner，重建 Electron 的 SQLite 模块、执行测试并生成安装包。构建步骤禁用发布；最终发布任务核对所有平台附件、更新元数据的大小与 SHA-512，再生成 `SHA256SUMS`。附件全部上传到草稿后才公开 Release。上传失败保留草稿，允许重跑；已公开的 Release 不允许覆盖。构建失败则不创建 Release。
 
-安装包命名为 `RemoteGit-<version>-<mac|win|linux>-<arch>.<dmg|zip|exe|AppImage>`。请保留工作流生成的 blockmap、`latest.yml`、`latest-linux.yml` 和 `SHA256SUMS`，不要单独替换安装包。发布仅使用 Actions 的 `GITHUB_TOKEN`，只有最终发布任务拥有 `contents: write`，无需个人令牌。此流程尚未配置平台签名证书。
+安装包命名为 `RemoteGit-<version>-<mac|win|linux>-<arch>.<dmg|zip|exe|AppImage>`，其中 Linux x64 的 AppImage 使用架构名 `x86_64`。请保留工作流生成的 blockmap、`latest.yml`、`latest-linux.yml` 和 `SHA256SUMS`，不要单独替换安装包。发布仅使用 Actions 的 `GITHUB_TOKEN`，只有最终发布任务拥有 `contents: write`，无需个人令牌。此流程尚未配置平台签名证书。
 
 ### 更新测试与发布验收
 
