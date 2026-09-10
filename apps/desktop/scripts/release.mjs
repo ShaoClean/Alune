@@ -11,7 +11,9 @@ const { version } = JSON.parse(await readFile(path.join(root, 'package.json'), '
 export const targets = ['mac-arm64', 'mac-x64', 'win-x64', 'linux-x64'];
 
 export function artifacts(target, releaseVersion = version) {
-  const prefix = `RemoteGit-${releaseVersion}-${target}`;
+  // electron-builder expands the AppImage x64 architecture to x86_64.
+  const artifactTarget = target === 'linux-x64' ? 'linux-x86_64' : target;
+  const prefix = `RemoteGit-${releaseVersion}-${artifactTarget}`;
   if (target.startsWith('mac-')) return [`${prefix}.dmg`, `${prefix}.dmg.blockmap`, `${prefix}.zip`, `${prefix}.zip.blockmap`];
   if (target === 'win-x64') return [`${prefix}.exe`, `${prefix}.exe.blockmap`, 'latest.yml'];
   if (target === 'linux-x64') return [`${prefix}.AppImage`, 'latest-linux.yml'];
