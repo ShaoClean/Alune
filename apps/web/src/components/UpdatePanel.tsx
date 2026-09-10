@@ -5,7 +5,7 @@ import type { DesktopUpdates, UpdateState } from '../types/desktop-updates';
 const labels: Record<UpdateState['status'], string> = {
   idle: '检查是否有新版本', checking: '正在检查 GitHub Releases…', 'not-available': '当前已是最新稳定版本',
   available: '发现新版本', downloading: '正在下载安装包…', downloaded: '安装包已下载并通过校验',
-  installing: '正在关闭本地服务并启动安装程序…', error: '更新未完成',
+  installing: '正在准备更新并重启安装，请稍候…', error: '更新未完成',
 };
 const bytes = (value: number) => `${(value / 1024 / 1024).toFixed(1)} MB`;
 
@@ -37,16 +37,13 @@ export function UpdatePanel({ open, onClose, state, error, invoke }: {
             <pre>{state.releaseNotes || '此版本未提供更新说明。'}</pre>
           </div>}
           <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-            {state.installMode === 'manual' ? 'macOS 下载完成后，请打开 DMG，将 RemoteGit 拖入“应用程序”完成安装。' : '下载完成后，点击“重启安装”将关闭当前 SSH 连接并安装新版本。普通退出不会自动安装。'}
+            下载完成后，点击“重启安装”将关闭当前 SSH 连接，安装新版本并重新打开应用。普通退出不会自动安装。
           </Typography.Paragraph>
           <Space wrap>
             <Button icon={<ReloadOutlined />} loading={state.status === 'checking'} disabled={!state.supported || Boolean(busy) || Boolean(ready)} onClick={() => void invoke('check')}>检查更新</Button>
             {canDownload && <Button type="primary" icon={<CloudDownloadOutlined />} onClick={() => void invoke('download')}>{state.error ? '重新下载' : '下载更新'}</Button>}
             {state.status === 'downloading' && <Button onClick={() => void invoke('cancel')}>取消下载</Button>}
-            {ready && (state.installMode === 'manual' ? <>
-              <Button type="primary" onClick={() => void invoke('openFile')}>打开安装包</Button>
-              <Button onClick={() => void invoke('revealFile')}>显示文件位置</Button>
-            </> : <Button type="primary" onClick={() => void invoke('install')}>重启安装</Button>)}
+            {ready && <Button type="primary" icon={<ReloadOutlined />} onClick={() => void invoke('install')}>重启安装</Button>}
           </Space>
         </>}
       </div>

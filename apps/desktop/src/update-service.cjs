@@ -23,7 +23,7 @@ class UpdateService extends EventEmitter {
     this.downloaded = null;
     this.state = {
       revision: 0, status: 'idle', currentVersion: version, platform,
-      installMode: platform === 'darwin' ? 'manual' : 'restart', supported,
+      installMode: 'restart', supported,
       latestVersion: null, releaseNotes: '', progress: null, error: null, background: false,
     };
   }
@@ -43,7 +43,9 @@ class UpdateService extends EventEmitter {
       if (task.controller.signal.aborted) {
         this.setState({ status: this.state.latestVersion ? 'available' : 'idle', progress: null, error: null });
       } else {
-        this.setState({ status: 'error', error: { action, message: errorMessage(error) }, progress: null });
+        const invalidDownload = error?.code === 'UPDATE_DOWNLOAD_INVALID';
+        if (invalidDownload) this.downloaded = null;
+        this.setState({ status: 'error', error: { action: invalidDownload ? 'download' : action, message: errorMessage(error) }, progress: null });
       }
     }).finally(() => { if (this.active === task) this.active = null; }).then(() => this.getState());
     return task.promise;
@@ -89,25 +91,32 @@ class UpdateService extends EventEmitter {
 
   install() {
     if (this.active) return this.active.promise;
-    if (!this.downloaded || this.state.installMode !== 'restart') return Promise.resolve(this.getState());
+    if (!this.downloaded || this.state.status === 'installing') return Promise.resolve(this.getState());
     this.setState({ status: 'installing', error: null });
     return this.run('install', async () => {
       let timeout;
+      let prepared;
       try {
+        // Validate permissions and stage the macOS app while the backend is still usable.
+        prepared = await this.adapter.prepareInstall?.(this.downloaded);
         await Promise.race([
           Promise.resolve().then(() => this.closeBackend()),
           new Promise((_, reject) => {
             timeout = setTimeout(() => reject(new Error('关闭本地服务超时，已中止安装。请重启应用后重试。')), this.cleanupTimeout);
           }),
         ]);
-      } finally { clearTimeout(timeout); }
-      await this.adapter.install();
+        clearTimeout(timeout);
+        await this.adapter.install(prepared);
+      } finally {
+        clearTimeout(timeout);
+        await prepared?.dispose?.();
+      }
     });
   }
 
   openFile(reveal = false) {
     if (this.active) return this.active.promise;
-    if (!this.downloaded || this.state.installMode !== 'manual') return Promise.resolve(this.getState());
+    if (!this.downloaded || this.state.platform !== 'darwin' || this.state.status === 'installing') return Promise.resolve(this.getState());
     return this.run('open', async () => {
       try { await this.adapter.openFile(this.downloaded, reveal); }
       catch (error) {

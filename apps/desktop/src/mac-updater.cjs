@@ -1,8 +1,10 @@
 const { createHash } = require('node:crypto');
+const { createReadStream } = require('node:fs');
 const { mkdir, open, rename, rm, access } = require('node:fs/promises');
 const path = require('node:path');
 const semver = require('semver');
 const { stableVersion } = require('./update-service.cjs');
+const { createMacInstaller, appBundlePath } = require('./mac-installer.cjs');
 
 const repository = 'ShaoClean/remote-git';
 const downloadPrefix = `https://github.com/${repository}/releases/download/`;
@@ -64,8 +66,10 @@ function checksumFor(text, name) {
   return matches[0][1].toLowerCase();
 }
 
-function createMacUpdater({ version, arch, cacheDir, shell, fetchImpl = fetch, metadataTimeout = 30000, idleTimeout = 60000 }) {
+function createMacUpdater({ version, arch, cacheDir, shell, app, installer, fetchImpl = fetch, metadataTimeout = 30000, idleTimeout = 60000 }) {
   let candidate;
+  let verified;
+  const getInstaller = () => installer ||= createMacInstaller({ appBundle: appBundlePath(app.getPath('exe')), cacheDir, arch });
   return {
     async check(signal) {
       candidate = null;
@@ -84,7 +88,7 @@ function createMacUpdater({ version, arch, cacheDir, shell, fetchImpl = fetch, m
       const url = assetURL(dmg);
       const checksumResponse = await githubFetch(fetchImpl, assetURL(checksums), requestSignal);
       const sha256 = checksumFor(await smallText(checksumResponse, 128 * 1024), name);
-      candidate = { name, url, size: dmg.size, sha256 };
+      candidate = { name, url, size: dmg.size, sha256, version: nextVersion };
       return { version: nextVersion, releaseNotes: release.body || '' };
     },
 
@@ -136,6 +140,7 @@ function createMacUpdater({ version, arch, cacheDir, shell, fetchImpl = fetch, m
         await handle.close();
         handle = null;
         await rename(partial, file);
+        verified = { ...candidate, file };
         return file;
       } catch (error) {
         if (timeoutController.signal.aborted && !signal.aborted) throw timeoutController.signal.reason;
@@ -145,6 +150,34 @@ function createMacUpdater({ version, arch, cacheDir, shell, fetchImpl = fetch, m
         await handle?.close();
         await rm(partial, { force: true });
       }
+    },
+
+    async prepareInstall(file) {
+      if (!verified || file !== verified.file) throw new Error('请先下载并校验更新包。');
+      // Recheck the on-disk file before mounting; it may have changed since download.
+      try {
+        const hash = createHash('sha256');
+        let size = 0;
+        for await (const chunk of createReadStream(file)) {
+          size += chunk.length;
+          if (size > verified.size) break;
+          hash.update(chunk);
+        }
+        if (size !== verified.size || hash.digest('hex') !== verified.sha256) {
+          throw Object.assign(new Error('更新包已损坏或被修改，请重新下载。'), { code: 'UPDATE_DOWNLOAD_INVALID' });
+        }
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          throw Object.assign(new Error('已下载的安装包已被移动或删除，请重新下载。'), { code: 'UPDATE_DOWNLOAD_INVALID' });
+        }
+        throw error;
+      }
+      return getInstaller().prepare(file, verified.version);
+    },
+
+    async install(prepared) {
+      await getInstaller().install(prepared);
+      app.quit();
     },
 
     async openFile(file, reveal) {

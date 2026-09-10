@@ -63,6 +63,10 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   await window.webContents.executeJavaScript(`document.querySelector('[aria-label="设置"]').click()`);
   await waitForUI(window, `document.body.innerText.includes('安装包已下载并通过校验')`);
   assert.equal(updates.getState().status, 'downloaded');
+  assert.equal(updates.getState().installMode, 'restart');
+  assert.equal(updates.adapter.installs, 0);
+  await waitForUI(window, `Array.from(document.querySelectorAll('[data-testid="update-panel"] button')).some(button => button.textContent.replace(/\\s/g, '') === '重启安装')`);
+  assert.equal(await window.webContents.executeJavaScript(`document.querySelector('[data-testid="update-panel"]').innerText.includes('打开安装包')`), false);
   assert.equal(await window.webContents.executeJavaScript(`window.desktopUpdates.getState().then(state => state.latestVersion)`), updates.getState().latestVersion);
   assert.equal(await window.webContents.executeJavaScript(`new Promise(resolve => {
     const frame = document.createElement('iframe');
@@ -75,9 +79,11 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
     document.body.append(frame);
   })`), true);
   if (process.env.REMOTE_GIT_SMOKE_SCREENSHOT) {
-    // Allow the settings modal entrance transition to finish before visual QA.
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    writeFileSync(process.env.REMOTE_GIT_SMOKE_SCREENSHOT, (await window.webContents.capturePage()).toPNG());
+    // Hidden packaged windows can throttle the modal entrance animation indefinitely.
+    const style = await window.webContents.insertCSS('.ant-modal, .ant-modal-mask { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }');
+    try {
+      writeFileSync(process.env.REMOTE_GIT_SMOKE_SCREENSHOT, (await window.webContents.capturePage()).toPNG());
+    } finally { await window.webContents.removeInsertedCSS(style); }
   }
   await window.loadURL(`${origin}/repositories`);
   await new Promise((resolve) => {
@@ -104,15 +110,26 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   // Keep an upgraded connection alive to reproduce shutdown hangs seen in packaged apps.
   const pendingSocket = new WebSocket(`${origin.replace('http:', 'ws:')}/socket.io/?EIO=4&transport=websocket`, { headers });
   await new Promise((resolve, reject) => { pendingSocket.once('open', resolve); pendingSocket.once('error', reject); });
+  await window.webContents.executeJavaScript(`document.querySelector('[aria-label="设置"]').click()`);
+  await waitForUI(window, `Array.from(document.querySelectorAll('[data-testid="update-panel"] button')).some(button => button.textContent.replace(/\\s/g, '') === '重启安装')`);
   let timeout;
   try {
     await Promise.race([
-      Promise.all([new Promise((resolve) => pendingSocket.once('close', resolve)), closeBackend()]),
+      Promise.all([
+        new Promise((resolve) => pendingSocket.once('close', resolve)),
+        (async () => {
+          await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('[data-testid="update-panel"] button')).find(button => button.textContent.replace(/\\s/g, '') === '重启安装').click()`);
+          await waitForUI(window, `document.body.innerText.includes('正在准备更新并重启安装')`);
+          await updates.active?.promise;
+          assert.equal(updates.adapter.installs, 1);
+          assert.equal(updates.getState().status, 'installing');
+        })(),
+      ]),
       new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Backend did not close its live connections')), 3000); }),
     ]);
   } finally { clearTimeout(timeout); pendingSocket.terminate(); }
   await assert.rejects(fetch(`${origin}/api/connections`, { headers }));
-  console.log('Desktop smoke passed: UI, routing, SQLite CRUD, authentication, sandbox, update settings, download across refresh and backend shutdown.');
+  console.log('Desktop smoke passed: UI, routing, SQLite CRUD, authentication, sandbox, update settings, download across refresh, restart-install button and backend shutdown.');
 };
 
 async function waitForUI(window, condition) {
@@ -129,6 +146,7 @@ async function waitForUI(window, condition) {
 
 // Only selected by the isolated --smoke-test boot path; never connects to GitHub or installs.
 module.exports.createUpdateAdapter = (version) => ({
+  installs: 0,
   async check() { return { version: require('semver').inc(version, 'patch'), releaseNotes: 'Smoke release notes' }; },
   async download(signal, progress) {
     for (let percent = 0; percent <= 100; percent += 10) {
@@ -138,6 +156,6 @@ module.exports.createUpdateAdapter = (version) => ({
     }
     return '/mock/verified-installer';
   },
-  async install() { throw new Error('Smoke tests must not launch an installer'); },
+  async install() { this.installs++; },
   async openFile() {},
 });

@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
-const { mkdtemp, readFile, readdir, rm } = require('node:fs/promises');
+const { mkdtemp, readFile, readdir, rm, writeFile } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
@@ -112,13 +112,54 @@ test('failed or timed-out cleanup never installs, including late cleanup complet
   }
 });
 
-test('macOS never auto-installs and only opens the verified download path', async () => {
-  const opened = [];
-  const updater = service({ openFile: async (...args) => opened.push(args), install: () => assert.fail('manual only') }, { platform: 'darwin' });
-  await updater.openFile();
-  assert.deepEqual(opened, []);
-  await updater.check(); await updater.download(); await updater.install(); await updater.openFile(true);
-  assert.deepEqual(opened, [['/verified.exe', true]]);
+test('macOS stages the verified download before cleanup and installs only on explicit request', async () => {
+  const order = [];
+  const prepared = { dispose: () => order.push('dispose') };
+  const updater = service({
+    prepareInstall: async (file) => { assert.equal(file, '/verified.exe'); order.push('prepare'); return prepared; },
+    install: async (value) => { assert.equal(value, prepared); order.push('install'); },
+  }, { platform: 'darwin', closeBackend: async () => order.push('close') });
+  await updater.install();
+  await updater.check(); await updater.download();
+  assert.deepEqual(order, []);
+  assert.equal(updater.getState().installMode, 'restart');
+  const first = updater.install();
+  assert.equal(updater.install(), first);
+  await first;
+  await updater.install();
+  assert.deepEqual(order, ['prepare', 'close', 'install', 'dispose']);
+});
+
+test('failed install preparation leaves backend running and permits retry', async () => {
+  let attempts = 0, closed = 0, installed = 0;
+  const updater = service({
+    prepareInstall: () => { if (++attempts === 1) throw new Error('Application directory is not writable'); },
+    install: () => installed++,
+  }, { platform: 'darwin', closeBackend: () => closed++ });
+  await updater.check(); await updater.download();
+  assert.equal((await updater.install()).error.action, 'install');
+  assert.equal(closed, 0);
+  assert.equal(installed, 0);
+  assert.equal((await updater.install()).status, 'installing');
+  assert.equal(closed, 1);
+  assert.equal(installed, 1);
+});
+
+test('staged application is disposed after failed or timed-out backend cleanup and failed handoff', async () => {
+  for (const failure of ['close', 'timeout', 'install']) {
+    let disposed = 0, installed = 0;
+    const updater = service({
+      prepareInstall: async () => ({ dispose: () => disposed++ }),
+      install: () => { installed++; throw new Error('spawn failed'); },
+    }, { platform: 'darwin', cleanupTimeout: 10, closeBackend: () => {
+      if (failure === 'timeout') return new Promise(() => {});
+      if (failure === 'close') throw new Error('close failed');
+    } });
+    await updater.check(); await updater.download();
+    assert.equal((await updater.install()).error.action, 'install');
+    assert.equal(disposed, 1);
+    assert.equal(installed, failure === 'install' ? 1 : 0);
+  }
 });
 
 test('a manually deleted DMG can be downloaded again', async () => {
@@ -151,7 +192,7 @@ test('IPC rejects other windows, child frames, external origins and all renderer
   assert.equal(updater.listenerCount('state'), 0);
 });
 
-async function macFixture(t, { arch = 'arm64', mutate = () => {}, downloadBody, checksum, fetchError, downloadFetch, idleTimeout } = {}) {
+async function macFixture(t, { arch = 'arm64', mutate = () => {}, downloadBody, checksum, fetchError, downloadFetch, idleTimeout, installer, app } = {}) {
   const cacheDir = await mkdtemp(path.join(tmpdir(), 'remote-git-update-test-'));
   t.after(() => rm(cacheDir, { recursive: true, force: true }));
   const data = Buffer.from('test DMG bytes');
@@ -164,7 +205,7 @@ async function macFixture(t, { arch = 'arm64', mutate = () => {}, downloadBody, 
     ] };
   mutate(release);
   const requested = [];
-  const adapter = createMacUpdater({ version: '1.0.0', arch, cacheDir, idleTimeout, shell: { openPath: async () => '', showItemInFolder() {} }, fetchImpl: async (url, options) => {
+  const adapter = createMacUpdater({ version: '1.0.0', arch, cacheDir, idleTimeout, installer, app, shell: { openPath: async () => '', showItemInFolder() {} }, fetchImpl: async (url, options) => {
     requested.push(url);
     if (fetchError) throw new Error('network unavailable');
     if (url.includes('/releases/latest')) return new Response(JSON.stringify(release));
@@ -185,6 +226,35 @@ test('macOS selects the correct architecture, verifies SHA-256 and atomically co
     assert.deepEqual(await readdir(cacheDir), [name]);
     assert.equal(progress.at(-1).percent, 100);
     assert.ok(requested.at(-1).endsWith(name));
+  }
+});
+
+test('macOS revalidates the DMG before preparation and quits only after the helper is ready', async (t) => {
+  const order = [];
+  const prepared = {};
+  const { adapter } = await macFixture(t, {
+    installer: {
+      prepare: async (_file, version) => { assert.equal(version, '1.1.0'); order.push('prepare'); return prepared; },
+      install: async (value) => { assert.equal(value, prepared); order.push('handoff'); },
+    }, app: { quit: () => order.push('quit') },
+  });
+  const signal = new AbortController().signal;
+  await adapter.check(signal);
+  const file = await adapter.download(signal, () => {});
+  await assert.rejects(adapter.prepareInstall('/unverified.dmg'), /校验/);
+  await adapter.install(await adapter.prepareInstall(file));
+  assert.deepEqual(order, ['prepare', 'handoff', 'quit']);
+});
+
+test('deleted or modified macOS downloads can be downloaded again without closing the backend', async (t) => {
+  for (const removed of [true, false]) {
+    const { adapter, cacheDir, name } = await macFixture(t, { installer: { prepare: () => assert.fail('invalid DMG must not mount') } });
+    const updater = service(adapter, { platform: 'darwin', closeBackend: () => assert.fail('backend must remain available') });
+    await updater.check(); await updater.download();
+    if (removed) await rm(path.join(cacheDir, name));
+    else await writeFile(path.join(cacheDir, name), Buffer.from('corrupt bytes!'));
+    assert.equal((await updater.install()).error.action, 'download');
+    assert.equal((await updater.download()).status, 'downloaded');
   }
 });
 

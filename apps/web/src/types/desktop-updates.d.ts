@@ -4,7 +4,7 @@ export interface UpdateState {
   currentVersion: string;
   latestVersion: string | null;
   platform: string;
-  installMode: 'manual' | 'restart';
+  installMode: 'restart';
   supported: boolean;
   releaseNotes: string;
   background: boolean;

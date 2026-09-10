@@ -83,16 +83,16 @@ async function start() {
     ? require('./smoke.cjs').createUpdateAdapter(app.getVersion())
     : process.platform === 'darwin'
       ? require('./mac-updater.cjs').createMacUpdater({
-        version: app.getVersion(), arch: process.arch, cacheDir: path.join(dataDir, 'updates'), shell,
+        version: app.getVersion(), arch: process.arch, cacheDir: path.join(dataDir, 'updates'), shell, app,
       })
       : require('./electron-updater-adapter.cjs').createElectronUpdater({
         updater: require('electron-updater').autoUpdater, nativeUpdater,
       });
   if (adapter.install) {
     const install = adapter.install.bind(adapter);
-    adapter.install = async () => {
+    adapter.install = async (...args) => {
       quitting = true;
-      try { await install(); } catch (error) { quitting = false; throw error; }
+      try { await install(...args); } catch (error) { quitting = false; throw error; }
     };
   }
   const supported = smokeTest || (app.isPackaged && (
@@ -101,6 +101,12 @@ async function start() {
     || (process.platform === 'linux' && process.arch === 'x64' && Boolean(process.env.APPIMAGE))
   ));
   updates = new UpdateService({ version: app.getVersion(), platform: process.platform, supported, adapter, closeBackend });
+  const installError = !smokeTest && process.platform === 'darwin'
+    ? await require('./mac-installer.cjs').takeInstallError(path.join(dataDir, 'updates')).catch((error) => {
+      console.error('读取上次更新结果失败', error);
+      return '无法读取上次更新结果，请重新检查更新。';
+    }) : null;
+  if (installError) updates.setState({ status: 'error', error: { action: 'check', message: installError } });
   registerUpdateIPC({ ipcMain, service: updates, getWindow: () => window, getOrigin: () => origin });
   const preferences = createWorkspacePreferences(path.join(dataDir, 'workspace.json'));
   for (const operation of ['load', 'save', 'clear']) {
@@ -135,7 +141,7 @@ async function start() {
     { role: 'windowMenu' },
   ]));
   await createWindow();
-  if (!smokeTest && supported) {
+  if (!smokeTest && supported && !installError) {
     const timer = setTimeout(() => { if (!quitting) void updates.check({ background: true }); }, 10000);
     timer.unref();
     app.once('before-quit', () => clearTimeout(timer));
