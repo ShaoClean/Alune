@@ -3,6 +3,9 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
+    "prepare": "node scripts/install-hooks.mjs",
+    "hooks:install": "node scripts/install-hooks.mjs",
+    "test:hooks": "node --test scripts/*.test.mjs",
     "dev": "turbo dev",
     "build": "turbo build",
     "desktop:build": "turbo build --filter=desktop",

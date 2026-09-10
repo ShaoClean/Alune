@@ -37,6 +37,10 @@ npm run desktop:test  # 构建后执行桌面集成测试
 
 `.github/workflows/release.yml` 在推送 `vX.Y.Z` 标签后运行，标签必须与根 `package.json` 及锁文件版本一致。根包版本是唯一版本来源，暂存应用和前端构建均从这里读取。
 
+`npm install` / `npm ci` 会自动安装仓库的 `pre-push` hook；已有工作区可运行 `npm run hooks:install` 启用。分支推送会检查根 `package.json` 与锁文件两处根版本是否一致；推送 `v*` 标签时，还会检查标签是否为匹配版本的稳定 SemVer。检查读取实际推送的提交，支持附注标签、一次推送多个引用及指定远端标签名；修改工作区文件不能修复指向旧提交的标签。删除引用和非发布标签不受此检查影响。
+
+安装脚本会保留已有的自定义 hooks 配置并提示如何接入。禁用 npm 安装脚本时，需手动运行 `npm run hooks:install`。本地 hook 使用 Node.js 和 Git，无需加载项目依赖；GitHub Actions 继续执行发布校验。
+
 ```sh
 npm version patch --no-git-tag-version --workspaces=false
 RELEASE_TAG="v$(node -p 'require("./package.json").version')"
@@ -55,6 +59,7 @@ Actions 使用 macOS arm64/x64、Windows x64、Linux x64 原生 runner，重建 
 ### 更新测试与发布验收
 
 ```sh
+npm run test:hooks         # 在临时本地仓库验证推送拦截，不连接 GitHub
 npm run desktop:test:unit  # 更新服务、平台适配、IPC、发布元数据
 npm run desktop:build
 npm run desktop:test      # 隔离数据目录；模拟更新源，无真实下载/安装

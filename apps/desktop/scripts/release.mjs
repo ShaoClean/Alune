@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { validatePackageVersions, validateTag as validateReleaseTag } from '../../../scripts/release-version.mjs';
 
 const require = createRequire(import.meta.url);
 const yaml = require('js-yaml');
@@ -21,9 +22,7 @@ export function artifacts(target, releaseVersion = version) {
 }
 
 export function validateTag(tag, releaseVersion = version) {
-  if (!/^v\d+\.\d+\.\d+$/.test(tag) || tag !== `v${releaseVersion}`) {
-    throw new Error(`Release tag ${tag} must equal package.json version v${releaseVersion} and be stable SemVer`);
-  }
+  validateReleaseTag(tag, releaseVersion);
 }
 
 export async function verifyRelease(directory, releaseVersion = version) {
@@ -55,7 +54,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (command === 'tag') {
     validateTag(argument);
     const lock = JSON.parse(await readFile(path.join(root, 'package-lock.json'), 'utf8'));
-    if (lock.version !== version || lock.packages[''].version !== version) throw new Error('Root package-lock.json version is out of sync');
+    validatePackageVersions({ version }, lock);
   } else if (command === 'collect') {
     if (!targets.includes(argument)) throw new Error('Unknown release target');
     const release = path.join(root, 'apps/desktop/release');

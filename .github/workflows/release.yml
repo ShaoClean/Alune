@@ -21,6 +21,7 @@ jobs:
           node-version: '22.22.0'
           cache: npm
       - run: npm ci
+      - run: npm run test:hooks
       - name: Validate version tag and public update source
         env:
           RELEASE_TAG: ${{ github.ref_name }}
