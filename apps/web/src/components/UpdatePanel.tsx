@@ -1,6 +1,7 @@
 import { Alert, Button, Modal, Progress, Space, Spin, Typography } from 'antd';
 import { CloudDownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { DesktopUpdates, UpdateState } from '../types/desktop-updates';
+import { ReleaseNotes } from './ReleaseNotes';
 
 const labels: Record<UpdateState['status'], string> = {
   idle: '检查是否有新版本', checking: '正在检查 GitHub Releases…', 'not-available': '当前已是最新稳定版本',
@@ -17,7 +18,7 @@ export function UpdatePanel({ open, onClose, state, error, invoke }: {
   const ready = state?.status === 'downloaded' || (state?.status === 'error' && ['install', 'open'].includes(state.error?.action || ''));
   const canDownload = state?.latestVersion && (state.status === 'available' || (state.status === 'error' && state.error?.action === 'download'));
   return (
-    <Modal title="设置 · 版本更新" open={open} onCancel={onClose} footer={null} width={560}>
+    <Modal title="设置 · 版本更新" open={open} onCancel={onClose} footer={null} width={560} centered>
       <div className="update-panel" data-testid="update-panel">
         {error && <Alert type="error" showIcon title={error} />}
         {!state ? <Spin tip="正在读取版本信息"><div style={{ minHeight: 80 }} /></Spin> : <>
@@ -34,7 +35,7 @@ export function UpdatePanel({ open, onClose, state, error, invoke }: {
           </div>}
           {state.latestVersion && <div className="update-panel__notes">
             <Typography.Text strong>更新说明</Typography.Text>
-            <pre>{state.releaseNotes || '此版本未提供更新说明。'}</pre>
+            <ReleaseNotes notes={state.releaseNotes} />
           </div>}
           <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
             下载完成后，点击“重启安装”将关闭当前 SSH 连接，安装新版本并重新打开应用。普通退出不会自动安装。

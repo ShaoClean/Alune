@@ -1129,8 +1129,35 @@ body,
 .update-panel__versions { display: flex; gap: 48px; }
 .update-panel__versions > div { display: flex; flex-direction: column; gap: 4px; }
 .update-panel__versions strong { font-size: 22px; }
-.update-panel__notes { padding: 14px; border: 1px solid #d5dce7; border-radius: 8px; background: #f8fafc; }
-.update-panel__notes pre { max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 8px 0 0; }
+.update-panel__notes { min-width: 0; padding: 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-muted); }
+.release-notes { max-height: min(260px, 30vh); margin-top: 10px; overflow: auto; overscroll-behavior: contain; overflow-wrap: anywhere; color: var(--text); font-size: 13px; line-height: 1.65; }
+.release-notes > :first-child { margin-top: 0; }
+.release-notes > :last-child { margin-bottom: 0; }
+.release-notes :is(h1, h2, h3, h4, h5, h6) { margin: 18px 0 8px; color: var(--text); font-weight: 600; line-height: 1.4; }
+.release-notes h1 { font-size: 20px; }
+.release-notes h2 { font-size: 17px; }
+.release-notes h3 { font-size: 15px; }
+.release-notes :is(h4, h5, h6) { font-size: 13px; }
+.release-notes :is(p, ul, ol, blockquote, pre, .release-notes__table) { margin: 10px 0; }
+.release-notes :is(ul, ol) { padding-left: 1.7em; }
+.release-notes li + li { margin-top: 4px; }
+.release-notes li :is(ul, ol) { margin: 4px 0; }
+.release-notes a { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
+.release-notes :is(a, pre, .release-notes__table):focus-visible,
+.release-notes:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.release-notes blockquote { padding: 2px 12px; border-left: 3px solid var(--line-strong); color: var(--text-muted); }
+.release-notes code { padding: 2px 4px; border-radius: 4px; background: var(--line); font-family: 'DM Mono', ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em; }
+.release-notes pre { max-width: 100%; padding: 12px; overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); white-space: pre; overflow-wrap: normal; tab-size: 2; }
+.release-notes pre code { padding: 0; border-radius: 0; background: transparent; font-size: 12px; }
+.release-notes__table { max-width: 100%; overflow-x: auto; }
+.release-notes table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.release-notes :is(th, td) { min-width: 96px; padding: 7px 10px; border: 1px solid var(--line-strong); text-align: left; vertical-align: top; }
+.release-notes th { background: var(--line); font-weight: 600; }
+.release-notes tbody tr:nth-child(even) { background: var(--surface); }
+.release-notes hr { margin: 16px 0; border: 0; border-top: 1px solid var(--line-strong); }
+.release-notes .contains-task-list { padding-left: 0; list-style: none; }
+.release-notes .task-list-item input { margin-right: 6px; }
+.release-notes__empty { color: var(--text-muted); }
 
 /* Remote state stays separate from the locally registered repository identity. */
 .repository-status { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; color: var(--text-muted); }

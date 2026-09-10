@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { WebSocket } = require('ws');
 const { writeFileSync } = require('node:fs');
+const externalLinkOpened = Promise.withResolvers();
 
 module.exports = async ({ window, origin, token, updates, closeBackend, backend, version }) => {
   if (process.env.REMOTE_GIT_SMOKE_PHASE === 'restore') {
@@ -52,6 +53,35 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.replace(/\\s/g, '') === '检查更新').click()`);
   await waitForUI(window, `document.body.innerText.includes('发现新版本')`);
   assert.equal(updates.getState().status, 'available');
+  const notes = await window.webContents.executeJavaScript(`(() => {
+    const notes = document.querySelector('.release-notes');
+    const link = notes.querySelector('a');
+    return {
+      heading: notes.querySelector('h1')?.textContent,
+      strong: notes.querySelector('strong')?.textContent,
+      code: notes.querySelector('pre code')?.textContent,
+      table: Boolean(notes.querySelector('table')),
+      unsafe: Boolean(notes.querySelector('script, iframe, img, a[href^="javascript:"]')),
+      target: link?.target,
+    };
+  })()`);
+  assert.deepEqual(notes, {
+    heading: 'Smoke release notes', strong: 'Markdown', code: '**literal**\n',
+    table: true, unsafe: false, target: '_blank',
+  });
+  const { BrowserWindow } = require('electron');
+  const windowCount = BrowserWindow.getAllWindows().length;
+  const originalUrl = window.webContents.getURL();
+  await window.webContents.executeJavaScript(`document.querySelector('.release-notes a').click()`);
+  let linkTimeout;
+  try {
+    assert.equal(await Promise.race([
+      externalLinkOpened.promise,
+      new Promise((_, reject) => { linkTimeout = setTimeout(() => reject(new Error('External link was not opened')), 3000); }),
+    ]), 'https://github.com/ShaoClean/remote-git/releases');
+  } finally { clearTimeout(linkTimeout); }
+  assert.equal(BrowserWindow.getAllWindows().length, windowCount);
+  assert.equal(window.webContents.getURL(), originalUrl);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.replace(/\\s/g, '') === '下载更新').click()`);
   await waitForUI(window, `document.body.innerText.includes('正在下载安装包')`);
   // Refresh while downloading: the main process owns the operation and snapshot.
@@ -129,7 +159,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
     ]);
   } finally { clearTimeout(timeout); pendingSocket.terminate(); }
   await assert.rejects(fetch(`${origin}/api/connections`, { headers }));
-  console.log('Desktop smoke passed: UI, routing, SQLite CRUD, authentication, sandbox, update settings, download across refresh, restart-install button and backend shutdown.');
+  console.log('Desktop smoke passed: UI, routing, SQLite CRUD, authentication, sandbox, Markdown release notes, external browser links, update settings, download across refresh, restart-install button and backend shutdown.');
 };
 
 async function waitForUI(window, condition) {
@@ -147,7 +177,10 @@ async function waitForUI(window, condition) {
 // Only selected by the isolated --smoke-test boot path; never connects to GitHub or installs.
 module.exports.createUpdateAdapter = (version) => ({
   installs: 0,
-  async check() { return { version: require('semver').inc(version, 'patch'), releaseNotes: 'Smoke release notes' }; },
+  async check() { return {
+    version: require('semver').inc(version, 'patch'),
+    releaseNotes: '# Smoke release notes\n\n- **Markdown**\n\n[Release](https://github.com/ShaoClean/remote-git/releases)\n\n```text\n**literal**\n```\n\n| Platform | Status |\n| --- | --- |\n| Desktop | Ready |\n\n<script>alert(1)</script>\n\n[unsafe](javascript:alert%281%29)',
+  }; },
   async download(signal, progress) {
     for (let percent = 0; percent <= 100; percent += 10) {
       signal.throwIfAborted();
@@ -159,3 +192,5 @@ module.exports.createUpdateAdapter = (version) => ({
   async install() { this.installs++; },
   async openFile() {},
 });
+// Observe the real window-open path without launching a browser during smoke tests.
+module.exports.openExternal = async (url) => { externalLinkOpened.resolve(url); };

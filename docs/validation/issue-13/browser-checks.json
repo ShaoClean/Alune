@@ -1,0 +1,84 @@
+{
+  "desktop": {
+    "notesWidth": 427,
+    "notesScrollWidth": 427,
+    "notesHeight": 260,
+    "notesScrollHeight": 1261,
+    "panelWidth": 472,
+    "panelScrollWidth": 472,
+    "buttonsTop": [732.53125, 732.53125]
+  },
+  "scrolling": {
+    "code": {
+      "width": 425,
+      "scrollWidth": 1018,
+      "scrollLeft": 100
+    },
+    "table": {
+      "width": 427,
+      "scrollWidth": 577,
+      "scrollLeft": 100
+    },
+    "buttonsTop": [732.53125, 732.53125]
+  },
+  "minimum": {
+    "viewport": [1000, 680],
+    "buttons": [
+      {
+        "text": "检查更新",
+        "top": 594.53125,
+        "bottom": 626.53125
+      },
+      {
+        "text": "下载更新",
+        "top": 594.53125,
+        "bottom": 626.53125
+      }
+    ],
+    "width": 427,
+    "scrollWidth": 427
+  },
+  "restart": {
+    "platform": "darwin",
+    "installMode": "restart",
+    "notesRendered": true,
+    "buttons": ["检查更新", "重启安装"]
+  },
+  "updateActions": ["check", "download", "cancel", "install"],
+  "contentCases": [
+    {
+      "name": "empty",
+      "text": "此版本未提供更新说明。",
+      "scripts": 0,
+      "executed": false,
+      "links": []
+    },
+    {
+      "name": "whitespace",
+      "text": "此版本未提供更新说明。",
+      "scripts": 0,
+      "executed": false,
+      "links": []
+    },
+    {
+      "name": "plain",
+      "text": "普通文本更新说明。\n第二段保持可读。",
+      "scripts": 0,
+      "executed": false,
+      "links": []
+    },
+    {
+      "name": "hostile",
+      "text": "\n\n危险\n混淆\n文件\n远程图片\n安全链接\n安全内容",
+      "scripts": 0,
+      "executed": false,
+      "links": [
+        {
+          "href": "https://example.com/notes",
+          "target": "_blank",
+          "rel": "noopener noreferrer"
+        }
+      ]
+    }
+  ]
+}
