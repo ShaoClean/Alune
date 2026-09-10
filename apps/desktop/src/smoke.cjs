@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { WebSocket } = require('ws');
 const { writeFileSync } = require('node:fs');
 
-module.exports = async ({ window, origin, token }) => {
+module.exports = async ({ window, origin, token, updates, closeBackend, version }) => {
   const headers = { Authorization: `Bearer ${token}` };
   assert.equal((await fetch(`${origin}/api/connections`)).status, 401);
   assert.equal((await fetch(`${origin}/api/connections`, { headers: { Authorization: 'Bearer wrong' } })).status, 401);
@@ -28,6 +28,7 @@ module.exports = async ({ window, origin, token }) => {
     };
     check();
   })`);
+  await waitForUI(window, `document.querySelector('.sidebar-footer__version')?.textContent === ${JSON.stringify(`v${version}`)}`);
   const renderer = await window.webContents.executeJavaScript(`(async () => ({
     node: typeof process,
     require: typeof require,
@@ -38,7 +39,40 @@ module.exports = async ({ window, origin, token }) => {
   assert.equal(renderer.require, 'undefined');
   assert.equal(renderer.status, 200);
   assert.match(renderer.text, /RemoteGit/);
+  assert.ok(renderer.text.includes(`v${version}`));
+  assert.deepEqual(await window.webContents.executeJavaScript(`Object.keys(window.desktopUpdates).sort()`),
+    ['cancel', 'check', 'download', 'getState', 'install', 'openFile', 'revealFile', 'subscribe'].sort());
+  assert.equal(await window.webContents.executeJavaScript(`typeof window.desktopUpdates.send`), 'undefined');
+  await window.webContents.executeJavaScript(`document.querySelector('[aria-label="设置"]').click()`);
+  await waitForUI(window, `document.querySelector('[data-testid="update-panel"]') && document.body.innerText.includes('检查更新')`);
+  await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.replace(/\\s/g, '') === '检查更新').click()`);
+  await waitForUI(window, `document.body.innerText.includes('发现新版本')`);
+  assert.equal(updates.getState().status, 'available');
+  await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.replace(/\\s/g, '') === '下载更新').click()`);
+  await waitForUI(window, `document.body.innerText.includes('正在下载安装包')`);
+  // Refresh while downloading: the main process owns the operation and snapshot.
+  await new Promise((resolve) => {
+    window.webContents.once('did-finish-load', resolve);
+    window.webContents.reload();
+  });
+  await waitForUI(window, `document.querySelector('.app-shell') && window.desktopUpdates`);
+  await window.webContents.executeJavaScript(`document.querySelector('[aria-label="设置"]').click()`);
+  await waitForUI(window, `document.body.innerText.includes('安装包已下载并通过校验')`);
+  assert.equal(updates.getState().status, 'downloaded');
+  assert.equal(await window.webContents.executeJavaScript(`window.desktopUpdates.getState().then(state => state.latestVersion)`), updates.getState().latestVersion);
+  assert.equal(await window.webContents.executeJavaScript(`new Promise(resolve => {
+    const frame = document.createElement('iframe');
+    frame.src = '/';
+    frame.onload = async () => {
+      try { await frame.contentWindow.desktopUpdates.check(); resolve(false); }
+      catch { resolve(true); }
+      finally { frame.remove(); }
+    };
+    document.body.append(frame);
+  })`), true);
   if (process.env.REMOTE_GIT_SMOKE_SCREENSHOT) {
+    // Allow the settings modal entrance transition to finish before visual QA.
+    await new Promise((resolve) => setTimeout(resolve, 350));
     writeFileSync(process.env.REMOTE_GIT_SMOKE_SCREENSHOT, (await window.webContents.capturePage()).toPNG());
   }
   await window.loadURL(`${origin}/repositories`);
@@ -61,5 +95,43 @@ module.exports = async ({ window, origin, token }) => {
     socket.on('error', () => {});
   });
   assert.equal((await fetch(`${origin}/api/connections/${created.id}`, { method: 'DELETE', headers })).status, 200);
-  console.log('Desktop smoke passed: UI, routing, SQLite CRUD, HTTP/WebSocket authentication and renderer sandbox.');
+  // Keep an upgraded connection alive to reproduce shutdown hangs seen in packaged apps.
+  const pendingSocket = new WebSocket(`${origin.replace('http:', 'ws:')}/socket.io/?EIO=4&transport=websocket`, { headers });
+  await new Promise((resolve, reject) => { pendingSocket.once('open', resolve); pendingSocket.once('error', reject); });
+  let timeout;
+  try {
+    await Promise.race([
+      Promise.all([new Promise((resolve) => pendingSocket.once('close', resolve)), closeBackend()]),
+      new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Backend did not close its live connections')), 3000); }),
+    ]);
+  } finally { clearTimeout(timeout); pendingSocket.terminate(); }
+  await assert.rejects(fetch(`${origin}/api/connections`, { headers }));
+  console.log('Desktop smoke passed: UI, routing, SQLite CRUD, authentication, sandbox, update settings, download across refresh and backend shutdown.');
 };
+
+async function waitForUI(window, condition) {
+  await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
+    const started = Date.now();
+    const check = () => {
+      if (${condition}) return resolve(true);
+      if (Date.now() - started > 10000) return reject(new Error('Expected update UI did not appear'));
+      setTimeout(check, 50);
+    };
+    check();
+  })`);
+}
+
+// Only selected by the isolated --smoke-test boot path; never connects to GitHub or installs.
+module.exports.createUpdateAdapter = (version) => ({
+  async check() { return { version: require('semver').inc(version, 'patch'), releaseNotes: 'Smoke release notes' }; },
+  async download(signal, progress) {
+    for (let percent = 0; percent <= 100; percent += 10) {
+      signal.throwIfAborted();
+      progress({ percent, transferred: percent, total: 100, bytesPerSecond: 100 });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return '/mock/verified-installer';
+  },
+  async install() { throw new Error('Smoke tests must not launch an installer'); },
+  async openFile() {},
+});

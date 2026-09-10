@@ -10,11 +10,13 @@
     "desktop:pack": "npm run desktop:build && npm run pack -w desktop",
     "desktop:dist": "npm run desktop:build && npm run dist -w desktop",
     "desktop:test": "npm run test -w desktop",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "desktop:test:unit": "npm run test:unit -w desktop"
   },
   "devDependencies": {
     "electron": "44.2.0",
     "electron-builder": "^26.15.3",
+    "js-yaml": "^4.3.2",
     "prettier": "^3.8.3",
     "turbo": "^2.9.12",
     "typescript": "^6.0.3"

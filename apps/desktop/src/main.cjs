@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, session } = require('electron');
+const { app, BrowserWindow, Menu, dialog, session, ipcMain, shell, autoUpdater: nativeUpdater } = require('electron');
 const { randomBytes } = require('node:crypto');
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const path = require('node:path');
@@ -17,6 +17,8 @@ let backend;
 let window;
 let origin;
 let quitting = false;
+let updates;
+let closingBackend;
 const token = randomBytes(32).toString('hex');
 const windowStatePath = path.join(app.getPath('userData'), 'window.json');
 
@@ -33,6 +35,7 @@ function createWindow() {
     show: false,
     autoHideMenuBar: process.platform !== 'darwin',
     webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
       partition: 'remote-git-desktop',
       nodeIntegration: false,
       contextIsolation: true,
@@ -73,6 +76,31 @@ async function start() {
   const { startServer } = require('./server/bootstrap.js');
   backend = await startServer({ port: 0, host: '127.0.0.1', token, webRoot: path.join(__dirname, 'web') });
   origin = await backend.getUrl();
+  const { UpdateService } = require('./update-service.cjs');
+  const { registerUpdateIPC } = require('./update-ipc.cjs');
+  const adapter = smokeTest
+    ? require('./smoke.cjs').createUpdateAdapter(app.getVersion())
+    : process.platform === 'darwin'
+      ? require('./mac-updater.cjs').createMacUpdater({
+        version: app.getVersion(), arch: process.arch, cacheDir: path.join(dataDir, 'updates'), shell,
+      })
+      : require('./electron-updater-adapter.cjs').createElectronUpdater({
+        updater: require('electron-updater').autoUpdater, nativeUpdater,
+      });
+  if (adapter.install) {
+    const install = adapter.install.bind(adapter);
+    adapter.install = async () => {
+      quitting = true;
+      try { await install(); } catch (error) { quitting = false; throw error; }
+    };
+  }
+  const supported = smokeTest || (app.isPackaged && (
+    (process.platform === 'darwin' && ['arm64', 'x64'].includes(process.arch))
+    || (process.platform === 'win32' && process.arch === 'x64')
+    || (process.platform === 'linux' && process.arch === 'x64' && Boolean(process.env.APPIMAGE))
+  ));
+  updates = new UpdateService({ version: app.getVersion(), platform: process.platform, supported, adapter, closeBackend });
+  registerUpdateIPC({ ipcMain, service: updates, getWindow: () => window, getOrigin: () => origin });
   const desktopSession = session.fromPartition('remote-git-desktop');
   desktopSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   desktopSession.setPermissionCheckHandler(() => false);
@@ -99,8 +127,13 @@ async function start() {
     { role: 'windowMenu' },
   ]));
   await createWindow();
+  if (!smokeTest && supported) {
+    const timer = setTimeout(() => { if (!quitting) void updates.check({ background: true }); }, 10000);
+    timer.unref();
+    app.once('before-quit', () => clearTimeout(timer));
+  }
   if (smokeTest) {
-    await require('./smoke.cjs')({ window, origin, token, backend });
+    await require('./smoke.cjs')({ window, origin, token, updates, closeBackend, version: app.getVersion() });
     app.quit();
   }
 }
@@ -123,16 +156,25 @@ if (!app.requestSingleInstanceLock()) {
     if (process.platform !== 'darwin') app.quit();
   });
   app.on('before-quit', (event) => {
+    if (!quitting && updates?.getState().status === 'installing') { event.preventDefault(); return; }
     if (quitting || !backend) return;
     event.preventDefault();
     quitting = true;
-    const timeout = setTimeout(() => app.exit(1), 5000);
-    backend.close().then(() => {
+    const timeout = setTimeout(() => { console.error('关闭本地服务超时'); app.exit(1); }, 5000);
+    closeBackend().then(() => {
       clearTimeout(timeout);
-      backend = null;
       app.quit();
     }).catch(fail);
   });
+}
+
+function closeBackend() {
+  if (!backend) return Promise.resolve();
+  if (!closingBackend) {
+    closingBackend = Promise.resolve().then(() => backend.close()).then(() => { backend = null; })
+      .finally(() => { closingBackend = null; });
+  }
+  return closingBackend;
 }
 
 function fail(error) {

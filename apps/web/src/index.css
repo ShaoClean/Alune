@@ -1248,3 +1248,10 @@ body,
     padding: 13px 12px;
   }
 }
+/* Desktop update settings share the application typography and spacing. */
+.update-panel { display: flex; flex-direction: column; gap: 18px; padding-top: 12px; }
+.update-panel__versions { display: flex; gap: 48px; }
+.update-panel__versions > div { display: flex; flex-direction: column; gap: 4px; }
+.update-panel__versions strong { font-size: 22px; }
+.update-panel__notes { padding: 14px; border: 1px solid #d5dce7; border-radius: 8px; background: #f8fafc; }
+.update-panel__notes pre { max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 8px 0 0; }

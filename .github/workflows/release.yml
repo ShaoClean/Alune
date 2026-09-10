@@ -1,0 +1,126 @@
+name: Desktop release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - name: Validate version tag and public update source
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          node apps/desktop/scripts/release.mjs tag "$RELEASE_TAG"
+          if [ "$REPOSITORY_PRIVATE" = "true" ]; then
+            echo "The GitHub update source must be public before publishing a desktop release."
+            exit 1
+          fi
+      - run: npm run desktop:test:unit
+
+  build:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+            target: mac-arm64
+          - os: macos-15-intel
+            arch: x64
+            target: mac-x64
+          - os: windows-2022
+            arch: x64
+            target: win-x64
+          - os: ubuntu-22.04
+            arch: x64
+            target: linux-x64
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          architecture: ${{ matrix.arch }}
+          cache: npm
+      - name: Verify native build architecture
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: node -e "if (process.arch !== process.env.EXPECTED_ARCH) throw new Error('Native runner architecture mismatch')"
+      - run: npm ci
+      - run: npm run desktop:build
+      - name: Desktop smoke test
+        if: runner.os != 'Linux'
+        run: npm run desktop:test
+      - name: Desktop smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run desktop:test
+      - name: Build installers without publishing
+        run: npm run dist -w desktop -- --publish never
+      - name: Packaged application smoke test
+        if: runner.os != 'Linux'
+        run: node apps/desktop/scripts/test-packaged.mjs
+      - name: Packaged application smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node apps/desktop/scripts/test-packaged.mjs
+      - name: Collect platform release assets
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: node apps/desktop/scripts/release.mjs collect "$RELEASE_TARGET"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.target }}
+          path: apps/desktop/release/upload/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify all artifacts and produce SHA256SUMS
+        run: node apps/desktop/scripts/release.mjs verify release-assets
+      - name: Upload complete draft, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" --json isDraft > release-state.json; then
+            node -e "if (!require('./release-state.json').isDraft) throw new Error('Refusing to overwrite a published release')"
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "RemoteGit $RELEASE_TAG" --generate-notes
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest
