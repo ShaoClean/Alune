@@ -13,8 +13,9 @@ const config = spawnSync('git', ['config', '--get', 'core.hooksPath'], { cwd: ro
 if (config.error) throw config.error;
 if (config.status !== 0 && config.status !== 1) throw new Error(config.stderr || 'Cannot read Git hook configuration');
 const current = config.stdout.trim();
+const integration = 'See CONTRIBUTE.md to add both checks: node scripts/pre-push.mjs in pre-push (forward Git stdin), and npm run --silent commitlint -- --edit "$1" in commit-msg.';
 if (current && current !== '.githooks') {
-  console.warn(`[hooks] Keeping existing core.hooksPath (${current}). Add "node scripts/pre-push.mjs" to its pre-push hook, forwarding Git stdin.`);
+  console.warn(`[hooks] Keeping existing core.hooksPath (${current}). ${integration}`);
   process.exit(0);
 }
 
@@ -23,11 +24,11 @@ if (!current) {
   const hooksDirectory = path.resolve(root, hooks);
   const existing = existsSync(hooksDirectory) && readdirSync(hooksDirectory).some((name) => !name.endsWith('.sample') && !name.startsWith('.'));
   if (existing) {
-    console.warn('[hooks] Keeping existing Git hooks. Add "node scripts/pre-push.mjs" to the pre-push hook, forwarding Git stdin.');
+    console.warn(`[hooks] Keeping existing Git hooks. ${integration}`);
     process.exit(0);
   }
 }
 
-chmodSync(path.join(root, '.githooks/pre-push'), 0o755);
+for (const hook of ['pre-push', 'commit-msg']) chmodSync(path.join(root, '.githooks', hook), 0o755);
 execFileSync('git', ['config', '--local', 'core.hooksPath', '.githooks'], { cwd: root, stdio: 'inherit' });
-console.log('[hooks] Installed pre-push version checks.');
+console.log('[hooks] Installed commit-msg message checks and pre-push version checks.');

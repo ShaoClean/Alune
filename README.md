@@ -8,6 +8,8 @@
 
 欢迎通过[Issue 模板](https://github.com/ShaoClean/remote-git/issues/new/choose)提交功能建议、Bug 报告和优化建议。提交 PR 时请填写自动加载的模板，关联对应 Issue 并记录验证结果，详见[贡献指南](.github/CONTRIBUTING.md)。
 
+提交规范、Git hooks、PR 检查和 Release 说明生成流程见 [CONTRIBUTE.md](CONTRIBUTE.md)。
+
 ## 开发与打包
 
 开发环境使用 Node.js 22.12+ 和 npm。首次构建需要下载 Electron 和原生依赖；原生模块没有预编译包时，需要系统 C++ 编译工具（macOS：Xcode Command Line Tools；Windows：Visual Studio C++ Build Tools 和 Python；Linux：编译工具链和 Python）。
@@ -43,9 +45,9 @@ npm run desktop:test  # 构建后执行桌面集成测试
 
 `.github/workflows/release.yml` 在推送 `vX.Y.Z` 标签后运行，标签必须与根 `package.json` 及锁文件版本一致。根包版本是唯一版本来源，暂存应用和前端构建均从这里读取。
 
-`npm install` / `npm ci` 会自动安装仓库的 `pre-push` hook；已有工作区可运行 `npm run hooks:install` 启用。分支推送会检查根 `package.json` 与锁文件两处根版本是否一致；推送 `v*` 标签时，还会检查标签是否为匹配版本的稳定 SemVer。检查读取实际推送的提交，支持附注标签、一次推送多个引用及指定远端标签名；修改工作区文件不能修复指向旧提交的标签。删除引用和非发布标签不受此检查影响。
+`npm install` / `npm ci` 会自动安装仓库的 `commit-msg` 和 `pre-push` hooks；已有工作区可运行 `npm run hooks:install` 启用。提交信息由 commitlint 校验，使用 `feat:`、`fix:`、`perf:` 等 Conventional Commits 格式。分支推送会检查根 `package.json` 与锁文件两处根版本是否一致；推送 `v*` 标签时，还会检查标签是否为匹配版本的稳定 SemVer。版本检查读取实际推送的提交，支持附注标签、一次推送多个引用及指定远端标签名；修改工作区文件不能修复指向旧提交的标签。删除引用和非发布标签不受版本检查影响。
 
-安装脚本会保留已有的自定义 hooks 配置并提示如何接入。禁用 npm 安装脚本时，需手动运行 `npm run hooks:install`。本地 hook 使用 Node.js 和 Git，无需加载项目依赖；GitHub Actions 继续执行发布校验。
+安装脚本会保留已有的自定义 hooks 配置并提示如何接入。禁用 npm 安装脚本时，需手动运行 `npm run hooks:install`。提交信息检查需要项目开发依赖，推送版本检查只需要 Node.js 和 Git。GitHub Actions 会检查分支新增提交、PR 标题和 PR 提交，并继续执行发布校验。
 
 ```sh
 npm version patch --no-git-tag-version --workspaces=false
@@ -60,12 +62,15 @@ git push origin "$RELEASE_TAG"
 
 Actions 使用 macOS arm64/x64、Windows x64、Linux x64 原生 runner，重建 Electron 的 SQLite 模块、执行测试并生成安装包。构建步骤禁用发布；最终发布任务核对所有平台附件、更新元数据的大小与 SHA-512，再生成 `SHA256SUMS`。附件全部上传到草稿后才公开 Release。上传失败保留草稿，允许重跑；已公开的 Release 不允许覆盖。构建失败则不创建 Release。
 
+Release 说明由 git-cliff 按 `cliff.toml` 分类生成，包含新功能、Bug 修复、性能优化、重构和不兼容变更。发布任务以同一 first-parent 发布线上上一已公开稳定版本为起点，失败构建留下的 tag 不会截断本次变更。说明写入草稿正文，重跑草稿时也会刷新；预览命令和完整规则见 [CONTRIBUTE.md](CONTRIBUTE.md)。
+
 安装包命名为 `RemoteGit-<version>-<mac|win|linux>-<arch>.<dmg|zip|exe|AppImage>`，其中 Linux x64 的 AppImage 使用架构名 `x86_64`。请保留工作流生成的 blockmap、`latest.yml`、`latest-linux.yml` 和 `SHA256SUMS`，不要单独替换安装包。发布仅使用 Actions 的 `GITHUB_TOKEN`，只有最终发布任务拥有 `contents: write`，无需个人令牌。此流程尚未配置平台签名证书。
 
 ### 更新测试与发布验收
 
 ```sh
 npm run test:hooks         # 在临时本地仓库验证推送拦截，不连接 GitHub
+npm run test:release-notes # 验证分类、发布范围和失败 tag 的处理
 npm run desktop:test:unit  # 更新服务、平台适配、IPC、发布元数据
 npm run desktop:build
 npm run desktop:test      # 隔离数据目录；模拟更新源，无真实下载/安装

@@ -1,0 +1,43 @@
+[changelog]
+header = ""
+body = """
+{% if version %}## {{ version }}{% else %}## 待发布{% endif %}
+{% if commits | length == 0 %}
+本次更新主要包含构建、测试或维护调整。
+{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+{% for commit in commits %}\
+- {% if commit.scope %}**{{ commit.scope }}**：{% endif %}{{ commit.message | split(pat="\n") | first }}
+{% if commit.breaking_description %}\
+  {{ commit.breaking_description }}
+{% endif %}\
+{% endfor %}\
+{% endfor %}
+"""
+footer = ""
+trim = true
+render_always = true
+postprocessors = [{ pattern = '\n{3,}', replace = "\n\n" }]
+
+[git]
+conventional_commits = true
+# Preserve older, unstructured descriptions instead of silently losing changes.
+filter_unconventional = false
+protect_breaking_commits = true
+commit_parsers = [
+  { message = '^[a-z]+(\([^)]*\))?!:', group = "<!-- 0 -->⚠️ 不兼容变更" },
+  { body = '(?m)^BREAKING[ -]CHANGE:', group = "<!-- 0 -->⚠️ 不兼容变更" },
+  { message = "^feat", group = "<!-- 1 -->🚀 新功能" },
+  { message = "^fix", group = "<!-- 2 -->🐛 Bug 修复" },
+  { message = "^perf", group = "<!-- 3 -->⚡ 性能优化" },
+  { message = "^refactor", group = "<!-- 4 -->🔧 重构改进" },
+  { message = "^revert|^Revert ", group = "<!-- 5 -->↩️ 回退变更" },
+  { message = "^(docs|test|ci|chore|build|style)(\\([^)]*\\))?!?:", skip = true },
+  { message = "^Merge (branch|remote-tracking branch|pull request|tag) ", skip = true },
+  { message = ".*", group = "<!-- 6 -->其他变更" },
+]
+tag_pattern = "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+use_branch_tags = true
+topo_order = true
+sort_commits = "oldest"

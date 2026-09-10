@@ -5,7 +5,12 @@
   "scripts": {
     "prepare": "node scripts/install-hooks.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
-    "test:hooks": "node --test scripts/*.test.mjs",
+    "commitlint": "commitlint --config commitlint.config.cjs",
+    "lint:commits": "node scripts/lint-commits.mjs",
+    "test:hooks": "node --test scripts/pre-push.test.mjs",
+    "test:release-notes": "node --test scripts/release-notes.test.mjs",
+    "release:notes": "git-cliff --config cliff.toml",
+    "release:notes:github": "node scripts/generate-release-notes.mjs",
     "dev": "turbo dev",
     "build": "turbo build",
     "desktop:build": "turbo build --filter=desktop",
@@ -17,8 +22,11 @@
     "desktop:test:unit": "npm run test:unit -w desktop"
   },
   "devDependencies": {
+    "@commitlint/cli": "21.2.2",
+    "@commitlint/config-conventional": "21.2.2",
     "electron": "44.2.0",
     "electron-builder": "^26.15.3",
+    "git-cliff": "2.13.1",
     "js-yaml": "^4.3.2",
     "prettier": "^3.8.3",
     "turbo": "^2.9.12",

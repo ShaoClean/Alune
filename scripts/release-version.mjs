@@ -1,5 +1,7 @@
+export const stableTagPattern = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+
 export function validateTag(tag, version) {
-  if (!/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag) || tag !== `v${version}`) {
+  if (!stableTagPattern.test(tag) || tag !== `v${version}`) {
     throw new Error(`Release tag ${tag} must equal package.json version v${version} and be stable SemVer`);
   }
 }

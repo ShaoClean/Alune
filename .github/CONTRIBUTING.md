@@ -23,6 +23,6 @@
 3. 完整解决 Issue 时填写 `Closes #编号`；只完成部分工作时使用 `Refs #编号`。
 4. UI 改动附前后截图；涉及持久化、SSH 或桌面更新时，记录相关回归验证。未验证的平台或场景需要明确列出。
 
-建议使用 `feat: ...`、`fix: ...`、`perf: ...`、`refactor: ...`、`docs: ...` 或 `chore: ...` 形式的简洁 PR 标题。开发和测试命令见[项目 README](../README.md)。
+PR 标题和提交信息须遵守 Conventional Commits，使用 `feat: ...`、`fix: ...`、`perf: ...`、`refactor: ...`、`docs: ...` 或 `chore: ...` 等格式；本地 hook 和 CI 会执行校验。完整提交规范、Git hooks 和 Release 说明生成流程见 [CONTRIBUTE.md](../CONTRIBUTE.md)，开发和测试命令见[项目 README](../README.md)。
 
 公开日志与截图请先脱敏，避免提交真实数据库、私人服务器地址、SSH 密码、私钥和访问令牌。

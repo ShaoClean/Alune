@@ -6,3 +6,4 @@ dist
 *.log
 .DS_Store
 apps/desktop/release
+release-notes*.md

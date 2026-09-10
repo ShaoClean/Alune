@@ -22,6 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:hooks
+      - run: npm run test:release-notes
       - name: Validate version tag and public update source
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -100,6 +101,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.0'
@@ -112,6 +115,12 @@ jobs:
           merge-multiple: true
       - name: Verify all artifacts and produce SHA256SUMS
         run: node apps/desktop/scripts/release.mjs verify release-assets
+      - name: Generate categorized release notes from published release history
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: npm run release:notes:github -- "$RELEASE_TAG" release-notes.md
       - name: Upload complete draft, then publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -121,7 +130,8 @@ jobs:
           if gh release view "$RELEASE_TAG" --json isDraft > release-state.json; then
             node -e "if (!require('./release-state.json').isDraft) throw new Error('Refusing to overwrite a published release')"
           else
-            gh release create "$RELEASE_TAG" --verify-tag --draft --title "RemoteGit $RELEASE_TAG" --generate-notes
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "RemoteGit $RELEASE_TAG" --notes-file release-notes.md
           fi
+          gh release edit "$RELEASE_TAG" --notes-file release-notes.md
           gh release upload "$RELEASE_TAG" release-assets/* --clobber
           gh release edit "$RELEASE_TAG" --draft=false --latest
