@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { repositoryApi } from '../api';
+import { hydrateWorkspace, useWorkspaceStore } from './workspaceStore';
 
 interface RepositoryState {
   repositories: any[];
@@ -36,6 +37,8 @@ interface RepositoryState {
 }
 
 export const useRepositoryStore = create<RepositoryState>((set) => {
+  let listPromise: Promise<void> | null = null;
+  let registryRevision = 0;
   let statusRequest = 0;
   let logRequest = 0;
   let diffRequest = 0;
@@ -62,14 +65,26 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
     loading: false,
     error: null,
 
-  fetchRepositories: async (connectionId) => {
+  fetchRepositories: async () => {
+    if (listPromise) return listPromise;
     set({ loading: true, error: null });
-    try {
-      const repositories = await repositoryApi.list(connectionId);
-      set({ repositories, loading: false });
-    } catch (err: any) {
-      set({ error: err.message, loading: false });
-    }
+    listPromise = (async () => {
+      try {
+        await hydrateWorkspace();
+        // The sidebar always needs the full registry; filtering is local to the page.
+        let repositories: any[];
+        let revision: number;
+        do {
+          revision = registryRevision;
+          repositories = await repositoryApi.list();
+        } while (revision !== registryRevision);
+        useWorkspaceStore.getState().reconcileRepositories(repositories);
+        set({ repositories, loading: false });
+      } catch (err: any) {
+        set({ error: err.message, loading: false });
+      }
+    })();
+    try { await listPromise; } finally { listPromise = null; }
   },
 
   scanRepositories: async (connectionId, path) => {
@@ -78,17 +93,21 @@ export const useRepositoryStore = create<RepositoryState>((set) => {
 
   addRepository: async (connectionId, path) => {
     const repo = await repositoryApi.add(connectionId, path);
+    registryRevision += 1;
     set((state) => ({ repositories: [...state.repositories, repo] }));
+    useWorkspaceStore.getState().addRepository(repo);
     return repo;
   },
 
   deleteRepository: async (id) => {
     await repositoryApi.delete(id);
+    registryRevision += 1;
     set((state) => ({
       repositories: state.repositories.filter((r) => r.id !== id),
       openRepositories: state.openRepositories.filter((r) => r.id !== id),
       currentRepo: state.currentRepo?.id === id ? null : state.currentRepo,
     }));
+    useWorkspaceStore.getState().removeRepository(id);
   },
 
   openRepository: (repo) => set((state) => {

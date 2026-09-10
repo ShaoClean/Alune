@@ -3,6 +3,7 @@ const { randomBytes } = require('node:crypto');
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const { createWorkspacePreferences, isTrustedWorkspaceSender } = require('./workspace-preferences.cjs');
 
 const smokeTest = process.argv.includes('--smoke-test');
 app.setName('RemoteGit');
@@ -101,6 +102,13 @@ async function start() {
   ));
   updates = new UpdateService({ version: app.getVersion(), platform: process.platform, supported, adapter, closeBackend });
   registerUpdateIPC({ ipcMain, service: updates, getWindow: () => window, getOrigin: () => origin });
+  const preferences = createWorkspacePreferences(path.join(dataDir, 'workspace.json'));
+  for (const operation of ['load', 'save', 'clear']) {
+    ipcMain.handle(`workspace:${operation}`, (event, value) => {
+      if (!isTrustedWorkspaceSender(event, window?.webContents, origin)) throw new Error('Workspace access denied');
+      return preferences[operation](value);
+    });
+  }
   const desktopSession = session.fromPartition('remote-git-desktop');
   desktopSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   desktopSession.setPermissionCheckHandler(() => false);

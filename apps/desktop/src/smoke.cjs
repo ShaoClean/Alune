@@ -3,6 +3,10 @@ const { WebSocket } = require('ws');
 const { writeFileSync } = require('node:fs');
 
 module.exports = async ({ window, origin, token, updates, closeBackend, version }) => {
+  if (process.env.REMOTE_GIT_SMOKE_PHASE === 'restore') {
+    await require('./sidebar-smoke.cjs')({ window, origin, token, restore: true });
+    return;
+  }
   const headers = { Authorization: `Bearer ${token}` };
   assert.equal((await fetch(`${origin}/api/connections`)).status, 401);
   assert.equal((await fetch(`${origin}/api/connections`, { headers: { Authorization: 'Bearer wrong' } })).status, 401);
@@ -95,6 +99,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, version 
     socket.on('error', () => {});
   });
   assert.equal((await fetch(`${origin}/api/connections/${created.id}`, { method: 'DELETE', headers })).status, 200);
+  await require('./sidebar-smoke.cjs')({ window, origin, token, restore: false });
   // Keep an upgraded connection alive to reproduce shutdown hangs seen in packaged apps.
   const pendingSocket = new WebSocket(`${origin.replace('http:', 'ws:')}/socket.io/?EIO=4&transport=websocket`, { headers });
   await new Promise((resolve, reject) => { pendingSocket.once('open', resolve); pendingSocket.once('error', reject); });

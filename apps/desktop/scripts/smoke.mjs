@@ -11,13 +11,16 @@ const args = process.env.REMOTE_GIT_TEST_EXECUTABLE ? [] : ['dist/app'];
 const env = { ...process.env, REMOTE_GIT_SMOKE_DIR: dataDir };
 delete env.ELECTRON_RUN_AS_NODE;
 try {
-  const child = spawn(executable, [...args, '--smoke-test'], { stdio: 'inherit', env });
-  const timeout = setTimeout(() => child.kill('SIGKILL'), 60000);
-  const code = await new Promise((resolve, reject) => {
-    child.once('error', reject);
-    child.once('exit', (code) => resolve(code ?? 1));
-  }).finally(() => clearTimeout(timeout));
-  process.exitCode = code;
+  for (const phase of ['write', 'restore']) {
+    const child = spawn(executable, [...args, '--smoke-test'], { stdio: 'inherit', env: { ...env, REMOTE_GIT_SMOKE_PHASE: phase } });
+    const timeout = setTimeout(() => child.kill('SIGKILL'), 60000);
+    const code = await new Promise((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', (code) => resolve(code ?? 1));
+    }).finally(() => clearTimeout(timeout));
+    process.exitCode = code;
+    if (code !== 0) break;
+  }
 } finally {
   await rm(dataDir, { recursive: true, force: true });
 }

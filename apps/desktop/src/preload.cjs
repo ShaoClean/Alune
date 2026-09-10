@@ -14,3 +14,9 @@ contextBridge.exposeInMainWorld('desktopUpdates', {
     return () => ipcRenderer.removeListener('updates:changed', listener);
   },
 });
+
+contextBridge.exposeInMainWorld('remoteGitWorkspace', {
+  load: () => ipcRenderer.invoke('workspace:load'),
+  save: (value) => ipcRenderer.invoke('workspace:save', value),
+  clear: () => ipcRenderer.invoke('workspace:clear'),
+});

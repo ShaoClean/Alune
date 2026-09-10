@@ -33,9 +33,10 @@ export function RepositoriesPage() {
 
   const visibleRepositories = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return repositories;
-    return repositories.filter((repo: any) => `${repo.name} ${repo.path} ${repo.currentBranch || ''}`.toLowerCase().includes(query));
-  }, [repositories, search]);
+    const filtered = connectionId ? repositories.filter((repo: any) => repo.connectionId === connectionId) : repositories;
+    if (!query) return filtered;
+    return filtered.filter((repo: any) => `${repo.name} ${repo.path} ${repo.currentBranch || ''}`.toLowerCase().includes(query));
+  }, [repositories, search, connectionId]);
 
   const selectedConnection = connections.find((connection: any) => connection.id === connectionId);
 
