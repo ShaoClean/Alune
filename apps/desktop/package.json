@@ -7,10 +7,16 @@
     "start": "electron dist/app",
     "pack": "electron-builder --projectDir dist/app --config ../../electron-builder.cjs --dir",
     "dist": "electron-builder --projectDir dist/app --config ../../electron-builder.cjs",
-    "test": "node scripts/smoke.mjs"
+    "test": "node scripts/smoke.mjs",
+    "test:unit": "node --test test/*.test.cjs"
   },
   "devDependencies": {
     "server": "*",
     "web": "*"
+  },
+  "dependencies": {
+    "builder-util-runtime": "^9.7.0",
+    "electron-updater": "^6.8.9",
+    "semver": "^7.8.0"
   }
 }

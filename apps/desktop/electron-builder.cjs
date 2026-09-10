@@ -1,13 +1,15 @@
 module.exports = {
   appId: 'com.remotegit.desktop',
   productName: 'RemoteGit',
+  artifactName: 'RemoteGit-${version}-${os}-${arch}.${ext}',
+  publish: { provider: 'github', owner: 'ShaoClean', repo: 'remote-git', private: false, releaseType: 'release' },
   directories: { output: '../../release' },
   files: ['*.cjs', 'server/**/*', 'web/**/*', 'packages/**/*', 'package.json'],
   asar: true,
   asarUnpack: ['**/*.node'],
   npmRebuild: false,
-  mac: { category: 'public.app-category.developer-tools', icon: '../../assets/icon.png', target: ['dmg', 'zip'] },
+  mac: { category: 'public.app-category.developer-tools', icon: '../../assets/icon.png', target: ['dmg', 'zip'], identity: null },
   win: { icon: '../../assets/icon.png', target: ['nsis'] },
   nsis: { oneClick: false, allowToChangeInstallationDirectory: true },
-  linux: { category: 'Development', icon: '../../assets/icon.png', target: ['AppImage'] },
+  linux: { category: 'Development', icon: '../../assets/icon.png', target: ['AppImage'], executableName: 'remotegit' },
 };

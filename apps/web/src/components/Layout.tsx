@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Tooltip } from 'antd';
+import { Button, Tooltip, notification } from 'antd';
 import {
   ApartmentOutlined,
   BranchesOutlined,
@@ -17,6 +17,8 @@ import {
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { RepositoryTabs } from './RepositoryTabs';
+import { UpdatePanel } from './UpdatePanel';
+import { useDesktopUpdates } from '../hooks/useDesktopUpdates';
 
 const navItems = [
   { key: '/', label: '连接', icon: <ApartmentOutlined /> },
@@ -29,6 +31,21 @@ export function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [treeOpen, setTreeOpen] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [updatesOpen, setUpdatesOpen] = useState(false);
+  const { state: updateState, bridgeError, invoke, isDesktop } = useDesktopUpdates();
+  const [notifications, notificationContext] = notification.useNotification();
+  const notifiedVersion = useRef<string | null>(null);
+  useEffect(() => {
+    if (updateState?.status === 'available' && updateState.background && updateState.latestVersion !== notifiedVersion.current) {
+      notifiedVersion.current = updateState.latestVersion;
+      notifications.info({
+        title: `RemoteGit v${updateState.latestVersion} 可用`,
+        description: '新版本已发布，可查看更新说明并下载安装。',
+        actions: <Button type="primary" size="small" onClick={() => setUpdatesOpen(true)}>查看更新</Button>,
+        duration: 8,
+      });
+    }
+  }, [updateState, notifications]);
   const { connections, testResults, fetchConnections } = useConnectionStore();
   const { repositories, openRepositories, currentRepo, fetchRepositories, openRepository, closeRepository } = useRepositoryStore();
 
@@ -71,6 +88,8 @@ export function Layout() {
 
   return (
     <div className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}${mobileNavOpen ? ' app-shell--mobile-open' : ''}`}>
+      {notificationContext}
+      {isDesktop && <UpdatePanel open={updatesOpen} onClose={() => setUpdatesOpen(false)} state={updateState} error={bridgeError} invoke={invoke} />}
       <aside className="app-sidebar" aria-label="主导航">
         <div className="app-sidebar__header">
           <button className="app-brand" type="button" aria-label="RemoteGit 首页" onClick={() => navigate('/')}>
@@ -145,7 +164,7 @@ export function Layout() {
         <div className="app-sidebar__footer">
           <div className="sidebar-footer__actions">
             <Tooltip title={collapsed ? '设置' : undefined} placement="right">
-              <button type="button" className="sidebar-footer__item" aria-label="设置"><SettingOutlined /><span>设置</span></button>
+              <button type="button" className="sidebar-footer__item" aria-label="设置" onClick={() => setUpdatesOpen(true)} disabled={!isDesktop}><SettingOutlined /><span>设置</span></button>
             </Tooltip>
             <Tooltip title={collapsed ? '帮助' : undefined} placement="right">
               <button type="button" className="sidebar-footer__item" aria-label="帮助"><QuestionCircleOutlined /><span>帮助</span></button>
@@ -157,7 +176,7 @@ export function Layout() {
               <strong>RemoteGit</strong>
               <span>工作区就绪</span>
             </div>
-            <span className="sidebar-footer__version">v0.1</span>
+            <span className="sidebar-footer__version">{isDesktop ? (updateState ? `v${updateState.currentVersion}` : '…') : `v${__APP_VERSION__}`}</span>
           </div>
         </div>
       </aside>

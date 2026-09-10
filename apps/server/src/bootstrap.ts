@@ -13,7 +13,8 @@ export interface ServerOptions {
 }
 
 export async function startServer(options: ServerOptions = {}) {
-  const app = await NestFactory.create(AppModule, { abortOnError: false });
+  // Desktop shutdown must close keep-alive and upgraded sockets before an installer can run.
+  const app = await NestFactory.create(AppModule, { abortOnError: false, forceCloseConnections: Boolean(options.token) });
   try {
     if (options.token) {
       const authorization = `Bearer ${options.token}`;
