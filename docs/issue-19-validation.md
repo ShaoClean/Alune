@@ -46,6 +46,12 @@ node apps/web/tests/new-file-deletion-fixture.cjs
 - Windows SSH 的 Git 参数使用编码 PowerShell 和原始字节流转发；已完成下述实机回归。
 - 全量 `npm run test -w server -- --runInBand` 中 5 个原有占位测试缺少依赖注入配置而失败：`connection.controller.spec.ts`、`file.controller.spec.ts`、`file.service.spec.ts`、`git.controller.spec.ts`、`git.service.spec.ts`。原始 worktree 中同样可复现；本次新增功能测试通过。
 
+## 开发模式启动回归
+
+同步修复 `npm run dev` 的页面白屏：Vite 开发服务直接加载共享包的 CommonJS `dist/index.js`，导致浏览器提示缺少 `REPOSITORY_STATUS_REQUEST_TIMEOUT_MS` 导出。Web 的 Vite 配置现将 `@remote-git/shared` 映射到 TypeScript 源码，由 Vite 转换为 ES 模块，也避免前端启动依赖共享包预先构建。
+
+实际开发服务的连接页、仓库列表与刷新通过，浏览器未捕获运行时异常；修复后 `npm run build -w web` 和 35 项 Web 测试通过。该配置修复与 issue-18 分支保持一致。
+
 ## Windows 根目录校验误报修复
 
 Windows PowerShell 会将异步流复制的 `GetAwaiter().GetResult()` 返回值输出到管道。实际 Git 根目录的 `rev-parse --show-prefix` 本应只返回换行，但封装命令多输出了两行 `System.Threading.Tasks.VoidTaskResult`，导致服务端误判为仓库子目录，并提示「请从仓库根目录操作此文件」。同样的输出还会污染 Git 状态和索引解析。
