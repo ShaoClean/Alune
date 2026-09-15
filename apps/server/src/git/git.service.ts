@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, HttpException, ConflictException } from '@nestjs/common';
 import { ConnectionService } from '../connection/connection.service';
 import { RepositoryService } from '../repository/repository.service';
-import { GitCommands } from '@remote-git/ssh-client';
+import {
+  GitCommands,
+  NewFileDeletion,
+  NewFileDeletionError,
+  validateNewFilePath,
+} from '@remote-git/ssh-client';
 
 @Injectable()
 export class GitService {
+  private readonly newFileDeletions = new Set<string>();
   constructor(
     private connectionService: ConnectionService,
     private repoService: RepositoryService,
@@ -14,6 +20,35 @@ export class GitService {
     const repo = await this.repoService.get(id);
     const conn = await this.connectionService.ensureConnected(repo.connectionId);
     return new GitCommands(conn);
+  }
+
+  async deleteNewFile(id: string, path: string, token?: string, preview = false) {
+    let key: string | undefined;
+    try {
+      validateNewFilePath(path);
+      const repo = await this.repoService.get(id);
+      const target = `${repo.connectionId}\0${repo.path}`;
+      if (this.newFileDeletions.has(target)) {
+        throw new ConflictException('此仓库正在删除文件，请等待操作完成。');
+      }
+      if (!preview) {
+        key = target;
+        this.newFileDeletions.add(key);
+      }
+      const connection = await this.connectionService.ensureConnected(repo.connectionId);
+      const deletion = new NewFileDeletion(connection);
+      return preview
+        ? await deletion.preview(repo.path, path)
+        : await deletion.delete(repo.path, path, token!);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error instanceof Error ? error.message : '远端文件操作失败，请刷新后重试。',
+        error instanceof NewFileDeletionError ? error.statusCode : 502,
+      );
+    } finally {
+      if (key) this.newFileDeletions.delete(key);
+    }
   }
 
   async stage(id: string, files: string[]) {

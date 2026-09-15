@@ -17,6 +17,16 @@ const connection = (exec) =>
     client: { exec },
   });
 
+test('UTF-8 paths remain exact when SSH splits a character across chunks', async () => {
+  const channel = stream();
+  const conn = connection((_command, done) => done(null, channel));
+  const pending = new GitCommands(conn).status('/repo');
+  const output = Buffer.from('# branch.head main\0? 目录/中文.txt\0');
+  for (const byte of output) channel.emit('data', Buffer.from([byte]));
+  channel.emit('close', 0);
+  assert.equal((await pending).files[0].path, '目录/中文.txt');
+});
+
 test('a cancelled status closes only its channel; other repository commands still complete', async () => {
   const channels = [];
   const conn = connection((command, callback) => {
@@ -33,7 +43,7 @@ test('a cancelled status closes only its channel; other repository commands stil
   assert.equal(channels[0].closed, true);
   assert.equal(channels[1].closed, false);
   assert.equal(conn.connected, true);
-  channels[1].emit('data', Buffer.from('# branch.head main\n# branch.ab +2 -1\n? note.txt\n'));
+  channels[1].emit('data', Buffer.from('# branch.head main\0# branch.ab +2 -1\0? note.txt\0'));
   channels[1].emit('close', 0);
   const result = await fast;
   assert.equal(result.files.length, 1);

@@ -1,5 +1,6 @@
-import { Client, ClientChannel, ConnectConfig } from 'ssh2';
+import { Client, ClientChannel, ConnectConfig, SFTPWrapper } from 'ssh2';
 import { EventEmitter } from 'events';
+import { StringDecoder } from 'node:string_decoder';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -139,18 +140,24 @@ export class SSHConnection extends EventEmitter {
 
         let stdout = '';
         let stderr = '';
+        const stdoutDecoder = new StringDecoder('utf8');
+        const stderrDecoder = new StringDecoder('utf8');
 
         stream.on('data', (data: Buffer) => {
-          stdout += data.toString();
+          stdout += stdoutDecoder.write(data);
         });
 
         stream.stderr.on('data', (data: Buffer) => {
-          stderr += data.toString();
+          stderr += stderrDecoder.write(data);
         });
 
         stream.on('close', (exitCode: number | null) => {
           cleanup();
-          resolve({ exitCode, stdout, stderr });
+          resolve({
+            exitCode,
+            stdout: stdout + stdoutDecoder.end(),
+            stderr: stderr + stderrDecoder.end(),
+          });
         });
       });
     });
@@ -205,6 +212,37 @@ export class SSHConnection extends EventEmitter {
           }
           resolve(list);
         });
+      });
+    });
+  }
+
+  async withSftp<T>(operation: (sftp: SFTPWrapper) => Promise<T>): Promise<T> {
+    const client = this._ensureConnected();
+    return new Promise<T>((resolve, reject) => {
+      let channel: SFTPWrapper | undefined;
+      let settled = false;
+      const finish = (error?: Error, value?: T) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        channel?.end();
+        if (error) reject(error);
+        else resolve(value as T);
+      };
+      const timer = setTimeout(() => finish(new Error('远端文件操作超时')), 15_000);
+      client.sftp((error, sftp) => {
+        if (settled) {
+          sftp?.end();
+          return;
+        }
+        if (error) {
+          finish(error);
+          return;
+        }
+        channel = sftp;
+        sftp.on('error', (err: Error) => finish(err));
+        sftp.on('close', () => finish(new Error('远端文件连接已中断')));
+        operation(sftp).then((value) => finish(undefined, value), finish);
       });
     });
   }

@@ -11,18 +11,21 @@ import {
   SearchOutlined,
   DownOutlined,
   RightOutlined,
+  UndoOutlined,
 } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { gitApi } from '../api';
 import { EmptyState, ErrorState, FileIcon, LoadingState, PanelHeader } from './ui';
 import { EMPTY_DRAFT, useCommitDraftStore } from '../stores/commitDraftStore';
+import { DeleteNewFileDialog } from './DeleteNewFileDialog';
 
 interface Props {
   repoId: string;
   onRefresh: () => Promise<void>;
   onSelectFile?: (file: any) => void;
   selectedFile?: { path: string; staged: boolean } | null;
+  onFileChanged?: (path: string) => void;
 }
 
 const statusLabels: Record<string, string> = {
@@ -45,7 +48,9 @@ const statusWords: Record<string, string> = {
   ignored: '已忽略',
 };
 
-export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: Props) {
+export function ChangesView({
+  repoId, onRefresh, onSelectFile, selectedFile, onFileChanged,
+}: Props) {
   const { entry, stale } = useRepositoryStatus(repoId);
   const { status, fetchStatus } = useRepositoryStore();
   const draft = useCommitDraftStore((state) => state.drafts[repoId] || EMPTY_DRAFT);
@@ -53,16 +58,23 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
   const [query, setQuery] = useState('');
   const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
+  const [deletePath, setDeletePath] = useState<string | null>(null);
+  const busy = loading || deletePath !== null;
 
   const files = status?.files || [];
   const stagedFiles = useMemo(() => files.filter((file: any) => file.staged), [files]);
   const unstagedFiles = useMemo(() => files.filter((file: any) => !file.staged), [files]);
+  const addedPaths = useMemo(
+    () => new Set(files.filter((file) => file.status === 'added').map((file) => file.path)),
+    [files],
+  );
 
   const refreshStatus = async () => {
     await onRefresh();
   };
 
   const runFileAction = async (action: 'stage' | 'unstage', paths: string[]) => {
+    if (busy) return;
     setLoading(true);
     try {
       await gitApi[action](repoId, paths);
@@ -78,6 +90,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
   };
 
   const discardFile = async (path: string) => {
+    if (busy) return;
     setLoading(true);
     try {
       await gitApi.checkout(repoId, [path]);
@@ -91,7 +104,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
   };
 
   const handleCommit = async () => {
-    if (loading || stagedFiles.length === 0) return;
+    if (busy || stagedFiles.length === 0) return;
     if (!draft.message.trim()) {
       message.warning('请先填写提交信息');
       return;
@@ -155,6 +168,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
             icon={<MinusOutlined />}
             aria-label={`取消暂存 ${file.path}`}
             loading={loading}
+            disabled={busy}
             onClick={() => void runFileAction('unstage', [file.path])}
           />
         ) : (
@@ -164,24 +178,42 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
             icon={<PlusOutlined />}
             aria-label={`暂存 ${file.path}`}
             loading={loading}
+            disabled={busy}
             onClick={() => void runFileAction('stage', [file.path])}
           />
         )}
-        {!file.staged && file.status !== 'untracked' && (
+        {!file.staged && file.status !== 'untracked' && file.status !== 'added' && (
           <Popconfirm
-            title="丢弃此文件的改动？"
-            description="此操作不可撤销。"
-            onConfirm={() => void discardFile(file.path)}
+            title="丢弃此文件的未暂存改动？"
+            description={addedPaths.has(file.path)
+              ? '将恢复为暂存区的内容，保留已暂存的新增文件。此操作不可撤销。'
+              : '此操作不可撤销。'}
+            disabled={busy}
+            onConfirm={() => discardFile(file.path)}
           >
             <Button
               type="text"
               danger
               size="small"
-              icon={<DeleteOutlined />}
+              icon={<UndoOutlined />}
               aria-label={`丢弃 ${file.path}`}
+              title="丢弃未暂存改动"
               loading={loading}
+              disabled={busy}
             />
           </Popconfirm>
+        )}
+        {(file.status === 'untracked' || addedPaths.has(file.path)) && (
+          <Button
+            type="text"
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+            aria-label={`删除整个新增文件 ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
+            title="删除整个新增文件"
+            disabled={busy}
+            onClick={() => setDeletePath(file.path)}
+          />
         )}
       </div>
     </div>
@@ -205,7 +237,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
             <Button
               type="text"
               size="small"
-              disabled={loading}
+              disabled={busy}
               onClick={() =>
                 void runFileAction(
                   staged ? 'unstage' : 'stage',
@@ -230,7 +262,20 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
 
   return (
     <section className="workspace-panel changes-panel">
-      <PanelHeader title="改动" count={status ? files.length : undefined} icon={<FileAddOutlined />} />
+      {deletePath !== null && (
+        <DeleteNewFileDialog
+          key={`${repoId}-${deletePath}`}
+          repoId={repoId}
+          path={deletePath}
+          onClose={() => setDeletePath(null)}
+          onFileChanged={onFileChanged}
+        />
+      )}
+      <PanelHeader
+        title="改动"
+        count={status ? new Set(files.map((file) => file.path)).size : undefined}
+        icon={<FileAddOutlined />}
+      />
       <div className="changes-filter">
         <Input
           aria-label="筛选改动文件"
@@ -276,14 +321,14 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
           aria-label="提交摘要"
           placeholder="摘要 · 描述这次改动"
           value={draft.message}
-          disabled={loading}
+          disabled={busy}
           onChange={(event) => updateDraft(repoId, { message: event.target.value })}
         />
         <Input.TextArea
           aria-label="提交描述"
           placeholder="描述（可选）"
           value={draft.description}
-          disabled={loading}
+          disabled={busy}
           onChange={(event) => updateDraft(repoId, { description: event.target.value })}
           rows={2}
         />
@@ -292,7 +337,7 @@ export function ChangesView({ repoId, onRefresh, onSelectFile, selectedFile }: P
           block
           icon={<CheckOutlined />}
           loading={loading}
-          disabled={!stagedFiles.length || !draft.message.trim()}
+          disabled={busy || !stagedFiles.length || !draft.message.trim()}
           onClick={() => void handleCommit()}
         >
           提交已暂存内容{stagedFiles.length > 0 ? ` · ${stagedFiles.length}` : ''}

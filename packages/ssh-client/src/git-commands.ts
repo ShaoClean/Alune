@@ -1,4 +1,6 @@
 import { SSHConnection } from './connection-manager';
+import { parseStatus } from './git-status';
+import { isWindowsPath, quotePosixArgument } from './git-shell';
 import type {
   FileStatus,
   CommitInfo,
@@ -18,7 +20,8 @@ export class GitCommands {
   }
 
   private _git(repoPath: string, args: string): string {
-    return `git -C ${this._quoteArg(repoPath)} ${args}`;
+    const path = isWindowsPath(repoPath) ? this._quoteArg(repoPath) : quotePosixArgument(repoPath);
+    return `git -C ${path} ${args}`;
   }
 
   async status(repoPath: string, signal?: AbortSignal): Promise<{
@@ -28,7 +31,7 @@ export class GitCommands {
     files: FileStatus[];
   }> {
     const result = await this.connection.execCommand(
-      this._git(repoPath, 'status --porcelain=v2 --branch'),
+      this._git(repoPath, 'status --porcelain=v2 --branch -z --untracked-files=all'),
       undefined,
       signal,
     );
@@ -37,39 +40,7 @@ export class GitCommands {
       throw new Error(`git status failed: ${result.stderr}`);
     }
 
-    const lines = result.stdout.split('\n').filter(Boolean);
-    let branch = '';
-    let ahead = 0;
-    let behind = 0;
-    const files: FileStatus[] = [];
-
-    for (const line of lines) {
-      if (line.startsWith('# branch.head')) {
-        branch = line.split(' ').slice(1).join(' ').trim() || branch;
-      } else if (line.startsWith('# branch.ab')) {
-        const ab = line.split(' ').slice(1);
-        for (const part of ab) {
-          if (part.startsWith('+')) ahead = parseInt(part.slice(1), 10) || 0;
-          if (part.startsWith('-')) behind = parseInt(part.slice(1), 10) || 0;
-        }
-      } else if (line.startsWith('1 ') || line.startsWith('2 ') || line.startsWith('u ')) {
-        const fileStatus = this._parseFileStatusLine(line);
-        if (fileStatus) files.push(fileStatus);
-      } else if (line.startsWith('? ')) {
-        files.push({
-          path: line.slice(2),
-          status: 'untracked',
-          staged: false,
-        });
-      } else if (line.startsWith('! ')) {
-        files.push({
-          path: line.slice(2),
-          status: 'ignored',
-          staged: false,
-        });
-      }
-    }
-
+    const { branch, ahead, behind, files } = parseStatus(result.stdout);
     return { branch, ahead, behind, files };
   }
 
@@ -195,50 +166,6 @@ export class GitCommands {
 
   async execute(repoPath: string, args: string): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
     return this.connection.execCommand(this._git(repoPath, args));
-  }
-
-  private _parseFileStatusLine(line: string): FileStatus | null {
-    if (line.startsWith('1 ')) {
-      const parts = line.split(' ');
-      const xy = parts[1];
-      const filePath = parts.slice(8).join(' ');
-      const statusCode = xy[0] === '.' ? xy[1] : xy[0];
-      const staged = xy[0] !== '.' && xy[0] !== '?';
-
-      const statusMap: Record<string, FileStatus['status']> = {
-        M: 'modified', A: 'added', D: 'deleted',
-        R: 'renamed', C: 'copied',
-      };
-
-      return {
-        path: filePath,
-        status: statusMap[statusCode] || 'modified',
-        staged,
-      };
-    }
-
-    if (line.startsWith('2 ')) {
-      const parts = line.split(' ');
-      const xy = parts[1];
-      const origPath = parts[parts.length - 2];
-      const newPath = parts[parts.length - 1];
-      const staged = xy[0] !== '.';
-
-      return {
-        path: newPath,
-        oldPath: origPath,
-        status: 'renamed',
-        staged,
-      };
-    }
-
-    if (line.startsWith('u ')) {
-      const parts = line.split(' ');
-      const filePath = parts.slice(9).join(' ');
-      return { path: filePath, status: 'modified', staged: false };
-    }
-
-    return null;
   }
 
   private _parseCommitNameStatus(output: string): CommitFile[] {

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@remote-git/shared';
+import type { NewFileDeletionPreview } from '@remote-git/shared';
 
 const api = axios.create({
   baseURL: '/api',
@@ -45,6 +46,10 @@ export const repositoryApi = {
 
 // Git Operation APIs
 export const gitApi = {
+  previewNewFileDeletion: (id: string, path: string): Promise<NewFileDeletionPreview> =>
+    api.post(`/repositories/${id}/delete-new-file/preview`, { path }, { timeout: 60000 }).then((r) => r.data),
+  deleteNewFile: (id: string, path: string, token: string) =>
+    api.post(`/repositories/${id}/delete-new-file`, { path, token }, { timeout: 60000 }).then((r) => r.data),
   stage: (id: string, files: string[]) =>
     api.post(`/repositories/${id}/stage`, { files }).then((r) => r.data),
   unstage: (id: string, files: string[]) =>

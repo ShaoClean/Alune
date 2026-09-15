@@ -49,6 +49,14 @@ export interface FileStatus {
   deletions?: number;
 }
 
+export interface NewFileDeletionPreview {
+  path: string;
+  token: string;
+  staged: boolean;
+  hasUnstagedChanges: boolean;
+  diskPresent: boolean;
+}
+
 export interface BranchInfo {
   name: string;
   isHead: boolean;

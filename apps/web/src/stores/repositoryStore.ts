@@ -69,6 +69,7 @@ interface RepositoryState {
   fetchLog: (id: string, params?: any) => Promise<void>;
   fetchCommitFiles: (id: string, commit: string, parentCommit?: string) => Promise<void>;
   fetchDiff: (id: string, params?: any) => Promise<void>;
+  clearDiff: () => void;
   fetchBranches: (id: string) => Promise<void>;
   fetchStashes: (id: string) => Promise<void>;
   fetchRemotes: (id: string) => Promise<void>;
@@ -444,6 +445,11 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             error: err.message,
           });
       }
+    },
+
+    clearDiff: () => {
+      diffRequest++;
+      set({ diff: '', diffLoading: false, diffError: null });
     },
 
     fetchDiff: async (id, params) => {
