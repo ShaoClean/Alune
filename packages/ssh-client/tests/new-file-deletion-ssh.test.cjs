@@ -5,9 +5,10 @@ const path = require('node:path');
 const { createRepository } = require('./helpers/local-repository.cjs');
 const { connectFixture } = require('./helpers/ssh-server.cjs');
 const { NewFileDeletion } = require('../dist/new-file-deletion');
+const { GitCommands } = require('../dist/git-commands');
 
 test(
-  'real SSH/SFTP removes only selected files, preserves parents, and reports permission failures',
+  'real SSH/SFTP previews and deletes new files, preserves parents, and reports permission failures',
   { timeout: 60000 },
   async (t) => {
     const fixture = createRepository({ initial: false });
@@ -15,6 +16,7 @@ test(
     const ssh = await connectFixture(fixture);
     t.after(ssh.close);
     const deletion = new NewFileDeletion(ssh.connection);
+    const git = new GitCommands(ssh.connection);
     for (const stage of ['untracked', 'staged', 'mixed']) {
       const name = `目录/中文 $ '\" [*] ${stage}.txt`;
       fixture.write(name, 'index contents\n');
@@ -22,10 +24,29 @@ test(
       if (stage === 'mixed') fixture.write(name, 'working contents\n');
       const preview = await deletion.preview(fixture.repo, name);
       assert.equal(preview.staged, stage !== 'untracked');
+      const indexPath = path.join(fixture.repo, '.git/index');
+      const indexBefore = fs.existsSync(indexPath) ? fs.readFileSync(indexPath) : null;
+      const rows = (await git.status(fixture.repo)).files.filter((file) => file.path === name);
+      assert.equal(rows.length, stage === 'mixed' ? 2 : 1);
+      for (const row of rows) {
+        const diff = await git.diff(fixture.repo, { file: name, staged: row.staged });
+        if (stage === 'mixed' && !row.staged) {
+          assert.match(diff, /-index contents\n\+working contents/);
+        } else {
+          assert.match(diff, /\+index contents/);
+          assert.doesNotMatch(diff, /\+working contents/);
+        }
+      }
+      assert.deepEqual(fs.existsSync(indexPath) ? fs.readFileSync(indexPath) : null, indexBefore);
+      // Reading either comparison must keep the existing deletion confirmation valid.
       await deletion.delete(fixture.repo, name, preview.token);
       assert.equal(fs.existsSync(path.join(fixture.repo, name)), false);
       assert.ok(fs.existsSync(path.join(fixture.repo, '目录')));
       assert.equal(fixture.git('ls-files', '-z', '--', name), '');
+      assert.equal(
+        (await git.status(fixture.repo)).files.some((file) => file.path === name),
+        false,
+      );
     }
     fixture.write('readonly/new.txt');
     fixture.git('add', '--', 'readonly/new.txt');

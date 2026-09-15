@@ -50,9 +50,19 @@ export function parseStatus(output: string): RepositoryStatus & {
       if (kind === 'u') result.files.push({ path, status: 'modified', staged: false });
       else {
         if (xy[0] !== '.')
-          result.files.push({ path, oldPath, status: statuses[xy[0]] || 'modified', staged: true });
+          result.files.push({
+            path,
+            ...(oldPath && (xy[0] === 'R' || xy[0] === 'C') ? { oldPath } : {}),
+            status: statuses[xy[0]] || 'modified',
+            staged: true,
+          });
         if (xy[1] !== '.')
-          result.files.push({ path, status: statuses[xy[1]] || 'modified', staged: false });
+          result.files.push({
+            path,
+            ...(oldPath && (xy[1] === 'R' || xy[1] === 'C') ? { oldPath } : {}),
+            status: statuses[xy[1]] || 'modified',
+            staged: false,
+          });
       }
     } else if (raw.startsWith('? ') || raw.startsWith('! ')) {
       const path = raw.slice(2);

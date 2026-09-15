@@ -448,7 +448,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     },
 
     clearDiff: () => {
-      diffRequest++;
+      diffRequest += 1;
       set({ diff: '', diffLoading: false, diffError: null });
     },
 
@@ -462,7 +462,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           set({ diff, diffLoading: false, diffError: null, error: null });
       } catch (err: any) {
         if (request === diffRequest)
-          set({ diff: '', diffLoading: false, diffError: err.message, error: err.message });
+          set({ diff: '', diffLoading: false, diffError: errorMessage(err) });
       }
     },
 

@@ -53,21 +53,13 @@ export class GitService {
 
   async stage(id: string, files: string[]) {
     const git = await this.getGit(id);
-    const result = await git.execute(
-      (await this.repoService.get(id)).path,
-      `add ${files.map((f) => `"${f}"`).join(' ')}`,
-    );
-    if (result.exitCode !== 0) throw new Error(result.stderr);
+    await git.stage((await this.repoService.get(id)).path, files);
     return { success: true };
   }
 
   async unstage(id: string, files: string[]) {
     const git = await this.getGit(id);
-    const result = await git.execute(
-      (await this.repoService.get(id)).path,
-      `reset HEAD -- ${files.map((f) => `"${f}"`).join(' ')}`,
-    );
-    if (result.exitCode !== 0) throw new Error(result.stderr);
+    await git.unstage((await this.repoService.get(id)).path, files);
     return { success: true };
   }
 

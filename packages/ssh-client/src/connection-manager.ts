@@ -1,6 +1,5 @@
 import { Client, ClientChannel, ConnectConfig, SFTPWrapper } from 'ssh2';
 import { EventEmitter } from 'events';
-import { StringDecoder } from 'node:string_decoder';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -20,6 +19,12 @@ export interface CommandResult {
   exitCode: number | null;
   stdout: string;
   stderr: string;
+}
+
+export class CommandOutputLimitError extends Error {
+  constructor() {
+    super('Command output exceeded the preview limit');
+  }
 }
 
 export interface StreamCallbacks {
@@ -110,7 +115,12 @@ export class SSHConnection extends EventEmitter {
     this._connecting = false;
   }
 
-  async execCommand(command: string, cwd?: string, signal?: AbortSignal): Promise<CommandResult> {
+  async execCommand(
+    command: string,
+    cwd?: string,
+    signal?: AbortSignal,
+    options?: { maxOutputBytes?: number; strictUtf8?: boolean },
+  ): Promise<CommandResult> {
     signal?.throwIfAborted();
     const client = this._ensureConnected();
     const fullCommand = cwd ? `cd "${cwd}" && ${command}` : command;
@@ -132,32 +142,50 @@ export class SSHConnection extends EventEmitter {
           return;
         }
         channel = stream;
-        stream.on('error', (error: Error) => { cleanup(); reject(error); });
+        stream.on('error', (error: Error) => {
+          cleanup();
+          reject(error);
+        });
         if (signal?.aborted) {
           stream.close();
           return;
         }
 
-        let stdout = '';
-        let stderr = '';
-        const stdoutDecoder = new StringDecoder('utf8');
-        const stderrDecoder = new StringDecoder('utf8');
-
-        stream.on('data', (data: Buffer) => {
-          stdout += stdoutDecoder.write(data);
-        });
-
-        stream.stderr.on('data', (data: Buffer) => {
-          stderr += stderrDecoder.write(data);
-        });
+        const stdout: Buffer[] = [];
+        const stderr: Buffer[] = [];
+        let bytes = 0;
+        let exceeded = false;
+        const collect = (chunks: Buffer[], data: Buffer) => {
+          if (exceeded) return;
+          bytes += data.length;
+          if (bytes > (options?.maxOutputBytes ?? Infinity)) {
+            exceeded = true;
+            cleanup();
+            reject(new CommandOutputLimitError());
+            stream.close();
+          } else {
+            chunks.push(data);
+          }
+        };
+        stream.on('data', (data: Buffer) => collect(stdout, data));
+        stream.stderr.on('data', (data: Buffer) => collect(stderr, data));
 
         stream.on('close', (exitCode: number | null) => {
           cleanup();
-          resolve({
-            exitCode,
-            stdout: stdout + stdoutDecoder.end(),
-            stderr: stderr + stderrDecoder.end(),
-          });
+          if (exceeded) return;
+          try {
+            // Decode after joining chunks so SSH packet boundaries cannot split UTF-8 characters.
+            const output = Buffer.concat(stdout);
+            resolve({
+              exitCode,
+              stdout: options?.strictUtf8
+                ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(output)
+                : output.toString('utf8'),
+              stderr: Buffer.concat(stderr).toString('utf8'),
+            });
+          } catch (error) {
+            reject(error);
+          }
         });
       });
     });

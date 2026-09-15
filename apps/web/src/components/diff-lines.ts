@@ -1,0 +1,32 @@
+export type DiffLine = { text: string; kind: 'meta' | 'context' | 'add' | 'remove' };
+
+export function getDiffLines(diff: string): DiffLine[] {
+  let inHunk = false;
+  return diff.split('\n').map((text) => {
+    if (text.startsWith('diff ')) inHunk = false;
+    if (text.startsWith('@@')) {
+      inHunk = true;
+      return { text, kind: 'meta' };
+    }
+    // Once in a hunk, even "+++ " and "--- " are file content, not headers.
+    const kind = !inHunk
+      ? 'meta'
+      : text.startsWith('+')
+        ? 'add'
+        : text.startsWith('-')
+          ? 'remove'
+          : text.startsWith(' ')
+            ? 'context'
+            : 'meta';
+    return { text, kind };
+  });
+}
+
+export function getDiffNotice(diff: string): string | null {
+  if (diff.split('\n').filter((line) => line.startsWith('diff ')).length !== 1) return null;
+  if (getDiffLines(diff).some((line) => line.kind !== 'meta')) return null;
+  if (/^Binary files /m.test(diff) || /^GIT binary patch$/m.test(diff))
+    return '二进制文件，无法显示文本差异。';
+  if (/^new file mode /m.test(diff)) return '新增空文件';
+  return null;
+}

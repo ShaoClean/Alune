@@ -47,8 +47,37 @@ test('a cancelled status closes only its channel; other repository commands stil
   channels[1].emit('close', 0);
   const result = await fast;
   assert.equal(result.files.length, 1);
+  assert.equal(result.branch, 'main');
   assert.equal(result.ahead, 2);
   assert.equal(result.behind, 1);
+});
+
+test('bounded commands close only their own channel and count stderr against the limit', async () => {
+  const channel = stream();
+  const conn = connection((_command, done) => done(null, channel));
+  const pending = conn.execCommand('diff', undefined, undefined, { maxOutputBytes: 5 });
+  channel.emit('data', Buffer.from('1234'));
+  channel.stderr.emit('data', Buffer.from('56'));
+  await assert.rejects(pending, /preview limit/);
+  assert.equal(channel.closed, true);
+  assert.equal(conn.connected, true);
+});
+
+test('UTF-8 survives split SSH packets and invalid text can be rejected for previews', async () => {
+  const channel = stream();
+  const conn = connection((_command, done) => done(null, channel));
+  const pending = conn.execCommand('diff', undefined, undefined, { strictUtf8: true });
+  const bytes = Buffer.from('中文');
+  channel.emit('data', bytes.subarray(0, 2));
+  channel.emit('data', bytes.subarray(2));
+  channel.emit('close', 0);
+  assert.equal((await pending).stdout, '中文');
+  const bad = stream();
+  conn.client.exec = (_command, done) => done(null, bad);
+  const invalid = conn.execCommand('diff', undefined, undefined, { strictUtf8: true });
+  bad.emit('data', Buffer.from([0xff]));
+  bad.emit('close', 0);
+  await assert.rejects(invalid, /encoded data/);
 });
 
 test('a channel opened after cancellation is immediately closed', async () => {
