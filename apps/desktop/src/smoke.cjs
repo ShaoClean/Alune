@@ -136,6 +136,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   });
   assert.equal((await fetch(`${origin}/api/connections/${created.id}`, { method: 'DELETE', headers })).status, 200);
   await require('./repository-loading-smoke.cjs')({ window, origin, token, backend });
+  await require('./diff-smoke.cjs')({ window, origin, token, backend });
   await require('./sidebar-smoke.cjs')({ window, origin, token, restore: false });
   // Keep an upgraded connection alive to reproduce shutdown hangs seen in packaged apps.
   const pendingSocket = new WebSocket(`${origin.replace('http:', 'ws:')}/socket.io/?EIO=4&transport=websocket`, { headers });

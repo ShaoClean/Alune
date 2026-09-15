@@ -1,4 +1,4 @@
-import { SSHConnection } from './connection-manager';
+import { SSHConnection, CommandOutputLimitError } from './connection-manager';
 import type {
   FileStatus,
   CommitInfo,
@@ -10,25 +10,34 @@ import type {
   LogOptions,
 } from '@remote-git/shared';
 
+export const DIFF_PREVIEW_MAX_BYTES = 1024 * 1024;
+const previewLimitMessage = '文件或差异超出预览限制（1 MiB），请在远端查看。';
+
 export class GitCommands {
   constructor(private connection: SSHConnection) {}
 
   private _quoteArg(value: string): string {
-    return `"${value.replace(/"/g, '\\"')}"`;
+    return `'${value.replace(/'/g, `'"'"'`)}'`;
   }
 
   private _git(repoPath: string, args: string): string {
     return `git -C ${this._quoteArg(repoPath)} ${args}`;
   }
 
-  async status(repoPath: string, signal?: AbortSignal): Promise<{
+  async status(
+    repoPath: string,
+    signal?: AbortSignal,
+  ): Promise<{
     branch: string;
     ahead: number;
     behind: number;
     files: FileStatus[];
   }> {
     const result = await this.connection.execCommand(
-      this._git(repoPath, 'status --porcelain=v2 --branch'),
+      this._git(
+        repoPath,
+        '--no-optional-locks status --porcelain=v2 --branch -z --untracked-files=all',
+      ),
       undefined,
       signal,
     );
@@ -37,15 +46,16 @@ export class GitCommands {
       throw new Error(`git status failed: ${result.stderr}`);
     }
 
-    const lines = result.stdout.split('\n').filter(Boolean);
+    const lines = result.stdout.split('\0');
     let branch = '';
     let ahead = 0;
     let behind = 0;
     const files: FileStatus[] = [];
 
-    for (const line of lines) {
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
       if (line.startsWith('# branch.head')) {
-        branch = line.split(' ').slice(1).join(' ').trim() || branch;
+        branch = line.slice('# branch.head '.length);
       } else if (line.startsWith('# branch.ab')) {
         const ab = line.split(' ').slice(1);
         for (const part of ab) {
@@ -53,8 +63,8 @@ export class GitCommands {
           if (part.startsWith('-')) behind = parseInt(part.slice(1), 10) || 0;
         }
       } else if (line.startsWith('1 ') || line.startsWith('2 ') || line.startsWith('u ')) {
-        const fileStatus = this._parseFileStatusLine(line);
-        if (fileStatus) files.push(fileStatus);
+        const oldPath = line.startsWith('2 ') ? lines[++index] : undefined;
+        files.push(...this._parseFileStatusLine(line, oldPath));
       } else if (line.startsWith('? ')) {
         files.push({
           path: line.slice(2),
@@ -97,27 +107,137 @@ export class GitCommands {
   }
 
   async diff(repoPath: string, options?: DiffOptions): Promise<string> {
-    let args = 'diff';
+    if (options?.file !== undefined) this._validateFilePath(options.file);
+    const flags = '--no-color --no-ext-diff --no-textconv';
+    let args = `diff ${flags}`;
+    let untracked = false;
+    if (options?.file && !options.commit) {
+      const file = options.file;
+      const index = await this.connection.execCommand(
+        this._git(repoPath, `--literal-pathspecs ls-files --stage -z -- ${this._quoteArg(file)}`),
+      );
+      if (index.exitCode !== 0) throw new Error(`无法读取暂存区：${index.stderr}`);
+      const entries = index.stdout.split('\0').filter(Boolean);
+      if (entries.some((entry) => entry.slice(entry.indexOf('\t') + 1) !== file))
+        throw new Error('请选择单个文件查看差异。');
+
+      if (options.staged && entries.length) {
+        // Check the indexed blob, never the worktree: the file may have been edited or removed.
+        for (const entry of entries) {
+          if (entry.startsWith('160000 ')) continue; // A gitlink is not a blob in this repository.
+          const hash = entry.split(' ')[1];
+          const size = await this.connection.execCommand(
+            this._git(repoPath, `cat-file -s ${this._quoteArg(hash)}`),
+          );
+          if (size.exitCode !== 0) throw new Error(`无法读取暂存内容：${size.stderr}`);
+          if (Number(size.stdout.trim()) > DIFF_PREVIEW_MAX_BYTES)
+            throw new Error(previewLimitMessage);
+        }
+      } else if (!options.staged && !entries.length) {
+        const others = await this.connection.execCommand(
+          this._git(
+            repoPath,
+            `--literal-pathspecs ls-files --others --exclude-standard -z -- ${this._quoteArg(file)}`,
+          ),
+        );
+        if (others.exitCode !== 0) throw new Error(`无法读取文件状态：${others.stderr}`);
+        if (!others.stdout.split('\0').includes(file))
+          throw new Error('文件已不存在或状态已改变，请刷新仓库状态。');
+        untracked = true;
+        const target = this._quoteArg(`./${file}`);
+        const size = await this.connection.execCommand(
+          `cd ${this._quoteArg(repoPath)} && if [ -L ${target} ]; then printf 0; ` +
+            `elif [ -f ${target} ] && [ -r ${target} ]; then wc -c < ${target}; else exit 2; fi`,
+        );
+        if (size.exitCode !== 0)
+          throw new Error('无法读取文件：文件已消失、没有读取权限或不是普通文件。');
+        if (Number(size.stdout.trim()) > DIFF_PREVIEW_MAX_BYTES)
+          throw new Error(previewLimitMessage);
+        args = `diff ${flags} --no-index -- /dev/null ${this._quoteArg(file)}`;
+      }
+    }
     if (options?.staged) args += ' --staged';
     if (options?.commit) {
       if (options.parentCommit) {
-        args = `diff ${this._quoteArg(options.parentCommit)} ${this._quoteArg(options.commit)}`;
+        args = `diff ${flags} ${this._quoteArg(options.parentCommit)} ${this._quoteArg(options.commit)}`;
       } else {
         // `show` also handles the first commit in a repository, which has no
         // `<commit>^` parent to use in a `git diff` range.
-        args = `show --first-parent --format= --patch ${this._quoteArg(options.commit)}`;
+        args = `show ${flags} --first-parent --format= --patch ${this._quoteArg(options.commit)}`;
       }
     }
-    if (options?.file) args += ` -- ${this._quoteArg(options.file)}`;
+    if (options?.file && !untracked) args += ` -- ${this._quoteArg(options.file)}`;
 
-    const result = await this.connection.execCommand(this._git(repoPath, args));
-    if (result.exitCode !== 0) {
-      throw new Error(`git diff failed: ${result.stderr}`);
+    try {
+      const result = await this.connection.execCommand(
+        this._git(repoPath, `--literal-pathspecs -c core.quotepath=false ${args}`),
+        undefined,
+        undefined,
+        { maxOutputBytes: DIFF_PREVIEW_MAX_BYTES, strictUtf8: true },
+      );
+      // --no-index reports a successful comparison with differences using exit code 1.
+      if (
+        result.exitCode !== 0 &&
+        !(untracked && result.exitCode === 1 && (result.stdout || !result.stderr.trim()))
+      )
+        throw new Error(`无法读取差异：${result.stderr || '远端 Git 命令失败，请刷新后重试。'}`);
+      if (result.stdout.split('\n').length > 10_000)
+        throw new Error('差异超过 10,000 行，无法预览，请在远端查看。');
+      return result.stdout;
+    } catch (error) {
+      if (error instanceof CommandOutputLimitError) throw new Error(previewLimitMessage);
+      if (
+        error instanceof TypeError &&
+        'code' in error &&
+        error.code === 'ERR_ENCODING_INVALID_ENCODED_DATA'
+      )
+        throw new Error('文件不是有效的 UTF-8 文本，暂不支持预览。');
+      throw error;
     }
-    return result.stdout;
   }
 
-  async commitFiles(repoPath: string, commit: string, parentCommit?: string): Promise<CommitFile[]> {
+  private _validateFilePath(file: string): void {
+    if (
+      !file ||
+      file.startsWith('/') ||
+      file.includes('\0') ||
+      file
+        .split('/')
+        .some((part) => !part || part === '.' || part === '..' || part.toLowerCase() === '.git')
+    )
+      throw new Error('文件路径必须是仓库内的相对文件路径。');
+  }
+
+  async stage(repoPath: string, files: string[]): Promise<void> {
+    await this._changeIndex(repoPath, files, 'add');
+  }
+
+  async unstage(repoPath: string, files: string[]): Promise<void> {
+    const head = await this.connection.execCommand(
+      this._git(repoPath, 'rev-parse --verify --quiet HEAD'),
+    );
+    if (head.exitCode !== 0 && head.exitCode !== 1) throw new Error(head.stderr);
+    // An unborn branch has no HEAD to reset against; removing only index entries preserves files.
+    await this._changeIndex(repoPath, files, head.exitCode === 0 ? 'reset HEAD' : 'rm --cached -f');
+  }
+
+  private async _changeIndex(repoPath: string, files: string[], command: string): Promise<void> {
+    if (!files.length) throw new Error('请选择文件。');
+    files.forEach((file) => this._validateFilePath(file));
+    const result = await this.connection.execCommand(
+      this._git(
+        repoPath,
+        `--literal-pathspecs ${command} -- ${files.map((file) => this._quoteArg(file)).join(' ')}`,
+      ),
+    );
+    if (result.exitCode !== 0) throw new Error(result.stderr);
+  }
+
+  async commitFiles(
+    repoPath: string,
+    commit: string,
+    parentCommit?: string,
+  ): Promise<CommitFile[]> {
     const commitArg = this._quoteArg(commit);
     const nameStatusArgs = parentCommit
       ? `diff --no-color --name-status -z -M ${this._quoteArg(parentCommit)} ${commitArg}`
@@ -193,52 +313,38 @@ export class GitCommands {
     return Array.from(remotes.values());
   }
 
-  async execute(repoPath: string, args: string): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
+  async execute(
+    repoPath: string,
+    args: string,
+  ): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
     return this.connection.execCommand(this._git(repoPath, args));
   }
 
-  private _parseFileStatusLine(line: string): FileStatus | null {
-    if (line.startsWith('1 ')) {
-      const parts = line.split(' ');
-      const xy = parts[1];
-      const filePath = parts.slice(8).join(' ');
-      const statusCode = xy[0] === '.' ? xy[1] : xy[0];
-      const staged = xy[0] !== '.' && xy[0] !== '?';
-
-      const statusMap: Record<string, FileStatus['status']> = {
-        M: 'modified', A: 'added', D: 'deleted',
-        R: 'renamed', C: 'copied',
-      };
-
-      return {
-        path: filePath,
-        status: statusMap[statusCode] || 'modified',
-        staged,
-      };
-    }
-
-    if (line.startsWith('2 ')) {
-      const parts = line.split(' ');
-      const xy = parts[1];
-      const origPath = parts[parts.length - 2];
-      const newPath = parts[parts.length - 1];
-      const staged = xy[0] !== '.';
-
-      return {
-        path: newPath,
-        oldPath: origPath,
-        status: 'renamed',
-        staged,
-      };
-    }
-
+  private _parseFileStatusLine(line: string, oldPath?: string): FileStatus[] {
+    const parts = line.split(' ');
     if (line.startsWith('u ')) {
-      const parts = line.split(' ');
-      const filePath = parts.slice(9).join(' ');
-      return { path: filePath, status: 'modified', staged: false };
+      return [{ path: parts.slice(10).join(' '), status: 'modified', staged: false }];
     }
-
-    return null;
+    const xy = parts[1];
+    const filePath = parts.slice(line.startsWith('2 ') ? 9 : 8).join(' ');
+    const statusMap: Record<string, FileStatus['status']> = {
+      M: 'modified',
+      A: 'added',
+      D: 'deleted',
+      R: 'renamed',
+      C: 'copied',
+    };
+    const files: FileStatus[] = [];
+    for (const [index, code] of [...xy].entries()) {
+      if (code === '.') continue;
+      files.push({
+        path: filePath,
+        ...(oldPath && (code === 'R' || code === 'C') ? { oldPath } : {}),
+        status: statusMap[code] || 'modified',
+        staged: index === 0,
+      });
+    }
+    return files;
   }
 
   private _parseCommitNameStatus(output: string): CommitFile[] {
@@ -252,7 +358,7 @@ export class GitCommands {
       C: 'copied',
     };
 
-    for (let index = 0; index < tokens.length;) {
+    for (let index = 0; index < tokens.length; ) {
       const statusToken = tokens[index++];
       if (!statusToken) continue;
 
@@ -280,7 +386,7 @@ export class GitCommands {
       return Number(value);
     };
 
-    for (let index = 0; index < tokens.length;) {
+    for (let index = 0; index < tokens.length; ) {
       const statToken = tokens[index++];
       if (!statToken) continue;
 
@@ -314,7 +420,12 @@ export class GitCommands {
         author: parts[3],
         email: parts[4],
         date: new Date(parts[5]),
-        refs: parts[6] ? parts[6].split(',').map((r) => r.trim()).filter(Boolean) : [],
+        refs: parts[6]
+          ? parts[6]
+              .split(',')
+              .map((r) => r.trim())
+              .filter(Boolean)
+          : [],
       };
     } catch {
       return null;
