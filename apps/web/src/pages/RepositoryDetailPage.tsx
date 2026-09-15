@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Dropdown, message } from 'antd';
@@ -94,6 +94,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     fetchRemotes,
     fetchCommitFiles,
     fetchDiff,
+    clearDiff,
     error,
   } = useRepositoryStore();
   const { entry: statusEntry, stale: statusStale } = useRepositoryStatus(id || '');
@@ -162,7 +163,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     });
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!selectedFile || !status) return;
     const exact = status.files.find(
       (file: SelectedFile) =>
@@ -177,8 +178,10 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       setSelectedFile({ path: next.path, staged: next.staged, status: next.status });
   }, [status, selectedFile, compact]);
 
-  useEffect(() => {
-    if (
+  useLayoutEffect(() => {
+    if (id && selectedCommit) {
+      void fetchDiff(id, { commit: selectedCommit.hash, file: selectedCommitFile?.path });
+    } else if (
       id &&
       selectedFile &&
       status?.files.some(
@@ -187,8 +190,18 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       )
     ) {
       void fetchDiff(id, { file: selectedFile.path, staged: selectedFile.staged });
-    }
-  }, [id, selectedFile?.path, selectedFile?.staged, status, fetchDiff]);
+    } else clearDiff();
+    return clearDiff;
+  }, [
+    id,
+    selectedFile?.path,
+    selectedFile?.staged,
+    selectedCommit?.hash,
+    selectedCommitFile?.path,
+    status,
+    fetchDiff,
+    clearDiff,
+  ]);
 
   const selectPanel = (panel: Panel) => {
     setActivePanel(panel);
@@ -243,17 +256,14 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     setSelectedFile(null);
     setSelectedCommitFile(null);
     if (id) void fetchCommitFiles(id, commit.hash);
-    if (id) void fetchDiff(id, { commit: commit.hash });
   };
 
   const handleSelectCommitFile = (file: CommitFile) => {
     setSelectedCommitFile(file);
-    if (id && selectedCommit) void fetchDiff(id, { commit: selectedCommit.hash, file: file.path });
   };
 
   const handleSelectAllCommitFiles = () => {
     setSelectedCommitFile(null);
-    if (id && selectedCommit) void fetchDiff(id, { commit: selectedCommit.hash });
   };
 
   const renderCommitFileRow = (file: CommitFile) => {
@@ -501,8 +511,12 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
               <span>
                 {selectedFile
                   ? selectedFile.staged
-                    ? '已暂存 · HEAD → 暂存区'
-                    : '未暂存 · 暂存区 → 工作区'
+                    ? selectedFile.status === 'added'
+                      ? '已暂存 · 空版本 → 暂存区'
+                      : '已暂存 · HEAD → 暂存区'
+                    : selectedFile.status === 'untracked' || selectedFile.status === 'added'
+                      ? '未暂存 · 空版本 → 工作区'
+                      : '未暂存 · 暂存区 → 工作区'
                   : selectedCommit
                     ? '提交详情'
                     : '文件差异'}
@@ -626,7 +640,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                 diff={diff}
                 loading={diffLoading}
                 error={diffError}
-                title={detailTitle}
+                title={`${detailTitle} · ${selectedFile.staged ? '已暂存' : '未暂存'}`}
                 onClose={() => {
                   setSelectedFile(null);
                   returnToList();
