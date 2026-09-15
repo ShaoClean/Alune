@@ -15,7 +15,7 @@ Issue：<https://github.com/ShaoClean/remote-git/issues/19>
 
 ## 验证
 
-环境：macOS、Node.js 25.5.0、系统 Git。所有测试仓库均使用临时目录，不涉及用户远端仓库。
+环境：macOS、Node.js 25.5.0、系统 Git；补充实际 Windows PowerShell SSH/SFTP 验证。所有写操作均在隔离的临时测试仓库中进行。
 
 ```sh
 npm run build -w @remote-git/shared
@@ -43,5 +43,18 @@ node apps/web/tests/new-file-deletion-fixture.cjs
 ## 已知限制与基线问题
 
 - Git 索引与 SFTP 文件删除不是跨步骤原子事务。发生错误时分别报告磁盘文件和暂存记录的实际结果；连接中断无法核验时明确显示「无法确认」。不会自动回写旧索引覆盖其他工具的改动。本进程的删除锁不约束外部 Git/文件系统写入。
-- Windows SSH 的 Git 参数使用编码 PowerShell 和原始字节流转发，已有参数/路径防护测试；本次未连接实际 Windows SSH 主机验收。
+- Windows SSH 的 Git 参数使用编码 PowerShell 和原始字节流转发；已完成下述实机回归。
 - 全量 `npm run test -w server -- --runInBand` 中 5 个原有占位测试缺少依赖注入配置而失败：`connection.controller.spec.ts`、`file.controller.spec.ts`、`file.service.spec.ts`、`git.controller.spec.ts`、`git.service.spec.ts`。原始 worktree 中同样可复现；本次新增功能测试通过。
+
+## Windows 根目录校验误报修复
+
+Windows PowerShell 会将异步流复制的 `GetAwaiter().GetResult()` 返回值输出到管道。实际 Git 根目录的 `rev-parse --show-prefix` 本应只返回换行，但封装命令多输出了两行 `System.Threading.Tasks.VoidTaskResult`，导致服务端误判为仓库子目录，并提示「请从仓库根目录操作此文件」。同样的输出还会污染 Git 状态和索引解析。
+
+修复将两次等待结果赋给 `$null`，同时关闭 PowerShell 进度输出，保留 Git 的原始 stdout、stderr 和退出码，继续保留真实子目录的路径校验。
+
+验证结果：
+
+- 在实际 Windows SSH 主机核对根目录命令，输出恢复为单个换行，stderr 为空。
+- `git-shell-windows.test.cjs` 对根目录、子目录、含中文路径的 NUL 状态输出、失败命令逐字节对比原生 Git 与封装结果；实机通过。主机 Node 不支持 `--test`，使用兼容入口执行同一测试文件的断言，未更改系统 Node。
+- 同一 Windows 主机的临时仓库中，未跟踪、已暂存、暂存后再编辑的中文文件均通过真实 SSH/SFTP 删除验证；索引清理、父目录和其他文件保留均正确，测试目录已清理。
+- 本地 SSH 测试 33 项通过，Windows 专用测试在 macOS 上按平台跳过；SSH 包构建通过。

@@ -13,6 +13,7 @@ export function gitFileCommand(repoPath: string, args: string[]): string {
     // Unicode paths and final newlines. ProcessStartInfo works on PowerShell 5.
     const script = [
       "$ErrorActionPreference = 'Stop'",
+      "$ProgressPreference = 'SilentlyContinue'",
       '$gitProcess = New-Object System.Diagnostics.Process',
       "$gitProcess.StartInfo.FileName = 'git'",
       `$gitProcess.StartInfo.Arguments = ${literal(argv.map(nativeArg).join(' '))}`,
@@ -23,8 +24,10 @@ export function gitFileCommand(repoPath: string, args: string[]): string {
       '$stdoutCopy = $gitProcess.StandardOutput.BaseStream.CopyToAsync([Console]::OpenStandardOutput())',
       '$stderrCopy = $gitProcess.StandardError.BaseStream.CopyToAsync([Console]::OpenStandardError())',
       '$gitProcess.WaitForExit()',
-      '$stdoutCopy.GetAwaiter().GetResult()',
-      '$stderrCopy.GetAwaiter().GetResult()',
+      // Windows PowerShell exposes VoidTaskResult as pipeline output. Discard
+      // it explicitly so only Git's original bytes reach the SSH streams.
+      '$null = $stdoutCopy.GetAwaiter().GetResult()',
+      '$null = $stderrCopy.GetAwaiter().GetResult()',
       'exit $gitProcess.ExitCode',
     ].join('; ');
     return `powershell -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(script, 'utf16le').toString('base64')}`;

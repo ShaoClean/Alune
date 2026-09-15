@@ -19,6 +19,9 @@ test('Windows SSH receives encoded literal arguments and relays raw Git output',
   assert.ok(script.includes('"子目录/it\'\'s $name & [*].txt"'));
   assert.ok(script.includes('UseShellExecute = $false'));
   assert.ok(script.includes('StandardOutput.BaseStream.CopyToAsync'));
+  assert.ok(script.includes("$ProgressPreference = 'SilentlyContinue'"));
+  assert.ok(script.includes('$null = $stdoutCopy.GetAwaiter().GetResult()'));
+  assert.ok(script.includes('$null = $stderrCopy.GetAwaiter().GetResult()'));
 });
 
 test('Windows file paths cannot use backslash traversal or NTFS alternate data streams', async () => {
