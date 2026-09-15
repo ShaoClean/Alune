@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Post, Delete, Param, ParseUUIDPipe, Query, Body } from '@nestjs/common';
+import { BadRequestException, HttpException, Controller, Get, Post, Delete, Param, ParseUUIDPipe, Query, Body } from '@nestjs/common';
 import { RepositoryService } from './repository.service';
 import type { DiffOptions } from '@remote-git/shared';
 
@@ -64,7 +64,13 @@ export class RepositoryController {
       commit: typeof query.commit === 'string' ? query.commit : undefined,
       parentCommit: typeof query.parentCommit === 'string' ? query.parentCommit : undefined,
     };
-    return this.repoService.getDiff(id, options);
+    try {
+      return await this.repoService.getDiff(id, options);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      // Preserve actionable read/limit feedback instead of Nest's generic 500 message.
+      throw new BadRequestException(error instanceof Error ? error.message : '无法读取差异');
+    }
   }
 
   @Get(':id/branches')

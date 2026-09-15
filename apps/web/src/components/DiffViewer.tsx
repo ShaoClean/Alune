@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, Segmented } from 'antd';
 import { CloseOutlined, DiffOutlined, ExpandOutlined } from '@ant-design/icons';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
+import { getDiffLines, getDiffNotice } from './diff-lines';
 
 interface Props {
   oldCode?: string;
@@ -24,49 +25,27 @@ interface SplitDiffRow {
   rightKind?: SplitCellKind;
 }
 
-const isFileHeader = (line: string) => line.startsWith('--- ') || line.startsWith('+++ ');
-
-const isMetaLine = (line: string) =>
-  line.startsWith('diff ') ||
-  line.startsWith('index ') ||
-  line.startsWith('@@') ||
-  isFileHeader(line) ||
-  line.startsWith('old mode ') ||
-  line.startsWith('new mode ') ||
-  line.startsWith('new file mode ') ||
-  line.startsWith('deleted file mode ') ||
-  line.startsWith('similarity index ') ||
-  line.startsWith('rename from ') ||
-  line.startsWith('rename to ') ||
-  line.startsWith('copy from ') ||
-  line.startsWith('copy to ') ||
-  line.startsWith('Binary files ') ||
-  line.startsWith('\\ No newline');
-
-const isRemovedLine = (line: string) => line.startsWith('-') && !isFileHeader(line);
-const isAddedLine = (line: string) => line.startsWith('+') && !isFileHeader(line);
-
 function getSplitDiffRows(diff: string): SplitDiffRow[] {
-  const lines = diff.split('\n');
+  const lines = getDiffLines(diff);
   const rows: SplitDiffRow[] = [];
 
   for (let index = 0; index < lines.length; ) {
     const line = lines[index];
-    if (isMetaLine(line)) {
-      rows.push({ meta: line });
+    if (line.kind === 'meta') {
+      rows.push({ meta: line.text });
       index += 1;
       continue;
     }
 
-    if (isRemovedLine(line)) {
+    if (line.kind === 'remove') {
       const removed: string[] = [];
-      while (index < lines.length && isRemovedLine(lines[index])) {
-        removed.push(lines[index].slice(1));
+      while (index < lines.length && lines[index].kind === 'remove') {
+        removed.push(lines[index].text.slice(1));
         index += 1;
       }
       const added: string[] = [];
-      while (index < lines.length && isAddedLine(lines[index])) {
-        added.push(lines[index].slice(1));
+      while (index < lines.length && lines[index].kind === 'add') {
+        added.push(lines[index].text.slice(1));
         index += 1;
       }
       const rowCount = Math.max(removed.length, added.length);
@@ -81,10 +60,10 @@ function getSplitDiffRows(diff: string): SplitDiffRow[] {
       continue;
     }
 
-    if (isAddedLine(line)) {
+    if (line.kind === 'add') {
       const added: string[] = [];
-      while (index < lines.length && isAddedLine(lines[index])) {
-        added.push(lines[index].slice(1));
+      while (index < lines.length && lines[index].kind === 'add') {
+        added.push(lines[index].text.slice(1));
         index += 1;
       }
       added.forEach((value) =>
@@ -93,7 +72,7 @@ function getSplitDiffRows(diff: string): SplitDiffRow[] {
       continue;
     }
 
-    const context = line.startsWith(' ') ? line.slice(1) : line;
+    const context = line.text.slice(1);
     rows.push({ left: context, right: context, leftKind: 'context', rightKind: 'context' });
     index += 1;
   }
@@ -123,18 +102,11 @@ export function DiffViewer({
   }, [diff, error, loading, mode, title, zoomed]);
 
   const renderUnifiedDiff = (value: string) => {
-    const lines = value.split('\n');
+    const lines = getDiffLines(value);
     return (
       <pre>
-        {lines.map((line, index) => {
-          const className =
-            line.startsWith('+') && !line.startsWith('+++')
-              ? 'diff-line--add'
-              : line.startsWith('-') && !line.startsWith('---')
-                ? 'diff-line--remove'
-                : line.startsWith('@@') || line.startsWith('diff ')
-                  ? 'diff-line--meta'
-                  : undefined;
+        {lines.map(({ text: line, kind }, index) => {
+          const className = kind === 'context' ? undefined : `diff-line--${kind}`;
           return (
             <span className={className} key={`${index}-${line}`}>
               {line}
@@ -172,7 +144,16 @@ export function DiffViewer({
           <span>{error}</span>
         </div>
       );
-    if (!hasDiff) return <div className="diff-empty">请选择改动文件或提交以查看差异。</div>;
+    if (!hasDiff)
+      return (
+        <div className="diff-empty">
+          {diff === undefined
+            ? '请选择改动文件或提交以查看差异。'
+            : '当前比较没有差异，请刷新仓库状态。'}
+        </div>
+      );
+    const notice = diff && getDiffNotice(diff);
+    if (notice) return <div className="diff-empty">{notice}</div>;
     if (!diff)
       return (
         <ReactDiffViewer
