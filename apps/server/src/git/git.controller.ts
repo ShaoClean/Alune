@@ -91,6 +91,16 @@ export class GitController {
     return this.gitService.checkout(id, body.files);
   }
 
+  @Post(':id/delete-new-file/preview')
+  async previewNewFileDeletion(@Param('id', ParseUUIDPipe) id: string, @Body() body: { path: string }) {
+    return this.gitService.deleteNewFile(id, body?.path, undefined, true);
+  }
+
+  @Post(':id/delete-new-file')
+  async deleteNewFile(@Param('id', ParseUUIDPipe) id: string, @Body() body: { path: string; token: string }) {
+    return this.gitService.deleteNewFile(id, body?.path, body?.token);
+  }
+
   @Post(':id/reset')
   async reset(
     @Param('id', ParseUUIDPipe) id: string,

@@ -1,4 +1,4 @@
-import { Client, ClientChannel, ConnectConfig } from 'ssh2';
+import { Client, ClientChannel, ConnectConfig, SFTPWrapper } from 'ssh2';
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -240,6 +240,37 @@ export class SSHConnection extends EventEmitter {
           }
           resolve(list);
         });
+      });
+    });
+  }
+
+  async withSftp<T>(operation: (sftp: SFTPWrapper) => Promise<T>): Promise<T> {
+    const client = this._ensureConnected();
+    return new Promise<T>((resolve, reject) => {
+      let channel: SFTPWrapper | undefined;
+      let settled = false;
+      const finish = (error?: Error, value?: T) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        channel?.end();
+        if (error) reject(error);
+        else resolve(value as T);
+      };
+      const timer = setTimeout(() => finish(new Error('远端文件操作超时')), 15_000);
+      client.sftp((error, sftp) => {
+        if (settled) {
+          sftp?.end();
+          return;
+        }
+        if (error) {
+          finish(error);
+          return;
+        }
+        channel = sftp;
+        sftp.on('error', (err: Error) => finish(err));
+        sftp.on('close', () => finish(new Error('远端文件连接已中断')));
+        operation(sftp).then((value) => finish(undefined, value), finish);
       });
     });
   }

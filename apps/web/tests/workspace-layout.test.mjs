@@ -127,3 +127,22 @@ test('late diffs and refreshes from previous repositories cannot replace the act
   assert.equal(statusCalls, 1);
   assert.equal(repository.getState().status.branch, 'b');
 });
+
+test('deleting the selected file invalidates a pending diff so a late response cannot restore it', async () => {
+  const original = repositoryApi.diff;
+  let resolve;
+  repositoryApi.diff = () => new Promise((done) => { resolve = done; });
+  try {
+    repository.getState().resetWorkspace('delete-fixture');
+    const pending = repository.getState().fetchDiff('delete-fixture', { file: 'new.txt', staged: true });
+    repository.getState().clearDiff();
+    assert.equal(repository.getState().diffLoading, false);
+    resolve('obsolete added file content');
+    await pending;
+    assert.equal(repository.getState().diff, '');
+    assert.equal(repository.getState().diffError, null);
+  } finally {
+    repositoryApi.diff = original;
+    repository.getState().resetWorkspace();
+  }
+});

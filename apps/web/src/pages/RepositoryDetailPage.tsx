@@ -142,7 +142,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       ? currentRepo
       : openRepositories.find((repo: any) => repo.id === id) || null;
   const switchingRepository = currentRepo?.id !== id;
-  const changeCount = status?.files?.length || 0;
+  const changeCount = new Set(status?.files.map((file) => file.path)).size;
   const activeLabel = navItems.find((item) => item.key === activePanel)?.label || '改动';
   const connection = connections.find((item) => item.id === repository?.connectionId);
   const hasInspector = activePanel === 'changes' || activePanel === 'history';
@@ -173,10 +173,11 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       exact || status.files.find((file: SelectedFile) => file.path === selectedFile.path);
     if (!next) {
       setSelectedFile(null);
+      clearDiff();
       if (compact) returnToList();
     } else if (next.staged !== selectedFile.staged || next.status !== selectedFile.status)
       setSelectedFile({ path: next.path, staged: next.staged, status: next.status });
-  }, [status, selectedFile, compact]);
+  }, [status, selectedFile, compact, clearDiff]);
 
   useLayoutEffect(() => {
     if (id && selectedCommit) {
@@ -320,10 +321,18 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     if (activePanel === 'changes')
       return (
         <ChangesView
+          key={id}
           repoId={id}
           onRefresh={handleRefresh}
           onSelectFile={handleSelectFile}
           selectedFile={selectedFile}
+          onFileChanged={(path) => {
+            if (selectedFile?.path === path) {
+              setSelectedFile(null);
+              clearDiff();
+              if (compact) returnToList();
+            }
+          }}
         />
       );
     if (activePanel === 'history')
