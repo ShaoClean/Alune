@@ -5,6 +5,7 @@ const externalLinkOpened = Promise.withResolvers();
 
 module.exports = async ({ window, origin, token, updates, closeBackend, backend, version }) => {
   if (process.env.REMOTE_GIT_SMOKE_PHASE === 'restore') {
+    await require('./ai-smoke.cjs')({ backend, origin, token, restore: true });
     await require('./sidebar-smoke.cjs')({ window, origin, token, restore: true });
     return;
   }
@@ -48,7 +49,8 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   assert.deepEqual(await window.webContents.executeJavaScript(`Object.keys(window.desktopUpdates).sort()`),
     ['cancel', 'check', 'download', 'getState', 'install', 'openFile', 'revealFile', 'subscribe'].sort());
   assert.equal(await window.webContents.executeJavaScript(`typeof window.desktopUpdates.send`), 'undefined');
-  await window.webContents.executeJavaScript(`document.querySelector('[aria-label="设置"]').click()`);
+  await require('./ai-smoke.cjs')({ backend, origin, token, window });
+  await openUpdateSettings(window);
   await waitForUI(window, `document.querySelector('[data-testid="update-panel"]') && document.body.innerText.includes('检查更新')`);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.replace(/\\s/g, '') === '检查更新').click()`);
   await waitForUI(window, `document.body.innerText.includes('发现新版本')`);
@@ -84,13 +86,17 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   assert.equal(window.webContents.getURL(), originalUrl);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.replace(/\\s/g, '') === '下载更新').click()`);
   await waitForUI(window, `document.body.innerText.includes('正在下载安装包')`);
+  await window.webContents.executeJavaScript(`document.querySelector('.settings-header button').click()`);
+  await waitForUI(window, `document.querySelector('.app-shell')?.getClientRects().length > 0`);
+  assert.ok(['downloading', 'downloaded'].includes(updates.getState().status));
+  await openUpdateSettings(window);
   // Refresh while downloading: the main process owns the operation and snapshot.
   await new Promise((resolve) => {
     window.webContents.once('did-finish-load', resolve);
     window.webContents.reload();
   });
   await waitForUI(window, `document.querySelector('.app-shell') && window.desktopUpdates`);
-  await window.webContents.executeJavaScript(`document.querySelector('[aria-label="设置"]').click()`);
+  await openUpdateSettings(window);
   await waitForUI(window, `document.body.innerText.includes('安装包已下载并通过校验')`);
   assert.equal(updates.getState().status, 'downloaded');
   assert.equal(updates.getState().installMode, 'restart');
@@ -141,7 +147,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   // Keep an upgraded connection alive to reproduce shutdown hangs seen in packaged apps.
   const pendingSocket = new WebSocket(`${origin.replace('http:', 'ws:')}/socket.io/?EIO=4&transport=websocket`, { headers });
   await new Promise((resolve, reject) => { pendingSocket.once('open', resolve); pendingSocket.once('error', reject); });
-  await window.webContents.executeJavaScript(`document.querySelector('[aria-label="设置"]').click()`);
+  await openUpdateSettings(window);
   await waitForUI(window, `Array.from(document.querySelectorAll('[data-testid="update-panel"] button')).some(button => button.textContent.replace(/\\s/g, '') === '重启安装')`);
   let timeout;
   try {
@@ -162,6 +168,16 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   await assert.rejects(fetch(`${origin}/api/connections`, { headers }));
   console.log('Desktop smoke passed: UI, routing, SQLite CRUD, authentication, sandbox, Markdown release notes, external browser links, update settings, download across refresh, restart-install button and backend shutdown.');
 };
+
+async function openUpdateSettings(window) {
+  const current = await window.webContents.executeJavaScript("location.pathname");
+  if (current !== '/settings/updates') {
+    await window.webContents.executeJavaScript(`document.querySelector('[aria-label="设置"]').click()`);
+    await waitForUI(window, `document.querySelector('.settings-navigation')`);
+    await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.settings-navigation button')).find(button => button.textContent === '版本更新').click()`);
+  }
+  await waitForUI(window, `document.querySelector('[data-testid="update-panel"]')`);
+}
 
 async function waitForUI(window, condition) {
   await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {

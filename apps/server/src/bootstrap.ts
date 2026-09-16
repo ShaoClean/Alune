@@ -4,17 +4,22 @@ import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import * as path from 'node:path';
 import { AppModule } from './app.module';
+import type { AiSecretStorage } from './ai/secret-storage';
 
 export interface ServerOptions {
   port?: number;
   host?: string;
   webRoot?: string;
   token?: string;
+  aiSecretStorage?: AiSecretStorage;
 }
 
 export async function startServer(options: ServerOptions = {}) {
   // Desktop shutdown must close keep-alive and upgraded sockets before an installer can run.
-  const app = await NestFactory.create(AppModule, { abortOnError: false, forceCloseConnections: Boolean(options.token) });
+  const app = await NestFactory.create(
+    AppModule.register(options.aiSecretStorage),
+    { abortOnError: false, forceCloseConnections: Boolean(options.token) },
+  );
   try {
     if (options.token) {
       const authorization = `Bearer ${options.token}`;
@@ -29,7 +34,10 @@ export async function startServer(options: ServerOptions = {}) {
         createIOServer(port: number, socketOptions?: any) {
           return super.createIOServer(port, {
             ...socketOptions,
-            allowRequest: (req: Request, callback: (error: string | null, allowed: boolean) => void) => {
+            allowRequest: (
+              req: Request,
+              callback: (error: string | null, allowed: boolean) => void,
+            ) => {
               callback(null, req.headers.authorization === authorization);
             },
           });
@@ -48,7 +56,11 @@ export async function startServer(options: ServerOptions = {}) {
       const webRoot = path.resolve(options.webRoot);
       app.use(express.static(webRoot, { index: false }));
       app.use((req: Request, res: Response, next: NextFunction) => {
-        if (req.method === 'GET' && !/^\/(api|socket\.io)(\/|$)/.test(req.path) && !path.extname(req.path)) {
+        if (
+          req.method === 'GET' &&
+          !/^\/(api|socket\.io)(\/|$)/.test(req.path) &&
+          !path.extname(req.path)
+        ) {
           res.sendFile(path.join(webRoot, 'index.html'));
           return;
         }

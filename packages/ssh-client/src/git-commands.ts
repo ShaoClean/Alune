@@ -1,6 +1,8 @@
 import { SSHConnection, CommandOutputLimitError } from './connection-manager';
 import { parseStatus } from './git-status';
-import { isWindowsPath, quotePosixArgument } from './git-shell';
+import { gitFileCommand, isWindowsPath, quotePosixArgument } from './git-shell';
+import { posix } from 'path';
+import { promisify } from 'util';
 import type {
   FileStatus,
   CommitInfo,
@@ -80,13 +82,15 @@ export class GitCommands {
 
   async diff(repoPath: string, options?: DiffOptions): Promise<string> {
     if (options?.file !== undefined) this._validateFilePath(options.file);
-    const flags = '--no-color --no-ext-diff --no-textconv';
-    let args = `diff ${flags}`;
+    if (options?.file && isWindowsPath(repoPath) && /[\\:]/.test(options.file))
+      throw new Error('Windows 仓库中的文件路径必须使用 / 分隔，不能包含反斜杠或冒号。');
+    const flags = ['--no-color', '--no-ext-diff', '--no-textconv'];
+    let args = ['diff', ...flags];
     let untracked = false;
     if (options?.file && !options.commit) {
       const file = options.file;
       const index = await this.connection.execCommand(
-        this._git(repoPath, `--literal-pathspecs ls-files --stage -z -- ${this._quoteArg(file)}`),
+        gitFileCommand(repoPath, ['ls-files', '--stage', '-z', '--', file]),
       );
       if (index.exitCode !== 0) throw new Error(`无法读取暂存区：${index.stderr}`);
       const entries = index.stdout.split('\0').filter(Boolean);
@@ -99,7 +103,7 @@ export class GitCommands {
           if (entry.startsWith('160000 ')) continue; // A gitlink is not a blob in this repository.
           const hash = entry.split(' ')[1];
           const size = await this.connection.execCommand(
-            this._git(repoPath, `cat-file -s ${this._quoteArg(hash)}`),
+            gitFileCommand(repoPath, ['cat-file', '-s', hash]),
           );
           if (size.exitCode !== 0) throw new Error(`无法读取暂存内容：${size.stderr}`);
           if (Number(size.stdout.trim()) > DIFF_PREVIEW_MAX_BYTES)
@@ -107,42 +111,31 @@ export class GitCommands {
         }
       } else if (!options.staged && !entries.length) {
         const others = await this.connection.execCommand(
-          this._git(
-            repoPath,
-            `--literal-pathspecs ls-files --others --exclude-standard -z -- ${this._quoteArg(file)}`,
-          ),
+          gitFileCommand(repoPath, ['ls-files', '--others', '--exclude-standard', '-z', '--', file]),
         );
         if (others.exitCode !== 0) throw new Error(`无法读取文件状态：${others.stderr}`);
         if (!others.stdout.split('\0').includes(file))
           throw new Error('文件已不存在或状态已改变，请刷新仓库状态。');
         untracked = true;
-        const target = this._quoteArg(`./${file}`);
-        const size = await this.connection.execCommand(
-          `cd ${this._quoteArg(repoPath)} && if [ -L ${target} ]; then printf 0; ` +
-            `elif [ -f ${target} ] && [ -r ${target} ]; then wc -c < ${target}; else exit 2; fi`,
-        );
-        if (size.exitCode !== 0)
-          throw new Error('无法读取文件：文件已消失、没有读取权限或不是普通文件。');
-        if (Number(size.stdout.trim()) > DIFF_PREVIEW_MAX_BYTES)
-          throw new Error(previewLimitMessage);
-        args = `diff ${flags} --no-index -- /dev/null ${this._quoteArg(file)}`;
+        await this._checkPreviewFile(repoPath, file);
+        args = ['diff', ...flags, '--no-index', '--', '/dev/null', file];
       }
     }
-    if (options?.staged) args += ' --staged';
+    if (options?.staged) args.push('--staged');
     if (options?.commit) {
       if (options.parentCommit) {
-        args = `diff ${flags} ${this._quoteArg(options.parentCommit)} ${this._quoteArg(options.commit)}`;
+        args = ['diff', ...flags, options.parentCommit, options.commit];
       } else {
         // `show` also handles the first commit in a repository, which has no
         // `<commit>^` parent to use in a `git diff` range.
-        args = `show ${flags} --first-parent --format= --patch ${this._quoteArg(options.commit)}`;
+        args = ['show', ...flags, '--first-parent', '--format=', '--patch', options.commit];
       }
     }
-    if (options?.file && !untracked) args += ` -- ${this._quoteArg(options.file)}`;
+    if (options?.file && !untracked) args.push('--', options.file);
 
     try {
       const result = await this.connection.execCommand(
-        this._git(repoPath, `--literal-pathspecs -c core.quotepath=false ${args}`),
+        gitFileCommand(repoPath, ['-c', 'core.quotepath=false', ...args]),
         undefined,
         undefined,
         { maxOutputBytes: DIFF_PREVIEW_MAX_BYTES, strictUtf8: true },
@@ -168,6 +161,31 @@ export class GitCommands {
     }
   }
 
+  private async _checkPreviewFile(repoPath: string, file: string): Promise<void> {
+    try {
+      await this.connection.withSftp(async (sftp) => {
+        // SFTP resolves Windows drive paths as well as POSIX paths without shell syntax.
+        const root = await promisify(sftp.realpath.bind(sftp))(repoPath);
+        const target = posix.join(root, file);
+        const stat = await promisify(sftp.lstat.bind(sftp))(target);
+        // Git previews the link itself, including dangling links, not its target.
+        if (stat.isSymbolicLink()) return;
+        if (!stat.isFile()) throw new Error('仅支持预览普通文件或符号链接。');
+        if (stat.size > DIFF_PREVIEW_MAX_BYTES) throw new Error(previewLimitMessage);
+        // Opening read-only checks permissions/ACLs without downloading the file.
+        const handle = await promisify(sftp.open.bind(sftp))(target, 'r');
+        await promisify(sftp.close.bind(sftp))(handle);
+      });
+    } catch (error) {
+      const code = (error as { code?: number | string })?.code;
+      if (code === 2 || code === 'ENOENT')
+        throw new Error('文件已不存在或状态已改变，请刷新仓库状态。');
+      if (code === 3 || code === 'EACCES')
+        throw new Error('无法读取文件：没有读取权限。');
+      throw error;
+    }
+  }
+
   private _validateFilePath(file: string): void {
     if (
       !file ||
@@ -182,6 +200,11 @@ export class GitCommands {
 
   async stage(repoPath: string, files: string[]): Promise<void> {
     await this._changeIndex(repoPath, files, 'add');
+  }
+
+  async commit(repoPath: string, message: string) {
+    if (!message.trim() || message.includes('\0')) throw new Error('提交信息不能为空或包含 NUL 字符。');
+    return this.connection.execCommand(gitFileCommand(repoPath, ['commit', '--cleanup=verbatim', '-m', message]));
   }
 
   async unstage(repoPath: string, files: string[]): Promise<void> {

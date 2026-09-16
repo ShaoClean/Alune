@@ -29,9 +29,9 @@ function createWindow() {
   try { state = JSON.parse(readFileSync(windowStatePath, 'utf8')); } catch {}
   window = new BrowserWindow({
     title: 'RemoteGit',
-    width: Number.isFinite(state.width) ? Math.max(1000, Math.min(state.width, 3840)) : 1440,
+    width: Number.isFinite(state.width) ? Math.max(320, Math.min(state.width, 3840)) : 1440,
     height: Number.isFinite(state.height) ? Math.max(680, Math.min(state.height, 2160)) : 900,
-    minWidth: 1000,
+    minWidth: 320,
     minHeight: 680,
     backgroundColor: '#f4f6f9',
     show: false,
@@ -78,7 +78,8 @@ async function start() {
     try { await source.backup(databasePath); } finally { source.close(); }
   }
   const { startServer } = require('./server/bootstrap.js');
-  backend = await startServer({ port: 0, host: '127.0.0.1', token, webRoot: path.join(__dirname, 'web') });
+  const aiSecretStorage = require('./ai-secret-storage.cjs').createAiSecretStorage(require('electron').safeStorage);
+  backend = await startServer({ port: 0, host: '127.0.0.1', token, webRoot: path.join(__dirname, 'web'), aiSecretStorage });
   origin = await backend.getUrl();
   const { UpdateService } = require('./update-service.cjs');
   const { registerUpdateIPC } = require('./update-ipc.cjs');

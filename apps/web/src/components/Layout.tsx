@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Dropdown, Tooltip, message, notification } from 'antd';
 import {
   ApartmentOutlined,
@@ -16,13 +16,12 @@ import {
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { RepositoryTabs } from './RepositoryTabs';
-import { UpdatePanel } from './UpdatePanel';
 import { useDesktopUpdates } from '../hooks/useDesktopUpdates';
 import { WorkspaceTree } from './WorkspaceTree';
 import { useWorkspaceStorageStatus } from '../stores/workspaceStorage';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 import { PanelResizeHandle } from './PanelResizeHandle';
-import { LayoutSettings } from './LayoutSettings';
+import { SettingsCenter } from './settings/SettingsCenter';
 import { SIDEBAR_MIN } from '../stores/workspaceLayout';
 
 const navItems = [
@@ -33,14 +32,45 @@ const navItems = [
 export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const isSettings = location.pathname.startsWith('/settings');
+  const outlet = useOutlet();
+  const workspaceOutlet = useRef(outlet);
+  const workspaceFocus = useRef<HTMLElement | null>(null);
+  const lastWorkspacePath = useRef('/repositories');
+  if (!isSettings) {
+    workspaceOutlet.current = outlet;
+    lastWorkspacePath.current = `${location.pathname}${location.search}${location.hash}`;
+  }
+  const returnTo = location.state?.returnTo;
+  const workspacePath =
+    typeof returnTo === 'string' &&
+    returnTo.startsWith('/') &&
+    !returnTo.startsWith('//') &&
+    !returnTo.startsWith('/settings')
+      ? returnTo
+      : lastWorkspacePath.current;
+  const openSettings = useCallback(
+    (category = 'providers') => {
+      navigate(`/settings/${category}`, { state: { returnTo: lastWorkspacePath.current } });
+    },
+    [navigate],
+  );
+  useEffect(() => {
+    if (
+      !isSettings &&
+      workspaceFocus.current?.isConnected &&
+      workspaceFocus.current.getClientRects().length
+    ) {
+      workspaceFocus.current.focus();
+    }
+  }, [isSettings]);
   const { layout, updateLayout, compact, sidebarWidth, sidebarMax } = useWorkspaceLayout();
   const collapsed = !compact && layout.sidebarCollapsed;
-  const [layoutSettingsOpen, setLayoutSettingsOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
   const storageError = useWorkspaceStorageStatus((state) => state.error);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [updatesOpen, setUpdatesOpen] = useState(false);
-  const { state: updateState, bridgeError, invoke, isDesktop } = useDesktopUpdates();
+  const updates = useDesktopUpdates();
+  const { state: updateState, isDesktop } = updates;
   const [notifications, notificationContext] = notification.useNotification();
   const notifiedVersion = useRef<string | null>(null);
   useEffect(() => {
@@ -54,14 +84,14 @@ export function Layout() {
         title: `RemoteGit v${updateState.latestVersion} 可用`,
         description: '新版本已发布，可查看更新说明并下载安装。',
         actions: (
-          <Button type="primary" size="small" onClick={() => setUpdatesOpen(true)}>
+          <Button type="primary" size="small" onClick={() => openSettings('updates')}>
             查看更新
           </Button>
         ),
         duration: 8,
       });
     }
-  }, [updateState, notifications]);
+  }, [updateState, notifications, openSettings]);
   const [repositoryMenuOpen, setRepositoryMenuOpen] = useState(false);
   const repositoryMenuTrigger = useRef<HTMLButtonElement>(null);
   const { connections, testResults, fetchConnections } = useConnectionStore();
@@ -136,7 +166,7 @@ export function Layout() {
 
   const openLayoutSettings = () => {
     setMobileNavOpen(false);
-    setLayoutSettingsOpen(true);
+    openSettings('layout');
   };
 
   const selectedKey = useMemo(() => {
@@ -164,306 +194,314 @@ export function Layout() {
   };
 
   return (
-    <div
-      className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}${mobileNavOpen ? ' app-shell--mobile-open' : ''}`}
-      style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
-    >
+    <>
       {notificationContext}
-      <LayoutSettings open={layoutSettingsOpen} onClose={() => setLayoutSettingsOpen(false)} />
-      {isDesktop && (
-        <UpdatePanel
-          open={updatesOpen}
-          onClose={() => setUpdatesOpen(false)}
-          state={updateState}
-          error={bridgeError}
-          invoke={invoke}
-        />
-      )}
-      <aside
-        ref={sidebarRef}
-        id="workspace-sidebar"
-        className="app-sidebar"
-        aria-label="主导航"
-        role={compact && mobileNavOpen ? 'dialog' : undefined}
-        aria-modal={compact && mobileNavOpen ? true : undefined}
-        inert={compact && !mobileNavOpen}
+      {isSettings && <SettingsCenter returnTo={workspacePath} updates={updates} />}
+      <div
+        className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}${mobileNavOpen ? ' app-shell--mobile-open' : ''}`}
+        style={
+          {
+            '--sidebar-width': `${sidebarWidth}px`,
+            display: isSettings ? 'none' : undefined,
+          } as CSSProperties
+        }
+        inert={isSettings}
+        onFocusCapture={(event) => {
+          if (!isSettings && event.target instanceof HTMLElement)
+            workspaceFocus.current = event.target;
+        }}
       >
-        <div className="app-sidebar__header">
-          <button
-            className="app-brand"
-            type="button"
-            aria-label="RemoteGit 首页"
-            onClick={() => navigate('/')}
-          >
-            <span className="app-brand__mark">
-              <CodeOutlined />
-            </span>
-            <span className="app-brand__text">RemoteGit</span>
-          </button>
-          <Button
-            type="text"
-            className="sidebar-toggle"
-            aria-label={compact ? '关闭导航' : collapsed ? '展开导航' : '收起导航'}
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() =>
-              compact ? setMobileNavOpen(false) : updateLayout({ sidebarCollapsed: !collapsed })
-            }
-          />
-        </div>
+        <aside
+          ref={sidebarRef}
+          id="workspace-sidebar"
+          className="app-sidebar"
+          aria-label="主导航"
+          role={compact && mobileNavOpen ? 'dialog' : undefined}
+          aria-modal={compact && mobileNavOpen ? true : undefined}
+          inert={compact && !mobileNavOpen}
+        >
+          <div className="app-sidebar__header">
+            <button
+              className="app-brand"
+              type="button"
+              aria-label="RemoteGit 首页"
+              onClick={() => navigate('/')}
+            >
+              <span className="app-brand__mark">
+                <CodeOutlined />
+              </span>
+              <span className="app-brand__text">RemoteGit</span>
+            </button>
+            <Button
+              type="text"
+              className="sidebar-toggle"
+              aria-label={compact ? '关闭导航' : collapsed ? '展开导航' : '收起导航'}
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() =>
+                compact ? setMobileNavOpen(false) : updateLayout({ sidebarCollapsed: !collapsed })
+              }
+            />
+          </div>
 
-        <div className="app-sidebar__content">
-          <nav className="sidebar-primary-nav" aria-label="主菜单">
-            {navItems.map((item) => (
-              <Tooltip key={item.key} title={collapsed ? item.label : undefined} placement="right">
+          <div className="app-sidebar__content">
+            <nav className="sidebar-primary-nav" aria-label="主菜单">
+              {navItems.map((item) => (
+                <Tooltip
+                  key={item.key}
+                  title={collapsed ? item.label : undefined}
+                  placement="right"
+                >
+                  <button
+                    type="button"
+                    className={`sidebar-nav-item${selectedKey === item.key ? ' sidebar-nav-item--active' : ''}`}
+                    aria-label={item.label}
+                    aria-current={selectedKey === item.key ? 'page' : undefined}
+                    onClick={() => navigate(item.key)}
+                  >
+                    <span className="sidebar-nav-item__icon">{item.icon}</span>
+                    <span className="sidebar-nav-item__label">{item.label}</span>
+                  </button>
+                </Tooltip>
+              ))}
+            </nav>
+
+            <div className="sidebar-divider" />
+
+            <section className="sidebar-workspace" aria-label="工作区资源">
+              <div className="sidebar-section__heading">
+                <span>工作区</span>
+                <span className="sidebar-section__count">
+                  {connections.length + repositories.length}
+                </span>
+              </div>
+              <WorkspaceTree
+                connections={connections}
+                repositories={repositories}
+                testResults={testResults}
+                activeId={activeRepository?.id}
+                onOpenRepository={handleOpenRepository}
+              />
+              <button
+                type="button"
+                className="sidebar-link"
+                onClick={() => navigate('/repositories')}
+              >
+                <FolderOpenOutlined /> <span>浏览全部仓库</span>
+              </button>
+            </section>
+          </div>
+
+          <div className="app-sidebar__footer">
+            <div className="sidebar-footer__actions">
+              <Tooltip title="布局设置" placement="right">
                 <button
                   type="button"
-                  className={`sidebar-nav-item${selectedKey === item.key ? ' sidebar-nav-item--active' : ''}`}
-                  aria-label={item.label}
-                  aria-current={selectedKey === item.key ? 'page' : undefined}
-                  onClick={() => navigate(item.key)}
+                  className="sidebar-footer__item"
+                  aria-label="布局设置"
+                  onClick={openLayoutSettings}
                 >
-                  <span className="sidebar-nav-item__icon">{item.icon}</span>
-                  <span className="sidebar-nav-item__label">{item.label}</span>
+                  <MenuUnfoldOutlined />
+                  <span>布局设置</span>
                 </button>
               </Tooltip>
-            ))}
-          </nav>
-
-          <div className="sidebar-divider" />
-
-          <section className="sidebar-workspace" aria-label="工作区资源">
-            <div className="sidebar-section__heading">
-              <span>工作区</span>
-              <span className="sidebar-section__count">
-                {connections.length + repositories.length}
+              <Tooltip title={collapsed ? '设置' : undefined} placement="right">
+                <button
+                  type="button"
+                  className="sidebar-footer__item"
+                  aria-label="设置"
+                  onClick={() => openSettings()}
+                >
+                  <SettingOutlined />
+                  <span>设置</span>
+                </button>
+              </Tooltip>
+              <Tooltip title={collapsed ? '帮助' : undefined} placement="right">
+                <button type="button" className="sidebar-footer__item" aria-label="帮助">
+                  <QuestionCircleOutlined />
+                  <span>帮助</span>
+                </button>
+              </Tooltip>
+            </div>
+            <div className="sidebar-footer__account">
+              <span className="sidebar-footer__avatar">
+                <CodeOutlined />
+              </span>
+              <div className="sidebar-footer__account-copy">
+                <strong>RemoteGit</strong>
+                <span>工作区就绪</span>
+              </div>
+              <span className="sidebar-footer__version">
+                {isDesktop
+                  ? updateState
+                    ? `v${updateState.currentVersion}`
+                    : '…'
+                  : `v${__APP_VERSION__}`}
               </span>
             </div>
-            <WorkspaceTree
-              connections={connections}
-              repositories={repositories}
-              testResults={testResults}
-              activeId={activeRepository?.id}
-              onOpenRepository={handleOpenRepository}
-            />
-            <button
-              type="button"
-              className="sidebar-link"
-              onClick={() => navigate('/repositories')}
-            >
-              <FolderOpenOutlined /> <span>浏览全部仓库</span>
-            </button>
-          </section>
-        </div>
-
-        <div className="app-sidebar__footer">
-          <div className="sidebar-footer__actions">
-            <Tooltip title="布局设置" placement="right">
-              <button
-                type="button"
-                className="sidebar-footer__item"
-                aria-label="布局设置"
-                onClick={openLayoutSettings}
-              >
-                <MenuUnfoldOutlined />
-                <span>布局设置</span>
-              </button>
-            </Tooltip>
-            <Tooltip title={collapsed ? '设置' : undefined} placement="right">
-              <button
-                type="button"
-                className="sidebar-footer__item"
-                aria-label="设置"
-                onClick={() => setUpdatesOpen(true)}
-                disabled={!isDesktop}
-              >
-                <SettingOutlined />
-                <span>设置</span>
-              </button>
-            </Tooltip>
-            <Tooltip title={collapsed ? '帮助' : undefined} placement="right">
-              <button type="button" className="sidebar-footer__item" aria-label="帮助">
-                <QuestionCircleOutlined />
-                <span>帮助</span>
-              </button>
-            </Tooltip>
           </div>
-          <div className="sidebar-footer__account">
-            <span className="sidebar-footer__avatar">
-              <CodeOutlined />
-            </span>
-            <div className="sidebar-footer__account-copy">
-              <strong>RemoteGit</strong>
-              <span>工作区就绪</span>
-            </div>
-            <span className="sidebar-footer__version">
-              {isDesktop
-                ? updateState
-                  ? `v${updateState.currentVersion}`
-                  : '…'
-                : `v${__APP_VERSION__}`}
-            </span>
-          </div>
-        </div>
-      </aside>
+        </aside>
 
-      {!compact && !collapsed && (
-        <PanelResizeHandle
-          className="sidebar-resize-handle"
-          label="调整工作区宽度"
-          controls="workspace-sidebar"
-          value={sidebarWidth}
-          min={SIDEBAR_MIN}
-          max={sidebarMax}
-          onChange={(width) => updateLayout({ sidebarWidth: width })}
-        />
-      )}
-
-      {mobileNavOpen && (
-        <button
-          type="button"
-          className="sidebar-backdrop"
-          aria-label="关闭导航"
-          onClick={() => setMobileNavOpen(false)}
-        />
-      )}
-
-      <main className="app-main" inert={compact && mobileNavOpen}>
-        <div className="app-tabbar">
-          {compact && (
-            <Button
-              type="text"
-              icon={<MenuUnfoldOutlined />}
-              aria-label="打开工作区"
-              aria-expanded={mobileNavOpen}
-              aria-controls="workspace-sidebar"
-              onClick={() => setMobileNavOpen(true)}
-            />
-          )}
-          {selectedKey === '/repositories' && openRepositories.length > 0 ? (
-            <RepositoryTabs
-              repositories={openRepositories}
-              activeId={activeRepository?.id}
-              onSelect={(id) => navigate(`/repositories/${id}`)}
-              onClose={handleCloseRepository}
-              onOpenRepository={() => navigate('/repositories')}
-            />
-          ) : (
-            <span className="app-tabbar__title">{selectedKey === '/' ? '连接' : '仓库'}</span>
-          )}
-          <Button
-            type="text"
-            className="app-tabbar__settings"
-            icon={<SettingOutlined />}
-            aria-label="调整工作区布局"
-            title="布局设置"
-            onClick={openLayoutSettings}
+        {!compact && !collapsed && (
+          <PanelResizeHandle
+            className="sidebar-resize-handle"
+            label="调整工作区宽度"
+            controls="workspace-sidebar"
+            value={sidebarWidth}
+            min={SIDEBAR_MIN}
+            max={sidebarMax}
+            onChange={(width) => updateLayout({ sidebarWidth: width })}
           />
-        </div>
-        <div className={`app-content${activeRepositoryId ? ' app-content--workspace' : ''}`}>
-          <Outlet />
-        </div>
-        <footer className="status-bar">
-          <div className="status-bar__left">
+        )}
+
+        {mobileNavOpen && (
+          <button
+            type="button"
+            className="sidebar-backdrop"
+            aria-label="关闭导航"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        )}
+
+        <main className="app-main" inert={compact && mobileNavOpen}>
+          <div className="app-tabbar">
+            {compact && (
+              <Button
+                type="text"
+                icon={<MenuUnfoldOutlined />}
+                aria-label="打开工作区"
+                aria-expanded={mobileNavOpen}
+                aria-controls="workspace-sidebar"
+                onClick={() => setMobileNavOpen(true)}
+              />
+            )}
+            {selectedKey === '/repositories' && openRepositories.length > 0 ? (
+              <RepositoryTabs
+                repositories={openRepositories}
+                activeId={activeRepository?.id}
+                onSelect={(id) => navigate(`/repositories/${id}`)}
+                onClose={handleCloseRepository}
+                onOpenRepository={() => navigate('/repositories')}
+              />
+            ) : (
+              <span className="app-tabbar__title">{selectedKey === '/' ? '连接' : '仓库'}</span>
+            )}
             <Button
               type="text"
-              className="mobile-nav-trigger"
-              icon={<MenuUnfoldOutlined />}
-              aria-label="打开导航"
-              aria-expanded={mobileNavOpen}
-              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              className="app-tabbar__settings"
+              icon={<SettingOutlined />}
+              aria-label="调整工作区布局"
+              title="布局设置"
+              onClick={openLayoutSettings}
             />
-            <span className="status-bar__connection">
-              <CloudSyncOutlined /> <span>RemoteGit 已连接</span>
-            </span>
-            <Dropdown
-              trigger={['click']}
-              placement="topLeft"
-              align={{ overflow: { adjustX: true, adjustY: true, shiftX: true } }}
-              autoFocus
-              open={repositoryMenuOpen}
-              onOpenChange={setRepositoryMenuOpen}
-              classNames={{ root: 'status-bar-repositories' }}
-              menu={{
-                id: 'status-bar-repository-menu',
-                'aria-label': '已打开的仓库',
-                selectable: true,
-                selectedKeys: activeRepositoryId ? [activeRepositoryId] : [],
-                items: openRepositories.length
-                  ? openRepositories.map((repo) => {
-                      const connection = connections.find((item) => item.id === repo.connectionId);
-                      const details = `${connection?.name || repo.connectionId} · ${repo.path || '仓库工作区'}`;
-                      return {
-                        key: repo.id,
-                        icon: <FolderOpenOutlined />,
-                        label: (
-                          <span
-                            className="status-bar-repository"
-                            title={`${repo.name} · ${details}`}
-                          >
-                            <span className="status-bar-repository__name">{repo.name}</span>
-                            <span className="status-bar-repository__details">{details}</span>
-                          </span>
-                        ),
-                        onClick: () => navigate(`/repositories/${repo.id}`),
-                      };
-                    })
-                  : [
-                      { key: 'empty', label: '暂无已打开的仓库', disabled: true },
-                      {
-                        key: 'browse',
-                        label: '浏览仓库',
-                        icon: <FolderOpenOutlined />,
-                        onClick: () => navigate('/repositories'),
-                      },
-                    ],
-                onClick: () => {
-                  setRepositoryMenuOpen(false);
-                  repositoryMenuTrigger.current?.focus();
-                },
-                onKeyDown: (event) => {
-                  if (event.key === 'Escape') {
+          </div>
+          <div className={`app-content${activeRepositoryId ? ' app-content--workspace' : ''}`}>
+            {workspaceOutlet.current}
+          </div>
+          <footer className="status-bar">
+            <div className="status-bar__left">
+              <Button
+                type="text"
+                className="mobile-nav-trigger"
+                icon={<MenuUnfoldOutlined />}
+                aria-label="打开导航"
+                aria-expanded={mobileNavOpen}
+                onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              />
+              <span className="status-bar__connection">
+                <CloudSyncOutlined /> <span>RemoteGit 已连接</span>
+              </span>
+              <Dropdown
+                trigger={['click']}
+                placement="topLeft"
+                align={{ overflow: { adjustX: true, adjustY: true, shiftX: true } }}
+                autoFocus
+                open={repositoryMenuOpen}
+                onOpenChange={setRepositoryMenuOpen}
+                classNames={{ root: 'status-bar-repositories' }}
+                menu={{
+                  id: 'status-bar-repository-menu',
+                  'aria-label': '已打开的仓库',
+                  selectable: true,
+                  selectedKeys: activeRepositoryId ? [activeRepositoryId] : [],
+                  items: openRepositories.length
+                    ? openRepositories.map((repo) => {
+                        const connection = connections.find(
+                          (item) => item.id === repo.connectionId,
+                        );
+                        const details = `${connection?.name || repo.connectionId} · ${repo.path || '仓库工作区'}`;
+                        return {
+                          key: repo.id,
+                          icon: <FolderOpenOutlined />,
+                          label: (
+                            <span
+                              className="status-bar-repository"
+                              title={`${repo.name} · ${details}`}
+                            >
+                              <span className="status-bar-repository__name">{repo.name}</span>
+                              <span className="status-bar-repository__details">{details}</span>
+                            </span>
+                          ),
+                          onClick: () => navigate(`/repositories/${repo.id}`),
+                        };
+                      })
+                    : [
+                        { key: 'empty', label: '暂无已打开的仓库', disabled: true },
+                        {
+                          key: 'browse',
+                          label: '浏览仓库',
+                          icon: <FolderOpenOutlined />,
+                          onClick: () => navigate('/repositories'),
+                        },
+                      ],
+                  onClick: () => {
                     setRepositoryMenuOpen(false);
                     repositoryMenuTrigger.current?.focus();
-                  }
-                },
-              }}
-            >
-              <button
-                ref={repositoryMenuTrigger}
-                type="button"
-                className="status-bar__repositories-trigger"
-                aria-haspopup="menu"
-                aria-expanded={repositoryMenuOpen}
-                aria-controls={repositoryMenuOpen ? 'status-bar-repository-menu' : undefined}
-                onKeyDown={(event) => {
-                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    setRepositoryMenuOpen(true);
-                  }
+                  },
+                  onKeyDown: (event) => {
+                    if (event.key === 'Escape') {
+                      setRepositoryMenuOpen(false);
+                      repositoryMenuTrigger.current?.focus();
+                    }
+                  },
                 }}
               >
-                <FolderOpenOutlined />
-                <span>已打开仓库 · {openRepositories.length}</span>
-                <UpOutlined />
-              </button>
-            </Dropdown>
-            {activeRepository && (
-              <>
-                <span className="status-bar__separator">•</span>
-                <span className="status-bar__path" title={activeRepository.path}>
-                  {activeRepository.path || '仓库工作区'}
-                </span>
-              </>
-            )}
-          </div>
-          <div className="status-bar__right">
-            <span>
-              上次刷新{' '}
-              {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
-        </footer>
-      </main>
-    </div>
+                <button
+                  ref={repositoryMenuTrigger}
+                  type="button"
+                  className="status-bar__repositories-trigger"
+                  aria-haspopup="menu"
+                  aria-expanded={repositoryMenuOpen}
+                  aria-controls={repositoryMenuOpen ? 'status-bar-repository-menu' : undefined}
+                  onKeyDown={(event) => {
+                    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      setRepositoryMenuOpen(true);
+                    }
+                  }}
+                >
+                  <FolderOpenOutlined />
+                  <span>已打开仓库 · {openRepositories.length}</span>
+                  <UpOutlined />
+                </button>
+              </Dropdown>
+              {activeRepository && (
+                <>
+                  <span className="status-bar__separator">•</span>
+                  <span className="status-bar__path" title={activeRepository.path}>
+                    {activeRepository.path || '仓库工作区'}
+                  </span>
+                </>
+              )}
+            </div>
+            <div className="status-bar__right">
+              <span>
+                上次刷新{' '}
+                {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          </footer>
+        </main>
+      </div>
+    </>
   );
 }

@@ -145,6 +145,32 @@ test('a file disappearing after preflight is an error even when no-index exits w
   }
 });
 
+test('SFTP preflight distinguishes a vanished file from a directory and preserves dangling links', async () => {
+  const dir = repo();
+  const execute = connection.execCommand;
+  for (const replacement of ['missing', 'directory']) {
+    write(dir, 'changing', 'content\n');
+    connection.execCommand = async function (command, ...args) {
+      const result = await execute.call(this, command, ...args);
+      if (command.includes('--others')) {
+        fs.unlinkSync(path.join(dir, 'changing'));
+        if (replacement === 'directory') fs.mkdirSync(path.join(dir, 'changing'));
+      }
+      return result;
+    };
+    try {
+      await assert.rejects(
+        git.diff(dir, { file: 'changing' }),
+        replacement === 'missing' ? /文件已不存在/ : /普通文件或符号链接/,
+      );
+    } finally {
+      connection.execCommand = execute;
+    }
+  }
+  fs.symlinkSync('missing-target', path.join(dir, 'dangling'));
+  assert.match(await readOnlyDiff(dir, { file: 'dangling' }), /\+missing-target/);
+});
+
 test('literal paths cannot match neighbours, escape the repository, or invoke shell expansion', async () => {
   const dir = repo();
   for (const file of [

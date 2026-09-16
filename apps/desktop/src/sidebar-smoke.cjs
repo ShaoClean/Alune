@@ -153,7 +153,7 @@ module.exports = async ({ window, origin, token, restore }) => {
     })()`);
     await waitFor("document.querySelector('input[aria-label=\"改动列表宽度\"]').value === '430'");
     await execute(
-      `Array.from(document.querySelectorAll('.ant-modal button')).find(button => button.textContent.replaceAll(' ', '') === '完成').click()`,
+      `Array.from(document.querySelectorAll('.settings-header button')).find(button => button.textContent.replaceAll(' ', '') === '返回工作区').click()`,
     );
     await execute(`document.querySelector('[aria-label="收起导航"]').click()`);
     await waitFor("document.querySelector('.app-shell--collapsed') !== null");

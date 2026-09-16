@@ -66,9 +66,9 @@ export class GitService {
   async commit(id: string, message: string, description?: string) {
     const git = await this.getGit(id);
     const fullMessage = description ? `${message}\n\n${description}` : message;
-    const result = await git.execute(
+    const result = await git.commit(
       (await this.repoService.get(id)).path,
-      `commit -m ${JSON.stringify(fullMessage)}`,
+      fullMessage,
     );
     if (result.exitCode !== 0) throw new Error(result.stderr);
     return { success: true, stdout: result.stdout };
