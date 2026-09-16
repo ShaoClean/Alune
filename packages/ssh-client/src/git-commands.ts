@@ -1,11 +1,12 @@
 import { SSHConnection, CommandOutputLimitError } from './connection-manager';
 import { parseStatus } from './git-status';
+import { readLog } from './git-log';
 import { gitFileCommand, isWindowsPath, quotePosixArgument } from './git-shell';
 import { posix } from 'path';
 import { promisify } from 'util';
 import type {
   FileStatus,
-  CommitInfo,
+  LogPage,
   BranchInfo,
   StashEntry,
   RemoteInfo,
@@ -57,27 +58,8 @@ export class GitCommands {
     return { branch, ahead, behind, files };
   }
 
-  async log(repoPath: string, options?: LogOptions): Promise<CommitInfo[]> {
-    const count = Number(options?.count) || 50;
-    const skip = Number(options?.skip) || 0;
-    const format = '--format="%H%x00%h%x00%s%x00%an%x00%ae%x00%aI%x00%D"';
-
-    let cmd = this._git(repoPath, `log ${format} --max-count=${count} --skip=${skip}`);
-    if (options?.branch) cmd += ` ${options.branch}`;
-    if (options?.file) cmd += ` -- "${options.file}"`;
-    if (options?.author) cmd += ` --author="${options.author}"`;
-    if (options?.search) cmd += ` --grep="${options.search}"`;
-
-    const result = await this.connection.execCommand(cmd);
-    if (result.exitCode !== 0) {
-      throw new Error(`git log failed: ${result.stderr}`);
-    }
-
-    return result.stdout
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => this._parseLogLine(line))
-      .filter((c): c is CommitInfo => c !== null);
+  async log(repoPath: string, options?: LogOptions): Promise<LogPage> {
+    return readLog(this.connection, repoPath, options);
   }
 
   async diff(repoPath: string, options?: DiffOptions): Promise<string> {
@@ -373,31 +355,6 @@ export class GitCommands {
     }
 
     return stats;
-  }
-
-  private _parseLogLine(line: string): CommitInfo | null {
-    try {
-      const cleaned = line.replace(/^"|"$/g, '');
-      const parts = cleaned.split('\0');
-      if (parts.length < 7) return null;
-
-      return {
-        hash: parts[0],
-        shortHash: parts[1],
-        message: parts[2],
-        author: parts[3],
-        email: parts[4],
-        date: new Date(parts[5]),
-        refs: parts[6]
-          ? parts[6]
-              .split(',')
-              .map((r) => r.trim())
-              .filter(Boolean)
-          : [],
-      };
-    } catch {
-      return null;
-    }
   }
 
   private _parseBranchLine(line: string): BranchInfo | null {

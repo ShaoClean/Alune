@@ -32,6 +32,26 @@ export interface CommitInfo {
   refs?: string[];
 }
 
+export interface CommitReference {
+  name: string;
+  fullName: string;
+  kind: 'local' | 'remote' | 'tag' | 'head' | 'other';
+  current?: boolean;
+}
+
+export interface GraphCommit extends CommitInfo {
+  parents: string[];
+  references: CommitReference[];
+}
+
+export interface LogPage {
+  commits: GraphCommit[];
+  hasMore: boolean;
+  nextSkip: number;
+  revision: string;
+  shallow: boolean;
+}
+
 export interface CommitFile {
   path: string;
   oldPath?: string;
@@ -89,6 +109,7 @@ export interface LogOptions {
   search?: string;
   count?: number;
   skip?: number;
+  revision?: string;
 }
 
 export interface RemoteInfo {
