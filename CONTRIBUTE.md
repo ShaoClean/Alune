@@ -2,6 +2,12 @@
 
 RemoteGit 使用 Conventional Commits 描述变更，commitlint 校验提交信息，git-cliff 按提交记录生成中文 Release 说明。版本号和发布时机由维护者决定，推送稳定版本 tag 后由 GitHub Actions 构建和发布。
 
+## 设计文档与验收资料
+
+功能、优化及缺陷修复设计统一维护在 [GitHub Wiki](https://github.com/ShaoClean/remote-git/wiki)，包括方案、验收记录、截图和附件。页面按 `Issue-<编号>` 命名，在 Wiki、Issue 和 PR 之间补充双向链接；新增页面使用 [设计模板](https://github.com/ShaoClean/remote-git/wiki/Design-Template)，并更新对应分类索引。维护流程、附件路径与修订记录要求见 [Wiki 维护约定](https://github.com/ShaoClean/remote-git/wiki/Contributing)。
+
+本指南、README、现行配置说明及测试必需的 fixtures 继续随代码维护。历史资料的原路径与新入口见 [迁移清单](https://github.com/ShaoClean/remote-git/wiki/Migration-25)；不要将 Wiki 文档和配套附件的完整副本重新提交到主仓库。Wiki 使用独立 Git 历史，代码 PR 中应提供页面链接及被审阅的 Wiki 修订，代码回退时需单独核对文档。
+
 ## 初始化开发环境
 
 使用 Node.js 22.12+ 和 npm；CI 固定为 Node.js 22.22.0。首次进入仓库执行 `npm ci`。
