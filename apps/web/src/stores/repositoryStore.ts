@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { StateCreator } from 'zustand';
 import { REPOSITORY_STATUS_CACHE_MS } from '@remote-git/shared';
-import type { RepositoryStatus } from '@remote-git/shared';
+import type { RepositoryStatus, GraphCommit } from '@remote-git/shared';
 import { repositoryApi } from '../api';
 import { hydrateWorkspace, useWorkspaceStore } from './workspaceStore';
 
@@ -38,8 +38,17 @@ interface RepositoryState {
   openRepositories: any[];
   currentRepo: any | null;
   status: RepositoryStatus | null;
-  log: any[];
+  log: GraphCommit[];
   logLoading: boolean;
+  logLoadingMore: boolean;
+  logHasMore: boolean;
+  logNextSkip: number;
+  logRevision: string | null;
+  logGeneration: number;
+  logShallow: boolean;
+  logError: string | null;
+  logChanged: boolean;
+  logErrorMode: 'refresh' | 'more';
   remotesLoading: boolean;
   branches: any[];
   stashes: any[];
@@ -66,7 +75,7 @@ interface RepositoryState {
   setCurrentRepo: (repo: any) => void;
   resetWorkspace: (id?: string) => void;
   fetchStatus: (id: string, afterMutation?: boolean) => Promise<void>;
-  fetchLog: (id: string, params?: any) => Promise<void>;
+  fetchLog: (id: string, mode?: 'refresh' | 'more') => Promise<void>;
   fetchCommitFiles: (id: string, commit: string, parentCommit?: string) => Promise<void>;
   fetchDiff: (id: string, params?: any) => Promise<void>;
   clearDiff: () => void;
@@ -80,6 +89,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
   let registryRevision = 0;
   let workspaceId: string | null = null;
   let logRequest = 0;
+  let logController: AbortController | null = null;
   let diffRequest = 0;
   let commitFilesRequest = 0;
   let branchRequest = 0;
@@ -207,6 +217,15 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     status: null,
     log: [],
     logLoading: false,
+    logLoadingMore: false,
+    logHasMore: false,
+    logNextSkip: 0,
+    logRevision: null,
+    logGeneration: 0,
+    logShallow: false,
+    logError: null,
+    logChanged: false,
+    logErrorMode: 'refresh',
     remotesLoading: false,
     branches: [],
     stashes: [],
@@ -382,6 +401,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         });
       }
       logRequest += 1;
+      logController?.abort();
       diffRequest += 1;
       commitFilesRequest += 1;
       branchRequest += 1;
@@ -391,6 +411,15 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         status: id ? (get().repositoryStatuses[id]?.data ?? null) : null,
         log: [],
         logLoading: false,
+        logLoadingMore: false,
+        logHasMore: false,
+        logNextSkip: 0,
+        logRevision: null,
+        logGeneration: get().logGeneration + 1,
+        logShallow: false,
+        logError: null,
+        logChanged: false,
+        logErrorMode: 'refresh',
         remotesLoading: false,
         branches: [],
         stashes: [],
@@ -416,15 +445,63 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       await requestStatus(id, true, true);
     },
 
-    fetchLog: async (id, params) => {
+    fetchLog: async (id, mode = 'refresh') => {
       if (workspaceId !== null && workspaceId !== id) return;
+      const append = mode === 'more';
+      const state = get();
+      if (
+        append &&
+        (state.logLoading || state.logLoadingMore || !state.logHasMore || state.logChanged)
+      )
+        return;
+      logController?.abort();
+      const controller = new AbortController();
+      logController = controller;
       const request = ++logRequest;
-      set({ logLoading: true });
+      set({
+        logLoading: !append,
+        logLoadingMore: append,
+        logError: null,
+        logChanged: false,
+        logErrorMode: mode,
+      });
       try {
-        const log = await repositoryApi.log(id, params);
-        if (request === logRequest) set({ log, logLoading: false, error: null });
+        const page = await repositoryApi.log(
+          id,
+          {
+            count: 50,
+            ...(append ? { skip: state.logNextSkip, revision: state.logRevision! } : {}),
+          },
+          controller.signal,
+        );
+        if (request !== logRequest) return;
+        set((current) => {
+          const seen = new Set(append ? current.log.map((commit) => commit.hash) : []);
+          const added = page.commits.filter((commit) => {
+            if (seen.has(commit.hash)) return false;
+            seen.add(commit.hash);
+            return true;
+          });
+          return {
+            log: append ? [...current.log, ...added] : added,
+            logLoading: false,
+            logLoadingMore: false,
+            logError: null,
+            logHasMore: page.hasMore,
+            logNextSkip: page.nextSkip,
+            logRevision: page.revision,
+            logShallow: page.shallow,
+            logGeneration: current.logGeneration + (append ? 0 : 1),
+          };
+        });
       } catch (err: any) {
-        if (request === logRequest) set({ error: err.message, logLoading: false });
+        if (request === logRequest)
+          set({
+            logError: errorMessage(err),
+            logLoading: false,
+            logLoadingMore: false,
+            logChanged: err.response?.data?.code === 'HISTORY_CHANGED',
+          });
       }
     },
 

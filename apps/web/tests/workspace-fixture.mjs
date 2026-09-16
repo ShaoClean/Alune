@@ -133,22 +133,35 @@ const server = createServer(async (request, response) => {
           })),
         );
       if (operation === 'log')
-        return json(
-          response,
-          id === 'repo-a'
-            ? [
-                {
-                  hash: 'abc1234567890',
-                  shortHash: 'abc1234',
-                  message: 'feat: 支持工作区布局调整',
-                  author: 'Fixture',
-                  email: 'fixture@example.invalid',
-                  date: '2026-09-10T08:00:00Z',
-                  refs: ['HEAD -> design/workspace-layout'],
-                },
-              ]
-            : [],
-        );
+        return json(response, {
+          hasMore: false,
+          nextSkip: id === 'repo-a' ? 1 : 0,
+          revision: 'fixture',
+          shallow: false,
+          commits:
+            id === 'repo-a'
+              ? [
+                  {
+                    hash: 'abc1234567890',
+                    shortHash: 'abc1234',
+                    message: 'feat: 支持工作区布局调整',
+                    author: 'Fixture',
+                    email: 'fixture@example.invalid',
+                    date: '2026-09-10T08:00:00Z',
+                    parents: [],
+                    references: [
+                      {
+                        name: 'design/workspace-layout',
+                        fullName: 'refs/heads/design/workspace-layout',
+                        kind: 'local',
+                        current: true,
+                      },
+                    ],
+                    refs: ['HEAD -> design/workspace-layout'],
+                  },
+                ]
+              : [],
+        });
       if (operation === 'commit-files') return json(response, initialFiles.slice(0, 3));
       if (operation === 'remotes')
         return json(response, [

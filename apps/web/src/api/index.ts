@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@remote-git/shared';
-import type { NewFileDeletionPreview } from '@remote-git/shared';
+import type { NewFileDeletionPreview, LogOptions, LogPage } from '@remote-git/shared';
 
 const api = axios.create({
   baseURL: '/api',
@@ -33,8 +33,8 @@ export const repositoryApi = {
       signal,
       timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
     }).then((r) => r.data),
-  log: (id: string, params?: any) =>
-    api.get(`/repositories/${id}/log`, { params }).then((r) => r.data),
+  log: (id: string, params?: LogOptions, signal?: AbortSignal): Promise<LogPage> =>
+    api.get(`/repositories/${id}/log`, { params, signal }).then((r) => r.data),
   commitFiles: (id: string, commit: string, parentCommit?: string) =>
     api.get(`/repositories/${id}/commit-files`, { params: { commit, parentCommit } }).then((r) => r.data),
   diff: (id: string, params?: any) =>
