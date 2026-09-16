@@ -91,7 +91,7 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
       }; check();
     })`);
     try {
-      await execute(`document.querySelector('[aria-label="设置"]').click()`);
+      await execute(`window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))`);
       window.setSize(390, 844);
       await wait(
         `document.querySelector('select[aria-label="设置分类"]')?.getClientRects().length && document.querySelector('.provider-list__item')`,

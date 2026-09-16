@@ -29,13 +29,14 @@ test('layout validates old, malformed and out-of-range preferences', () => {
   }
   assert.deepEqual(
     readLayoutPreferences({ sidebarWidth: 999, changesWidth: -1, sidebarCollapsed: true }),
-    { sidebarWidth: 320, changesWidth: 280, sidebarCollapsed: true },
+    { ...DEFAULT_LAYOUT, sidebarWidth: 320, changesWidth: 280, sidebarCollapsed: true },
   );
-  assert.equal(readLayoutPreferences({ sidebarWidth: Infinity }).sidebarWidth, 220);
+  assert.equal(readLayoutPreferences({ sidebarWidth: Infinity }).sidebarWidth, 236);
 });
 
 test('window fitting preserves inspector space without replacing saved preferences', () => {
   const preference = Object.freeze({
+    ...DEFAULT_LAYOUT,
     sidebarWidth: 320,
     changesWidth: 520,
     sidebarCollapsed: false,
@@ -48,7 +49,7 @@ test('window fitting preserves inspector space without replacing saved preferenc
   assert.equal(fitWorkspaceLayout(preference, 1440).changesWidth, 520);
   assert.equal(
     fitWorkspaceLayout({ ...preference, sidebarCollapsed: true }, 900).changesWidth,
-    484,
+    520,
   );
 });
 
@@ -69,15 +70,26 @@ test('old tree preferences survive adding, saving, rehydrating and resetting lay
   assert.deepEqual(workspace.getState().layout, DEFAULT_LAYOUT);
   workspace
     .getState()
-    .updateLayout({ sidebarWidth: 310, changesWidth: 430, sidebarCollapsed: true });
+    .updateLayout({
+      sidebarWidth: 310,
+      changesWidth: 430,
+      sidebarCollapsed: true,
+      changesCollapsed: true,
+      diffMode: 'split',
+    });
   const persisted = saved.get('remote-git-workspace');
   assert.deepEqual(JSON.parse(persisted).state.layout, {
+    ...DEFAULT_LAYOUT,
+    changesCollapsed: true,
+    diffMode: 'split',
     sidebarWidth: 310,
     changesWidth: 430,
     sidebarCollapsed: true,
   });
   await workspace.persist.rehydrate();
   assert.equal(workspace.getState().layout.changesWidth, 430);
+  assert.equal(workspace.getState().layout.changesCollapsed, true);
+  assert.equal(workspace.getState().layout.diffMode, 'split');
   workspace.getState().resetLayout();
   assert.deepEqual(workspace.getState().layout, DEFAULT_LAYOUT);
   assert.equal(workspace.getState().treeOpen, false);
@@ -131,10 +143,15 @@ test('late diffs and refreshes from previous repositories cannot replace the act
 test('deleting the selected file invalidates a pending diff so a late response cannot restore it', async () => {
   const original = repositoryApi.diff;
   let resolve;
-  repositoryApi.diff = () => new Promise((done) => { resolve = done; });
+  repositoryApi.diff = () =>
+    new Promise((done) => {
+      resolve = done;
+    });
   try {
     repository.getState().resetWorkspace('delete-fixture');
-    const pending = repository.getState().fetchDiff('delete-fixture', { file: 'new.txt', staged: true });
+    const pending = repository
+      .getState()
+      .fetchDiff('delete-fixture', { file: 'new.txt', staged: true });
     repository.getState().clearDiff();
     assert.equal(repository.getState().diffLoading, false);
     resolve('obsolete added file content');
@@ -145,4 +162,31 @@ test('deleting the selected file invalidates a pending diff so a late response c
     repositoryApi.diff = original;
     repository.getState().resetWorkspace();
   }
+});
+
+test('all panel combinations fit without spending space on a hidden sidebar', () => {
+  for (const width of [900, 1024, 1280, 1440]) {
+    for (const sidebarCollapsed of [false, true]) {
+      for (const changesCollapsed of [false, true]) {
+        const preference = {
+          ...DEFAULT_LAYOUT,
+          sidebarWidth: 320,
+          changesWidth: 520,
+          sidebarCollapsed,
+          changesCollapsed,
+        };
+        const fitted = fitWorkspaceLayout(preference, width);
+        const available =
+          width -
+          (sidebarCollapsed ? 0 : fitted.sidebarWidth) -
+          (changesCollapsed ? 0 : fitted.changesWidth + 4);
+        assert.ok(available >= 360, JSON.stringify({ width, preference, fitted, available }));
+      }
+    }
+  }
+  assert.equal(
+    readLayoutPreferences({ diffMode: 'invalid', changesCollapsed: 'false' }).diffMode,
+    'unified',
+  );
+  assert.equal(readLayoutPreferences({ changesCollapsed: 'false' }).changesCollapsed, false);
 });

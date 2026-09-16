@@ -9,6 +9,7 @@ interface Props {
   max: number;
   onChange: (width: number) => void;
   className?: string;
+  side?: 'left' | 'right';
 }
 
 export function PanelResizeHandle({
@@ -19,6 +20,7 @@ export function PanelResizeHandle({
   max,
   onChange,
   className = '',
+  side = 'left',
 }: Props) {
   const start = useRef<{ x: number; width: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -45,7 +47,14 @@ export function PanelResizeHandle({
       }}
       onPointerMove={(event) => {
         if (start.current && event.currentTarget.hasPointerCapture(event.pointerId)) {
-          onChange(clampWidth(start.current.width + event.clientX - start.current.x, min, max));
+          const direction = side === 'right' ? -1 : 1;
+          onChange(
+            clampWidth(
+              start.current.width + (event.clientX - start.current.x) * direction,
+              min,
+              max,
+            ),
+          );
         }
       }}
       onPointerUp={(event) => {
@@ -58,15 +67,16 @@ export function PanelResizeHandle({
       }}
       onKeyDown={(event) => {
         const step = event.shiftKey ? 40 : 10;
+        const direction = side === 'right' ? -1 : 1;
         const next =
           event.key === 'Home'
             ? min
             : event.key === 'End'
               ? max
               : event.key === 'ArrowLeft'
-                ? value - step
+                ? value - step * direction
                 : event.key === 'ArrowRight'
-                  ? value + step
+                  ? value + step * direction
                   : undefined;
         if (next === undefined) return;
         event.preventDefault();

@@ -1,6 +1,6 @@
 import { beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getDiffLines, getDiffNotice } from '../src/components/diff-lines.ts';
+import { getDiffLines, getDiffNotice, getNumberedDiffLines } from '../src/components/diff-lines.ts';
 
 const storage = new Map();
 globalThis.localStorage = {
@@ -79,4 +79,30 @@ test('closing or losing the selected file invalidates pending requests and clear
   assert.equal(store.getState().error, null, 'preview failures must not hide the repository');
   store.getState().clearDiff();
   assert.equal(store.getState().diffError, null);
+});
+
+test('line numbers follow each hunk and do not advance for patch metadata', () => {
+  const patch =
+    'diff --git a/a b/a\n@@ -3,2 +7,2 @@\n context\n-old\n+new\n\\ No newline at end of file\n@@ -20 +30 @@\n-before\n+after\n';
+  assert.deepEqual(
+    getNumberedDiffLines(patch)
+      .filter((line) => line.kind !== 'meta')
+      .map(({ oldLine, newLine }) => [oldLine, newLine]),
+    [
+      [3, 7],
+      [4, undefined],
+      [undefined, 8],
+      [20, undefined],
+      [undefined, 30],
+    ],
+  );
+  assert.deepEqual(
+    getNumberedDiffLines(textPatch)
+      .filter((line) => line.kind === 'add')
+      .map(({ oldLine, newLine }) => [oldLine, newLine]),
+    [
+      [undefined, 1],
+      [undefined, 2],
+    ],
+  );
 });

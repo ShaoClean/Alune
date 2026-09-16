@@ -1,4 +1,21 @@
 export type DiffLine = { text: string; kind: 'meta' | 'context' | 'add' | 'remove' };
+export type NumberedDiffLine = DiffLine & { oldLine?: number; newLine?: number };
+
+export function getNumberedDiffLines(diff: string): NumberedDiffLine[] {
+  let oldLine = 0;
+  let newLine = 0;
+  return getDiffLines(diff).map((line) => {
+    const hunk = line.text.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (hunk) {
+      oldLine = Number(hunk[1]);
+      newLine = Number(hunk[2]);
+    }
+    if (line.kind === 'context') return { ...line, oldLine: oldLine++, newLine: newLine++ };
+    if (line.kind === 'remove') return { ...line, oldLine: oldLine++ };
+    if (line.kind === 'add') return { ...line, newLine: newLine++ };
+    return line;
+  });
+}
 
 export function getDiffLines(diff: string): DiffLine[] {
   let inHunk = false;

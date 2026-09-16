@@ -92,9 +92,9 @@ module.exports = async ({ window, origin, token, backend }) => {
     await waitFor("document.querySelector('.file-row__select')");
     await preview(file);
     await waitFor(
-      "document.querySelector('.diff-line--add')?.textContent.includes('desktop first')",
+      "document.querySelector('.diff-code-row--add')?.textContent.includes('desktop first')",
     );
-    assert.equal(await execute("document.querySelectorAll('.diff-line--remove').length"), 0);
+    assert.equal(await execute("document.querySelectorAll('.diff-code-row--remove').length"), 0);
     await execute(
       "Array.from(document.querySelectorAll('.ant-segmented-item')).find(item => item.textContent === '分栏').click()",
     );
@@ -102,9 +102,9 @@ module.exports = async ({ window, origin, token, backend }) => {
       "document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop first')",
     );
     assert.equal(await execute("document.querySelectorAll('.diff-split-cell--remove').length"), 0);
-    await click('[aria-label="放大查看差异"]');
+    await click('[aria-label="专注阅读差异"]');
     await waitFor(
-      "document.querySelector('.diff-zoom-modal .diff-split-cell--add')?.textContent.includes('desktop first')",
+      "document.querySelector('.app-shell--collapsed') && document.querySelector('.workspace-body--right-hidden') && document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop first')",
     );
     if (process.env.REMOTE_GIT_DIFF_SMOKE_SCREENSHOT) {
       require('node:fs').writeFileSync(
@@ -112,7 +112,8 @@ module.exports = async ({ window, origin, token, backend }) => {
         (await window.webContents.capturePage()).toPNG(),
       );
     }
-    await click('.diff-zoom-modal .ant-modal-close');
+    await click('[aria-label="显示左侧工作区"]');
+    await click('[aria-label="显示右侧面板"]');
     await click(`button[aria-label="暂存 ${file}"]`);
     await waitFor("document.querySelector('.diff-shell__title')?.textContent.includes('已暂存')");
     edited = true;
@@ -131,7 +132,7 @@ module.exports = async ({ window, origin, token, backend }) => {
       "document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop second')",
     );
     assert.equal(
-      await execute("document.querySelector('.diff-split-cell--remove')?.textContent"),
+      await execute("document.querySelector('.diff-split-cell--remove code')?.textContent"),
       'desktop first',
     );
     await click(`button[aria-label="取消暂存 ${file}"]`);
@@ -172,7 +173,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     await click('[aria-label="关闭差异"]');
     await waitFor("!document.querySelector('.diff-shell')");
     console.log(
-      'Desktop new-file diff passed: unified, split, zoom, staging, editing, unstaging, feedback, late responses and closing.',
+      'Desktop new-file diff passed: unified, split, focus, staging, editing, unstaging, feedback, late responses and closing.',
     );
   } finally {
     connections.ensureConnected = originalConnect;
