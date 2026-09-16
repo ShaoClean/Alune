@@ -126,6 +126,16 @@ export function Layout() {
   }, [compact]);
 
   useEffect(() => {
+    // Expanding moves the toggle from the tab bar into the sidebar header.
+    if (
+      sidebarVisible &&
+      !compact &&
+      workspaceFocus.current?.matches('.panel-toggle[aria-controls="workspace-sidebar"]') &&
+      !workspaceFocus.current.isConnected
+    )
+      sidebarRef.current
+        ?.querySelector<HTMLButtonElement>('[aria-controls="workspace-sidebar"]')
+        ?.focus();
     if (!sidebarVisible && sidebarRef.current?.contains(document.activeElement))
       document
         .querySelector<HTMLButtonElement>('.app-tabbar [aria-controls="workspace-sidebar"]')
@@ -137,7 +147,7 @@ export function Layout() {
       document
         .querySelector<HTMLButtonElement>('.app-tabbar [aria-controls="workspace-list"]')
         ?.focus();
-  }, [sidebarVisible, layout.changesCollapsed]);
+  }, [sidebarVisible, compact, layout.changesCollapsed]);
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -241,25 +251,25 @@ export function Layout() {
         }}
       >
         <div className="app-tabbar" inert={compact && mobileNavOpen}>
-          <div className="app-tabbar__leading">
-            {!sidebarVisible && (
+          {(!sidebarVisible || compact) && (
+            <div className="app-tabbar__leading">
               <WorkspaceMenu
                 compact
                 version={'v' + __APP_VERSION__}
                 onSettings={() => openSettings()}
               />
-            )}
-            <PanelToggle
-              side="left"
-              expanded={sidebarVisible}
-              controls="workspace-sidebar"
-              onClick={() =>
-                compact
-                  ? setMobileNavOpen(!mobileNavOpen)
-                  : updateLayout({ sidebarCollapsed: !collapsed })
-              }
-            />
-          </div>
+              <PanelToggle
+                side="left"
+                expanded={sidebarVisible}
+                controls="workspace-sidebar"
+                onClick={() =>
+                  compact
+                    ? setMobileNavOpen(!mobileNavOpen)
+                    : updateLayout({ sidebarCollapsed: !collapsed })
+                }
+              />
+            </div>
+          )}
           {selectedKey === '/repositories' && openRepositories.length > 0 ? (
             <RepositoryTabs
               repositories={openRepositories}
@@ -292,22 +302,24 @@ export function Layout() {
         >
           <div className="app-sidebar__header">
             <strong>工作区</strong>
-            {compact && (
+            <div className="app-sidebar__header-actions">
+              <Button
+                type="text"
+                size="small"
+                icon={<PlusOutlined />}
+                aria-label="管理连接"
+                title="管理连接"
+                onClick={() => navigate('/')}
+              />
               <PanelToggle
                 side="left"
                 expanded
                 controls="workspace-sidebar"
-                onClick={() => setMobileNavOpen(false)}
+                onClick={() =>
+                  compact ? setMobileNavOpen(false) : updateLayout({ sidebarCollapsed: true })
+                }
               />
-            )}
-            <Button
-              type="text"
-              size="small"
-              icon={<PlusOutlined />}
-              aria-label="管理连接"
-              title="管理连接"
-              onClick={() => navigate('/')}
-            />
+            </div>
           </div>
           <div className="app-sidebar__content">
             <Input

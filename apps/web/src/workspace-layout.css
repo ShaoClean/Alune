@@ -1,4 +1,4 @@
-/* The toolbar and status bar span the workspace; hidden panels release all their space. */
+/* The sidebar owns the full left column; hidden panels release all their space. */
 .app-shell {
   position: relative;
   display: grid;
@@ -17,7 +17,7 @@
 }
 .app-sidebar {
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 1 / -1;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -31,8 +31,20 @@
   flex: 0 0 48px;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--sidebar-line);
   font-size: 13px;
+}
+.app-sidebar__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.app-sidebar__header-actions > .ant-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--text-muted);
 }
 .app-sidebar__content {
   padding: 6px 10px 14px;
@@ -132,26 +144,21 @@
   background: var(--content);
 }
 .app-tabbar {
-  grid-column: 1 / -1;
+  grid-column: 2;
   grid-row: 1;
   display: flex;
   align-items: center;
   min-width: 0;
   gap: 8px;
-  padding: 0 12px 0 0;
+  padding: 0 12px;
   background: #f8fafc;
   border-bottom: 1px solid var(--line);
 }
 .app-tabbar__leading {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 8px;
-  flex: 0 0 var(--sidebar-width);
-  padding: 0 12px;
-}
-.app-shell--collapsed .app-tabbar__leading {
-  flex-basis: auto;
+  flex: 0 0 auto;
 }
 .panel-toggle {
   display: inline-flex;
@@ -186,6 +193,7 @@
 }
 .app-tabbar .repository-tabs {
   flex: 1;
+  align-items: center;
   min-width: 0;
   min-height: 32px;
   height: 32px;
@@ -194,12 +202,16 @@
   background: transparent;
 }
 .app-tabbar .repository-tabs__scroll {
+  align-items: center;
   gap: 4px;
 }
 .app-tabbar .repository-tab {
+  flex: 0 0 auto;
+  align-items: center;
   height: 32px;
   min-width: 115px;
   max-width: 220px;
+  margin: 0;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -211,12 +223,29 @@
 }
 .app-tabbar .repository-tab__select {
   min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  line-height: 1;
+  text-align: left;
+}
+.app-tabbar .repository-tab__name {
+  line-height: 20px;
+}
+.app-tabbar .repository-tab__close {
+  flex: 0 0 24px;
+  margin: 0 4px 0 0;
+  padding: 0;
+  line-height: 1;
 }
 .app-tabbar .repository-tabs__open {
-  margin-left: 6px;
+  margin: 0 0 0 6px;
   width: 30px;
+  height: 30px;
   padding: 0;
   justify-content: center;
+}
+.app-tabbar .repository-tabs__open > .anticon {
+  display: inline-flex;
 }
 .app-tabbar .repository-tabs__open > span:not(.anticon) {
   display: none;
@@ -227,7 +256,7 @@
   scrollbar-gutter: auto;
 }
 .status-bar {
-  grid-column: 1 / -1;
+  grid-column: 2;
   grid-row: 3;
   min-height: 26px;
   padding: 3px 12px;
@@ -262,8 +291,8 @@
 }
 .sidebar-resize-handle {
   position: absolute;
-  top: 48px;
-  bottom: 26px;
+  top: 0;
+  bottom: 0;
   height: auto;
   left: calc(var(--sidebar-width) - 2px);
   background: transparent;
@@ -718,11 +747,10 @@
   .app-shell {
     grid-template-columns: minmax(0, 1fr);
   }
-  .app-main {
+  .app-main,
+  .app-tabbar,
+  .status-bar {
     grid-column: 1;
-  }
-  .app-tabbar__leading {
-    flex-basis: auto;
   }
   .app-sidebar {
     position: fixed;
