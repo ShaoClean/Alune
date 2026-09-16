@@ -597,17 +597,11 @@ body,
 }
 
 .app-brand__mark {
-  display: grid;
+  display: block;
   flex: 0 0 auto;
-  place-items: center;
   width: 34px;
   height: 34px;
-  color: #fff;
-  background: linear-gradient(145deg, #4b83f1 0%, #2563eb 100%);
-  border: 1px solid rgb(37 99 235 / 20%);
-  border-radius: 9px;
-  font-size: 16px;
-  box-shadow: 0 6px 16px rgb(37 99 235 / 30%), inset 0 1px rgb(255 255 255 / 18%);
+  object-fit: contain;
 }
 
 .app-brand__text {
@@ -934,17 +928,11 @@ body,
 }
 
 .sidebar-footer__avatar {
-  display: grid;
+  display: block;
   flex: 0 0 auto;
-  place-items: center;
   width: 28px;
   height: 28px;
-  color: #dce8ff;
-  background: linear-gradient(145deg, #477bd0, #2b579c);
-  border: 1px solid rgb(37 99 235 / 22%);
-  border-radius: 8px;
-  font-size: 13px;
-  box-shadow: inset 0 1px rgb(255 255 255 / 14%);
+  object-fit: contain;
 }
 
 .sidebar-footer__account-copy {
