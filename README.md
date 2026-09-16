@@ -10,6 +10,8 @@
 
 提交规范、Git hooks、PR 检查和 Release 说明生成流程见 [CONTRIBUTE.md](CONTRIBUTE.md)。
 
+功能、优化与缺陷修复的设计、验收记录及配套附件统一维护在 [GitHub Wiki](https://github.com/ShaoClean/remote-git/wiki)：[功能设计索引](https://github.com/ShaoClean/remote-git/wiki/Feature-Designs)、[缺陷修复索引](https://github.com/ShaoClean/remote-git/wiki/Bugfix-Designs)。新增文档按 Issue 编号组织，并在 Issue / PR 中补充双向链接，详见 [Wiki 维护约定](https://github.com/ShaoClean/remote-git/wiki/Contributing)。运行、配置、开发和发布所需的基础说明继续保留在代码仓库；旧资料入口见 [迁移清单](https://github.com/ShaoClean/remote-git/wiki/Migration-25)。
+
 ## 开发与打包
 
 开发环境使用 Node.js 22.12+ 和 npm。首次构建需要下载 Electron 和原生依赖；原生模块没有预编译包时，需要系统 C++ 编译工具（macOS：Xcode Command Line Tools；Windows：Visual Studio C++ Build Tools 和 Python；Linux：编译工具链和 Python）。
@@ -37,7 +39,7 @@ npm run desktop:test  # 构建后执行桌面集成测试
 
 在“AI 服务商”中配置并启用服务商和模型，再在“提交生成”中保存默认模型。提交摘要右侧的星光按钮只分析已暂存改动，一次填入摘要和描述，支持取消、重试及撤销；最终提交仍由用户操作。默认使用简体中文 Conventional Commits。
 
-支持 OpenAI、Anthropic、Gemini、DeepSeek，以及三个协议的多个自定义服务。API Key 在设置页手动输入并加密保存，无需配置环境变量；桌面版使用系统密钥存储，独立服务自动管理本机加密密钥。配置与限制见 [AI 设置说明](docs/ai-settings.md)，截图与验证记录见 [Issue #21 验收](docs/validation/issue-21/README.md)。
+支持 OpenAI、Anthropic、Gemini、DeepSeek，以及三个协议的多个自定义服务。API Key 在设置页手动输入并加密保存，无需配置环境变量；桌面版使用系统密钥存储，独立服务自动管理本机加密密钥。配置与限制见 [AI 设置说明](docs/ai-settings.md)，截图与验证记录见 [Issue #21 验收](https://github.com/ShaoClean/remote-git/wiki/Issue-21-Validation)。
 
 ## GitHub 版本更新
 
@@ -109,10 +111,10 @@ Linux CI 的桌面测试使用 `xvfb-run -a`。测试中的模拟更新适配器
 
 新建文件无需暂存即可查看相对空版本的差异，支持统一、分栏和放大查看。暂存后再次编辑的文件会同时出现在“已暂存”和“未暂存”分组，分别显示暂存内容与后续工作区改动；没有首次提交的仓库也可暂存、取消暂存和预览。
 
-空文件显示“新增空文件”，二进制文件和无法读取的文件有明确反馈。预览支持 UTF-8 文本，新增文件/暂存内容及差异输出限制为 1 MiB，差异补丁最多 10,000 行；超限时显示提示。预览不写入文件或暂存区。验证范围和结果见 [新增文件差异预览验收](docs/validation/issue-18/README.md)。
+空文件显示“新增空文件”，二进制文件和无法读取的文件有明确反馈。预览支持 UTF-8 文本，新增文件/暂存内容及差异输出限制为 1 MiB，差异补丁最多 10,000 行；超限时显示提示。预览不写入文件或暂存区。验证范围和结果见 [新增文件差异预览验收](https://github.com/ShaoClean/remote-git/wiki/Issue-18-Validation)。
 
 工作区侧栏与改动列表支持拖动调宽，也可从“布局设置”使用滑块调整或恢复默认。分隔线支持方向键、Shift 加速和 Home / End；`Cmd/Ctrl + \` 开关侧栏。布局偏好在本机保存，保留现有工作区树的展开与排序设置。
 
 窄窗口选择文件或提交后进入检查器，使用“返回列表”继续操作。提交摘要和描述在本次页面会话内按仓库保留；刷新页面会清空草稿。
 
-界面截图、验证结果和测试环境说明见 [工作区布局验收](docs/validation/issue-6/README.md)。
+界面截图、验证结果和测试环境说明见 [工作区布局验收](https://github.com/ShaoClean/remote-git/wiki/Issue-6-Validation)。

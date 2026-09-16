@@ -84,3 +84,9 @@ body:
     attributes:
       label: 补充资料
       description: '可选。说明首次出现的版本、临时绕过方法和相关 Issue；根因推测请注明。'
+  - type: input
+    id: design_wiki
+    attributes:
+      label: 设计文档（Wiki）
+      description: '可选。已有设计请填写 Wiki 页面链接；暂无设计可留空，由维护者按 Issue 编号创建并补充反向链接。约定见 https://github.com/ShaoClean/remote-git/wiki/Contributing 。'
+      placeholder: 'https://github.com/ShaoClean/remote-git/wiki/Issue-<编号>'

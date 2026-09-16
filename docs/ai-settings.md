@@ -60,4 +60,4 @@ API Key 只使用用户在设置页保存的值，不读取服务商的环境变
 
 OpenAI 协议参考官方 [Chat Completions](https://developers.openai.com/api/reference/chat-completions/overview/) 与 [Create a chat completion](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)。具体账号权限、可用模型 ID、代理兼容性以服务商为准；预置模型可以替换。
 
-实际执行范围、截图及未验证平台见 [验证记录](validation/issue-21/README.md)。
+设计方案见 [Issue #21 Wiki](https://github.com/ShaoClean/remote-git/wiki/Issue-21)；实际执行范围、截图及未验证平台见 [验证记录](https://github.com/ShaoClean/remote-git/wiki/Issue-21-Validation)。
