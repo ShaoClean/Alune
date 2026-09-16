@@ -101,6 +101,19 @@ const server = createServer(async (request, response) => {
     return json(response, { ok: true });
   }
   if (pathname.startsWith('/api/')) {
+    if (pathname === '/api/ai/settings')
+      return json(response, {
+        revision: 'fixture',
+        providers: [],
+        commit: {
+          providerId: null,
+          modelId: null,
+          language: 'zh-CN',
+          format: 'conventional',
+          prompt: '',
+        },
+        secretStorage: { available: true, description: '隔离的浏览器验收环境' },
+      });
     if (pathname === '/api/connections') return json(response, connections);
     if (pathname === '/api/repositories') return json(response, repositories);
     const [, , , id, operation] = pathname.split('/');
@@ -149,7 +162,7 @@ const server = createServer(async (request, response) => {
         const file = url.searchParams.get('file') || initialFiles[0].path;
         return json(
           response,
-          `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1,5 +1,9 @@\n import { WorkspaceTree } from './WorkspaceTree';\n-export const sidebarWidth = 280;\n+export const sidebarWidth = 220;\n+export const changesWidth = 340;\n+// ${id} · ${url.searchParams.get('staged') === 'true' ? '已暂存' : '工作区'}\n export function Workspace() {\n-  return <LegacyLayout />;\n+  return <ResizableWorkspace />;\n }\n`,
+          `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1,5 +1,9 @@\n import { WorkspaceTree } from './WorkspaceTree';\n-export const sidebarWidth = 280;\n+export const sidebarWidth = 236;\n+export const changesWidth = 320;\n+// A long line: the workspace keeps the current file and commit draft when either sidebar is hidden, and split diff wraps the whole line without clipping. ${id} · ${url.searchParams.get('staged') === 'true' ? '已暂存' : '工作区'}\n export function Workspace() {\n-  return <LegacyLayout />;\n+  return <ResizableWorkspace />;\n }\n`,
         );
       }
       return json(response, []);
@@ -179,7 +192,10 @@ const server = createServer(async (request, response) => {
       return json(response, { message: 'Unsupported fixture action' }, 405);
     return json(response, { success: true });
   }
-  const file = path.resolve(root, pathname.startsWith('/assets/') ? `.${pathname}` : 'index.html');
+  const file = path.resolve(
+    root,
+    pathname.startsWith('/assets/') || pathname === '/favicon.svg' ? `.${pathname}` : 'index.html',
+  );
   if (path.relative(root, file).startsWith('..')) {
     response.writeHead(403).end();
     return;

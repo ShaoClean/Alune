@@ -115,8 +115,10 @@ Linux CI 的桌面测试使用 `xvfb-run -a`。测试中的模拟更新适配器
 
 空文件显示“新增空文件”，二进制文件和无法读取的文件有明确反馈。预览支持 UTF-8 文本，新增文件/暂存内容及差异输出限制为 1 MiB，差异补丁最多 10,000 行；超限时显示提示。预览不写入文件或暂存区。验证范围和结果见 [新增文件差异预览验收](https://github.com/ShaoClean/remote-git/wiki/Issue-18-Validation)。
 
-工作区侧栏与改动列表支持拖动调宽，也可从“布局设置”使用滑块调整或恢复默认。分隔线支持方向键、Shift 加速和 Home / End；`Cmd/Ctrl + \` 开关侧栏。布局偏好在本机保存，保留现有工作区树的展开与排序设置。
+工作区采用左侧仓库导航、中央 Diff、右侧改动与提交布局。顶栏按钮可分别隐藏或重新打开两侧面板，Diff 工具栏的“专注阅读差异”可一次隐藏两侧。左下角的应用菜单集中提供设置与帮助；左栏隐藏时，菜单移至顶栏。
+
+两侧面板支持拖动调宽，也可在“设置 → 布局”调整显隐、宽度、默认 Diff 模式或恢复默认。分隔线支持方向键、Shift 加速和 Home / End；`Cmd/Ctrl+B` 切换左侧，`Cmd/Ctrl+Shift+B` 切换右侧，`Cmd/Ctrl+,` 打开设置，原有 `Cmd/Ctrl+\` 仍可切换左侧。布局偏好在本机保存，恢复默认不会清除工作区树的展开与排序设置。分栏 Diff 的长行自动折行。
 
 窄窗口选择文件或提交后进入检查器，使用“返回列表”继续操作。提交摘要和描述在本次页面会话内按仓库保留；刷新页面会清空草稿。
 
-界面截图、验证结果和测试环境说明见 [工作区布局验收](https://github.com/ShaoClean/remote-git/wiki/Issue-6-Validation)。
+本次重构截图与验证结果见 [Issue #31 验收](https://github.com/ShaoClean/remote-git/wiki/Issue-31-Validation)。既有工作区布局记录见 [工作区布局验收](https://github.com/ShaoClean/remote-git/wiki/Issue-6-Validation)。

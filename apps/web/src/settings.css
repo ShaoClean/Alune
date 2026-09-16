@@ -42,9 +42,9 @@
 }
 .settings-header {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
   border-bottom: 1px solid var(--settings-line);
-  min-height: 55px;
+  min-height: 48px;
 }
 .settings-brand {
   padding: 10px 18px;
@@ -73,7 +73,7 @@
 }
 .settings-body {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
   flex: 1;
   min-height: 0;
 }
@@ -602,3 +602,5 @@
     padding: 12px;
   }
 }
+.settings-page-content--layout { max-width: 736px; }
+.settings-brand .app-brand__mark { width: 26px; height: 26px; }

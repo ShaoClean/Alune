@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
-import { BranchesOutlined, DownOutlined, FolderOpenOutlined, HolderOutlined, RightOutlined } from '@ant-design/icons';
+import {
+  BranchesOutlined,
+  DownOutlined,
+  FolderOpenOutlined,
+  HolderOutlined,
+  RightOutlined,
+} from '@ant-design/icons';
 import type { Repository } from '@remote-git/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { RepositoryStatusIndicator } from './RepositoryStatusIndicator';
@@ -8,20 +14,37 @@ import { useRepositoryStore } from '../stores/repositoryStore';
 import { canMoveTreeItem, orderItems } from '../stores/sidebarOrder';
 import type { Placement, TreeItem } from '../stores/sidebarOrder';
 
-interface Connection { id: string; name: string; status?: string }
+interface Connection {
+  id: string;
+  name: string;
+  status?: string;
+}
 interface Props {
   connections: Connection[];
   repositories: Repository[];
   testResults: Record<string, { success: boolean }>;
   activeId?: string;
+  query?: string;
   onOpenRepository: (repo: Repository) => void;
 }
 type DropTarget = { item: TreeItem; placement: Placement };
 
-export function WorkspaceTree({ connections, repositories, testResults, activeId, onOpenRepository }: Props) {
+export function WorkspaceTree({
+  connections,
+  repositories,
+  testResults,
+  activeId,
+  query = '',
+  onOpenRepository,
+}: Props) {
   const {
-    treeOpen, setTreeOpen, collapsedConnectionIds, setConnectionCollapsed,
-    connectionOrder, repositoryOrderByConnection, moveTreeItem,
+    treeOpen,
+    setTreeOpen,
+    collapsedConnectionIds,
+    setConnectionCollapsed,
+    connectionOrder,
+    repositoryOrderByConnection,
+    moveTreeItem,
   } = useWorkspaceStore();
   const { listLoaded, listError, fetchRepositories } = useRepositoryStore();
   const [dragging, setDragging] = useState<TreeItem | null>(null);
@@ -33,10 +56,21 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
   const scrollFrame = useRef<number | null>(null);
   const pointerY = useRef<number | null>(null);
 
-  const groups = orderItems(connections, connectionOrder).map((connection) => ({
-    ...connection,
-    repositories: orderItems(repositories.filter((repo) => repo.connectionId === connection.id), repositoryOrderByConnection[connection.id]),
-  }));
+  const search = query.trim().toLowerCase();
+  const groups = orderItems(connections, connectionOrder)
+    .map((connection) => ({
+      ...connection,
+      repositories: orderItems(
+        repositories.filter(
+          (repo) =>
+            repo.connectionId === connection.id &&
+            (!search ||
+              `${connection.name} ${repo.name} ${repo.path}`.toLowerCase().includes(search)),
+        ),
+        repositoryOrderByConnection[connection.id],
+      ),
+    }))
+    .filter((connection) => !search || connection.repositories.length > 0);
 
   const stopScroll = () => {
     if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
@@ -56,7 +90,10 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
       if (event.key === 'Escape') finishDrag();
     };
     document.addEventListener('keydown', cancel);
-    return () => { document.removeEventListener('keydown', cancel); stopScroll(); };
+    return () => {
+      document.removeEventListener('keydown', cancel);
+      stopScroll();
+    };
   }, []);
 
   const autoScroll = (event: DragEvent) => {
@@ -65,10 +102,17 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
     if (scrollFrame.current !== null) return;
     const tick = () => {
       const container = tree.current?.closest<HTMLElement>('.app-sidebar__content');
-      if (!container || pointerY.current === null) { stopScroll(); return; }
+      if (!container || pointerY.current === null) {
+        stopScroll();
+        return;
+      }
       const { top, bottom } = container.getBoundingClientRect();
-      const distance = pointerY.current - top < 36 ? pointerY.current - top - 36
-        : bottom - pointerY.current < 36 ? 36 - (bottom - pointerY.current) : 0;
+      const distance =
+        pointerY.current - top < 36
+          ? pointerY.current - top - 36
+          : bottom - pointerY.current < 36
+            ? 36 - (bottom - pointerY.current)
+            : 0;
       container.scrollTop += Math.max(-14, Math.min(14, distance / 2));
       scrollFrame.current = requestAnimationFrame(tick);
     };
@@ -81,7 +125,8 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
     setDragging(item);
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/x-remote-git-tree', JSON.stringify(item));
-    if (event.currentTarget.parentElement) event.dataTransfer.setDragImage(event.currentTarget.parentElement, 15, 15);
+    if (event.currentTarget.parentElement)
+      event.dataTransfer.setDragImage(event.currentTarget.parentElement, 15, 15);
   };
 
   const position = (event: DragEvent<HTMLElement>): Placement => {
@@ -102,8 +147,13 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     const placement = position(event);
-    setDropTarget((current) => current?.item.kind === item.kind && current.item.id === item.id && current.placement === placement
-      ? current : { item, placement });
+    setDropTarget((current) =>
+      current?.item.kind === item.kind &&
+      current.item.id === item.id &&
+      current.placement === placement
+        ? current
+        : { item, placement },
+    );
   };
 
   const drop = (event: DragEvent<HTMLElement>, item: TreeItem) => {
@@ -115,7 +165,12 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
     finishDrag();
   };
 
-  const keyboardMove = (event: KeyboardEvent<HTMLButtonElement>, item: TreeItem, siblings: { id: string }[], name: string) => {
+  const keyboardMove = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    item: TreeItem,
+    siblings: { id: string }[],
+    name: string,
+  ) => {
     if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
     event.preventDefault();
     event.stopPropagation();
@@ -137,66 +192,141 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
       aria-label={`调整${item.kind === 'connection' ? '连接' : '仓库'} ${name} 的顺序`}
       aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
       title="拖动排序，或按 Alt + ↑ / ↓"
-      disabled={siblings.length < 2}
-      draggable={siblings.length > 1}
+      disabled={Boolean(search) || siblings.length < 2}
+      draggable={!search && siblings.length > 1}
       onDragStart={(event) => startDrag(event, item)}
       onDragEnd={finishDrag}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => keyboardMove(event, item, siblings, name)}
-    ><HolderOutlined /></button>
+    >
+      <HolderOutlined />
+    </button>
   );
 
-  const dropClass = (item: TreeItem) => dropTarget?.item.kind === item.kind && dropTarget.item.id === item.id
-    ? ` tree-drop--${dropTarget.placement}` : '';
-  const draggingClass = (item: TreeItem) => dragging?.kind === item.kind && dragging.id === item.id ? ' tree-item--dragging' : '';
+  const dropClass = (item: TreeItem) =>
+    dropTarget?.item.kind === item.kind && dropTarget.item.id === item.id
+      ? ` tree-drop--${dropTarget.placement}`
+      : '';
+  const draggingClass = (item: TreeItem) =>
+    dragging?.kind === item.kind && dragging.id === item.id ? ' tree-item--dragging' : '';
 
   return (
     <>
-      <button type="button" className="sidebar-workspace__toggle" aria-expanded={treeOpen} aria-controls="remote-workspace-tree" onClick={() => { finishDrag(); setTreeOpen(!treeOpen); }}>
+      <button
+        type="button"
+        className="sidebar-workspace__toggle"
+        aria-expanded={treeOpen || Boolean(search)}
+        aria-controls="remote-workspace-tree"
+        onClick={() => {
+          finishDrag();
+          setTreeOpen(!treeOpen);
+        }}
+      >
         <FolderOpenOutlined className="sidebar-workspace__icon" />
         <span>远程工作区</span>
-        <span className="sidebar-workspace__chevron">{treeOpen ? <DownOutlined /> : <RightOutlined />}</span>
+        <span className="sidebar-workspace__chevron">
+          {treeOpen ? <DownOutlined /> : <RightOutlined />}
+        </span>
       </button>
-      {treeOpen && (
+      {(treeOpen || search) && (
         <div
           id="remote-workspace-tree"
           className="resource-tree"
           ref={tree}
           onDragOverCapture={autoScroll}
           onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) { setDropTarget(null); stopScroll(); }
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setDropTarget(null);
+              stopScroll();
+            }
           }}
           onClickCapture={(event) => {
-            if (dragSource.current || Date.now() < suppressClickUntil.current) { event.preventDefault(); event.stopPropagation(); }
+            if (dragSource.current || Date.now() < suppressClickUntil.current) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
           }}
         >
-          {listError ? <div className="tree-empty" role="alert">仓库列表加载失败 <button type="button" className="text-button" onClick={() => void fetchRepositories()}>重试</button></div>
-            : !listLoaded && <div className="tree-empty" role="status">正在加载已登记仓库…</div>}
-          {groups.length === 0 && <div className="tree-empty">暂无连接</div>}
+          {listError ? (
+            <div className="tree-empty" role="alert">
+              仓库列表加载失败{' '}
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => void fetchRepositories()}
+              >
+                重试
+              </button>
+            </div>
+          ) : (
+            !listLoaded && (
+              <div className="tree-empty" role="status">
+                正在加载已登记仓库…
+              </div>
+            )
+          )}
+          {groups.length === 0 && (
+            <div className="tree-empty">{search ? '没有匹配的仓库' : '暂无连接'}</div>
+          )}
           {groups.map((connection) => {
             const item: TreeItem = { kind: 'connection', id: connection.id };
-            const open = !collapsedConnectionIds.includes(connection.id);
+            const open = Boolean(search) || !collapsedConnectionIds.includes(connection.id);
             const childrenId = `connection-repositories-${connection.id}`;
             return (
-              <div className={`tree-group${dropClass(item)}${draggingClass(item)}`} key={connection.id} data-connection-id={connection.id} onDragOver={(event) => dragOver(event, item)} onDrop={(event) => drop(event, item)}>
+              <div
+                className={`tree-group${dropClass(item)}${draggingClass(item)}`}
+                key={connection.id}
+                data-connection-id={connection.id}
+                onDragOver={(event) => dragOver(event, item)}
+                onDrop={(event) => drop(event, item)}
+              >
                 <div className="tree-node tree-node--connection">
                   {sortHandle(item, groups, connection.name)}
-                  <button className="tree-node__action" type="button" aria-expanded={open} aria-controls={childrenId} onClick={() => setConnectionCollapsed(connection.id, open)}>
-                    <span className="tree-node__chevron">{open ? <DownOutlined /> : <RightOutlined />}</span>
-                    <span className={`connection-dot connection-dot--${connection.status || (testResults[connection.id]?.success ? 'connected' : testResults[connection.id] ? 'error' : 'disconnected')}`} />
-                    <span className="tree-node__label" title={connection.name}>{connection.name}</span>
+                  <button
+                    className="tree-node__action"
+                    type="button"
+                    aria-expanded={open}
+                    aria-controls={childrenId}
+                    onClick={() => setConnectionCollapsed(connection.id, open)}
+                  >
+                    <span className="tree-node__chevron">
+                      {open ? <DownOutlined /> : <RightOutlined />}
+                    </span>
+                    <span
+                      className={`connection-dot connection-dot--${connection.status || (testResults[connection.id]?.success ? 'connected' : testResults[connection.id] ? 'error' : 'disconnected')}`}
+                    />
+                    <span className="tree-node__label" title={connection.name}>
+                      {connection.name}
+                    </span>
                     <span className="tree-node__meta">{connection.repositories.length}</span>
                   </button>
                 </div>
                 <div id={childrenId} className="tree-group__repositories" hidden={!open}>
                   {connection.repositories.map((repo) => {
-                    const repoItem: TreeItem = { kind: 'repository', id: repo.id, connectionId: connection.id };
+                    const repoItem: TreeItem = {
+                      kind: 'repository',
+                      id: repo.id,
+                      connectionId: connection.id,
+                    };
                     return (
-                      <div className={`tree-node tree-node--repo${activeId === repo.id ? ' tree-node--selected' : ''}${dropClass(repoItem)}${draggingClass(repoItem)}`} key={repo.id} data-repository-id={repo.id} onDragOver={(event) => dragOver(event, repoItem)} onDrop={(event) => drop(event, repoItem)}>
+                      <div
+                        className={`tree-node tree-node--repo${activeId === repo.id ? ' tree-node--selected' : ''}${dropClass(repoItem)}${draggingClass(repoItem)}`}
+                        key={repo.id}
+                        data-repository-id={repo.id}
+                        onDragOver={(event) => dragOver(event, repoItem)}
+                        onDrop={(event) => drop(event, repoItem)}
+                      >
                         {sortHandle(repoItem, connection.repositories, repo.name)}
-                        <button type="button" className="tree-node__action" onClick={() => onOpenRepository(repo)} aria-current={activeId === repo.id ? 'page' : undefined}>
+                        <button
+                          type="button"
+                          className="tree-node__action"
+                          onClick={() => onOpenRepository(repo)}
+                          aria-current={activeId === repo.id ? 'page' : undefined}
+                        >
                           <BranchesOutlined className="tree-node__icon" />
-                          <span className="tree-node__label" title={repo.path}>{repo.name}</span>
+                          <span className="tree-node__label" title={repo.path}>
+                            {repo.name}
+                          </span>
                           <RepositoryStatusIndicator id={repo.id} compact />
                         </button>
                       </div>
@@ -208,7 +338,9 @@ export function WorkspaceTree({ connections, repositories, testResults, activeId
           })}
         </div>
       )}
-      <span className="tree-sort-announcement" role="status" aria-live="polite">{announcement}</span>
+      <span className="tree-sort-announcement" role="status" aria-live="polite">
+        {announcement}
+      </span>
     </>
   );
 }

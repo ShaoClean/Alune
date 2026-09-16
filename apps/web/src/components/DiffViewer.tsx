@@ -2,13 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, Segmented } from 'antd';
 import { CloseOutlined, DiffOutlined, ExpandOutlined } from '@ant-design/icons';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
-import { getDiffLines, getDiffNotice } from './diff-lines';
+import { getNumberedDiffLines, getDiffNotice } from './diff-lines';
+import type { NumberedDiffLine } from './diff-lines';
+import { useWorkspaceStore } from '../stores/workspaceStore';
 
 interface Props {
   oldCode?: string;
   newCode?: string;
   diff?: string;
   title?: string;
+  subtitle?: string;
+  onFocus?: () => void;
   splitView?: boolean;
   onClose?: () => void;
   loading?: boolean;
@@ -23,10 +27,12 @@ interface SplitDiffRow {
   right?: string;
   leftKind?: SplitCellKind;
   rightKind?: SplitCellKind;
+  oldLine?: number;
+  newLine?: number;
 }
 
 function getSplitDiffRows(diff: string): SplitDiffRow[] {
-  const lines = getDiffLines(diff);
+  const lines = getNumberedDiffLines(diff);
   const rows: SplitDiffRow[] = [];
 
   for (let index = 0; index < lines.length; ) {
@@ -38,21 +44,23 @@ function getSplitDiffRows(diff: string): SplitDiffRow[] {
     }
 
     if (line.kind === 'remove') {
-      const removed: string[] = [];
+      const removed: NumberedDiffLine[] = [];
       while (index < lines.length && lines[index].kind === 'remove') {
-        removed.push(lines[index].text.slice(1));
+        removed.push(lines[index]);
         index += 1;
       }
-      const added: string[] = [];
+      const added: NumberedDiffLine[] = [];
       while (index < lines.length && lines[index].kind === 'add') {
-        added.push(lines[index].text.slice(1));
+        added.push(lines[index]);
         index += 1;
       }
       const rowCount = Math.max(removed.length, added.length);
       for (let row = 0; row < rowCount; row += 1) {
         rows.push({
-          left: removed[row] || '',
-          right: added[row] || '',
+          left: removed[row]?.text.slice(1) || '',
+          right: added[row]?.text.slice(1) || '',
+          oldLine: removed[row]?.oldLine,
+          newLine: added[row]?.newLine,
           leftKind: removed[row] === undefined ? 'empty' : 'remove',
           rightKind: added[row] === undefined ? 'empty' : 'add',
         });
@@ -61,19 +69,32 @@ function getSplitDiffRows(diff: string): SplitDiffRow[] {
     }
 
     if (line.kind === 'add') {
-      const added: string[] = [];
+      const added: NumberedDiffLine[] = [];
       while (index < lines.length && lines[index].kind === 'add') {
-        added.push(lines[index].text.slice(1));
+        added.push(lines[index]);
         index += 1;
       }
       added.forEach((value) =>
-        rows.push({ left: '', right: value, leftKind: 'empty', rightKind: 'add' }),
+        rows.push({
+          left: '',
+          right: value.text.slice(1),
+          newLine: value.newLine,
+          leftKind: 'empty',
+          rightKind: 'add',
+        }),
       );
       continue;
     }
 
     const context = line.text.slice(1);
-    rows.push({ left: context, right: context, leftKind: 'context', rightKind: 'context' });
+    rows.push({
+      left: context,
+      right: context,
+      oldLine: line.oldLine,
+      newLine: line.newLine,
+      leftKind: 'context',
+      rightKind: 'context',
+    });
     index += 1;
   }
 
@@ -85,12 +106,20 @@ export function DiffViewer({
   newCode = '',
   diff,
   title,
-  splitView = false,
+  subtitle,
+  onFocus,
+  splitView,
   onClose,
   loading = false,
   error,
 }: Props) {
-  const [mode, setMode] = useState<'unified' | 'split'>(splitView ? 'split' : 'unified');
+  const preferredMode = useWorkspaceStore((state) => state.layout.diffMode);
+  const [mode, setMode] = useState<'unified' | 'split'>(
+    splitView === undefined ? preferredMode : splitView ? 'split' : 'unified',
+  );
+  useEffect(() => {
+    setMode(splitView === undefined ? preferredMode : splitView ? 'split' : 'unified');
+  }, [preferredMode, splitView]);
   const [zoomed, setZoomed] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const zoomBodyRef = useRef<HTMLDivElement>(null);
@@ -102,24 +131,37 @@ export function DiffViewer({
   }, [diff, error, loading, mode, title, zoomed]);
 
   const renderUnifiedDiff = (value: string) => {
-    const lines = getDiffLines(value);
+    const lines = getNumberedDiffLines(value);
     return (
-      <pre>
-        {lines.map(({ text: line, kind }, index) => {
-          const className = kind === 'context' ? undefined : `diff-line--${kind}`;
+      <div className="diff-unified-view" aria-label="统一差异">
+        {lines.map(({ text: line, kind, oldLine, newLine }, index) => {
+          const className = `diff-code-row diff-code-row--${kind}`;
           return (
-            <span className={className} key={`${index}-${line}`}>
-              {line}
-              {index < lines.length - 1 ? '\n' : ''}
-            </span>
+            <div className={className} key={index}>
+              {kind !== 'meta' && (
+                <>
+                  <span className="diff-line-number" aria-hidden="true">
+                    {oldLine}
+                  </span>
+                  <span className="diff-line-number" aria-hidden="true">
+                    {newLine}
+                  </span>
+                </>
+              )}
+              <code>{line}</code>
+            </div>
           );
         })}
-      </pre>
+      </div>
     );
   };
 
   const renderSplitDiff = (value: string) => (
     <div className="diff-split-view" aria-label="分栏差异">
+      <div className="diff-split-labels">
+        <span>原版本</span>
+        <span>修改后</span>
+      </div>
       {getSplitDiffRows(value).map((row, index) =>
         row.meta !== undefined ? (
           <div className="diff-split-row diff-split-row--meta" key={`${index}-${row.meta}`}>
@@ -127,8 +169,18 @@ export function DiffViewer({
           </div>
         ) : (
           <div className="diff-split-row" key={`${index}-${row.left}-${row.right}`}>
-            <span className={`diff-split-cell diff-split-cell--${row.leftKind}`}>{row.left}</span>
-            <span className={`diff-split-cell diff-split-cell--${row.rightKind}`}>{row.right}</span>
+            <span className={`diff-split-cell diff-split-cell--${row.leftKind}`}>
+              <span className="diff-line-number" aria-hidden="true">
+                {row.oldLine}
+              </span>
+              <code>{row.left}</code>
+            </span>
+            <span className={`diff-split-cell diff-split-cell--${row.rightKind}`}>
+              <span className="diff-line-number" aria-hidden="true">
+                {row.newLine}
+              </span>
+              <code>{row.right}</code>
+            </span>
           </div>
         ),
       )}
@@ -175,7 +227,10 @@ export function DiffViewer({
         <div className="diff-shell__header">
           <div className="diff-shell__title" title={title || '差异预览'}>
             <DiffOutlined />
-            <span>{title || '差异预览'}</span>
+            <div className="diff-shell__filename">
+              <span>{title || '差异预览'}</span>
+              {subtitle && <small>{subtitle}</small>}
+            </div>
           </div>
           <div className="diff-toolbar">
             <span className="diff-mode">视图</span>
@@ -192,13 +247,11 @@ export function DiffViewer({
               type="text"
               size="small"
               icon={<ExpandOutlined />}
-              aria-label="放大查看差异"
-              title="放大查看差异"
+              aria-label={onFocus ? '专注阅读差异' : '放大查看差异'}
+              title={onFocus ? '专注阅读差异 · 隐藏两侧面板' : '放大查看差异'}
               disabled={loading || Boolean(error) || !hasDiff}
-              onClick={() => setZoomed(true)}
-            >
-              放大
-            </Button>
+              onClick={() => (onFocus ? onFocus() : setZoomed(true))}
+            />
             {onClose && (
               <Button
                 type="text"
