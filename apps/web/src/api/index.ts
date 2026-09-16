@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@remote-git/shared';
-import type { NewFileDeletionPreview, LogOptions, LogPage } from '@remote-git/shared';
+import type { NewFileDeletionPreview, LogOptions, LogPage, Repository, WorktreeInfo } from '@remote-git/shared';
 
 const api = axios.create({
   baseURL: '/api',
@@ -18,6 +18,14 @@ export const connectionApi = {
 
 // Repository APIs
 export const repositoryApi = {
+  worktrees: (id: string, signal?: AbortSignal): Promise<WorktreeInfo[]> =>
+    api.get('/repositories/' + id + '/worktrees', {
+      signal, timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
+    }).then((r) => r.data),
+  openWorktree: (id: string, path: string): Promise<Repository> =>
+    api.post('/repositories/' + id + '/worktrees/open', { path }, {
+      timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
+    }).then((r) => r.data),
   scan: (connectionId: string, path: string) =>
     api.get('/repositories/scan', { params: { connectionId, path } }).then((r) => r.data),
   add: (connectionId: string, path: string) =>

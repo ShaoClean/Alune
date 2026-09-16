@@ -3,6 +3,21 @@ import { RepositoryController } from './repository.controller';
 import { RepositoryService } from './repository.service';
 
 describe('RepositoryController', () => {
+  it('validates worktree selections and preserves useful status/open failures', async () => {
+    const openWorktree = jest.fn().mockResolvedValue({ id: 'target' });
+    const getWorktrees = jest.fn().mockResolvedValue([]);
+    const getStatus = jest.fn().mockRejectedValue(new Error('directory missing'));
+    const controller = new RepositoryController({ openWorktree, getWorktrees, getStatus } as unknown as RepositoryService);
+    for (const path of [undefined, 3, '', 'bad\0path'])
+      await expect(controller.openWorktree('fixture', { path })).rejects.toMatchObject({ status: 400 });
+    expect(openWorktree).not.toHaveBeenCalled();
+    expect(await controller.openWorktree('fixture', { path: ' /path\n' })).toEqual({ id: 'target' });
+    expect(openWorktree).toHaveBeenCalledWith('fixture', ' /path\n');
+    expect(await controller.getWorktrees('fixture')).toEqual([]);
+    openWorktree.mockRejectedValue(new Error('permission denied'));
+    await expect(controller.openWorktree('fixture', { path: '/path' })).rejects.toMatchObject({ status: 400, message: expect.stringContaining('permission denied') });
+    await expect(controller.getStatus('fixture')).rejects.toMatchObject({ status: 400, message: 'directory missing' });
+  });
   it('separates staged and unstaged previews and forwards actionable failures', async () => {
     const getDiff = jest.fn().mockResolvedValue('patch');
     const controller = new RepositoryController({

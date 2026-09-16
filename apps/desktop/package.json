@@ -8,7 +8,8 @@
     "pack": "electron-builder --projectDir dist/app --config ../../electron-builder.cjs --dir",
     "dist": "electron-builder --projectDir dist/app --config ../../electron-builder.cjs",
     "test": "npm run test:unit && node scripts/smoke.mjs",
-    "test:unit": "node --test test/*.test.cjs tests/*.test.cjs"
+    "test:unit": "node --test test/*.test.cjs tests/*.test.cjs",
+    "test:worktrees": "node scripts/test-worktrees.mjs"
   },
   "devDependencies": {
     "server": "*",

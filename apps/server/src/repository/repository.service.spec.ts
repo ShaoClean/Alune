@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { GitCommands } from '@remote-git/ssh-client';
+import { GitCommands, GitWorktrees } from '@remote-git/ssh-client';
 import { REPOSITORY_STATUS_TIMEOUT_MS } from '@remote-git/shared';
 import { RepositoryService } from './repository.service';
 import { ConnectionService } from '../connection/connection.service';
@@ -112,5 +112,66 @@ describe('RepositoryService registration and remote status', () => {
     await expect(service.getStatus(repo.id)).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it('opens worktrees idempotently across parents, reuses aliases, and isolates connections', async () => {
+    const parent = await service.add('host-a', '/fixture/main');
+    const secondParent = await service.add('host-a', '/fixture/other');
+    const otherHost = await service.add('host-b', '/fixture/feature');
+    jest.spyOn(GitWorktrees.prototype, 'resolve').mockResolvedValue('/fixture/feature');
+    jest.spyOn(GitWorktrees.prototype, 'canonicalPath').mockImplementation(async (path) => path);
+    const [first, second] = await Promise.all([
+      service.openWorktree(parent.id, '/fixture/feature'),
+      service.openWorktree(secondParent.id, '/fixture/feature'),
+    ]);
+    expect(first.id).toBe(second.id);
+    expect(first.id).not.toBe(otherHost.id);
+    expect(first.path).toBe('/fixture/feature');
+    expect((await service.list('host-a')).filter((repo) => repo.path === first.path)).toHaveLength(1);
+    const alias = await service.add('host-a', '/alias/detached');
+    jest.spyOn(GitWorktrees.prototype, 'resolve').mockResolvedValue('/fixture/detached');
+    jest.spyOn(GitWorktrees.prototype, 'canonicalPath').mockImplementation(async (path) =>
+      path === alias.path ? '/fixture/detached' : path);
+    expect((await service.openWorktree(parent.id, '/fixture/detached')).id).toBe(alias.id);
+    expect((await service.list()).length).toBe(5);
+  });
+
+  it('never registers a rejected target or a result that arrives after timeout/deletion', async () => {
+    const parent = await service.add('host-a', '/fixture/main');
+    const resolve = jest.spyOn(GitWorktrees.prototype, 'resolve').mockRejectedValueOnce(new Error('unrelated directory'));
+    await expect(service.openWorktree(parent.id, '/elsewhere')).rejects.toThrow('unrelated');
+    expect(await service.list()).toHaveLength(1);
+    jest.useFakeTimers();
+    const delayed = deferred<string>();
+    resolve.mockReturnValueOnce(delayed.promise);
+    const pending = expect(service.openWorktree(parent.id, '/late')).rejects.toMatchObject({ status: 504 });
+    await jest.advanceTimersByTimeAsync(REPOSITORY_STATUS_TIMEOUT_MS);
+    await pending;
+    delayed.resolve('/late');
+    await jest.advanceTimersByTimeAsync(1);
+    expect(await service.list()).toHaveLength(1);
+    const deleted = deferred<string>();
+    resolve.mockReturnValueOnce(deleted.promise);
+    const opening = service.openWorktree(parent.id, '/deleted');
+    await jest.advanceTimersByTimeAsync(1);
+    await service.delete(parent.id);
+    deleted.resolve('/deleted');
+    await expect(opening).rejects.toMatchObject({ status: 404 });
+    expect(await service.list()).toHaveLength(0);
+  });
+
+  it('bounds discovery connection setup and leaves the local registry available', async () => {
+    jest.useFakeTimers();
+    const parent = await service.add('host-a', '/fixture/main');
+    const connection = deferred<any>();
+    ensureConnected.mockReturnValue(connection.promise);
+    const list = jest.spyOn(GitWorktrees.prototype, 'list');
+    const failure = expect(service.getWorktrees(parent.id)).rejects.toMatchObject({ status: 504 });
+    await jest.advanceTimersByTimeAsync(REPOSITORY_STATUS_TIMEOUT_MS);
+    await failure;
+    connection.resolve({});
+    await Promise.resolve();
+    expect(list).not.toHaveBeenCalled();
+    expect(await service.list()).toHaveLength(1);
   });
 });
