@@ -1,42 +1,310 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
+import type { GraphCommit, CommitReference } from '@remote-git/shared';
 import { Button } from 'antd';
-import { BranchesOutlined, ClockCircleOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
+import { HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { EmptyState, formatRelativeDate, PanelHeader, RefBadge } from './ui';
+import { EmptyState, formatRelativeDate, PanelHeader } from './ui';
+import { appendGraph, emptyGraph, GRAPH_LANE_WIDTH, GRAPH_ROW_HEIGHT } from './commit-graph';
+import type { GraphLayout, GraphRow } from './commit-graph';
+import '../history.css';
 
 interface Props {
   repoId: string;
-  onSelectCommit?: (commit: any) => void;
+  onSelectCommit?: (commit: GraphCommit) => void;
   selectedHash?: string | null;
 }
+const colors = ['#2563eb', '#8b5cf6', '#0d9488', '#d97706', '#db2777', '#0891b2'];
+const color = (index: number) => colors[index % colors.length];
+const x = (lane: number) => 20 + lane * GRAPH_LANE_WIDTH;
 
-const initials = (author: string) => author.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?';
+function GraphCell({ row, width, merge }: { row: GraphRow; width: number; merge: boolean }) {
+  return (
+    <svg width={width} height={GRAPH_ROW_HEIGHT} aria-hidden="true" className="history-graph">
+      {row.edges.map((edge, i) => {
+        const top = edge.half === 'bottom' ? GRAPH_ROW_HEIGHT / 2 : 0;
+        const bottom = edge.half === 'top' ? GRAPH_ROW_HEIGHT / 2 : GRAPH_ROW_HEIGHT;
+        const from = x(edge.from),
+          to = x(edge.to),
+          mid = (top + bottom) / 2;
+        const path =
+          'M ' +
+          from +
+          ' ' +
+          top +
+          ' C ' +
+          from +
+          ' ' +
+          mid +
+          ', ' +
+          to +
+          ' ' +
+          mid +
+          ', ' +
+          to +
+          ' ' +
+          bottom;
+        return <path key={i} d={path} fill="none" stroke={color(edge.color)} strokeWidth="1.8" />;
+      })}
+      <circle
+        cx={x(row.lane)}
+        cy={GRAPH_ROW_HEIGHT / 2}
+        r={merge ? 5 : 4}
+        fill={merge ? 'var(--surface)' : color(row.color)}
+        stroke={color(row.color)}
+        strokeWidth="2"
+      />
+      {merge && (
+        <circle cx={x(row.lane)} cy={GRAPH_ROW_HEIGHT / 2} r="1.8" fill={color(row.color)} />
+      )}
+    </svg>
+  );
+}
+
+export function HistoryReference({ reference }: { reference: CommitReference }) {
+  return (
+    <span className={'history-ref history-ref--' + reference.kind} title={reference.fullName}>
+      <span aria-hidden="true">
+        {reference.kind === 'tag' ? '◇' : reference.kind === 'remote' ? '↗' : '⑂'}
+      </span>
+      <span className="history-ref__name">
+        {reference.current && reference.kind === 'local' ? 'HEAD → ' : ''}
+        {reference.name}
+      </span>
+    </span>
+  );
+}
 
 export function HistoryView({ repoId, onSelectCommit, selectedHash }: Props) {
-  const { log, logLoading: loading, fetchLog } = useRepositoryStore();
+  const {
+    log,
+    logLoading,
+    logLoadingMore,
+    logHasMore,
+    logRevision,
+    logGeneration,
+    logError,
+    logErrorMode,
+    logChanged,
+    logShallow,
+    fetchLog,
+  } = useRepositoryStore();
+  const viewport = useRef<HTMLDivElement>(null);
+  const graphCache = useRef<{ generation: number; graph: GraphLayout }>({
+    generation: -1,
+    graph: emptyGraph(),
+  });
+  const [scrollTop, setScrollTop] = useState(0);
+  const [height, setHeight] = useState(400);
+  const [focused, setFocused] = useState(0);
+  const graph = useMemo(() => {
+    const cached = graphCache.current;
+    const previous =
+      cached.generation === logGeneration && cached.graph.rows.length <= log.length
+        ? cached.graph
+        : emptyGraph();
+    const next = appendGraph(previous, log.slice(previous.rows.length));
+    graphCache.current = { generation: logGeneration, graph: next };
+    return next;
+  }, [log, logGeneration]);
 
   useEffect(() => {
-    void fetchLog(repoId);
+    if (!logRevision && !useRepositoryStore.getState().logLoading) void fetchLog(repoId);
   }, [repoId, fetchLog]);
+  useEffect(() => {
+    const element = viewport.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setHeight(element.clientHeight));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [log.length > 0]);
+  useEffect(() => {
+    if (viewport.current) viewport.current.scrollTop = 0;
+    setScrollTop(0);
+    setFocused(0);
+  }, [logGeneration]);
+
+  const start = Math.max(0, Math.floor((scrollTop - GRAPH_ROW_HEIGHT) / GRAPH_ROW_HEIGHT) - 12);
+  const end = Math.min(log.length, start + Math.ceil(height / GRAPH_ROW_HEIGHT) + 25);
+  const graphWidth = Math.max(72, graph.width * GRAPH_LANE_WIDTH + 24);
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!log.length) return;
+    let index = focused;
+    if (event.key === 'ArrowDown') index++;
+    else if (event.key === 'ArrowUp') index--;
+    else if (event.key === 'Home') index = 0;
+    else if (event.key === 'End') index = log.length - 1;
+    else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onSelectCommit?.(log[focused]);
+      return;
+    } else return;
+    event.preventDefault();
+    index = Math.max(0, Math.min(log.length - 1, index));
+    setFocused(index);
+    const element = viewport.current!;
+    const top = index * GRAPH_ROW_HEIGHT;
+    if (top < element.scrollTop) element.scrollTop = top;
+    else if (top + GRAPH_ROW_HEIGHT * 2 > element.scrollTop + element.clientHeight)
+      element.scrollTop = top + GRAPH_ROW_HEIGHT * 2 - element.clientHeight;
+  };
 
   return (
-    <section className="workspace-panel">
-      <PanelHeader title="提交历史" count={log.length} description="当前仓库的最近提交记录" icon={<HistoryOutlined />} extra={<Button type="text" icon={<ReloadOutlined />} aria-label="刷新提交历史" onClick={() => void fetchLog(repoId)} loading={loading}>刷新</Button>} />
-      {log.length === 0 && !loading ? <EmptyState title="暂无提交" description="此仓库没有可显示的历史记录。" /> : <div className="commit-list">
-        {log.map((commit: any) => (
-          <button type="button" className={`commit-row${selectedHash === commit.hash ? ' commit-row--selected' : ''}`} key={commit.hash} onClick={() => onSelectCommit?.(commit)}>
-            <span className="commit-row__graph"><span className="commit-row__dot" /><span className="commit-row__line" /></span>
-            <span className="commit-row__avatar">{initials(commit.author)}</span>
-            <span className="commit-row__body">
-              <span className="commit-row__message">{commit.message || '无提交信息'}</span>
-              <span className="commit-row__meta"><span>{commit.author}</span><span className="commit-row__separator">•</span><ClockCircleOutlined /> <span title={commit.date ? new Date(commit.date).toLocaleString('zh-CN') : undefined}>{formatRelativeDate(commit.date)}</span></span>
-            </span>
-            <span className="commit-row__refs">{(commit.refs || []).map((ref: string) => <RefBadge key={ref} value={ref} />)}</span>
-            <code className="commit-row__hash">{commit.shortHash}</code>
-          </button>
-        ))}
-        {log.length >= 50 && <Button className="load-more-button" icon={<BranchesOutlined />} onClick={() => void fetchLog(repoId, { count: 50, skip: log.length })}>加载更多提交</Button>}
-      </div>}
+    <section className="workspace-panel history-panel" aria-label="所有分支提交历史">
+      <PanelHeader
+        title="提交历史"
+        count={log.length}
+        description="所有分支 · 本地已有历史"
+        icon={<HistoryOutlined />}
+        extra={
+          <>
+            <span className="history-scope">所有分支</span>
+            <Button
+              type="text"
+              icon={<ReloadOutlined />}
+              aria-label="刷新提交历史"
+              onClick={() => void fetchLog(repoId)}
+              loading={logLoading}
+            >
+              刷新
+            </Button>
+          </>
+        }
+      />
+      {logError && (
+        <div className="history-notice history-notice--error" role="alert">
+          <span>{logError}</span>
+          <Button
+            size="small"
+            onClick={() => void fetchLog(repoId, logChanged ? 'refresh' : logErrorMode)}
+          >
+            {logChanged ? '刷新历史' : '重试'}
+          </Button>
+        </div>
+      )}
+      {logShallow && (
+        <div className="history-notice" role="status">
+          浅克隆仓库：仅显示本地已获取的历史。
+        </div>
+      )}
+      {!log.length ? (
+        logLoading ? (
+          <div className="history-empty" role="status">
+            正在读取所有分支的提交…
+          </div>
+        ) : (
+          !logError && <EmptyState title="暂无提交" description="此仓库没有可显示的历史记录。" />
+        )
+      ) : (
+        <div
+          className="history-viewport"
+          ref={viewport}
+          onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        >
+          <div
+            className="history-table"
+            role="grid"
+            aria-label="提交图"
+            aria-rowcount={log.length + 1}
+            aria-colcount={6}
+            tabIndex={0}
+            onKeyDown={onKeyDown}
+            aria-activedescendant={
+              focused >= start && focused < end ? 'commit-' + log[focused]?.hash : undefined
+            }
+            style={{ '--graph-width': graphWidth + 'px' } as CSSProperties}
+          >
+            <div className="history-columns history-table__header" role="row" aria-rowindex={1}>
+              {['提交图', '提交信息', '分支 / 标签', '作者', '时间', '提交'].map((label, i) => (
+                <span role="columnheader" key={label} aria-colindex={i + 1}>
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div style={{ height: start * GRAPH_ROW_HEIGHT }} role="presentation" />
+            {log.slice(start, end).map((commit, offset) => {
+              const index = start + offset;
+              return (
+                <div
+                  role="row"
+                  aria-rowindex={index + 2}
+                  aria-selected={selectedHash === commit.hash}
+                  id={'commit-' + commit.hash}
+                  key={commit.hash}
+                  data-hash={commit.hash}
+                  className={
+                    'history-columns history-row' +
+                    (selectedHash === commit.hash ? ' history-row--selected' : '') +
+                    (focused === index ? ' history-row--focused' : '')
+                  }
+                  onClick={() => {
+                    setFocused(index);
+                    onSelectCommit?.(commit);
+                  }}
+                >
+                  <span role="gridcell">
+                    <GraphCell
+                      row={graph.rows[index]}
+                      width={graphWidth}
+                      merge={commit.parents.length > 1}
+                    />
+                  </span>
+                  <span role="gridcell" className="history-row__message" title={commit.message}>
+                    {commit.message || '无提交信息'}
+                  </span>
+                  <span
+                    role="gridcell"
+                    className="history-row__refs"
+                    title={commit.references.map((ref) => ref.fullName).join('\n')}
+                  >
+                    {commit.references.slice(0, 2).map((reference) => (
+                      <HistoryReference key={reference.fullName} reference={reference} />
+                    ))}
+                    {commit.references.length > 2 && (
+                      <span className="history-ref-count">+{commit.references.length - 2}</span>
+                    )}
+                  </span>
+                  <span
+                    role="gridcell"
+                    className="history-row__author"
+                    title={commit.author + ' <' + commit.email + '>'}
+                  >
+                    {commit.author}
+                  </span>
+                  <span
+                    role="gridcell"
+                    className="history-row__date"
+                    title={new Date(commit.date).toLocaleString('zh-CN')}
+                  >
+                    {formatRelativeDate(commit.date)}
+                  </span>
+                  <code role="gridcell" className="history-row__hash">
+                    {commit.shortHash}
+                  </code>
+                </div>
+              );
+            })}
+            <div style={{ height: (log.length - end) * GRAPH_ROW_HEIGHT }} role="presentation" />
+          </div>
+        </div>
+      )}
+      {log.length > 0 && (
+        <footer className="history-footer">
+          <span aria-live="polite">
+            已加载 {log.length} 条提交{!logHasMore ? ' · 已到历史末尾' : ''}
+          </span>
+          {logHasMore && (
+            <Button
+              size="small"
+              disabled={logLoading || logChanged}
+              loading={logLoadingMore}
+              onClick={() => void fetchLog(repoId, 'more')}
+            >
+              加载更多提交
+            </Button>
+          )}
+        </footer>
+      )}
     </section>
   );
 }

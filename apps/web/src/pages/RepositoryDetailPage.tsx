@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { Button, Dropdown, message } from 'antd';
-import type { CommitFile } from '@remote-git/shared';
 import {
   ArrowLeftOutlined,
   BranchesOutlined,
@@ -24,32 +23,16 @@ import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicat
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { ChangesView } from '../components/ChangesView';
 import { DiffViewer } from '../components/DiffViewer';
-import { HistoryView } from '../components/HistoryView';
+import { HistoryWorkspace } from '../components/HistoryWorkspace';
 import { RemotesView } from '../components/RemotesView';
 import { StashesView } from '../components/StashesView';
-import { ErrorState, LoadingState, formatBranchName, FileIcon, RefBadge } from '../components/ui';
+import { ErrorState, LoadingState, formatBranchName, FileIcon } from '../components/ui';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 import { CHANGES_MIN } from '../stores/workspaceLayout';
 import { PanelResizeHandle } from '../components/PanelResizeHandle';
 
 type Panel = 'changes' | 'history' | 'branches' | 'stashes' | 'remotes';
 type SelectedFile = { path: string; status: string; staged: boolean };
-
-const commitStatusLabels: Record<CommitFile['status'], string> = {
-  added: 'A',
-  modified: 'M',
-  deleted: 'D',
-  renamed: 'R',
-  copied: 'C',
-};
-
-const commitStatusWords: Record<CommitFile['status'], string> = {
-  added: '新增',
-  modified: '修改',
-  deleted: '删除',
-  renamed: '重命名',
-  copied: '复制',
-};
 
 const navItems: { key: Panel; label: string; icon: React.ReactNode }[] = [
   { key: 'changes', label: '改动', icon: <FileSearchOutlined /> },
@@ -78,9 +61,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     status,
     branches,
     stashes,
-    commitFiles,
-    commitFilesLoading,
-    commitFilesError,
     diff,
     diffLoading,
     diffError,
@@ -91,7 +71,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     fetchBranches,
     fetchStashes,
     fetchRemotes,
-    fetchCommitFiles,
     fetchDiff,
     clearDiff,
     error,
@@ -101,8 +80,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
-  const [selectedCommitFile, setSelectedCommitFile] = useState<CommitFile | null>(null);
-  const [selectedCommit, setSelectedCommit] = useState<any | null>(null);
   const [syncing, setSyncing] = useState<'fetch' | 'pull' | 'push' | null>(null);
 
   useEffect(() => {
@@ -111,8 +88,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     setLoading(true);
     setPageError(null);
     setSelectedFile(null);
-    setSelectedCommitFile(null);
-    setSelectedCommit(null);
     resetWorkspace(id);
     const cached =
       useRepositoryStore.getState().repositories.find((repo) => repo.id === id) ||
@@ -144,7 +119,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const switchingRepository = currentRepo?.id !== id;
   const changeCount = new Set(status?.files.map((file) => file.path)).size;
   const activeLabel = navItems.find((item) => item.key === activePanel)?.label || '改动';
-  const hasInspector = activePanel === 'changes' || activePanel === 'history';
+  const hasInspector = activePanel === 'changes';
   useEffect(() => {
     setRightPanelAvailable(hasInspector);
     return () => setRightPanelAvailable(true);
@@ -183,9 +158,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   }, [status, selectedFile, compact, clearDiff]);
 
   useLayoutEffect(() => {
-    if (id && selectedCommit) {
-      void fetchDiff(id, { commit: selectedCommit.hash, file: selectedCommitFile?.path });
-    } else if (
+    if (activePanel !== 'changes') return;
+    if (
       id &&
       selectedFile &&
       status?.files.some(
@@ -196,23 +170,12 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       void fetchDiff(id, { file: selectedFile.path, staged: selectedFile.staged });
     } else clearDiff();
     return clearDiff;
-  }, [
-    id,
-    selectedFile?.path,
-    selectedFile?.staged,
-    selectedCommit?.hash,
-    selectedCommitFile?.path,
-    status,
-    fetchDiff,
-    clearDiff,
-  ]);
+  }, [id, activePanel, selectedFile?.path, selectedFile?.staged, status, fetchDiff, clearDiff]);
 
   const selectPanel = (panel: Panel) => {
     setActivePanel(panel);
     setSelectedFile(null);
-    setSelectedCommitFile(null);
-    setSelectedCommit(null);
-    if (compact) updateLayout({ changesCollapsed: false });
+    if (compact && panel === 'changes') updateLayout({ changesCollapsed: false });
   };
 
   const handleRefresh = async (afterMutation = false) => {
@@ -248,58 +211,9 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (compact) updateLayout({ changesCollapsed: true });
     setSelectedFile({ path: file.path, status: file.status, staged: file.staged });
-    setSelectedCommitFile(null);
-    setSelectedCommit(null);
   };
 
-  const handleSelectCommit = (commit: any) => {
-    returnTarget.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (compact) updateLayout({ changesCollapsed: true });
-    setSelectedCommit(commit);
-    setSelectedFile(null);
-    setSelectedCommitFile(null);
-    if (id) void fetchCommitFiles(id, commit.hash);
-  };
-
-  const handleSelectCommitFile = (file: CommitFile) => {
-    setSelectedCommitFile(file);
-  };
-
-  const handleSelectAllCommitFiles = () => {
-    setSelectedCommitFile(null);
-  };
-
-  const renderCommitFileRow = (file: CommitFile) => {
-    const displayPath = file.oldPath ? `${file.oldPath} → ${file.path}` : file.path;
-    return (
-      <button
-        type="button"
-        className={`commit-file-row${selectedCommitFile?.path === file.path ? ' commit-file-row--selected' : ''}`}
-        key={`${file.status}-${file.oldPath || ''}-${file.path}`}
-        onClick={() => handleSelectCommitFile(file)}
-        title={`查看 ${displayPath} 的差异`}
-      >
-        <span
-          className={`commit-file-row__status commit-file-row__status--${file.status}`}
-          title={commitStatusWords[file.status]}
-        >
-          {commitStatusLabels[file.status]}
-        </span>
-        <FileIcon path={file.path} status={file.status} />
-        <span className="commit-file-row__path">{displayPath}</span>
-        <span className="commit-file-row__stats">
-          {file.additions ? <span className="additions">+{file.additions}</span> : null}
-          {file.deletions ? <span className="deletions">−{file.deletions}</span> : null}
-        </span>
-      </button>
-    );
-  };
-
-  const detailTitle = useMemo(
-    () => selectedFile?.path || selectedCommit?.shortHash || '检查器',
-    [selectedCommit, selectedFile],
-  );
+  const detailTitle = useMemo(() => selectedFile?.path || '检查器', [selectedFile]);
 
   if (pageError || (!repository && error))
     return (
@@ -338,14 +252,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           }}
         />
       );
-    if (activePanel === 'history')
-      return (
-        <HistoryView
-          repoId={id}
-          onSelectCommit={handleSelectCommit}
-          selectedHash={selectedCommit?.hash}
-        />
-      );
+    if (activePanel === 'history') return <HistoryWorkspace repoId={id} />;
     if (activePanel === 'branches')
       return <BranchesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
     if (activePanel === 'stashes')
@@ -355,14 +262,14 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
 
   return (
     <div
-      className={`workspace-page${compact ? ' workspace-page--compact' : ''}${compact && layout.changesCollapsed ? ' workspace-page--inspecting' : ''}`}
+      className={`workspace-page${compact ? ' workspace-page--compact' : ''}${compact && hasInspector && layout.changesCollapsed ? ' workspace-page--inspecting' : ''}`}
       style={{ '--changes-width': `${changesWidth}px` } as CSSProperties}
     >
       <div
         className={
           'workspace-body' +
           (!hasInspector ? ' workspace-body--single' : '') +
-          (layout.changesCollapsed ? ' workspace-body--right-hidden' : '')
+          (hasInspector && layout.changesCollapsed ? ' workspace-body--right-hidden' : '')
         }
       >
         <div className="workspace-center">
@@ -542,111 +449,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                   </Button>
                 </div>
               )}
-              {selectedCommit ? (
-                <div className="workspace-detail">
-                  <div className="workspace-detail__header">
-                    <div>
-                      <h3>提交详情</h3>
-                      <p>{selectedCommit.shortHash}</p>
-                    </div>
-                    <Button
-                      type="text"
-                      icon={<FileSearchOutlined />}
-                      aria-label="关闭提交详情"
-                      onClick={() => {
-                        setSelectedCommit(null);
-                        setSelectedCommitFile(null);
-                        returnToList();
-                      }}
-                    />
-                  </div>
-                  <div className="workspace-detail__body">
-                    <div className="detail-avatar">
-                      {selectedCommit.author
-                        ?.split(/\s+/)
-                        .map((part: string) => part[0])
-                        .join('')
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </div>
-                    <div className="detail-meta">
-                      <div className="detail-meta__item">
-                        <span className="detail-meta__label">提交信息</span>
-                        <span className="detail-meta__value">{selectedCommit.message}</span>
-                      </div>
-                      <div className="detail-meta__item">
-                        <span className="detail-meta__label">作者</span>
-                        <span className="detail-meta__value">
-                          {selectedCommit.author} · {selectedCommit.email}
-                        </span>
-                      </div>
-                      <div className="detail-meta__item">
-                        <span className="detail-meta__label">提交时间</span>
-                        <span className="detail-meta__value">
-                          {selectedCommit.date
-                            ? new Date(selectedCommit.date).toLocaleString('zh-CN')
-                            : '—'}
-                        </span>
-                      </div>
-                      <div className="detail-meta__item">
-                        <span className="detail-meta__label">提交</span>
-                        <span className="detail-meta__value detail-meta__value--mono">
-                          {selectedCommit.hash}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="commit-file-list">
-                      <div className="commit-file-list__header">
-                        <span>文件变更</span>
-                        <span className="commit-file-list__header-actions">
-                          {selectedCommitFile && (
-                            <Button type="text" size="small" onClick={handleSelectAllCommitFiles}>
-                              查看全部
-                            </Button>
-                          )}
-                          {commitFilesLoading ? (
-                            <span className="commit-file-list__loading">加载中…</span>
-                          ) : (
-                            <span className="count-badge">{commitFiles.length}</span>
-                          )}
-                        </span>
-                      </div>
-                      {commitFilesError ? (
-                        <div className="commit-file-list__message commit-file-list__message--error">
-                          无法加载文件列表：{commitFilesError}
-                        </div>
-                      ) : commitFilesLoading ? (
-                        <div className="commit-file-list__message">正在读取此次提交涉及的文件…</div>
-                      ) : commitFiles.length > 0 ? (
-                        commitFiles.map(renderCommitFileRow)
-                      ) : (
-                        <div className="commit-file-list__message">
-                          此次提交没有可显示的文件变更。
-                        </div>
-                      )}
-                    </div>
-                    <div className="commit-ref-list">
-                      <div className="branch-section__title">引用</div>
-                      {(selectedCommit.refs || []).length > 0 ? (
-                        selectedCommit.refs.map((ref: string) => <RefBadge key={ref} value={ref} />)
-                      ) : (
-                        <span className="detail-meta__value">暂无引用</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="detail-diff">
-                    <DiffViewer
-                      onFocus={() =>
-                        updateLayout({ sidebarCollapsed: true, changesCollapsed: true })
-                      }
-                      diff={diff}
-                      loading={diffLoading}
-                      error={diffError}
-                      title={selectedCommitFile?.path || `提交 ${selectedCommit.shortHash}`}
-                    />
-                  </div>
-                </div>
-              ) : selectedFile ? (
+              {selectedFile ? (
                 <DiffViewer
                   diff={diff}
                   loading={diffLoading}

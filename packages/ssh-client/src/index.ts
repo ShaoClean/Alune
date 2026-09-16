@@ -3,3 +3,5 @@ export type { SSHConnectionOptions, CommandResult, StreamCallbacks } from './con
 export { GitCommands } from './git-commands';
 export { StagedChanges, StagedChangesError, AI_DIFF_MAX_BYTES } from './staged-changes';
 export { NewFileDeletion, NewFileDeletionError, validateNewFilePath } from './new-file-deletion';
+
+export { GitLogChangedError, GitLogOptionsError } from './git-log';

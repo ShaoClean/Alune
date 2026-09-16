@@ -1,3 +1,4 @@
+import { GitLogChangedError, GitLogOptionsError } from '@remote-git/ssh-client';
 import { RepositoryController } from './repository.controller';
 import { RepositoryService } from './repository.service';
 
@@ -40,5 +41,38 @@ describe('RepositoryController', () => {
     expect(getStatus).not.toHaveBeenCalled();
     await controller.getStatus('fixture');
     expect(getStatus).toHaveBeenCalledWith('fixture');
+  });
+});
+
+describe('RepositoryController history pages', () => {
+  it('forwards paging metadata, and exposes history changes separately from retryable failures', async () => {
+    const page = {
+      commits: [],
+      hasMore: false,
+      nextSkip: 50,
+      revision: 'revision',
+      shallow: false,
+    };
+    const getLog = jest.fn().mockResolvedValue(page);
+    const controller = new RepositoryController({
+      getLog,
+    } as unknown as RepositoryService);
+    const options = { count: '50', skip: '50', revision: 'revision' };
+    expect(await controller.getLog('fixture', options)).toEqual(page);
+    expect(getLog).toHaveBeenCalledWith('fixture', options);
+    getLog.mockRejectedValueOnce(new GitLogChangedError());
+    await expect(controller.getLog('fixture', options)).rejects.toMatchObject({
+      status: 409,
+      response: { code: 'HISTORY_CHANGED' },
+    });
+    getLog.mockRejectedValueOnce(new GitLogOptionsError('无效分页'));
+    await expect(
+      controller.getLog('fixture', { count: '-1' }),
+    ).rejects.toMatchObject({ status: 400, message: '无效分页' });
+    getLog.mockRejectedValueOnce(new Error('SSH 连接中断'));
+    await expect(controller.getLog('fixture', options)).rejects.toMatchObject({
+      status: 400,
+      message: 'SSH 连接中断',
+    });
   });
 });
