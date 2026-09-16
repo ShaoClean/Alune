@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Input, Popconfirm, message } from 'antd';
+import { Button, Input, Popconfirm, Tooltip, message } from 'antd';
 import {
   CheckOutlined,
   DeleteOutlined,
@@ -12,6 +12,8 @@ import {
   DownOutlined,
   RightOutlined,
   UndoOutlined,
+  LoadingOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
@@ -19,6 +21,8 @@ import { gitApi } from '../api';
 import { EmptyState, ErrorState, FileIcon, LoadingState, PanelHeader } from './ui';
 import { EMPTY_DRAFT, useCommitDraftStore } from '../stores/commitDraftStore';
 import { DeleteNewFileDialog } from './DeleteNewFileDialog';
+import { Sparkles } from './Sparkles';
+import { useCommitGeneration } from '../hooks/useCommitGeneration';
 
 interface Props {
   repoId: string;
@@ -49,7 +53,11 @@ const statusWords: Record<string, string> = {
 };
 
 export function ChangesView({
-  repoId, onRefresh, onSelectFile, selectedFile, onFileChanged,
+  repoId,
+  onRefresh,
+  onSelectFile,
+  selectedFile,
+  onFileChanged,
 }: Props) {
   const { entry, stale } = useRepositoryStatus(repoId);
   const { status, fetchStatus } = useRepositoryStore();
@@ -63,6 +71,10 @@ export function ChangesView({
 
   const files = status?.files || [];
   const stagedFiles = useMemo(() => files.filter((file: any) => file.staged), [files]);
+  const stagedSignature = JSON.stringify(
+    stagedFiles.map((file) => [file.path, file.status, file.oldPath]),
+  );
+  const ai = useCommitGeneration(repoId, stagedSignature, stagedFiles.length);
   const unstagedFiles = useMemo(() => files.filter((file: any) => !file.staged), [files]);
   const addedPaths = useMemo(
     () => new Set(files.filter((file) => file.status === 'added').map((file) => file.path)),
@@ -75,6 +87,7 @@ export function ChangesView({
 
   const runFileAction = async (action: 'stage' | 'unstage', paths: string[]) => {
     if (busy) return;
+    ai.cancel('暂存内容正在变化，请在操作完成后重新生成。');
     setLoading(true);
     try {
       await gitApi[action](repoId, paths);
@@ -109,6 +122,7 @@ export function ChangesView({
       message.warning('请先填写提交信息');
       return;
     }
+    ai.cancel();
     setLoading(true);
     try {
       await gitApi.commit(repoId, draft.message.trim(), draft.description.trim() || undefined);
@@ -185,9 +199,11 @@ export function ChangesView({
         {!file.staged && file.status !== 'untracked' && file.status !== 'added' && (
           <Popconfirm
             title="丢弃此文件的未暂存改动？"
-            description={addedPaths.has(file.path)
-              ? '将恢复为暂存区的内容，保留已暂存的新增文件。此操作不可撤销。'
-              : '此操作不可撤销。'}
+            description={
+              addedPaths.has(file.path)
+                ? '将恢复为暂存区的内容，保留已暂存的新增文件。此操作不可撤销。'
+                : '此操作不可撤销。'
+            }
             disabled={busy}
             onConfirm={() => discardFile(file.path)}
           >
@@ -212,7 +228,10 @@ export function ChangesView({
             aria-label={`删除整个新增文件 ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
             title="删除整个新增文件"
             disabled={busy}
-            onClick={() => setDeletePath(file.path)}
+            onClick={() => {
+              ai.cancel();
+              setDeletePath(file.path);
+            }}
           />
         )}
       </div>
@@ -287,12 +306,22 @@ export function ChangesView({
         />
       </div>
       <div className="changes-content">
-        {!status ? (entry?.phase === 'error'
-          ? <ErrorState title="无法读取仓库状态" description={entry.error} onRetry={() => void refreshStatus()} />
-          : <LoadingState label="正在读取仓库状态…" />) : files.length === 0 ? (
+        {!status ? (
+          entry?.phase === 'error' ? (
+            <ErrorState
+              title="无法读取仓库状态"
+              description={entry.error}
+              onRetry={() => void refreshStatus()}
+            />
+          ) : (
+            <LoadingState label="正在读取仓库状态…" />
+          )
+        ) : files.length === 0 ? (
           <EmptyState
             title={stale ? '上次读取时工作区干净' : '工作区干净'}
-            description={stale ? '当前状态尚未确认，请刷新后查看。' : '此仓库没有已暂存或未暂存的改动。'}
+            description={
+              stale ? '当前状态尚未确认，请刷新后查看。' : '此仓库没有已暂存或未暂存的改动。'
+            }
             action={
               <Button icon={<ReloadOutlined />} onClick={() => void refreshStatus()}>
                 刷新状态
@@ -323,6 +352,19 @@ export function ChangesView({
           value={draft.message}
           disabled={busy}
           onChange={(event) => updateDraft(repoId, { message: event.target.value })}
+          suffix={
+            <Tooltip title="AI 生成提交信息">
+              <button
+                type="button"
+                className="commit-ai-button"
+                aria-label="AI 生成提交信息"
+                disabled={busy || ai.generating}
+                onClick={() => void ai.generate()}
+              >
+                {ai.generating ? <LoadingOutlined spin /> : <Sparkles />}
+              </button>
+            </Tooltip>
+          }
         />
         <Input.TextArea
           aria-label="提交描述"
@@ -342,7 +384,46 @@ export function ChangesView({
         >
           提交已暂存内容{stagedFiles.length > 0 ? ` · ${stagedFiles.length}` : ''}
         </Button>
-        <div className="commit-box__hint">提交仅包含已暂存的文件</div>
+        <div className="commit-ai-meta">
+          <span
+            title={
+              ai.model ? `${ai.model.provider.name} · ${ai.model.model.id}` : '尚未配置默认模型'
+            }
+          >
+            {ai.model ? ai.model.model.name : '尚未配置 AI'}
+          </span>
+          <button type="button" onClick={() => ai.openSettings()} aria-label="提交生成设置">
+            <SettingOutlined /> 提交生成
+          </button>
+        </div>
+        {ai.generating ? (
+          <div className="commit-ai-feedback" role="status">
+            <span>正在根据已暂存改动生成…</span>
+            <button type="button" onClick={() => ai.cancel()}>
+              取消
+            </button>
+          </div>
+        ) : (
+          ai.feedback && (
+            <div
+              className={`commit-ai-feedback${ai.feedback.error ? ' commit-ai-feedback--error' : ''}`}
+              role={ai.feedback.error ? 'alert' : 'status'}
+            >
+              <span>{ai.feedback.message}</span>
+              {ai.feedback.error && (
+                <button type="button" disabled={busy} onClick={() => void ai.generate()}>
+                  重试
+                </button>
+              )}
+            </div>
+          )
+        )}
+        {ai.undo && !ai.generating && (
+          <button type="button" className="commit-ai-undo" onClick={ai.undoGeneration}>
+            <UndoOutlined /> 撤销生成
+          </button>
+        )}
+        <div className="commit-box__hint">仅分析已暂存改动 · 由你确认后提交</div>
       </div>
     </section>
   );

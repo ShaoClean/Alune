@@ -1,4 +1,6 @@
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
+import { AiModule } from './ai/ai.module';
+import type { AiSecretStorage } from './ai/secret-storage';
 import { DatabaseModule } from './database/database.module';
 import { ConnectionModule } from './connection/connection.module';
 import { RepositoryModule } from './repository/repository.module';
@@ -20,4 +22,8 @@ import { AppService } from './app.service';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  static register(secrets?: AiSecretStorage): DynamicModule {
+    return { module: AppModule, imports: [AiModule.register(secrets)] };
+  }
+}
