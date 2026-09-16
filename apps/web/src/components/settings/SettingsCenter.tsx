@@ -110,7 +110,7 @@ export function SettingsCenter({
         </aside>
         <main className="settings-main" aria-label={`${category.name}设置`}>
           {category.id === 'layout' ? (
-            <div className="settings-page-content">
+            <div className="settings-page-content settings-page-content--layout">
               <h1>布局</h1>
               <p className="settings-lead">调整工作区的显示空间，修改立即生效。</p>
               <LayoutSettingsContent />

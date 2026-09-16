@@ -34,7 +34,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
     };
     check();
   })`);
-  await waitForUI(window, `document.querySelector('.sidebar-footer__version')?.textContent === ${JSON.stringify(`v${version}`)}`);
+  await waitForUI(window, `document.querySelector('.workspace-menu-version')?.textContent === ${JSON.stringify(`v${version}`)}`);
   const renderer = await window.webContents.executeJavaScript(`(async () => ({
     node: typeof process,
     require: typeof require,
@@ -172,7 +172,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
 async function openUpdateSettings(window) {
   const current = await window.webContents.executeJavaScript("location.pathname");
   if (current !== '/settings/updates') {
-    await window.webContents.executeJavaScript(`document.querySelector('[aria-label="设置"]').click()`);
+    await window.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))`);
     await waitForUI(window, `document.querySelector('.settings-navigation')`);
     await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.settings-navigation button')).find(button => button.textContent === '版本更新').click()`);
   }

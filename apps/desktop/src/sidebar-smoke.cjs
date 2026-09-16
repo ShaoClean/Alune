@@ -90,6 +90,8 @@ module.exports = async ({ window, origin, token, restore }) => {
       sidebarWidth: 310,
       changesWidth: 430,
       sidebarCollapsed: true,
+      changesCollapsed: false,
+      diffMode: 'unified',
     });
     await waitFor("document.querySelector('.app-shell--collapsed') !== null");
   }
@@ -144,24 +146,32 @@ module.exports = async ({ window, origin, token, restore }) => {
     await execute(
       `document.querySelector('[aria-label="调整工作区宽度"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))`,
     );
-    await execute(`document.querySelector('[aria-label="布局设置"]').click()`);
-    await waitFor('document.querySelector(\'input[aria-label="改动列表宽度"]\') !== null');
+    await execute('document.querySelector(\'[aria-label="设置与帮助"]\').click()');
+    await waitFor('document.querySelector(\'[role="menu"]\') !== null');
+    await execute('document.querySelector(\'[role="menuitem"]\').click()');
+    await waitFor("document.querySelector('.settings-navigation') !== null");
+    await execute(
+      "Array.from(document.querySelectorAll('.settings-navigation button')).find(button => button.textContent === '布局').click()",
+    );
+    await waitFor('document.querySelector(\'input[aria-label="右侧面板宽度"]\') !== null');
     await execute(`(() => {
-      const slider = document.querySelector('input[aria-label="改动列表宽度"]');
+      const slider = document.querySelector('input[aria-label="右侧面板宽度"]');
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(slider, '430');
       slider.dispatchEvent(new Event('input', { bubbles: true }));
     })()`);
-    await waitFor("document.querySelector('input[aria-label=\"改动列表宽度\"]').value === '430'");
+    await waitFor("document.querySelector('input[aria-label=\"右侧面板宽度\"]').value === '430'");
     await execute(
       `Array.from(document.querySelectorAll('.settings-header button')).find(button => button.textContent.replaceAll(' ', '') === '返回工作区').click()`,
     );
-    await execute(`document.querySelector('[aria-label="收起导航"]').click()`);
+    await execute(`document.querySelector('[aria-label="隐藏左侧工作区"]').click()`);
     await waitFor("document.querySelector('.app-shell--collapsed') !== null");
     const withLayout = JSON.parse(await execute('window.remoteGitWorkspace.load()')).state;
     assert.deepEqual(withLayout.layout, {
       sidebarWidth: 310,
       changesWidth: 430,
       sidebarCollapsed: true,
+      changesCollapsed: false,
+      diffMode: 'unified',
     });
     assert.deepEqual(withLayout.repositoryOrderByConnection[a], expectedOrder);
     console.log('Desktop layout UI saved widths and collapse state without altering tree order.');
