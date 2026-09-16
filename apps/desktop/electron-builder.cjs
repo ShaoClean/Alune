@@ -4,7 +4,7 @@ module.exports = {
   artifactName: 'RemoteGit-${version}-${os}-${arch}.${ext}',
   publish: { provider: 'github', owner: 'ShaoClean', repo: 'remote-git', private: false, releaseType: 'release' },
   directories: { output: '../../release' },
-  files: ['*.cjs', 'server/**/*', 'web/**/*', 'packages/**/*', 'package.json'],
+  files: ['*.cjs', 'server/**/*', 'web/**/*', 'assets/icon.png', 'packages/**/*', 'package.json'],
   asar: true,
   asarUnpack: ['**/*.node'],
   npmRebuild: false,

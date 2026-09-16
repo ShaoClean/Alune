@@ -23,12 +23,14 @@ let updates;
 let closingBackend;
 const token = randomBytes(32).toString('hex');
 const windowStatePath = path.join(app.getPath('userData'), 'window.json');
+const iconPath = path.join(__dirname, 'assets', 'icon.png');
 
 function createWindow() {
   let state = {};
   try { state = JSON.parse(readFileSync(windowStatePath, 'utf8')); } catch {}
   window = new BrowserWindow({
     title: 'RemoteGit',
+    icon: iconPath,
     width: Number.isFinite(state.width) ? Math.max(320, Math.min(state.width, 3840)) : 1440,
     height: Number.isFinite(state.height) ? Math.max(680, Math.min(state.height, 2160)) : 900,
     minWidth: 320,
@@ -67,6 +69,7 @@ function createWindow() {
 }
 
 async function start() {
+  if (process.platform === 'darwin') app.dock.setIcon(iconPath);
   const dataDir = app.getPath('userData');
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   process.env.REMOTE_GIT_DATA_DIR = dataDir;

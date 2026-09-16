@@ -3,7 +3,6 @@ import { Alert, Button } from 'antd';
 import {
   ApartmentOutlined,
   ArrowLeftOutlined,
-  CodeOutlined,
   DesktopOutlined,
   LayoutOutlined,
   ReloadOutlined,
@@ -17,6 +16,7 @@ import { CommitSettings } from './CommitSettings';
 import { LayoutSettingsContent } from '../LayoutSettings';
 import { UpdatePanelContent } from '../UpdatePanel';
 import { Sparkles } from '../Sparkles';
+import { BrandIcon } from '../BrandIcon';
 import '../../settings.css';
 
 const categories = [
@@ -49,9 +49,7 @@ export function SettingsCenter({
     <div className="settings-center">
       <header className="settings-header">
         <div className="settings-brand">
-          <span className="app-brand__mark">
-            <CodeOutlined />
-          </span>
+          <BrandIcon />
           <strong>RemoteGit</strong>
         </div>
         <div className="settings-header__bar">

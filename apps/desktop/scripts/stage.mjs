@@ -14,6 +14,7 @@ await mkdir(target, { recursive: true });
 for (const [source, destination] of [
   ['apps/server/dist', 'server'],
   ['apps/web/dist', 'web'],
+  ['apps/desktop/assets', 'assets'],
   ['packages/shared/dist', 'packages/shared/dist'],
   ['packages/ssh-client/dist', 'packages/ssh-client/dist'],
 ]) {
