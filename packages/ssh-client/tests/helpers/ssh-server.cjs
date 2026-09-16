@@ -9,6 +9,100 @@ const {
 } = require('ssh2');
 const { SSHConnection } = require('../../dist/connection-manager');
 
+function attachSftp(session) {
+  session.on('sftp', (accept) => {
+    const sftp = accept();
+    const handles = new Map();
+    let nextHandle = 0;
+    const failure = (id, error) =>
+      sftp.status(
+        id,
+        error.code === 'ENOENT'
+          ? STATUS_CODE.NO_SUCH_FILE
+          : error.code === 'EACCES'
+            ? STATUS_CODE.PERMISSION_DENIED
+            : STATUS_CODE.FAILURE,
+        error.message,
+      );
+    const attrs = (stat) => ({
+      mode: stat.mode,
+      uid: stat.uid,
+      gid: stat.gid,
+      size: stat.size,
+      atime: Math.floor(stat.atimeMs / 1000),
+      mtime: Math.floor(stat.mtimeMs / 1000),
+    });
+    sftp.on('REALPATH', (id, filename) =>
+      fs.realpath(filename, (error, resolved) =>
+        error
+          ? failure(id, error)
+          : sftp.name(id, [{ filename: resolved, longname: resolved, attrs: {} }]),
+      ),
+    );
+    sftp.on('READLINK', (id, filename) =>
+      fs.readlink(filename, (error, resolved) =>
+        error
+          ? failure(id, error)
+          : sftp.name(id, [{ filename: resolved, longname: resolved, attrs: {} }]),
+      ),
+    );
+    sftp.on('LSTAT', (id, filename) =>
+      fs.lstat(filename, (error, stat) =>
+        error ? failure(id, error) : sftp.attrs(id, attrs(stat)),
+      ),
+    );
+    sftp.on('STAT', (id, filename) =>
+      fs.stat(filename, (error, stat) =>
+        error ? failure(id, error) : sftp.attrs(id, attrs(stat)),
+      ),
+    );
+    sftp.on('REMOVE', (id, filename) =>
+      fs.unlink(filename, (error) =>
+        error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
+      ),
+    );
+    sftp.on('OPEN', (id, filename) =>
+      fs.open(filename, 'r', (error, descriptor) => {
+        if (error) return failure(id, error);
+        const handle = Buffer.alloc(4);
+        handle.writeUInt32BE(nextHandle++);
+        handles.set(handle.readUInt32BE(), descriptor);
+        sftp.handle(id, handle);
+      }),
+    );
+    sftp.on('FSTAT', (id, handle) =>
+      fs.fstat(handles.get(handle.readUInt32BE()), (error, stat) =>
+        error ? failure(id, error) : sftp.attrs(id, attrs(stat)),
+      ),
+    );
+    sftp.on('READ', (id, handle, offset, length) => {
+      const buffer = Buffer.alloc(length);
+      fs.read(
+        handles.get(handle.readUInt32BE()),
+        buffer,
+        0,
+        length,
+        offset,
+        (error, bytes) => {
+          if (error) failure(id, error);
+          else if (!bytes) sftp.status(id, STATUS_CODE.EOF);
+          else sftp.data(id, buffer.subarray(0, bytes));
+        },
+      );
+    });
+    sftp.on('CLOSE', (id, handle) => {
+      const key = handle.readUInt32BE();
+      fs.close(handles.get(key), (error) =>
+        error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
+      );
+      handles.delete(key);
+    });
+    sftp.on('close', () => {
+      for (const descriptor of handles.values()) fs.close(descriptor, () => {});
+    });
+  });
+}
+
 async function connectFixture(fixture) {
   const hostKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({
     type: 'pkcs1',
@@ -38,97 +132,7 @@ async function connectFixture(fixture) {
             },
           );
         });
-        session.on('sftp', (accept) => {
-          const sftp = accept();
-          const handles = new Map();
-          let nextHandle = 0;
-          const failure = (id, error) =>
-            sftp.status(
-              id,
-              error.code === 'ENOENT'
-                ? STATUS_CODE.NO_SUCH_FILE
-                : error.code === 'EACCES'
-                  ? STATUS_CODE.PERMISSION_DENIED
-                  : STATUS_CODE.FAILURE,
-              error.message,
-            );
-          const attrs = (stat) => ({
-            mode: stat.mode,
-            uid: stat.uid,
-            gid: stat.gid,
-            size: stat.size,
-            atime: Math.floor(stat.atimeMs / 1000),
-            mtime: Math.floor(stat.mtimeMs / 1000),
-          });
-          sftp.on('REALPATH', (id, filename) =>
-            fs.realpath(filename, (error, resolved) =>
-              error
-                ? failure(id, error)
-                : sftp.name(id, [{ filename: resolved, longname: resolved, attrs: {} }]),
-            ),
-          );
-          sftp.on('READLINK', (id, filename) =>
-            fs.readlink(filename, (error, resolved) =>
-              error
-                ? failure(id, error)
-                : sftp.name(id, [{ filename: resolved, longname: resolved, attrs: {} }]),
-            ),
-          );
-          sftp.on('LSTAT', (id, filename) =>
-            fs.lstat(filename, (error, stat) =>
-              error ? failure(id, error) : sftp.attrs(id, attrs(stat)),
-            ),
-          );
-          sftp.on('STAT', (id, filename) =>
-            fs.stat(filename, (error, stat) =>
-              error ? failure(id, error) : sftp.attrs(id, attrs(stat)),
-            ),
-          );
-          sftp.on('REMOVE', (id, filename) =>
-            fs.unlink(filename, (error) =>
-              error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
-            ),
-          );
-          sftp.on('OPEN', (id, filename) =>
-            fs.open(filename, 'r', (error, descriptor) => {
-              if (error) return failure(id, error);
-              const handle = Buffer.alloc(4);
-              handle.writeUInt32BE(nextHandle++);
-              handles.set(handle.readUInt32BE(), descriptor);
-              sftp.handle(id, handle);
-            }),
-          );
-          sftp.on('FSTAT', (id, handle) =>
-            fs.fstat(handles.get(handle.readUInt32BE()), (error, stat) =>
-              error ? failure(id, error) : sftp.attrs(id, attrs(stat)),
-            ),
-          );
-          sftp.on('READ', (id, handle, offset, length) => {
-            const buffer = Buffer.alloc(length);
-            fs.read(
-              handles.get(handle.readUInt32BE()),
-              buffer,
-              0,
-              length,
-              offset,
-              (error, bytes) => {
-                if (error) failure(id, error);
-                else if (!bytes) sftp.status(id, STATUS_CODE.EOF);
-                else sftp.data(id, buffer.subarray(0, bytes));
-              },
-            );
-          });
-          sftp.on('CLOSE', (id, handle) => {
-            const key = handle.readUInt32BE();
-            fs.close(handles.get(key), (error) =>
-              error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
-            );
-            handles.delete(key);
-          });
-          sftp.on('close', () => {
-            for (const descriptor of handles.values()) fs.close(descriptor, () => {});
-          });
-        });
+        attachSftp(session);
       }),
     );
   });
@@ -170,7 +174,9 @@ async function startSSHServer() {
     });
     client.on('ready', () =>
       client.on('session', (accept) => {
-        accept().on('exec', (accept, _reject, info) => {
+        const session = accept();
+        attachSftp(session);
+        session.on('exec', (accept, _reject, info) => {
           const channel = accept();
           const child = spawn('/bin/sh', ['-c', info.command], {
             env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' },

@@ -10,6 +10,10 @@ export const router = createBrowserRouter([
     element: <Layout />,
     children: [
       {
+        path: 'settings/:category?',
+        element: null,
+      },
+      {
         index: true,
         element: <ConnectionsPage />,
       },
