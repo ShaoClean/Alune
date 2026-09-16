@@ -5,7 +5,6 @@ import { Button, Dropdown, Tooltip, message, notification } from 'antd';
 import {
   ApartmentOutlined,
   CloudSyncOutlined,
-  CodeOutlined,
   FolderOpenOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -22,6 +21,7 @@ import { useWorkspaceStorageStatus } from '../stores/workspaceStorage';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 import { PanelResizeHandle } from './PanelResizeHandle';
 import { SettingsCenter } from './settings/SettingsCenter';
+import { BrandIcon } from './BrandIcon';
 import { SIDEBAR_MIN } from '../stores/workspaceLayout';
 
 const navItems = [
@@ -227,9 +227,7 @@ export function Layout() {
               aria-label="RemoteGit 首页"
               onClick={() => navigate('/')}
             >
-              <span className="app-brand__mark">
-                <CodeOutlined />
-              </span>
+              <BrandIcon />
               <span className="app-brand__text">RemoteGit</span>
             </button>
             <Button
@@ -323,9 +321,7 @@ export function Layout() {
               </Tooltip>
             </div>
             <div className="sidebar-footer__account">
-              <span className="sidebar-footer__avatar">
-                <CodeOutlined />
-              </span>
+              <BrandIcon className="sidebar-footer__avatar" />
               <div className="sidebar-footer__account-copy">
                 <strong>RemoteGit</strong>
                 <span>工作区就绪</span>

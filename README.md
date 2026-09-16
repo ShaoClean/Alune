@@ -33,6 +33,8 @@ npm run desktop:test  # 构建后执行桌面集成测试
 
 正式对外发布 macOS 应用还需要配置开发者签名和 Apple 公证；仓库默认可生成本机测试包。Windows 签名同样需要自行提供证书。
 
+图标源文件为 `apps/desktop/assets/icon.svg`。修改后运行 `npm run icons:generate`，生成桌面 PNG 和网页 favicon，并一起提交派生资源。`npm run icons:check` 检查资源是否同步，根构建和桌面构建也会执行此检查。
+
 ## AI 提交信息与设置中心
 
 “设置”打开独立页面，统一管理 AI 服务商、提交生成、布局和版本更新；“返回工作区”恢复原仓库、面板和提交草稿。桌面窗口支持缩小到 320 px，窄窗口通过分类选择和服务商列表逐级进入详情。
