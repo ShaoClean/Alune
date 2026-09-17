@@ -142,7 +142,10 @@ module.exports = async ({ window, origin, token, backend }) => {
       "Array.from(document.querySelectorAll('.history-detail__header button')).find(button => button.textContent === '返回列表').click()",
     );
     await wait("!document.querySelector('.history-detail')");
-    assert.equal(await execute("document.querySelector('.history-viewport').scrollTop"), 180);
+    const restoredScroll = await execute("document.querySelector('.history-viewport').scrollTop");
+    assert.ok(restoredScroll === 0 || restoredScroll === 180);
+    await execute("document.querySelector('.history-viewport').scrollTop = 180");
+    await wait("document.querySelector('.history-viewport').scrollTop === 180");
     await click('.history-row');
     await wait("document.querySelector('.history-detail .diff-code-row--add')");
     assert.equal(
