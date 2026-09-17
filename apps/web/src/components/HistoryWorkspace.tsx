@@ -81,6 +81,7 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
         <HistoryView
           repoId={repoId}
           selectedHash={selected?.hash}
+          visible={!selected || (!compact && !focusDiff)}
           onSelectCommit={(commit) => {
             setSelected(commit);
             setFile(null);

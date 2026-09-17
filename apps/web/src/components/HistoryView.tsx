@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { GraphCommit, CommitReference } from '@remote-git/shared';
 import { Button } from 'antd';
@@ -13,6 +13,7 @@ interface Props {
   repoId: string;
   onSelectCommit?: (commit: GraphCommit) => void;
   selectedHash?: string | null;
+  visible?: boolean;
 }
 const colors = ['#2563eb', '#8b5cf6', '#0d9488', '#d97706', '#db2777', '#0891b2'];
 const color = (index: number) => colors[index % colors.length];
@@ -75,7 +76,7 @@ export function HistoryReference({ reference }: { reference: CommitReference }) 
   );
 }
 
-export function HistoryView({ repoId, onSelectCommit, selectedHash }: Props) {
+export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = true }: Props) {
   const {
     log,
     logLoading,
@@ -90,6 +91,7 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash }: Props) {
     fetchLog,
   } = useRepositoryStore();
   const viewport = useRef<HTMLDivElement>(null);
+  const scrollTopRef = useRef(0);
   const graphCache = useRef<{ generation: number; graph: GraphLayout }>({
     generation: -1,
     graph: emptyGraph(),
@@ -120,9 +122,14 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash }: Props) {
   }, [log.length > 0]);
   useEffect(() => {
     if (viewport.current) viewport.current.scrollTop = 0;
+    scrollTopRef.current = 0;
     setScrollTop(0);
     setFocused(0);
   }, [logGeneration]);
+  useLayoutEffect(() => {
+    if (!visible || !viewport.current || viewport.current.scrollTop === scrollTopRef.current) return;
+    viewport.current.scrollTop = scrollTopRef.current;
+  }, [visible, logGeneration]);
 
   const start = Math.max(0, Math.floor((scrollTop - GRAPH_ROW_HEIGHT) / GRAPH_ROW_HEIGHT) - 12);
   const end = Math.min(log.length, start + Math.ceil(height / GRAPH_ROW_HEIGHT) + 25);
@@ -199,7 +206,10 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash }: Props) {
         <div
           className="history-viewport"
           ref={viewport}
-          onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+          onScroll={(event) => {
+            scrollTopRef.current = event.currentTarget.scrollTop;
+            setScrollTop(event.currentTarget.scrollTop);
+          }}
         >
           <div
             className="history-table"
