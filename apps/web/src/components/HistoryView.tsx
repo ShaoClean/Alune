@@ -129,7 +129,7 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
   useLayoutEffect(() => {
     if (!visible || !viewport.current || viewport.current.scrollTop === scrollTopRef.current) return;
     viewport.current.scrollTop = scrollTopRef.current;
-  }, [visible, logGeneration]);
+  }, [visible, height, logGeneration]);
 
   const start = Math.max(0, Math.floor((scrollTop - GRAPH_ROW_HEIGHT) / GRAPH_ROW_HEIGHT) - 12);
   const end = Math.min(log.length, start + Math.ceil(height / GRAPH_ROW_HEIGHT) + 25);

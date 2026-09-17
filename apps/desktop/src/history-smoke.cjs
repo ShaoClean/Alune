@@ -135,6 +135,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     await execute(
       "(() => { const viewport = document.querySelector('.history-viewport'); viewport.scrollTop = 180; viewport.dispatchEvent(new Event('scroll', { bubbles: true })); })()",
     );
+    await wait("document.querySelector('.history-viewport').scrollTop === 180");
     window.setSize(600, 760);
     await wait("document.querySelector('.history-workspace--compact')");
     await execute(
