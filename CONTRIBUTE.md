@@ -12,6 +12,8 @@ RemoteGit 使用 Conventional Commits 描述变更，commitlint 校验提交信�
 
 使用 Node.js 22.12+ 和 npm；CI 固定为 Node.js 22.22.0。首次进入仓库执行 `npm ci`。
 
+从源码启动、桌面打包、图标维护和测试命令见[开发与打包](docs/development.md)。
+
 安装依赖时，`prepare` 会运行 `scripts/install-hooks.mjs`，启用两个 Git hooks：
 
 | Hook | 执行时机 | 检查内容 |
@@ -154,6 +156,8 @@ git push origin "$RELEASE_TAG"
 
 标签指向实际待发布提交。修改工作区文件不会改变已经创建的 tag 指向，版本检查读取的是推送对象中的文件。
 
+版本检查支持附注标签、一次推送多个引用和指定远端标签名；删除引用与非发布标签不受版本检查影响。暂存应用和前端构建均从根包读取版本。
+
 推送 tag 后，`.github/workflows/release.yml` 按以下顺序执行：
 
 1. 校验版本、公开更新源、hooks 和 Release 说明生成逻辑，运行桌面单元测试。
@@ -165,6 +169,8 @@ git push origin "$RELEASE_TAG"
 
 构建或说明生成失败时不会发布新 Release；附件上传失败保留草稿供重跑。已公开的 Release 不会被工作流覆盖。发布仅使用 Actions 的 `GITHUB_TOKEN`，无需新增个人令牌。生成的 Markdown 写入 Release 正文，不会自动提交 `CHANGELOG.md` 或修改版本号。
 
+安装包命名为 `RemoteGit-<version>-<mac|win|linux>-<arch>.<dmg|zip|exe|AppImage>`，Linux x64 的 AppImage 使用架构名 `x86_64`。请保留工作流生成的 blockmap、`latest.yml`、`latest-linux.yml` 和 `SHA256SUMS`，不要单独替换安装包。构建阶段禁用发布，只有最终发布任务拥有 `contents: write`；当前流程尚未配置平台签名证书。客户端从公开 Releases 获取更新，安装与更新条件见[桌面端说明](docs/desktop.md)。
+
 ## 验证修改
 
 ```sh
@@ -175,4 +181,4 @@ npm run desktop:test:unit
 
 hooks 测试在临时仓库中验证提交拦截、推送版本检查和 CI 提交范围；说明测试验证分类、旧格式记录、不兼容变更、首次发布、失败 tag 和维护版本。这些测试不会发布 GitHub Release。
 
-桌面构建、各平台安装包及实际升级验收要求见 [README.md](README.md)。
+桌面构建、各平台安装包及实际升级验收要求见[开发与打包](docs/development.md#测试与发布验收)。实际验收记录与配套附件按上述约定维护在 Wiki。

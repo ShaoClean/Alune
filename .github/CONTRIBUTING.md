@@ -24,7 +24,7 @@
 4. UI 改动在 Wiki 验收记录中附前后截图，PR 中引用对应页面或图片；涉及持久化、SSH 或桌面更新时，记录相关回归验证。未验证的平台或场景需要明确列出。
 5. 填写“设计文档（Wiki）”，并在 Wiki 页面补充 Issue / PR 反向链接；不需要独立设计文档的小改动注明原因。
 
-PR 标题和提交信息须遵守 Conventional Commits，使用 `feat: ...`、`fix: ...`、`perf: ...`、`refactor: ...`、`docs: ...` 或 `chore: ...` 等格式；本地 hook 和 CI 会执行校验。完整提交规范、Git hooks 和 Release 说明生成流程见 [CONTRIBUTE.md](../CONTRIBUTE.md)，开发和测试命令见[项目 README](../README.md)。
+PR 标题和提交信息须遵守 Conventional Commits，使用 `feat: ...`、`fix: ...`、`perf: ...`、`refactor: ...`、`docs: ...` 或 `chore: ...` 等格式；本地 hook 和 CI 会执行校验。完整提交规范、Git hooks 和 Release 说明生成流程见 [CONTRIBUTE.md](../CONTRIBUTE.md)，开发和测试命令见[开发与打包](../docs/development.md)。
 
 ## 维护设计文档
 

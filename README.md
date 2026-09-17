@@ -1,135 +1,95 @@
-# RemoteGit
+<p align="center">
+  <img src="apps/desktop/assets/icon.png" width="96" height="96" alt="RemoteGit 图标" />
+</p>
 
-通过 SSH 管理远程服务器上的 Git 仓库。桌面端采用 Electron，内置 React 界面、NestJS 服务和 SQLite，无需用户安装 Node.js 或单独启动后端。
+<h1 align="center">RemoteGit</h1>
 
-## 待办与贡献
+<p align="center">
+  <strong>在桌面上，看清并管理远程服务器上的 Git 改动。</strong>
+</p>
 
-在[公开 TODO 看板](https://github.com/users/ShaoClean/projects/1)查看任务进度：`Todo → In Progress → Done`。具体需求、讨论与验收标准维护在关联的 Issues 中。
+<p align="center">
+  通过 SSH 连接服务器，在一个工作区里查看差异、暂存提交、浏览分支与历史。<br />
+  支持 macOS、Windows 和 Linux；安装即用，无需安装 Node.js 或单独启动后端。
+</p>
 
-欢迎通过[Issue 模板](https://github.com/ShaoClean/remote-git/issues/new/choose)提交功能建议、Bug 报告和优化建议。提交 PR 时请填写自动加载的模板，关联对应 Issue 并记录验证结果，详见[贡献指南](.github/CONTRIBUTING.md)。
+<p align="center">
+  <a href="https://github.com/ShaoClean/remote-git/releases/latest">下载安装</a> ·
+  <a href="#快速上手">快速上手</a> ·
+  <a href="#核心功能">核心功能</a> ·
+  <a href="https://github.com/ShaoClean/remote-git/wiki">项目文档</a> ·
+  <a href="https://github.com/users/ShaoClean/projects/1">公开 TODO</a>
+</p>
 
-提交规范、Git hooks、PR 检查和 Release 说明生成流程见 [CONTRIBUTE.md](CONTRIBUTE.md)。
+![RemoteGit 提交历史：左侧仓库导航、所有分支提交图，以及下方的文件变更与 Diff](https://raw.githubusercontent.com/wiki/ShaoClean/remote-git/assets/issue-36/history-detail.png)
 
-功能、优化与缺陷修复的设计、验收记录及配套附件统一维护在 [GitHub Wiki](https://github.com/ShaoClean/remote-git/wiki)：[功能设计索引](https://github.com/ShaoClean/remote-git/wiki/Feature-Designs)、[缺陷修复索引](https://github.com/ShaoClean/remote-git/wiki/Bugfix-Designs)。新增文档按 Issue 编号组织，并在 Issue / PR 中补充双向链接，详见 [Wiki 维护约定](https://github.com/ShaoClean/remote-git/wiki/Contributing)。运行、配置、开发和发布所需的基础说明继续保留在代码仓库；旧资料入口见 [迁移清单](https://github.com/ShaoClean/remote-git/wiki/Migration-25)。
+<p align="center">多仓库导航、分支提交图和文件差异，集中在同一个工作区。</p>
 
-## 开发与打包
+## 为什么使用 RemoteGit
 
-开发环境使用 Node.js 22.12+ 和 npm。首次构建需要下载 Electron 和原生依赖；原生模块没有预编译包时，需要系统 C++ 编译工具（macOS：Xcode Command Line Tools；Windows：Visual Studio C++ Build Tools 和 Python；Linux：编译工具链和 Python）。
+代码在远程开发机或构建服务器上时，RemoteGit 让你直接查看和操作那里的 Git 仓库，无需为查看改动再克隆一份到本地。按连接组织多个仓库，在标签页间切换，完成从检查差异到提交、拉取和推送的日常工作。
 
-```sh
-npm install
-npm run desktop:dev
-```
+## 核心功能
 
-`desktop:dev` 构建当前源码并打开桌面窗口。修改源码后重新运行该命令；前端热更新开发仍可使用 `npm run dev`，浏览器访问 `http://localhost:5173`。
+| 功能                    | 你可以做什么                                                                                 |
+| ----------------------- | -------------------------------------------------------------------------------------------- |
+| **SSH 远程工作区**      | 使用密码或私钥连接服务器，扫描并登记已有仓库，按名称搜索和切换。                             |
+| **差异与提交**          | 统一或分栏查看 Diff，预览未暂存的新文件，区分已暂存和后续改动，再填写摘要与描述提交。        |
+| **分支与同步**          | 创建、切换和合并分支，管理储藏，获取、拉取和推送远程更新。                                   |
+| **提交历史与分支图**    | 查看本地已获取的各分支、远程跟踪分支和标签的提交关系，连续加载历史，展开提交查看文件与差异。 |
+| **多标签与 Worktree**   | 将已有的关联 Worktree 打开为独立仓库标签，各自查看改动、暂存和提交；关闭标签不删除目录。     |
+| **AI 提交信息（可选）** | 配置 OpenAI、Anthropic、Gemini、DeepSeek 或兼容服务，根据已暂存改动生成可编辑的摘要和描述。  |
 
-```sh
-npm run desktop:pack  # 生成当前系统可运行的应用目录
-npm run desktop:dist  # 生成当前系统安装包
-npm run desktop:test  # 构建后执行桌面集成测试
-npm run desktop:test:worktrees # 构建并在隔离 SSH 环境验证 worktree 标签与操作
-```
+左右面板支持隐藏、拖动调宽和专注阅读，布局偏好在本机保存。更多操作与快捷键见[工作区使用说明](docs/workspace.md)。
 
-产物位于 `apps/desktop/release/`。macOS 生成 `.app`、DMG 和 ZIP；Windows 配置 NSIS 安装程序；Linux 配置 AppImage。请在对应系统构建和验证，原生 SQLite 模块需要匹配目标系统和架构。默认生成当前机器架构。
+<details>
+<summary><strong>查看改动与 Worktree 独立标签截图</strong></summary>
 
-正式对外发布 macOS 应用还需要配置开发者签名和 Apple 公证；仓库默认可生成本机测试包。Windows 签名同样需要自行提供证书。
+![RemoteGit 改动工作区：Worktree 在独立标签打开，中央显示 Diff，右侧管理暂存内容与提交](https://raw.githubusercontent.com/wiki/ShaoClean/remote-git/assets/issue-29/worktree-tab.png)
 
-图标源文件为 `apps/desktop/assets/icon.svg`。修改后运行 `npm run icons:generate`，生成桌面 PNG 和网页 favicon，并一起提交派生资源。`npm run icons:check` 检查资源是否同步，根构建和桌面构建也会执行此检查。
+</details>
 
-## AI 提交信息与设置中心
+截图复用 Wiki 中的实际应用验收素材，使用测试仓库与演示数据；界面版本以安装的 Release 为准。
 
-“设置”打开独立页面，统一管理 AI 服务商、提交生成、布局和版本更新；“返回工作区”恢复原仓库、面板和提交草稿。桌面窗口支持缩小到 320 px，窄窗口通过分类选择和服务商列表逐级进入详情。
+## 下载安装
 
-在“AI 服务商”中配置并启用服务商和模型，再在“提交生成”中保存默认模型。提交摘要右侧的星光按钮只分析已暂存改动，一次填入摘要和描述，支持取消、重试及撤销；最终提交仍由用户操作。默认使用简体中文 Conventional Commits。
+前往 **[最新稳定版 Release](https://github.com/ShaoClean/remote-git/releases/latest)**，在 Assets 中选择与你的系统和芯片匹配的安装包。
 
-支持 OpenAI、Anthropic、Gemini、DeepSeek，以及三个协议的多个自定义服务。API Key 在设置页手动输入并加密保存，无需配置环境变量；桌面版使用系统密钥存储，独立服务自动管理本机加密密钥。配置与限制见 [AI 设置说明](docs/ai-settings.md)，截图与验证记录见 [Issue #21 验收](https://github.com/ShaoClean/remote-git/wiki/Issue-21-Validation)。
+| 系统               | 选择的文件                               | 安装方式                                            |
+| ------------------ | ---------------------------------------- | --------------------------------------------------- |
+| macOS · Apple 芯片 | `RemoteGit-<版本>-mac-arm64.dmg`         | 打开 DMG，将 RemoteGit 拖入“应用程序”后启动。       |
+| macOS · Intel 芯片 | `RemoteGit-<版本>-mac-x64.dmg`           | 打开 DMG，将 RemoteGit 拖入“应用程序”后启动。       |
+| Windows · x64      | `RemoteGit-<版本>-win-x64.exe`           | 运行安装程序，按提示选择安装位置。                  |
+| Linux · x64        | `RemoteGit-<版本>-linux-x86_64.AppImage` | 在文件属性中允许作为程序执行，再直接运行 AppImage。 |
 
-## GitHub 版本更新
+Release 同时提供 `SHA256SUMS` 供校验。当前安装包尚未配置平台签名，macOS 尚未公证；首次启动可能出现系统提示。安装与更新条件见[桌面端说明](docs/desktop.md)。
 
-桌面端的“设置 → 版本更新”显示实际应用版本、最新稳定版本、更新说明与下载进度。已打包应用启动 10 秒后后台检查一次，也可手动检查。下载由用户点击触发，支持取消和重试；关闭设置或刷新页面不会中断下载。开发模式与独立网页不会访问更新源。
+已安装的桌面版可在 **设置 → 版本更新** 中检查、下载新版本，下载完成后点击“重启安装”。[全部版本与更新记录](https://github.com/ShaoClean/remote-git/releases)
 
-- macOS（arm64、x64）：下载匹配架构的 DMG，核对 Release 的 `SHA256SUMS` 后显示“重启安装”。点击后会再次校验文件，挂载 DMG 并检查应用标识、版本和二进制架构，在当前应用所在目录准备新版本，再关闭 SSH、数据库和本地服务。独立安装程序等旧进程退出后替换应用并自动重新打开；替换或启动命令失败时恢复原应用，下次启动在更新设置中显示错误。应用必须位于可写目录，从 DMG 或 App Translocation 中运行时会提示先移动应用。普通退出不会安装。当前构建未配置 Developer ID 签名和 Apple 公证，仍遵循系统 Gatekeeper 检查；正式分发需另行配置签名和公证，与上架 App Store 无关。
-- Windows（x64 NSIS）、Linux（x64 AppImage）：通过 `electron-updater` 下载并校验安装包，点击“重启安装”才会关闭 SSH、数据库及本地服务并安装。普通退出不会安装。服务关闭失败或超时会中止安装；此时请重新启动应用后重试。Linux 必须直接运行可写位置的 AppImage，解包目录运行方式不支持更新。
-- 检查只接受更高的稳定 SemVer 版本，跳过草稿、预发布和降级。网络失败不会打断日常操作，设置中可查看错误并重试。macOS 安装包及安装日志 `install.log` 保存在应用数据目录的 `updates/` 中；Windows/Linux 使用更新器的系统缓存目录。
+## 快速上手
 
-更新源固定为 `https://github.com/ShaoClean/remote-git` 的公开 Releases，客户端不包含 GitHub Token。**当前私有仓库需要由维护者另行改为公开**，再使用正式发布流程；未公开、没有 Release 或缺失更新附件时无法提供更新。原先没有更新功能的旧安装包需要先手动安装首个支持更新的版本。
+准备一台可通过 SSH 登录的服务器：远端需已安装 Git，并有当前账号可读写的 Git 仓库。提交前在远端配置好 Git 作者信息；推送或拉取所需的凭据也由远端 Git 环境提供。
 
-### 发布新版本
+1. **添加连接。** 打开“连接 → 添加连接”，填写主机、端口、用户名和认证信息。选择私钥时填写本机私钥的绝对路径。保存后点击“测试连接”，确认连接成功。
+2. **添加仓库。** 点击连接卡片上的“查看仓库”，再点击“扫描并添加”。输入远端仓库所在目录（例如 `/home/developer/projects`），点击“扫描”，在结果中选择“添加”，然后“打开工作区”。
+3. **检查并提交。** 在“改动”中选择文件查看 Diff，暂存需要提交的内容，填写摘要后点击“提交已暂存内容”。确认目标分支和远端后，可使用顶部的获取、拉取和推送。
+4. **按需启用 AI。** 在“设置 → AI 服务商”保存服务与模型，再在“提交生成”保存默认模型。返回仓库，点击摘要右侧的星光按钮生成提交信息；检查并编辑后再提交。详见 [AI 设置说明](docs/ai-settings.md)。
 
-`.github/workflows/release.yml` 在推送 `vX.Y.Z` 标签后运行，标签必须与根 `package.json` 及锁文件版本一致。根包版本是唯一版本来源，暂存应用和前端构建均从这里读取。
+AI 生成会将已暂存差异发送给你配置的模型服务；不启用 AI 也可使用 Git 功能。Worktree 入口用于打开已有工作区，暂不创建或删除 Worktree。
 
-`npm install` / `npm ci` 会自动安装仓库的 `commit-msg` 和 `pre-push` hooks；已有工作区可运行 `npm run hooks:install` 启用。提交信息由 commitlint 校验，使用 `feat:`、`fix:`、`perf:` 等 Conventional Commits 格式。分支推送会检查根 `package.json` 与锁文件两处根版本是否一致；推送 `v*` 标签时，还会检查标签是否为匹配版本的稳定 SemVer。版本检查读取实际推送的提交，支持附注标签、一次推送多个引用及指定远端标签名；修改工作区文件不能修复指向旧提交的标签。删除引用和非发布标签不受版本检查影响。
+## 文档与开发
 
-安装脚本会保留已有的自定义 hooks 配置并提示如何接入。禁用 npm 安装脚本时，需手动运行 `npm run hooks:install`。提交信息检查需要项目开发依赖，推送版本检查只需要 Node.js 和 Git。GitHub Actions 会检查分支新增提交、PR 标题和 PR 提交，并继续执行发布校验。
+| 我想了解…                       | 入口                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------- |
+| 布局、Diff、提交历史与 Worktree | [工作区使用说明](docs/workspace.md)                                                      |
+| 安装更新、数据目录与桌面行为    | [桌面端说明](docs/desktop.md)                                                            |
+| AI 服务商、模型与密钥配置       | [AI 设置说明](docs/ai-settings.md)                                                       |
+| 从源码运行、构建与测试          | [开发与打包](docs/development.md)                                                        |
+| 提交规范、Git hooks 与版本发布  | [贡献与发布指南](CONTRIBUTE.md)                                                          |
+| 功能设计、验收记录与截图        | [GitHub Wiki](https://github.com/ShaoClean/remote-git/wiki) · [文档索引](docs/README.md) |
 
-```sh
-npm version patch --no-git-tag-version --workspaces=false
-RELEASE_TAG="v$(node -p 'require("./package.json").version')"
-node apps/desktop/scripts/release.mjs tag "$RELEASE_TAG"
-git add package.json package-lock.json
-git commit -m "chore: bump desktop version"
-git tag "$RELEASE_TAG"
-git push origin HEAD
-git push origin "$RELEASE_TAG"
-```
+## 反馈与贡献
 
-Actions 使用 macOS arm64/x64、Windows x64、Linux x64 原生 runner，重建 Electron 的 SQLite 模块、执行测试并生成安装包。构建步骤禁用发布；最终发布任务核对所有平台附件、更新元数据的大小与 SHA-512，再生成 `SHA256SUMS`。附件全部上传到草稿后才公开 Release。上传失败保留草稿，允许重跑；已公开的 Release 不允许覆盖。构建失败则不创建 Release。
+欢迎通过 [Issue 模板](https://github.com/ShaoClean/remote-git/issues/new/choose)报告问题、提出功能或优化建议，也可以从[公开 TODO 看板](https://github.com/users/ShaoClean/projects/1)了解进展、挑选任务。计划中的能力以 Issue 为准。
 
-Release 说明由 git-cliff 按 `cliff.toml` 分类生成，包含新功能、Bug 修复、性能优化、重构和不兼容变更。发布任务以同一 first-parent 发布线上上一已公开稳定版本为起点，失败构建留下的 tag 不会截断本次变更。说明写入草稿正文，重跑草稿时也会刷新；预览命令和完整规则见 [CONTRIBUTE.md](CONTRIBUTE.md)。
-
-安装包命名为 `RemoteGit-<version>-<mac|win|linux>-<arch>.<dmg|zip|exe|AppImage>`，其中 Linux x64 的 AppImage 使用架构名 `x86_64`。请保留工作流生成的 blockmap、`latest.yml`、`latest-linux.yml` 和 `SHA256SUMS`，不要单独替换安装包。发布仅使用 Actions 的 `GITHUB_TOKEN`，只有最终发布任务拥有 `contents: write`，无需个人令牌。此流程尚未配置平台签名证书。
-
-### 更新测试与发布验收
-
-```sh
-npm run test:hooks         # 在临时本地仓库验证推送拦截，不连接 GitHub
-npm run test:release-notes # 验证分类、发布范围和失败 tag 的处理
-npm run desktop:test:unit  # 更新服务、平台适配、IPC、发布元数据
-npm run desktop:build
-npm run desktop:test      # 隔离数据目录；模拟更新源，无真实下载/安装
-npm run dist -w desktop -- --publish never
-node apps/desktop/scripts/test-packaged.mjs
-```
-
-Linux CI 的桌面测试使用 `xvfb-run -a`。测试中的模拟更新适配器只在 `--smoke-test` 且提供隔离数据目录时启用，测试不会连接 GitHub，也不会启动安装程序。
-
-发布前还需使用两个递增版本做实际升级验收：Windows NSIS 和 Linux AppImage 验证下载、用户确认重启、版本提升及原有连接/仓库数据保留；macOS 在两种架构验证 DMG 下载、校验、重启安装、数据保留及安装失败恢复。自动测试不替代正式安装包的这些验收步骤。验收记录应列明版本、操作系统、架构、结果和未验证项；未验证的平台不得标记为已完成自动升级验收。
-
-若本机 npm 配置禁用了安装脚本，首次启动前执行 `node node_modules/electron/install.js` 下载 Electron。构建脚本会在隔离的暂存目录中为 Electron 重建 SQLite，保留网页开发所用的 Node.js 原生模块。
-
-## 桌面行为与数据
-
-- 一个应用实例，重复启动会激活已有窗口；支持窗口尺寸恢复、原生菜单、缩放、全屏和复制粘贴。
-- macOS 关闭窗口后仍可从 Dock 重新打开，使用 `Cmd+Q` 退出。Windows / Linux 关闭最后一个窗口即退出。
-- `Cmd/Ctrl+1` 打开连接，`Cmd/Ctrl+2` 打开仓库。
-- 本地服务仅监听 `127.0.0.1` 的随机端口，并要求每次启动生成的访问令牌；HTTP 和 WebSocket 请求均由 Electron 主进程自动认证。
-- 页面启用沙箱和上下文隔离，禁用 Node.js 集成。界面和后端均包含在安装包中；连接远程仓库仍需要网络。
-- 数据目录：macOS 为 `~/Library/Application Support/RemoteGit`；Windows 为 `%APPDATA%/RemoteGit`；Linux 通常为 `~/.config/RemoteGit`。
-- 首次桌面启动时，若旧版 `~/.remote-git/remote-git.db` 存在且桌面数据库不存在，会通过 SQLite 在线备份导入。旧数据库保留；之后桌面版与网页版分别保存数据。
-- 退出应用会关闭 SSH 连接、数据库与本地服务。
-
-集成测试使用临时数据目录，验证实际 Electron 页面、深链接刷新、SQLite 增删查、HTTP / WebSocket 认证和页面沙箱，不会连接远程服务器或修改已有数据。也可用 `REMOTE_GIT_TEST_EXECUTABLE` 指定已打包应用的可执行文件进行同样的测试。
-
-## 提交历史与分支图
-
-“提交历史”以多列提交图展示仓库现有引用可达的提交，包括其他本地分支、远程跟踪分支、标签及游离 HEAD。彩色连线根据真实父提交关系绘制；引用过多时显示数量提示，悬停或打开详情可查看完整名称。浏览历史不会自动获取远端数据。
-
-每次加载 50 条，“加载更多提交”追加记录并保留选择与滚动位置，直到历史末尾。浏览期间引用或浅克隆边界变化时，会保留已加载记录并提示刷新；失败可重试。浅克隆仅展示本地已获取的历史。
-
-选中提交后，上方保留提交图，下方展示文件变更与 Diff，可拖动分隔线调整高度。合并提交默认对比第一父提交。窄窗口进入详情后，通过“返回列表”恢复浏览位置。设计、截图和验证结果见 [Issue #36 验收](https://github.com/ShaoClean/remote-git/wiki/Issue-36-Validation)。
-
-## 工作区布局
-
-仓库页分支旁的 **Worktrees** 可查看关联工作区的路径、分支或游离 HEAD。点击后会在独立标签页打开完整仓库页面，并自动加入当前连接下的仓库列表；重复打开会切换到已有标签。各工作区的状态、Diff、提交草稿和 Git 操作使用各自目录，关闭标签不会移除登记或删除远端目录。列表支持刷新，目录失效或读取失败时会显示错误并允许重试。本功能不创建或删除 worktree。设计与验证结果见 [Issue #29](https://github.com/ShaoClean/remote-git/wiki/Issue-29)。
-
-新建文件无需暂存即可查看相对空版本的差异，支持统一、分栏和放大查看。暂存后再次编辑的文件会同时出现在“已暂存”和“未暂存”分组，分别显示暂存内容与后续工作区改动；没有首次提交的仓库也可暂存、取消暂存和预览。
-
-空文件显示“新增空文件”，二进制文件和无法读取的文件有明确反馈。预览支持 UTF-8 文本，新增文件/暂存内容及差异输出限制为 1 MiB，差异补丁最多 10,000 行；超限时显示提示。预览不写入文件或暂存区。验证范围和结果见 [新增文件差异预览验收](https://github.com/ShaoClean/remote-git/wiki/Issue-18-Validation)。
-
-工作区采用左侧仓库导航、中央 Diff、右侧改动与提交布局。顶栏按钮可分别隐藏或重新打开两侧面板，Diff 工具栏的“专注阅读差异”可一次隐藏两侧。左下角的应用菜单集中提供设置与帮助；左栏隐藏时，菜单移至顶栏。
-
-两侧面板支持拖动调宽，也可在“设置 → 布局”调整显隐、宽度、默认 Diff 模式或恢复默认。分隔线支持方向键、Shift 加速和 Home / End；`Cmd/Ctrl+B` 切换左侧，`Cmd/Ctrl+Shift+B` 切换右侧，`Cmd/Ctrl+,` 打开设置，原有 `Cmd/Ctrl+\` 仍可切换左侧。布局偏好在本机保存，恢复默认不会清除工作区树的展开与排序设置。分栏 Diff 的长行自动折行。
-
-窄窗口选择文件或提交后进入检查器，使用“返回列表”继续操作。提交摘要和描述在本次页面会话内按仓库保留；刷新页面会清空草稿。
-
-本次重构截图与验证结果见 [Issue #31 验收](https://github.com/ShaoClean/remote-git/wiki/Issue-31-Validation)。既有工作区布局记录见 [工作区布局验收](https://github.com/ShaoClean/remote-git/wiki/Issue-6-Validation)。
+提交 PR 前请阅读[贡献指南](.github/CONTRIBUTING.md)，关联对应 Issue 并记录验证结果。设计、验收和配套截图统一维护在 Wiki，文档归属及旧路径见[维护约定](https://github.com/ShaoClean/remote-git/wiki/Contributing)与[迁移清单](https://github.com/ShaoClean/remote-git/wiki/Migration-25)。
