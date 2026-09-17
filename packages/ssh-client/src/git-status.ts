@@ -32,7 +32,7 @@ export function parseStatus(output: string): RepositoryStatus & {
   };
   for (let i = 0; i < tokens.length; i++) {
     const raw = tokens[i];
-    if (raw.startsWith('# branch.head ')) result.branch = raw.slice(14);
+    if (raw.startsWith('# branch.head ')) result.branch = raw.slice(14) === '(detached)' ? '' : raw.slice(14);
     else if (raw.startsWith('# branch.oid ')) result.head = raw.slice(13);
     else if (raw.startsWith('# branch.ab ')) {
       const match = raw.match(/\+(\d+) -(\d+)/);

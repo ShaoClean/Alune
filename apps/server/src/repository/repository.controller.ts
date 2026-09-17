@@ -57,7 +57,40 @@ export class RepositoryController {
 
   @Get(':id/status')
   async getStatus(@Param('id', ParseUUIDPipe) id: string) {
-    return this.repoService.getStatus(id);
+    try {
+      return await this.repoService.getStatus(id);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(error instanceof Error ? error.message : '无法读取仓库状态');
+    }
+  }
+
+  @Get(':id/worktrees')
+  async getWorktrees(@Param('id', ParseUUIDPipe) id: string) {
+    try {
+      return await this.repoService.getWorktrees(id);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(error instanceof Error ? error.message : '无法读取 Worktree 列表');
+    }
+  }
+
+  @Post(':id/worktrees/open')
+  async openWorktree(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { path?: unknown },
+  ) {
+    if (typeof body?.path !== 'string' || !body.path || body.path.includes('\0'))
+      throw new BadRequestException('请选择有效的 Worktree 路径。');
+    try {
+      return await this.repoService.openWorktree(id, body.path);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(
+        '无法打开 Worktree，请确认目录仍存在且可访问：' +
+        (error instanceof Error ? error.message : '远程读取失败'),
+      );
+    }
   }
 
   @Get(':id/log')

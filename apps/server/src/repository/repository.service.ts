@@ -2,13 +2,79 @@ import { Injectable, Inject, NotFoundException, GatewayTimeoutException } from '
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { ConnectionService } from '../connection/connection.service';
-import { GitCommands } from '@remote-git/ssh-client';
+import { GitCommands, GitWorktrees, worktreePathKey } from '@remote-git/ssh-client';
 import { REPOSITORY_STATUS_TIMEOUT_MS } from '@remote-git/shared';
 import type { Repository, RepositoryStatus, DiffOptions, LogOptions } from '@remote-git/shared';
 
 @Injectable()
 export class RepositoryService {
   private statusRequests = new Map<string, Promise<RepositoryStatus>>();
+
+  private async withWorktrees<T>(
+    id: string,
+    operation: (repo: Repository, git: GitWorktrees, signal: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new GatewayTimeoutException('Worktree 查询超时，请重试');
+        controller.abort(error);
+        reject(error);
+      }, REPOSITORY_STATUS_TIMEOUT_MS);
+    });
+    const work = (async () => {
+      const repo = await this.get(id);
+      const connection = await this.connectionService.ensureConnected(repo.connectionId);
+      controller.signal.throwIfAborted();
+      return operation(repo, new GitWorktrees(connection), controller.signal);
+    })();
+    return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  getWorktrees(id: string) {
+    return this.withWorktrees(id, (repo, git, signal) => git.list(repo.path, signal));
+  }
+
+  openWorktree(id: string, selectedPath: string): Promise<Repository> {
+    return this.withWorktrees(id, async (repo, git, signal) => {
+      const path = await git.resolve(repo.path, selectedPath, signal);
+      const key = worktreePathKey(path);
+      // Resolve aliases only during an explicit open; the local registry stays offline-capable.
+      const repositories = await this.list(repo.connectionId);
+      let existing = repositories.find((item) => worktreePathKey(item.path) === key);
+      if (!existing) {
+        for (const item of repositories) {
+          try {
+            if (worktreePathKey(await git.canonicalPath(item.path, signal)) === key) {
+              existing = item;
+              break;
+            }
+          } catch {
+            signal.throwIfAborted();
+            // An unrelated stale registration must not prevent opening a valid worktree.
+          }
+        }
+      }
+      signal.throwIfAborted();
+      // No await between the last lookup and insert: opens from different parent
+      // repositories/windows cannot create duplicate registrations.
+      return this.db.transaction(() => {
+        if (!this.db.prepare('SELECT id FROM repositories WHERE id = ?').get(id))
+          throw new NotFoundException('原仓库已被移除，请重新打开仓库列表。');
+        if (existing && this.db.prepare('SELECT id FROM repositories WHERE id = ?').get(existing.id))
+          return existing;
+        const row = this.db.prepare(
+          'SELECT * FROM repositories WHERE connection_id = ? AND path = ? ORDER BY created_at, id LIMIT 1',
+        ).get(repo.connectionId, path) as any;
+        if (row) return { id: row.id, connectionId: row.connection_id, name: row.name, path: row.path };
+        const registered: Repository = { id: uuidv4(), connectionId: repo.connectionId, name: this._repoName(path), path };
+        this.db.prepare('INSERT INTO repositories (id, connection_id, name, path) VALUES (?, ?, ?, ?)')
+          .run(registered.id, registered.connectionId, registered.name, registered.path);
+        return registered;
+      })();
+    });
+  }
 
   constructor(
     @Inject('DATABASE') private db: Database.Database,

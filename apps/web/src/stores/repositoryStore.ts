@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { StateCreator } from 'zustand';
 import { REPOSITORY_STATUS_CACHE_MS } from '@remote-git/shared';
-import type { RepositoryStatus, GraphCommit } from '@remote-git/shared';
+import type { Repository, RepositoryStatus, GraphCommit } from '@remote-git/shared';
 import { repositoryApi } from '../api';
 import { hydrateWorkspace, useWorkspaceStore } from './workspaceStore';
 
@@ -69,6 +69,7 @@ interface RepositoryState {
   fetchRepositories: (connectionId?: string) => Promise<void>;
   scanRepositories: (connectionId: string, path: string) => Promise<string[]>;
   addRepository: (connectionId: string, path: string) => Promise<any>;
+  addWorktree: (id: string, path: string) => Promise<Repository>;
   deleteRepository: (id: string) => Promise<void>;
   openRepository: (repo: any) => void;
   closeRepository: (id: string) => void;
@@ -332,6 +333,20 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       removed.delete(repo.id);
       set((state) => ({ repositories: [...state.repositories, repo] }));
       useWorkspaceStore.getState().addRepository(repo);
+      return repo;
+    },
+
+    addWorktree: async (id, path) => {
+      const repo = await repositoryApi.openWorktree(id, path);
+      registryRevision += 1;
+      removed.delete(repo.id);
+      set((state) => ({
+        repositories: state.repositories.some((item) => item.id === repo.id)
+          ? state.repositories.map((item) => item.id === repo.id ? { ...item, ...repo } : item)
+          : [...state.repositories, repo],
+      }));
+      useWorkspaceStore.getState().addRepository(repo);
+      // Navigation belongs to the initiating view, which may have closed meanwhile.
       return repo;
     },
 

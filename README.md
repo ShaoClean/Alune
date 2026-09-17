@@ -27,6 +27,7 @@ npm run desktop:dev
 npm run desktop:pack  # 生成当前系统可运行的应用目录
 npm run desktop:dist  # 生成当前系统安装包
 npm run desktop:test  # 构建后执行桌面集成测试
+npm run desktop:test:worktrees # 构建并在隔离 SSH 环境验证 worktree 标签与操作
 ```
 
 产物位于 `apps/desktop/release/`。macOS 生成 `.app`、DMG 和 ZIP；Windows 配置 NSIS 安装程序；Linux 配置 AppImage。请在对应系统构建和验证，原生 SQLite 模块需要匹配目标系统和架构。默认生成当前机器架构。
@@ -118,6 +119,8 @@ Linux CI 的桌面测试使用 `xvfb-run -a`。测试中的模拟更新适配器
 选中提交后，上方保留提交图，下方展示文件变更与 Diff，可拖动分隔线调整高度。合并提交默认对比第一父提交。窄窗口进入详情后，通过“返回列表”恢复浏览位置。设计、截图和验证结果见 [Issue #36 验收](https://github.com/ShaoClean/remote-git/wiki/Issue-36-Validation)。
 
 ## 工作区布局
+
+仓库页分支旁的 **Worktrees** 可查看关联工作区的路径、分支或游离 HEAD。点击后会在独立标签页打开完整仓库页面，并自动加入当前连接下的仓库列表；重复打开会切换到已有标签。各工作区的状态、Diff、提交草稿和 Git 操作使用各自目录，关闭标签不会移除登记或删除远端目录。列表支持刷新，目录失效或读取失败时会显示错误并允许重试。本功能不创建或删除 worktree。设计与验证结果见 [Issue #29](https://github.com/ShaoClean/remote-git/wiki/Issue-29)。
 
 新建文件无需暂存即可查看相对空版本的差异，支持统一、分栏和放大查看。暂存后再次编辑的文件会同时出现在“已暂存”和“未暂存”分组，分别显示暂存内容与后续工作区改动；没有首次提交的仓库也可暂存、取消暂存和预览。
 

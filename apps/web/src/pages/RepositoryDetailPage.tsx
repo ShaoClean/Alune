@@ -30,6 +30,7 @@ import { ErrorState, LoadingState, formatBranchName, FileIcon } from '../compone
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 import { CHANGES_MIN } from '../stores/workspaceLayout';
 import { PanelResizeHandle } from '../components/PanelResizeHandle';
+import { WorktreesMenu } from '../components/WorktreesMenu';
 
 type Panel = 'changes' | 'history' | 'branches' | 'stashes' | 'remotes';
 type SelectedFile = { path: string; status: string; staged: boolean };
@@ -407,6 +408,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                 </span>
                 <DownOutlined />
               </button>
+              <WorktreesMenu key={id} repoId={id!} />
               <span className="workspace-diff-label">
                 {activePanel === 'changes' ? '工作区中的更改' : activeLabel}
               </span>

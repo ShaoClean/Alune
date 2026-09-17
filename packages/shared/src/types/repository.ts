@@ -17,6 +17,19 @@ export interface RepositoryStatus {
   files: FileStatus[];
 }
 
+export interface WorktreeInfo {
+  path: string;
+  head?: string;
+  branch?: string;
+  detached: boolean;
+  bare: boolean;
+  locked: boolean;
+  lockedReason?: string;
+  prunable: boolean;
+  prunableReason?: string;
+  isCurrent: boolean;
+}
+
 // The server bounds SSH + Git work; the client allows a little time for transport.
 export const REPOSITORY_STATUS_TIMEOUT_MS = 10_000;
 export const REPOSITORY_STATUS_REQUEST_TIMEOUT_MS = 12_000;
