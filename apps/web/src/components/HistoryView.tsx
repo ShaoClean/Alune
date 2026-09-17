@@ -134,6 +134,17 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
   const start = Math.max(0, Math.floor((scrollTop - GRAPH_ROW_HEIGHT) / GRAPH_ROW_HEIGHT) - 12);
   const end = Math.min(log.length, start + Math.ceil(height / GRAPH_ROW_HEIGHT) + 25);
   const graphWidth = Math.max(72, graph.width * GRAPH_LANE_WIDTH + 24);
+  const updateScrollTop = (value: number) => {
+    scrollTopRef.current = value;
+    setScrollTop(value);
+  };
+  useEffect(() => {
+    const element = viewport.current;
+    if (!element) return;
+    const handleScroll = () => updateScrollTop(element.scrollTop);
+    element.addEventListener('scroll', handleScroll);
+    return () => element.removeEventListener('scroll', handleScroll);
+  }, []);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!log.length) return;
     let index = focused;
@@ -206,10 +217,7 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
         <div
           className="history-viewport"
           ref={viewport}
-          onScroll={(event) => {
-            scrollTopRef.current = event.currentTarget.scrollTop;
-            setScrollTop(event.currentTarget.scrollTop);
-          }}
+          onScroll={(event) => updateScrollTop(event.currentTarget.scrollTop)}
         >
           <div
             className="history-table"
