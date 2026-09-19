@@ -51,12 +51,12 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     status,
     diff,
     diffLoading,
-    diffRefreshing,
     worktreeDiffRevision,
     diffError,
     setCurrentRepo,
     resetWorkspace,
     fetchStatus,
+    observeRepository,
     fetchLog,
     fetchBranches,
     fetchStashes,
@@ -66,6 +66,11 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     error,
   } = useRepositoryStore();
   const { entry: statusEntry, stale: statusStale } = useRepositoryStatus(id || '');
+  const statusFailed = statusEntry?.phase === 'error';
+  // Refresh cached status without inserting a notice that moves the Diff below it.
+  useEffect(() => {
+    if (id && statusStale && !statusFailed) return observeRepository(id);
+  }, [id, statusStale, statusFailed, observeRepository]);
   const [activePanel, setActivePanel] = useState<Panel>('changes');
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -297,11 +302,11 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         }
       >
         <div className="workspace-center">
-          {(statusEntry?.phase === 'error' || statusStale || !status) && (
+          {(statusFailed || !status) && (
             <div className="repository-status-notice" role="status">
               <RepositoryStatusIndicator id={id!} />
               {statusEntry?.error && <span>{statusEntry.error}</span>}
-              {(statusEntry?.phase === 'error' || statusStale) && (
+              {statusFailed && (
                 <button type="button" className="text-button" onClick={() => void fetchStatus(id!)}>
                   重试状态
                 </button>
@@ -333,7 +338,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                 <DiffViewer
                   diff={diff}
                   loading={diffLoading}
-                  refreshing={diffRefreshing}
                   comparisonKey={JSON.stringify([id, selectedFile.path, selectedFile.staged])}
                   error={diffError}
                   title={detailTitle}

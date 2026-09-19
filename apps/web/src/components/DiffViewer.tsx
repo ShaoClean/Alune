@@ -16,7 +16,6 @@ interface Props {
   splitView?: boolean;
   onClose?: () => void;
   loading?: boolean;
-  refreshing?: boolean;
   comparisonKey?: string;
   error?: string | null;
 }
@@ -113,7 +112,6 @@ export function DiffViewer({
   splitView,
   onClose,
   loading = false,
-  refreshing = false,
   comparisonKey,
   error,
 }: Props) {
@@ -237,7 +235,6 @@ export function DiffViewer({
             </div>
           </div>
           <div className="diff-toolbar">
-            {refreshing && <span role="status">正在更新差异…</span>}
             <span className="diff-mode">视图</span>
             <Segmented
               size="small"
