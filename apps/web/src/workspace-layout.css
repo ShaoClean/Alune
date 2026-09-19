@@ -660,8 +660,9 @@
 }
 .changes-panel .commit-box {
   flex: 0 0 auto;
+  gap: 7px;
   margin: 0;
-  padding: 12px 14px 8px;
+  padding: 12px 14px;
   border: 0;
   border-top: 1px solid var(--line);
   border-radius: 0;
@@ -670,7 +671,7 @@
 }
 .commit-box__heading {
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 1px;
 }
 .commit-box__heading strong {
   font-size: 12px;
@@ -684,10 +685,6 @@
 }
 .changes-panel .commit-box .ant-btn {
   font-size: 12px;
-}
-.changes-panel .commit-box__hint {
-  margin-top: 7px;
-  text-align: center;
 }
 
 @media (max-width: 899px) {
@@ -763,21 +760,16 @@
 
 @media (max-height: 700px) {
   .changes-panel .commit-box {
+    gap: 6px;
     padding: 8px 12px;
-  }
-  .changes-panel .commit-box__heading {
-    margin-bottom: 6px;
   }
   .changes-panel .commit-box textarea {
     height: 32px;
     min-height: 32px;
     resize: none;
   }
-  .changes-panel .commit-box__hint {
+  .changes-panel .commit-ai-bar__hint {
     display: none;
-  }
-  .changes-panel .commit-box .ant-input {
-    margin-bottom: 6px;
   }
 }
 
