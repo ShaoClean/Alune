@@ -242,6 +242,8 @@ button { cursor: pointer; }
 .connection-dot--connected, .connection-dot--ready { background: #4ade80; box-shadow: 0 0 0 3px rgb(74 222 128 / 12%); }
 .connection-dot--connecting { background: #fbbf24; }
 .connection-dot--error { background: #f87171; }
+/* Never attempted reads as hollow, so it cannot be mistaken for a closed connection. */
+.connection-dot--unknown { background: transparent; box-shadow: inset 0 0 0 1.5px #8390a2; }
 .tree-empty { padding: 14px 9px; color: #75849b; font-size: 12px; }
 .resource-sidebar__footer { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-top: 1px solid rgb(255 255 255 / 7%); }
 .sidebar-footer__version { color: #687991; font-family: 'DM Mono', monospace; font-size: 10px; }

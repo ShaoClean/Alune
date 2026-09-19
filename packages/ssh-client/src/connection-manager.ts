@@ -399,14 +399,29 @@ export class SSHConnectionPool extends EventEmitter {
   createConnection(id: string, options: SSHConnectionOptions): SSHConnection {
     const existing = this.connections.get(id);
     if (existing) {
+      // Remove the old entry before closing it so its late events cannot describe
+      // the replacement connection.
+      this.connections.delete(id);
       existing.disconnect();
     }
 
     const conn = new SSHConnection(options);
-
-    conn.on('connect', () => this.emit('connection:connected', id));
-    conn.on('disconnect', () => this.emit('connection:disconnected', id));
-    conn.on('error', (err) => this.emit('connection:error', id, err));
+    const isCurrent = () => this.connections.get(id) === conn;
+    conn.on('connecting', () => {
+      if (isCurrent()) this.emit('connection:connecting', id);
+    });
+    conn.on('reconnecting', () => {
+      if (isCurrent()) this.emit('connection:connecting', id);
+    });
+    conn.on('connect', () => {
+      if (isCurrent()) this.emit('connection:connected', id);
+    });
+    conn.on('disconnect', () => {
+      if (isCurrent()) this.emit('connection:disconnected', id);
+    });
+    conn.on('error', (err) => {
+      if (isCurrent()) this.emit('connection:error', id, err);
+    });
 
     this.connections.set(id, conn);
     return conn;
@@ -419,16 +434,17 @@ export class SSHConnectionPool extends EventEmitter {
   removeConnection(id: string): void {
     const conn = this.connections.get(id);
     if (conn) {
-      conn.disconnect();
       this.connections.delete(id);
+      conn.disconnect();
     }
   }
 
   disconnectAll(): void {
-    for (const conn of this.connections.values()) {
+    const connections = [...this.connections.values()];
+    this.connections.clear();
+    for (const conn of connections) {
       conn.disconnect();
     }
-    this.connections.clear();
   }
 }
 

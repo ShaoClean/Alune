@@ -7,8 +7,9 @@ import {
   HolderOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import type { Repository } from '@remote-git/shared';
+import type { ConnectionStatusInfo, Repository } from '@remote-git/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
+import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { RepositoryStatusIndicator } from './RepositoryStatusIndicator';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { canMoveTreeItem, orderItems } from '../stores/sidebarOrder';
@@ -17,12 +18,11 @@ import type { Placement, TreeItem } from '../stores/sidebarOrder';
 interface Connection {
   id: string;
   name: string;
-  status?: string;
 }
 interface Props {
   connections: Connection[];
   repositories: Repository[];
-  testResults: Record<string, { success: boolean }>;
+  statuses: Record<string, ConnectionStatusInfo>;
   activeId?: string;
   query?: string;
   onOpenRepository: (repo: Repository) => void;
@@ -32,7 +32,7 @@ type DropTarget = { item: TreeItem; placement: Placement };
 export function WorkspaceTree({
   connections,
   repositories,
-  testResults,
+  statuses,
   activeId,
   query = '',
   onOpenRepository,
@@ -293,7 +293,15 @@ export function WorkspaceTree({
                       {open ? <DownOutlined /> : <RightOutlined />}
                     </span>
                     <span
-                      className={`connection-dot connection-dot--${connection.status || (testResults[connection.id]?.success ? 'connected' : testResults[connection.id] ? 'error' : 'disconnected')}`}
+                      role="img"
+                      aria-label={`连接状态：${connectionStatusLabel(statuses[connection.id])}`}
+                      title={[
+                        connectionStatusLabel(statuses[connection.id]),
+                        statuses[connection.id]?.error,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                      className={`connection-dot connection-dot--${connectionStatus(statuses[connection.id])}`}
                     />
                     <span className="tree-node__label" title={connection.name}>
                       {connection.name}

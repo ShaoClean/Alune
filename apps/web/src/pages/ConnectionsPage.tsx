@@ -21,6 +21,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { useConnectionStore } from '../stores/connectionStore';
+import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { EmptyState, LoadingState, StatusBadge } from '../components/ui';
 
 interface ConnectionFormValues {
@@ -36,10 +37,17 @@ interface ConnectionFormValues {
 
 export function ConnectionsPage() {
   const navigate = useNavigate();
-  const { connections, loading, fetchConnections, addConnection, deleteConnection, testConnection } = useConnectionStore();
+  const {
+    connections,
+    statuses,
+    loading,
+    fetchConnections,
+    addConnection,
+    deleteConnection,
+    testConnection,
+  } = useConnectionStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [testLoading, setTestLoading] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<Record<string, { success: boolean; error?: string }>>({});
   const [form] = Form.useForm<ConnectionFormValues>();
 
   useEffect(() => {
@@ -61,7 +69,6 @@ export function ConnectionsPage() {
     setTestLoading(id);
     try {
       const result = await testConnection(id);
-      setTestResults((previous) => ({ ...previous, [id]: result }));
       if (result.success) message.success('连接成功');
       else message.error(result.error || '连接失败');
     } catch (err: any) {
@@ -95,7 +102,7 @@ export function ConnectionsPage() {
 
       <div className="stat-strip">
         <div className="stat-card"><div className="stat-card__label">已配置连接</div><div className="stat-card__value">{connections.length}</div><div className="stat-card__hint">当前工作区中的 SSH 端点</div></div>
-        <div className="stat-card"><div className="stat-card__label">已验证在线</div><div className="stat-card__value">{Object.values(testResults).filter((result) => result.success).length}</div><div className="stat-card__hint">根据最近一次连接测试</div></div>
+        <div className="stat-card"><div className="stat-card__label">当前在线</div><div className="stat-card__value">{Object.values(statuses).filter((info) => info.status === 'connected').length}</div><div className="stat-card__hint">根据实际 SSH 连接状态</div></div>
         <div className="stat-card"><div className="stat-card__label">仓库</div><div className="stat-card__value">打开资源树</div><div className="stat-card__hint">从侧边栏浏览仓库</div></div>
       </div>
 
@@ -104,13 +111,16 @@ export function ConnectionsPage() {
       ) : (
         <div className="connection-grid">
           {connections.map((connection: any) => {
-            const result = testResults[connection.id];
-            const state = result ? (result.success ? 'connected' : 'error') : 'offline';
+            const info = statuses[connection.id];
+            const state = connectionStatus(info);
             return (
               <article className="connection-card" key={connection.id}>
                 <div className="connection-card__top">
                   <div className="connection-card__title"><ApartmentOutlined /> <span>{connection.name}</span></div>
-                  <StatusBadge status={state} label={result?.success ? '在线' : result?.success === false ? '认证失败' : '未测试'} />
+                  <StatusBadge
+                    status={state === 'disconnected' ? 'offline' : state}
+                    label={connectionStatusLabel(info)}
+                  />
                 </div>
                 <div className="connection-card__meta">
                   <div><strong>主机</strong> {connection.username}@{connection.host}:{connection.port}</div>
@@ -123,7 +133,7 @@ export function ConnectionsPage() {
                     <Button size="small" danger icon={<DeleteOutlined />} aria-label={`删除 ${connection.name}`} />
                   </Popconfirm>
                 </div>
-                {result?.error && <div className="connection-card__error"><WarningOutlined /> {result.error}</div>}
+                {info?.error && <div className="connection-card__error"><WarningOutlined /> {info.error}</div>}
               </article>
             );
           })}
