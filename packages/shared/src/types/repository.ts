@@ -115,6 +115,40 @@ export interface DiffOptions {
   parentCommit?: string;
 }
 
+export type DiffImageSide = 'before' | 'after';
+
+export interface DiffImageOptions extends DiffOptions {
+  file: string;
+  side: DiffImageSide;
+}
+
+export interface DiffImageContent {
+  path: string;
+  side: DiffImageSide;
+  mediaType: string;
+  byteLength: number;
+  // Base64 payload; the page renders it as a data URL without a second request.
+  content: string;
+}
+
+// Browser-renderable formats only. Other binaries keep the existing notice.
+export const DIFF_IMAGE_MEDIA_TYPES: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+};
+
+export const DIFF_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+export function diffImageMediaType(path: string): string | null {
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const dot = name.lastIndexOf('.');
+  if (dot <= 0) return null;
+  return DIFF_IMAGE_MEDIA_TYPES[name.slice(dot + 1).toLowerCase()] || null;
+}
+
 export interface LogOptions {
   branch?: string;
   file?: string;

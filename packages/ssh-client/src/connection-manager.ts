@@ -19,6 +19,8 @@ export interface CommandResult {
   exitCode: number | null;
   stdout: string;
   stderr: string;
+  // Populated instead of `stdout` when a command is read in binary mode.
+  stdoutBytes?: Buffer;
 }
 
 export class CommandOutputLimitError extends Error {
@@ -119,7 +121,7 @@ export class SSHConnection extends EventEmitter {
     command: string,
     cwd?: string,
     signal?: AbortSignal,
-    options?: { maxOutputBytes?: number; strictUtf8?: boolean },
+    options?: { maxOutputBytes?: number; strictUtf8?: boolean; binary?: boolean },
   ): Promise<CommandResult> {
     signal?.throwIfAborted();
     const client = this._ensureConnected();
@@ -178,9 +180,13 @@ export class SSHConnection extends EventEmitter {
             const output = Buffer.concat(stdout);
             resolve({
               exitCode,
-              stdout: options?.strictUtf8
-                ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(output)
-                : output.toString('utf8'),
+              // Binary payloads (image blobs) must never pass through a text decoder.
+              stdout: options?.binary
+                ? ''
+                : options?.strictUtf8
+                  ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(output)
+                  : output.toString('utf8'),
+              ...(options?.binary ? { stdoutBytes: output } : {}),
               stderr: Buffer.concat(stderr).toString('utf8'),
             });
           } catch (error) {

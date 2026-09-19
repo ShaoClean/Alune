@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, Segmented } from 'antd';
 import { CloseOutlined, DiffOutlined, ExpandOutlined } from '@ant-design/icons';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
-import { getNumberedDiffLines, getDiffNotice } from './diff-lines';
+import { getNumberedDiffLines, getDiffNotice, getImageDiffKind } from './diff-lines';
 import type { NumberedDiffLine } from './diff-lines';
+import { ImageDiffView } from './ImageDiffView';
+import type { DiffImageOptions } from '@remote-git/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 
 interface Props {
@@ -17,6 +19,10 @@ interface Props {
   onClose?: () => void;
   loading?: boolean;
   comparisonKey?: string;
+  // Set together to enable image previews for the compared file.
+  repoId?: string;
+  filePath?: string;
+  imageRequest?: Omit<DiffImageOptions, 'file' | 'side'>;
   error?: string | null;
 }
 
@@ -113,6 +119,9 @@ export function DiffViewer({
   onClose,
   loading = false,
   comparisonKey,
+  repoId,
+  filePath,
+  imageRequest,
   error,
 }: Props) {
   const preferredMode = useWorkspaceStore((state) => state.layout.diffMode);
@@ -205,6 +214,17 @@ export function DiffViewer({
             ? '请选择改动文件或提交以查看差异。'
             : '当前比较没有差异，请刷新仓库状态。'}
         </div>
+      );
+    const imageKind =
+      diff && repoId && filePath ? getImageDiffKind(diff, filePath) : null;
+    if (diff && imageKind && repoId && filePath)
+      return (
+        <ImageDiffView
+          repoId={repoId}
+          path={filePath}
+          kind={imageKind}
+          request={imageRequest || {}}
+        />
       );
     const notice = diff && getDiffNotice(diff);
     if (notice) return <div className="diff-empty">{notice}</div>;

@@ -1,6 +1,14 @@
 import axios from 'axios';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@remote-git/shared';
-import type { NewFileDeletionPreview, LogOptions, LogPage, Repository, WorktreeInfo } from '@remote-git/shared';
+import type {
+  DiffImageContent,
+  DiffImageOptions,
+  NewFileDeletionPreview,
+  LogOptions,
+  LogPage,
+  Repository,
+  WorktreeInfo,
+} from '@remote-git/shared';
 
 const api = axios.create({
   baseURL: '/api',
@@ -47,6 +55,14 @@ export const repositoryApi = {
     api.get(`/repositories/${id}/commit-files`, { params: { commit, parentCommit } }).then((r) => r.data),
   diff: (id: string, params?: any) =>
     api.get(`/repositories/${id}/diff`, { params }).then((r) => r.data),
+  diffImage: (
+    id: string,
+    params: DiffImageOptions,
+    signal?: AbortSignal,
+  ): Promise<DiffImageContent> =>
+    api
+      .get(`/repositories/${id}/diff-image`, { params, signal, timeout: 60000 })
+      .then((r) => r.data),
   branches: (id: string) => api.get(`/repositories/${id}/branches`).then((r) => r.data),
   stashes: (id: string) => api.get(`/repositories/${id}/stashes`).then((r) => r.data),
   remotes: (id: string) => api.get(`/repositories/${id}/remotes`).then((r) => r.data),

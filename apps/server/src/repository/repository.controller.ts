@@ -6,14 +6,19 @@ import {
   Get,
   Post,
   Delete,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Query,
   Body,
 } from '@nestjs/common';
 import { RepositoryService } from './repository.service';
-import { GitLogChangedError, GitLogOptionsError } from '@remote-git/ssh-client';
-import type { DiffOptions } from '@remote-git/shared';
+import {
+  DiffImageAbsentError,
+  GitLogChangedError,
+  GitLogOptionsError,
+} from '@remote-git/ssh-client';
+import type { DiffImageOptions, DiffOptions } from '@remote-git/shared';
 
 @Controller('repositories')
 export class RepositoryController {
@@ -142,6 +147,29 @@ export class RepositoryController {
       throw new BadRequestException(
         error instanceof Error ? error.message : '无法读取差异',
       );
+    }
+  }
+
+  @Get(':id/diff-image')
+  async getDiffImage(@Param('id', ParseUUIDPipe) id: string, @Query() query: any) {
+    if (typeof query.file !== 'string' || !query.file)
+      throw new BadRequestException('file is required');
+    if (query.side !== 'before' && query.side !== 'after')
+      throw new BadRequestException('side must be "before" or "after"');
+    const options: DiffImageOptions = {
+      file: query.file,
+      side: query.side,
+      staged: query.staged === true || query.staged === 'true' || query.staged === '1',
+      commit: typeof query.commit === 'string' ? query.commit : undefined,
+      parentCommit: typeof query.parentCommit === 'string' ? query.parentCommit : undefined,
+    };
+    try {
+      return await this.repoService.getDiffImage(id, options);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      // A missing side is a normal added/deleted case; the page must tell them apart.
+      if (error instanceof DiffImageAbsentError) throw new NotFoundException(error.message);
+      throw new BadRequestException(error instanceof Error ? error.message : '无法读取图片');
     }
   }
 

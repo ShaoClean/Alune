@@ -339,6 +339,9 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                   diff={diff}
                   loading={diffLoading}
                   comparisonKey={JSON.stringify([id, selectedFile.path, selectedFile.staged])}
+                  repoId={id}
+                  filePath={selectedFile.path}
+                  imageRequest={{ staged: selectedFile.staged }}
                   error={diffError}
                   title={detailTitle}
                   subtitle={

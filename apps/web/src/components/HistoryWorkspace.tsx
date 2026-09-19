@@ -240,6 +240,9 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
                 diff={diff}
                 loading={diffLoading}
                 comparisonKey={JSON.stringify([repoId, selected.hash, file?.path])}
+                repoId={repoId}
+                filePath={file?.path}
+                imageRequest={{ commit: selected.hash }}
                 error={diffError}
                 title={file?.path || '全部文件变更'}
                 onFocus={() => {
