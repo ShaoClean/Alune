@@ -106,3 +106,75 @@ test('line numbers follow each hunk and do not advance for patch metadata', () =
     ],
   );
 });
+
+test('refreshing the same comparison keeps readable content until the latest response', async () => {
+  repositoryApi.diff = async () => textPatch;
+  await store.getState().fetchDiff('repo', { file: 'new' });
+  const pending = [];
+  repositoryApi.diff = () => new Promise((resolve, reject) => pending.push({ resolve, reject }));
+  const first = store.getState().fetchDiff('repo', { staged: false, file: 'new' });
+  const second = store.getState().fetchDiff('repo', { file: 'new' });
+  assert.equal(store.getState().diff, textPatch);
+  assert.equal(store.getState().diffLoading, false);
+  assert.equal(store.getState().diffRefreshing, true);
+  pending[1].resolve('updated patch');
+  await second;
+  pending[0].reject(new Error('late refresh error'));
+  await first;
+  assert.equal(store.getState().diff, 'updated patch');
+  assert.equal(store.getState().diffRefreshing, false);
+  assert.equal(store.getState().diffError, null);
+});
+
+test('failed refresh hides outdated content, exposes the error and permits retry', async () => {
+  repositoryApi.diff = async () => textPatch;
+  await store.getState().fetchDiff('repo', { file: 'new' });
+  repositoryApi.diff = async () => {
+    throw new Error('offline');
+  };
+  await store.getState().fetchDiff('repo', { file: 'new' });
+  assert.equal(store.getState().diff, '');
+  assert.equal(store.getState().diffError, 'offline');
+  assert.equal(store.getState().diffRefreshing, false);
+  repositoryApi.diff = async () => '';
+  await store.getState().fetchDiff('repo', { file: 'new' });
+  assert.equal(store.getState().diff, '');
+  assert.equal(store.getState().diffError, null);
+  assert.equal(store.getState().diffLoading, false);
+});
+
+test('changing repository, file, side, commit or parent never retains another comparison', async () => {
+  const comparisons = [
+    { file: 'new' },
+    { file: 'other' },
+    { file: 'other', staged: true },
+    { file: 'other', commit: 'a' },
+    { file: 'other', commit: 'b' },
+    { file: 'other', commit: 'b', parentCommit: 'second-parent' },
+  ];
+  for (const params of comparisons) {
+    let resolve;
+    repositoryApi.diff = () =>
+      new Promise((done) => {
+        resolve = done;
+      });
+    const request = store.getState().fetchDiff('repo', params);
+    assert.equal(store.getState().diff, '');
+    assert.equal(store.getState().diffLoading, true);
+    assert.equal(store.getState().diffRefreshing, false);
+    resolve(textPatch);
+    await request;
+  }
+  let resolve;
+  repositoryApi.diff = () =>
+    new Promise((done) => {
+      resolve = done;
+    });
+  const refresh = store.getState().fetchDiff('repo', comparisons.at(-1));
+  store.getState().resetWorkspace('other-repo');
+  resolve('late refresh');
+  await refresh;
+  assert.equal(store.getState().diff, '');
+  assert.equal(store.getState().diffRefreshing, false);
+  assert.equal(store.getState().diffKey, null);
+});

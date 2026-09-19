@@ -51,6 +51,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     status,
     diff,
     diffLoading,
+    diffRefreshing,
+    worktreeDiffRevision,
     diffError,
     setCurrentRepo,
     resetWorkspace,
@@ -147,20 +149,33 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       setSelectedFile({ path: next.path, staged: next.staged, status: next.status });
   }, [status, selectedFile, compact, clearDiff]);
 
+  // Status polling replaces objects even when this comparison has not changed.
+  const selectedStatus = status?.files.find(
+    (file) => file.path === selectedFile?.path && file.staged === selectedFile?.staged,
+  );
+  const selectedStatusKey = selectedStatus
+    ? JSON.stringify([selectedStatus.status, selectedStatus.oldPath])
+    : null;
+
   useLayoutEffect(() => {
     if (activePanel !== 'changes') return;
-    if (
-      id &&
-      selectedFile &&
-      status?.files.some(
-        (file: SelectedFile) =>
-          file.path === selectedFile.path && file.staged === selectedFile.staged,
-      )
-    ) {
+    if (id && selectedFile && selectedStatusKey) {
       void fetchDiff(id, { file: selectedFile.path, staged: selectedFile.staged });
     } else clearDiff();
-    return clearDiff;
-  }, [id, activePanel, selectedFile?.path, selectedFile?.staged, status, fetchDiff, clearDiff]);
+  }, [
+    id,
+    activePanel,
+    selectedFile?.path,
+    selectedFile?.staged,
+    selectedStatusKey,
+    status?.branch,
+    worktreeDiffRevision,
+    fetchDiff,
+    clearDiff,
+  ]);
+
+  // Clear only when leaving the view, so a refresh can retain its mounted content.
+  useLayoutEffect(() => clearDiff, [id, activePanel, clearDiff]);
 
   const selectPanel = (panel: Panel) => {
     setActivePanel(panel);
@@ -168,7 +183,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     if (compact && panel === 'changes') updateLayout({ changesCollapsed: false });
   };
 
-  const handleRefresh = async (afterMutation = false) => {
+  // Explicit refreshes update the preview too; opening uses fetchStatus directly.
+  const handleRefresh = async (afterMutation = true) => {
     if (!id) return;
     await fetchStatus(id, afterMutation);
     if (activePanel === 'history') await fetchLog(id);
@@ -180,7 +196,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const runSync = async (operation: SyncOperation, options?: { force?: boolean }) => {
     if (!id || syncing) return;
     const force = Boolean(options?.force);
-    const label = operation === 'fetch' ? '获取' : operation === 'pull' ? '拉取' : force ? '强制推送' : '推送';
+    const label =
+      operation === 'fetch' ? '获取' : operation === 'pull' ? '拉取' : force ? '强制推送' : '推送';
     setSyncing(operation);
     setSyncingForce(force);
     startSync(id, operation, { force });
@@ -316,6 +333,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                 <DiffViewer
                   diff={diff}
                   loading={diffLoading}
+                  refreshing={diffRefreshing}
+                  comparisonKey={JSON.stringify([id, selectedFile.path, selectedFile.staged])}
                   error={diffError}
                   title={detailTitle}
                   subtitle={

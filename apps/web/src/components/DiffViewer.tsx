@@ -16,6 +16,8 @@ interface Props {
   splitView?: boolean;
   onClose?: () => void;
   loading?: boolean;
+  refreshing?: boolean;
+  comparisonKey?: string;
   error?: string | null;
 }
 
@@ -111,6 +113,8 @@ export function DiffViewer({
   splitView,
   onClose,
   loading = false,
+  refreshing = false,
+  comparisonKey,
   error,
 }: Props) {
   const preferredMode = useWorkspaceStore((state) => state.layout.diffMode);
@@ -128,7 +132,7 @@ export function DiffViewer({
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0, left: 0 });
     zoomBodyRef.current?.scrollTo({ top: 0, left: 0 });
-  }, [diff, error, loading, mode, title, zoomed]);
+  }, [comparisonKey, mode, title, zoomed]);
 
   const renderUnifiedDiff = (value: string) => {
     const lines = getNumberedDiffLines(value);
@@ -233,6 +237,7 @@ export function DiffViewer({
             </div>
           </div>
           <div className="diff-toolbar">
+            {refreshing && <span role="status">正在更新差异…</span>}
             <span className="diff-mode">视图</span>
             <Segmented
               size="small"
