@@ -52,6 +52,12 @@ const statusWords: Record<string, string> = {
   ignored: '已忽略',
 };
 
+const GENERATION_SCOPE = '仅分析已暂存改动 · 由你确认后提交';
+
+// Reordering the form must not change when committing is allowed.
+export const commitDisabled = (busy: boolean, stagedCount: number, message: string) =>
+  busy || !stagedCount || !message.trim();
+
 export function ChangesView({
   repoId,
   onRefresh,
@@ -75,6 +81,7 @@ export function ChangesView({
     stagedFiles.map((file) => [file.path, file.status, file.oldPath]),
   );
   const ai = useCommitGeneration(repoId, stagedSignature, stagedFiles.length);
+  const modelLabel = ai.model ? ai.model.model.name : '尚未配置 AI';
   const unstagedFiles = useMemo(() => files.filter((file: any) => !file.staged), [files]);
   const addedPaths = useMemo(
     () => new Set(files.filter((file) => file.status === 'added').map((file) => file.path)),
@@ -290,10 +297,7 @@ export function ChangesView({
           onFileChanged={onFileChanged}
         />
       )}
-      <PanelHeader
-        title="改动"
-        icon={<FileAddOutlined />}
-      />
+      <PanelHeader title="改动" icon={<FileAddOutlined />} />
       <div className="changes-filter">
         <Input
           aria-label="筛选改动文件"
@@ -352,10 +356,10 @@ export function ChangesView({
           disabled={busy}
           onChange={(event) => updateDraft(repoId, { message: event.target.value })}
           suffix={
-            <Tooltip title="AI 生成提交信息">
+            <Tooltip title={ai.generating ? '正在生成提交信息' : '生成提交信息'}>
               <button
                 type="button"
-                className="commit-ai-button"
+                className="commit-ai-generate"
                 aria-label="AI 生成提交信息"
                 disabled={busy || ai.generating}
                 onClick={() => void ai.generate()}
@@ -373,27 +377,23 @@ export function ChangesView({
           onChange={(event) => updateDraft(repoId, { description: event.target.value })}
           rows={2}
         />
-        <Button
-          type="primary"
-          block
-          icon={<CheckOutlined />}
-          loading={loading}
-          disabled={busy || !stagedFiles.length || !draft.message.trim()}
-          onClick={() => void handleCommit()}
-        >
-          提交已暂存内容{stagedFiles.length > 0 ? ` · ${stagedFiles.length}` : ''}
-        </Button>
-        <div className="commit-ai-meta">
-          <span
+        <div className="commit-ai-bar">
+          <Tooltip
             title={
               ai.model ? `${ai.model.provider.name} · ${ai.model.model.id}` : '尚未配置默认模型'
             }
           >
-            {ai.model ? ai.model.model.name : '尚未配置 AI'}
-          </span>
-          <button type="button" onClick={() => ai.openSettings()} aria-label="提交生成设置">
-            <SettingOutlined /> 提交生成
-          </button>
+            <button
+              type="button"
+              className="commit-ai-bar__model"
+              aria-label={`AI 模型 ${modelLabel}，打开提交生成设置`}
+              onClick={() => ai.openSettings()}
+            >
+              <SettingOutlined />
+              <span>{modelLabel}</span>
+            </button>
+          </Tooltip>
+          <span className="commit-ai-bar__hint">{GENERATION_SCOPE}</span>
         </div>
         {ai.generating ? (
           <div className="commit-ai-feedback" role="status">
@@ -422,7 +422,16 @@ export function ChangesView({
             <UndoOutlined /> 撤销生成
           </button>
         )}
-        <div className="commit-box__hint">仅分析已暂存改动 · 由你确认后提交</div>
+        <Button
+          type="primary"
+          block
+          icon={<CheckOutlined />}
+          loading={loading}
+          disabled={commitDisabled(busy, stagedFiles.length, draft.message)}
+          onClick={() => void handleCommit()}
+        >
+          提交已暂存内容{stagedFiles.length > 0 ? ` · ${stagedFiles.length}` : ''}
+        </Button>
       </div>
     </section>
   );

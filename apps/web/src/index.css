@@ -435,12 +435,9 @@ button { cursor: pointer; }
 .file-row__status { width: 15px; color: var(--text-muted); font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600; text-align: center; }
 .file-row__stats { display: flex; gap: 7px; font-family: 'DM Mono', monospace; font-size: 10px; }
 .file-row__actions { display: flex; margin-left: 5px; }
-.commit-box { margin: 14px 0 0; padding: 14px; background: linear-gradient(145deg, var(--surface-muted), #f2f6fc); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-sm); }
-.commit-box__heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; color: var(--text); font-size: 12px; font-weight: 600; }
+.commit-box { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 0; padding: 14px; background: linear-gradient(145deg, var(--surface-muted), #f2f6fc); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-sm); }
+.commit-box__heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; color: var(--text); font-size: 12px; font-weight: 600; }
 .commit-box__heading span { color: var(--text-muted); font-size: 10px; font-weight: 400; }
-.commit-box .ant-input, .commit-box textarea { margin-bottom: 8px; }
-.commit-box__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.commit-box__hint { color: var(--text-muted); font-size: 10px; }
 .diff-shell { display: flex; flex-direction: column; height: 100%; min-height: 100%; }
 .diff-shell__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 13px 15px; background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%); border-bottom: 1px solid var(--line); }
 .diff-shell__title { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; }
@@ -558,7 +555,6 @@ button { cursor: pointer; }
   .panel-header { flex-wrap: wrap; }
   .panel-header__actions { flex-basis: 100%; flex-wrap: wrap; justify-content: flex-start; }
   .panel-header__actions .ant-btn { padding-inline: 6px; }
-  .commit-box__footer { align-items: flex-start; flex-direction: column; }
   .remote-card__url { grid-template-columns: 34px minmax(0, 1fr) 25px; }
   .repo-search { width: 100%; }
   .commit-row { grid-template-columns: 21px 27px minmax(0, 1fr) auto; gap: 7px; padding-inline: 9px; }
