@@ -1,0 +1,145 @@
+import { useRef, useState } from 'react';
+import { Popover } from 'antd';
+import { BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
+import type { Repository } from '@remote-git/shared';
+import { useNavigate } from 'react-router-dom';
+import { useConnectionStore } from '../stores/connectionStore';
+import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
+import { RepositorySwitcher } from './RepositorySwitcher';
+import { StatusButton } from './StatusButton';
+import { useSyncStatusStore } from '../stores/syncStatusStore';
+
+export function WorkspaceStatusBar({
+  repository,
+  repositories,
+  inert,
+  notices,
+  onUpdates,
+}: {
+  repository?: Repository | null;
+  repositories: Repository[];
+  inert: boolean;
+  notices: string[];
+  onUpdates?: () => void;
+}) {
+  const navigate = useNavigate();
+  const syncDetail = useSyncStatusStore((state) => state.detail);
+  const syncRepoId = useSyncStatusStore((state) => state.repoId);
+  // Only surface the progress of the repository this status bar describes.
+  const progress = repository && syncRepoId === repository.id ? syncDetail : null;
+  const connections = useConnectionStore((state) => state.connections);
+  const results = useConnectionStore((state) => state.testResults);
+  const connection = connections.find((item) => item.id === repository?.connectionId);
+  const { entry, stale } = useRepositoryStatus(repository?.id || '');
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const notificationTrigger = useRef<HTMLButtonElement>(null);
+  const notificationPanel = useRef<HTMLElement>(null);
+  const result = connection ? results[connection.id] : undefined;
+  const connectionLabel = !connection
+    ? '未选择远程连接'
+    : result
+      ? `SSH ${result.success ? '测试成功' : '测试失败'} · ${connection.name}${result.error ? ` · ${result.error}` : ''}`
+      : entry?.phase === 'error'
+        ? `SSH 状态待确认 · ${connection.name} · ${entry.error || '仓库读取失败'}`
+        : entry?.data && !stale
+          ? `SSH 可用 · ${connection.name}`
+          : `SSH 状态未确认 · ${connection.name}`;
+  const connectionState = result
+    ? result.success
+      ? 'connected'
+      : 'error'
+    : entry?.data && !stale
+      ? 'connected'
+      : 'disconnected';
+
+  return (
+    <footer className="status-bar" aria-label="工作区状态栏" inert={inert}>
+      <div className="status-bar__left">
+        <RepositorySwitcher
+          repository={repository}
+          repositories={repositories}
+          connections={connections}
+          onSelect={(id) => navigate(`/repositories/${id}`)}
+          onBrowse={() => navigate('/repositories')}
+          onConnections={() => navigate('/')}
+        />
+        {repository && <span className="status-bar__divider" aria-hidden="true" />}
+        {repository && (
+          <span className="status-bar__path" title={repository.path}>
+            {repository.path}
+          </span>
+        )}
+        {progress && (
+          <span className="status-bar__progress" role="status">
+            <SyncOutlined spin />
+            {progress}
+          </span>
+        )}
+      </div>
+      <div className="status-bar__right">
+        <StatusButton
+          label={connectionLabel}
+          tooltip={`${connectionLabel} · 管理连接`}
+          className="status-button--connection"
+          onClick={() => navigate('/')}
+        >
+          <CloudServerOutlined />
+          <span className={`connection-dot connection-dot--${connectionState}`} />
+          <span className="status-bar__connection-label">{connection?.name || '远程连接'}</span>
+        </StatusButton>
+        <Popover
+          trigger="click"
+          placement="topRight"
+          open={notificationOpen}
+          onOpenChange={setNotificationOpen}
+          afterOpenChange={(open) => {
+            if (open) notificationPanel.current?.focus();
+          }}
+          content={
+            <section
+              ref={notificationPanel}
+              tabIndex={-1}
+              className="status-notifications"
+              aria-label="通知"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setNotificationOpen(false);
+                  notificationTrigger.current?.focus();
+                }
+              }}
+            >
+              <strong>通知</strong>
+              {notices.length ? (
+                notices.map((notice) => <p key={notice}>{notice}</p>)
+              ) : (
+                <p>暂无新通知</p>
+              )}
+              {onUpdates && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => {
+                    setNotificationOpen(false);
+                    onUpdates();
+                  }}
+                >
+                  查看更新
+                </button>
+              )}
+            </section>
+          }
+        >
+          <StatusButton
+            ref={notificationTrigger}
+            label="通知"
+            tooltip={notices.length ? `通知 · ${notices.length} 条` : '通知 · 暂无新通知'}
+            aria-expanded={notificationOpen}
+          >
+            <BellOutlined />
+            {notices.length > 0 && <span className="status-bar__notice-dot" />}
+          </StatusButton>
+        </Popover>
+      </div>
+    </footer>
+  );
+}

@@ -75,7 +75,9 @@ const initialFiles = [
 ];
 const actions = [];
 let states;
+let syncBehavior = { delay: 0, fail: null };
 const reset = () => {
+  syncBehavior = { delay: 0, fail: null };
   states = Object.fromEntries(
     repositories.map((repo, i) => [
       repo.id,
@@ -83,7 +85,7 @@ const reset = () => {
         branch: i === 1 ? 'main' : 'design/workspace-layout',
         files: i === 0 ? structuredClone(initialFiles) : [],
         ahead: i === 0 ? 2 : 0,
-        behind: 0,
+        behind: i === 0 ? 3 : 0,
       },
     ]),
   );
@@ -98,6 +100,12 @@ const server = createServer(async (request, response) => {
   if (pathname === '/__fixture/actions') return json(response, actions);
   if (pathname === '/__fixture/reset' && request.method === 'POST') {
     reset();
+    return json(response, { ok: true });
+  }
+  if (pathname === '/__fixture/sync' && request.method === 'POST') {
+    let text = '';
+    for await (const chunk of request) text += chunk;
+    syncBehavior = JSON.parse(text);
     return json(response, { ok: true });
   }
   if (pathname.startsWith('/api/')) {
@@ -123,6 +131,10 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET') {
       if (!operation) return json(response, repo);
       if (operation === 'status') return json(response, state);
+      if (operation === 'worktrees') return json(response, [
+        { path: repo.path, branch: state.branch, head: 'abc1234', isCurrent: true, bare: false, detached: false, locked: false, prunable: false },
+        { path: '/workspace/linked-worktree', branch: 'feature/linked', head: 'def5678', isCurrent: false, bare: false, detached: false, locked: false, prunable: false },
+      ]);
       if (operation === 'branches')
         return json(
           response,
@@ -189,6 +201,11 @@ const server = createServer(async (request, response) => {
       return json(response, { message: 'Invalid JSON' }, 400);
     }
     actions.push({ id, operation, body });
+    if (['fetch', 'pull', 'push'].includes(operation)) {
+      if (syncBehavior.delay) await new Promise((resolve) => setTimeout(resolve, syncBehavior.delay));
+      if (syncBehavior.fail === operation) return json(response, { message: '模拟 Git 操作失败' }, 500);
+    }
+    if (operation === 'worktrees') return json(response, repositories[1]);
     if (operation === 'stage' || operation === 'unstage')
       state.files = state.files.map((file) =>
         body.files.includes(file.path) ? { ...file, staged: operation === 'stage' } : file,
