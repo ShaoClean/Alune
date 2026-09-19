@@ -239,6 +239,7 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
               <DiffViewer
                 diff={diff}
                 loading={diffLoading}
+                comparisonKey={JSON.stringify([repoId, selected.hash, file?.path])}
                 error={diffError}
                 title={file?.path || '全部文件变更'}
                 onFocus={() => {

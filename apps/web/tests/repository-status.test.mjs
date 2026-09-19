@@ -294,6 +294,43 @@ test('a Git mutation waits for a pre-mutation read, then shares a fresh validati
   await Promise.all([before, after, duplicate]);
   assert.equal(calls, 2);
   assert.equal(store.getState().status.branch, 'after-write');
+  assert.equal(store.getState().worktreeDiffRevision, 1, 'shared validation invalidates once');
+});
+
+test('background status and cached reopening do not invalidate the active Diff', async () => {
+  store.getState().resetWorkspace('a');
+  await store.getState().fetchStatus('a');
+  store.getState().resetWorkspace();
+  store.getState().resetWorkspace('a');
+  const cached = store.getState().status;
+  for (let cycle = 0; cycle < 3; cycle++) {
+    store.setState((state) => ({
+      repositoryStatuses: {
+        ...state.repositoryStatuses,
+        a: { ...state.repositoryStatuses.a, updatedAt: Date.now() - 61_000 },
+      },
+    }));
+    const unobserve = store.getState().observeRepository('a');
+    await flush();
+    unobserve();
+    assert.equal(store.getState().worktreeDiffRevision, 0);
+  }
+  assert.notEqual(store.getState().status, cached, 'status itself still refreshes');
+  await store.getState().refreshRepositoryStatuses(['a']);
+  assert.equal(store.getState().worktreeDiffRevision, 1, 'manual refresh invalidates');
+});
+
+test('post-mutation status failure still invalidates the preview, background failure does not', async () => {
+  store.getState().resetWorkspace('a');
+  await store.getState().fetchStatus('a');
+  repositoryApi.status = async () => {
+    throw new Error('offline');
+  };
+  await store.getState().fetchStatus('a');
+  assert.equal(store.getState().worktreeDiffRevision, 0);
+  await store.getState().fetchStatus('a', true);
+  assert.equal(store.getState().worktreeDiffRevision, 1);
+  assert.equal(store.getState().repositoryStatuses.a.phase, 'error');
 });
 
 test('cancelling a retry preserves a previously failed cache as stale until a successful read', async () => {

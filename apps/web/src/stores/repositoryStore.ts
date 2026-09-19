@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { StateCreator } from 'zustand';
 import { REPOSITORY_STATUS_CACHE_MS } from '@remote-git/shared';
-import type { Repository, RepositoryStatus, GraphCommit } from '@remote-git/shared';
+import type { Repository, RepositoryStatus, GraphCommit, DiffOptions } from '@remote-git/shared';
 import { repositoryApi } from '../api';
 import { hydrateWorkspace, useWorkspaceStore } from './workspaceStore';
 
@@ -27,6 +27,7 @@ const errorMessage = (error: any) => error.response?.data?.message || error.mess
 type StatusJob = {
   id: string;
   foreground: boolean;
+  refreshDiff: boolean;
   started: boolean;
   controller: AbortController;
   promise: Promise<void>;
@@ -58,6 +59,9 @@ interface RepositoryState {
   commitFilesError: string | null;
   diff: string;
   diffLoading: boolean;
+  diffRefreshing: boolean;
+  diffKey: string | null;
+  worktreeDiffRevision: number;
   diffError: string | null;
   listLoading: boolean;
   listLoaded: boolean;
@@ -78,7 +82,7 @@ interface RepositoryState {
   fetchStatus: (id: string, afterMutation?: boolean) => Promise<void>;
   fetchLog: (id: string, mode?: 'refresh' | 'more') => Promise<void>;
   fetchCommitFiles: (id: string, commit: string, parentCommit?: string) => Promise<void>;
-  fetchDiff: (id: string, params?: any) => Promise<void>;
+  fetchDiff: (id: string, params?: DiffOptions) => Promise<void>;
   clearDiff: () => void;
   fetchBranches: (id: string) => Promise<void>;
   fetchStashes: (id: string) => Promise<void>;
@@ -155,7 +159,12 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
               state.currentRepo?.id === job.id
                 ? { ...state.currentRepo, ...summary }
                 : state.currentRepo,
-            ...(workspaceId === job.id ? { status: data } : {}),
+            ...(workspaceId === job.id
+              ? {
+                  status: data,
+                  worktreeDiffRevision: state.worktreeDiffRevision + (job.refreshDiff ? 1 : 0),
+                }
+              : {}),
           }));
         } catch (error) {
           if (jobs.get(job.id) !== job || removed.has(job.id)) return;
@@ -165,6 +174,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             stale: true,
             error: errorMessage(error),
           });
+          // A failed status read must not leave a pre-mutation preview current.
+          if (workspaceId === job.id && job.refreshDiff)
+            set((state) => ({ worktreeDiffRevision: state.worktreeDiffRevision + 1 }));
         } finally {
           if (jobs.get(job.id) === job) jobs.delete(job.id);
           active--;
@@ -175,11 +187,17 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       })();
     }
   };
-  const requestStatus = (id: string, force = false, foreground = false): Promise<void> => {
+  const requestStatus = (
+    id: string,
+    force = false,
+    foreground = false,
+    refreshDiff = false,
+  ): Promise<void> => {
     if (removed.has(id)) return Promise.resolve();
     const pending = jobs.get(id);
     if (pending) {
       if (foreground) pending.foreground = true;
+      if (refreshDiff) pending.refreshDiff = true;
       drain();
       return pending.promise;
     }
@@ -199,6 +217,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     const job: StatusJob = {
       id,
       foreground,
+      refreshDiff,
       started: false,
       controller: new AbortController(),
       promise,
@@ -236,6 +255,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     commitFilesError: null,
     diff: '',
     diffLoading: false,
+    diffRefreshing: false,
+    diffKey: null,
+    worktreeDiffRevision: 0,
     diffError: null,
     listLoading: false,
     listLoaded: false,
@@ -270,7 +292,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       const targets = new Set(ids ?? visible.keys());
       const currentId = workspaceId || get().currentRepo?.id;
       if (currentId) targets.add(currentId);
-      await Promise.all([...targets].map((id) => requestStatus(id, true, id === currentId)));
+      await Promise.all([...targets].map((id) => requestStatus(id, true, id === currentId, true)));
     },
 
     fetchRepositories: async () => {
@@ -342,7 +364,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       removed.delete(repo.id);
       set((state) => ({
         repositories: state.repositories.some((item) => item.id === repo.id)
-          ? state.repositories.map((item) => item.id === repo.id ? { ...item, ...repo } : item)
+          ? state.repositories.map((item) => (item.id === repo.id ? { ...item, ...repo } : item))
           : [...state.repositories, repo],
       }));
       useWorkspaceStore.getState().addRepository(repo);
@@ -444,6 +466,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         commitFilesError: null,
         diff: '',
         diffLoading: false,
+        diffRefreshing: false,
+        diffKey: null,
+        worktreeDiffRevision: 0,
         diffError: null,
         error: null,
       });
@@ -457,7 +482,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         await jobs.get(id)?.promise;
         if (workspaceId !== id || removed.has(id)) return;
       }
-      await requestStatus(id, true, true);
+      await requestStatus(id, true, true, afterMutation);
     },
 
     fetchLog: async (id, mode = 'refresh') => {
@@ -541,20 +566,40 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
 
     clearDiff: () => {
       diffRequest += 1;
-      set({ diff: '', diffLoading: false, diffError: null });
+      set({ diff: '', diffLoading: false, diffRefreshing: false, diffKey: null, diffError: null });
     },
 
     fetchDiff: async (id, params) => {
       if (workspaceId !== null && workspaceId !== id) return;
       const request = ++diffRequest;
-      set({ diff: '', diffLoading: true, diffError: null });
+      const diffKey = JSON.stringify([
+        id,
+        params?.file ?? null,
+        params?.staged ?? false,
+        params?.commit ?? null,
+        params?.parentCommit ?? null,
+      ]);
+      const state = get();
+      const refreshing = state.diffKey === diffKey && !state.diffLoading && !state.diffError;
+      set({
+        diffKey,
+        diff: refreshing ? state.diff : '',
+        diffLoading: !refreshing,
+        diffRefreshing: refreshing,
+        diffError: null,
+      });
       try {
         const diff = await repositoryApi.diff(id, params);
         if (request === diffRequest)
-          set({ diff, diffLoading: false, diffError: null, error: null });
+          set({ diff, diffLoading: false, diffRefreshing: false, diffError: null, error: null });
       } catch (err: any) {
         if (request === diffRequest)
-          set({ diff: '', diffLoading: false, diffError: errorMessage(err) });
+          set({
+            diff: '',
+            diffLoading: false,
+            diffRefreshing: false,
+            diffError: errorMessage(err),
+          });
       }
     },
 

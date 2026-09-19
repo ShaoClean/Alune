@@ -16,6 +16,7 @@ interface Props {
   splitView?: boolean;
   onClose?: () => void;
   loading?: boolean;
+  comparisonKey?: string;
   error?: string | null;
 }
 
@@ -111,6 +112,7 @@ export function DiffViewer({
   splitView,
   onClose,
   loading = false,
+  comparisonKey,
   error,
 }: Props) {
   const preferredMode = useWorkspaceStore((state) => state.layout.diffMode);
@@ -128,7 +130,7 @@ export function DiffViewer({
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0, left: 0 });
     zoomBodyRef.current?.scrollTo({ top: 0, left: 0 });
-  }, [diff, error, loading, mode, title, zoomed]);
+  }, [comparisonKey, mode, title, zoomed]);
 
   const renderUnifiedDiff = (value: string) => {
     const lines = getNumberedDiffLines(value);
