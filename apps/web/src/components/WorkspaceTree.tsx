@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
+import { Popconfirm } from 'antd';
 import {
   BranchesOutlined,
+  DeleteOutlined,
   DownOutlined,
   FolderOpenOutlined,
   HolderOutlined,
@@ -26,6 +28,7 @@ interface Props {
   activeId?: string;
   query?: string;
   onOpenRepository: (repo: Repository) => void;
+  onDeleteRepository: (repo: Repository) => Promise<void>;
 }
 type DropTarget = { item: TreeItem; placement: Placement };
 
@@ -36,6 +39,7 @@ export function WorkspaceTree({
   activeId,
   query = '',
   onOpenRepository,
+  onDeleteRepository,
 }: Props) {
   const {
     treeOpen,
@@ -50,6 +54,7 @@ export function WorkspaceTree({
   const [dragging, setDragging] = useState<TreeItem | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [deletingRepositoryId, setDeletingRepositoryId] = useState<string | null>(null);
   const dragSource = useRef<TreeItem | null>(null);
   const suppressClickUntil = useRef(0);
   const tree = useRef<HTMLDivElement>(null);
@@ -182,6 +187,16 @@ export function WorkspaceTree({
       setAnnouncement(`${name}已移至第 ${nextIndex + 1} 位`);
       const handle = event.currentTarget;
       requestAnimationFrame(() => handle.scrollIntoView({ block: 'nearest' }));
+    }
+  };
+
+  const handleDelete = async (repo: Repository) => {
+    if (deletingRepositoryId) return;
+    setDeletingRepositoryId(repo.id);
+    try {
+      await onDeleteRepository(repo);
+    } finally {
+      setDeletingRepositoryId(null);
     }
   };
 
@@ -329,6 +344,32 @@ export function WorkspaceTree({
                           </span>
                           <RepositoryStatusIndicator id={repo.id} compact />
                         </button>
+                        <Popconfirm
+                          title="确认移除仓库？"
+                          description={
+                            <div className="tree-delete-confirm">
+                              <div><strong>名称：</strong>{repo.name}</div>
+                              <div><strong>路径：</strong>{repo.path}</div>
+                              <small>仅移除应用内登记，不会删除远端仓库或仓库文件。</small>
+                            </div>
+                          }
+                          okText="确认移除"
+                          cancelText="取消"
+                          placement="right"
+                          onConfirm={() => handleDelete(repo)}
+                        >
+                          <button
+                            type="button"
+                            className="tree-node__delete"
+                            aria-label={`删除 ${repo.name}`}
+                            aria-busy={deletingRepositoryId === repo.id}
+                            title="删除仓库登记"
+                            disabled={Boolean(deletingRepositoryId)}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <DeleteOutlined />
+                          </button>
+                        </Popconfirm>
                       </div>
                     );
                   })}

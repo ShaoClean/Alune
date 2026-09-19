@@ -837,13 +837,17 @@ body,
   color: #78879c;
 }
 
-.tree-node__action { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; min-height: 23px; padding: 0; color: inherit; font: inherit; text-align: left; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
+.tree-node__action { display: flex; align-items: center; gap: 7px; flex: 1 1 auto; min-width: 0; min-height: 23px; padding: 0; color: inherit; font: inherit; text-align: left; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
 .tree-node__chevron { flex: 0 0 10px; font-size: 9px; }
 .tree-sort-handle { display: grid; place-items: center; flex: 0 0 16px; width: 16px; height: 23px; padding: 0; color: #8495ad; background: transparent; border: 0; border-radius: 4px; cursor: grab; opacity: .55; }
 .tree-sort-handle:hover, .tree-sort-handle:focus-visible, .tree-node:hover > .tree-sort-handle { opacity: 1; color: #3f72b3; }
 .tree-sort-handle:active { cursor: grabbing; }
 .tree-sort-handle:disabled { opacity: .18; cursor: default; }
-.tree-sort-handle:focus-visible, .tree-node__action:focus-visible { outline: 2px solid #6395e8; outline-offset: 2px; }
+.tree-sort-handle:focus-visible, .tree-node__action:focus-visible, .tree-node__delete:focus-visible { outline: 2px solid #6395e8; outline-offset: 2px; }
+.tree-node__delete { display: grid; place-items: center; flex: 0 0 24px; width: 24px; height: 24px; padding: 0; color: #8b9ab0; background: transparent; border: 0; border-radius: 5px; cursor: pointer; opacity: .55; transition: color 150ms ease, background 150ms ease, opacity 150ms ease; }
+.tree-node--repo:hover .tree-node__delete, .tree-node--repo:focus-within .tree-node__delete { opacity: 1; }
+.tree-node__delete:hover { color: var(--red); background: var(--red-soft); }
+.tree-node__delete:disabled { cursor: wait; opacity: .45; }
 .tree-group, .tree-node--repo { position: relative; }
 .tree-item--dragging { opacity: .45; }
 .tree-drop--before::before, .tree-drop--after::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: #397ee9; border-radius: 2px; pointer-events: none; z-index: 1; }
@@ -878,6 +882,9 @@ body,
   color: #8b99ac;
   font-size: 12px;
 }
+.tree-delete-confirm { display: grid; gap: 4px; max-width: 270px; line-height: 1.45; }
+.tree-delete-confirm > div { overflow-wrap: anywhere; }
+.tree-delete-confirm small { margin-top: 4px; color: var(--text-muted); line-height: 1.5; }
 
 .sidebar-link {
   color: #708099;
