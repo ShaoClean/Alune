@@ -292,7 +292,6 @@ export function ChangesView({
       )}
       <PanelHeader
         title="改动"
-        count={status ? new Set(files.map((file) => file.path)).size : undefined}
         icon={<FileAddOutlined />}
       />
       <div className="changes-filter">

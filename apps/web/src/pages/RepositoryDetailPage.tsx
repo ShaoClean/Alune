@@ -1,21 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { Button, Dropdown, message } from 'antd';
-import {
-  ArrowLeftOutlined,
-  BranchesOutlined,
-  CloudDownloadOutlined,
-  CloudOutlined,
-  DownOutlined,
-  MoreOutlined,
-  FileSearchOutlined,
-  HistoryOutlined,
-  InboxOutlined,
-  LinkOutlined,
-  ReloadOutlined,
-  SendOutlined,
-} from '@ant-design/icons';
+import { createPortal } from 'react-dom';
+import { Button, message } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { BranchesView } from '../components/BranchesView';
@@ -26,22 +14,22 @@ import { DiffViewer } from '../components/DiffViewer';
 import { HistoryWorkspace } from '../components/HistoryWorkspace';
 import { RemotesView } from '../components/RemotesView';
 import { StashesView } from '../components/StashesView';
-import { ErrorState, LoadingState, formatBranchName, FileIcon } from '../components/ui';
+import { ErrorState, LoadingState, FileIcon } from '../components/ui';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 import { CHANGES_MIN } from '../stores/workspaceLayout';
 import { PanelResizeHandle } from '../components/PanelResizeHandle';
-import { WorktreesMenu } from '../components/WorktreesMenu';
+import { RepositoryToolbar } from '../components/RepositoryToolbar';
+import type { RepositoryPanel as Panel, SyncOperation } from '../components/RepositoryToolbar';
+import { useSyncStatusStore } from '../stores/syncStatusStore';
 
-type Panel = 'changes' | 'history' | 'branches' | 'stashes' | 'remotes';
 type SelectedFile = { path: string; status: string; staged: boolean };
-
-const navItems: { key: Panel; label: string; icon: React.ReactNode }[] = [
-  { key: 'changes', label: '改动', icon: <FileSearchOutlined /> },
-  { key: 'history', label: '提交历史', icon: <HistoryOutlined /> },
-  { key: 'branches', label: '分支', icon: <BranchesOutlined /> },
-  { key: 'stashes', label: '储藏', icon: <InboxOutlined /> },
-  { key: 'remotes', label: '远程', icon: <LinkOutlined /> },
-];
+const panelLabels: Record<Panel, string> = {
+  changes: '改动',
+  history: '提交历史',
+  branches: '分支',
+  stashes: '储藏',
+  remotes: '远程',
+};
 
 export function RepositoryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -50,8 +38,9 @@ export function RepositoryDetailPage() {
 
 function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const navigate = useNavigate();
-  const { setRightPanelAvailable } = useOutletContext<{
+  const { setRightPanelAvailable, repositoryToolbarSlot } = useOutletContext<{
     setRightPanelAvailable: (available: boolean) => void;
+    repositoryToolbarSlot: HTMLDivElement | null;
   }>();
   const { layout, compact, changesWidth, changesMax, updateLayout } = useWorkspaceLayout();
   const backButton = useRef<HTMLButtonElement>(null);
@@ -60,8 +49,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     currentRepo,
     openRepositories,
     status,
-    branches,
-    stashes,
     diff,
     diffLoading,
     diffError,
@@ -81,7 +68,10 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
-  const [syncing, setSyncing] = useState<'fetch' | 'pull' | 'push' | null>(null);
+  const [syncing, setSyncing] = useState<SyncOperation | null>(null);
+  const [syncingForce, setSyncingForce] = useState(false);
+  const startSync = useSyncStatusStore((state) => state.startSync);
+  const finishSync = useSyncStatusStore((state) => state.finishSync);
 
   useEffect(() => {
     if (!id) return;
@@ -118,8 +108,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       ? currentRepo
       : openRepositories.find((repo: any) => repo.id === id) || null;
   const switchingRepository = currentRepo?.id !== id;
-  const changeCount = new Set(status?.files.map((file) => file.path)).size;
-  const activeLabel = navItems.find((item) => item.key === activePanel)?.label || '改动';
+  const activeLabel = panelLabels[activePanel];
   const hasInspector = activePanel === 'changes';
   useEffect(() => {
     setRightPanelAvailable(hasInspector);
@@ -188,22 +177,24 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     if (activePanel === 'remotes') await fetchRemotes(id);
   };
 
-  const runSync = async (operation: 'fetch' | 'pull' | 'push') => {
+  const runSync = async (operation: SyncOperation, options?: { force?: boolean }) => {
     if (!id || syncing) return;
+    const force = Boolean(options?.force);
+    const label = operation === 'fetch' ? '获取' : operation === 'pull' ? '拉取' : force ? '强制推送' : '推送';
     setSyncing(operation);
+    setSyncingForce(force);
+    startSync(id, operation, { force });
     try {
-      await gitApi[operation](id);
-      message.success(
-        operation === 'fetch' ? '获取完成' : operation === 'pull' ? '拉取完成' : '推送完成',
-      );
+      if (operation === 'push') await gitApi.push(id, undefined, undefined, force);
+      else await gitApi[operation](id);
+      message.success(`${label}完成`);
       await handleRefresh(true);
     } catch (err: any) {
-      message.error(
-        err.message ||
-          `${operation === 'fetch' ? '获取' : operation === 'pull' ? '拉取' : '推送'}失败`,
-      );
+      message.error(err.message || `${label}失败`);
     } finally {
       setSyncing(null);
+      setSyncingForce(false);
+      finishSync(id);
     }
   };
 
@@ -266,6 +257,21 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       className={`workspace-page${compact ? ' workspace-page--compact' : ''}${compact && hasInspector && layout.changesCollapsed ? ' workspace-page--inspecting' : ''}`}
       style={{ '--changes-width': `${changesWidth}px` } as CSSProperties}
     >
+      {repositoryToolbarSlot &&
+        createPortal(
+          <RepositoryToolbar
+            repoId={id!}
+            status={status}
+            activePanel={activePanel}
+            syncing={syncing}
+            syncingForce={syncingForce}
+            onSelect={selectPanel}
+            onSync={(operation, options) => void runSync(operation, options)}
+            onRefresh={() => void handleRefresh()}
+            onBranchSwitched={() => void handleRefresh(true)}
+          />,
+          repositoryToolbarSlot,
+        )}
       <div
         className={
           'workspace-body' +
@@ -274,151 +280,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         }
       >
         <div className="workspace-center">
-          <nav className="workspace-panel-tabs" aria-label="仓库面板">
-            {navItems.slice(0, 3).map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={activePanel === item.key ? 'workspace-panel-tab--active' : ''}
-                onClick={() => selectPanel(item.key)}
-                aria-current={activePanel === item.key ? 'page' : undefined}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-                {item.key === 'changes' && changeCount > 0 && (
-                  <span className="count-badge">{changeCount}</span>
-                )}
-                {item.key === 'branches' && branches.length > 0 && (
-                  <span className="count-badge">{branches.length}</span>
-                )}
-              </button>
-            ))}
-            <Dropdown
-              trigger={['click']}
-              menu={{
-                selectedKeys: [activePanel],
-                items: [
-                  {
-                    key: 'stashes',
-                    label: `储藏${stashes.length ? ` · ${stashes.length}` : ''}`,
-                    icon: <InboxOutlined />,
-                    onClick: () => selectPanel('stashes'),
-                  },
-                  {
-                    key: 'remotes',
-                    label: '远程',
-                    icon: <LinkOutlined />,
-                    onClick: () => selectPanel('remotes'),
-                  },
-                  { type: 'divider' },
-                  {
-                    key: 'repositories',
-                    label: '返回仓库列表',
-                    icon: <ArrowLeftOutlined />,
-                    onClick: () => navigate('/repositories'),
-                  },
-                ],
-              }}
-            >
-              <button
-                type="button"
-                className={
-                  activePanel === 'stashes' || activePanel === 'remotes'
-                    ? 'workspace-panel-tab--active'
-                    : ''
-                }
-                aria-label="更多仓库视图"
-              >
-                <MoreOutlined />
-                <span>
-                  {activePanel === 'stashes' || activePanel === 'remotes' ? activeLabel : '更多'}
-                </span>
-              </button>
-            </Dropdown>
-            <div className="workspace-header__actions">
-              <Button
-                type="text"
-                size="small"
-                icon={<ReloadOutlined />}
-                aria-label="刷新仓库"
-                title="刷新仓库"
-                disabled={syncing !== null}
-                onClick={() => void handleRefresh()}
-              />
-              <Button
-                type="text"
-                size="small"
-                icon={<CloudDownloadOutlined />}
-                aria-label="获取"
-                title="获取远程更新"
-                disabled={syncing !== null}
-                loading={syncing === 'fetch'}
-                onClick={() => void runSync('fetch')}
-              >
-                <span className="workspace-action-label">获取</span>
-              </Button>
-              <Button
-                type="text"
-                size="small"
-                icon={<CloudOutlined />}
-                aria-label="拉取"
-                title={status ? `拉取 · 落后 ${status.behind} 个提交` : '拉取 · 状态未知'}
-                disabled={syncing !== null}
-                loading={syncing === 'pull'}
-                onClick={() => void runSync('pull')}
-              >
-                拉取
-                {status && status.behind > 0 && (
-                  <span className="count-badge">{status.behind}</span>
-                )}
-              </Button>
-              <Button
-                type="primary"
-                size="small"
-                icon={<SendOutlined />}
-                aria-label="推送"
-                title={status ? `推送 · 领先 ${status.ahead} 个提交` : '推送 · 状态未知'}
-                disabled={syncing !== null}
-                loading={syncing === 'push'}
-                onClick={() => void runSync('push')}
-              >
-                推送
-                {status && status.ahead > 0 && <span className="count-badge">{status.ahead}</span>}
-              </Button>
-            </div>
-          </nav>
-          <div className="workspace-header">
-            <div
-              className="workspace-header__identity"
-              title={`${repository.name} · ${repository.path}`}
-            >
-              <button
-                type="button"
-                className="workspace-branch"
-                title={status ? status.branch || '游离 HEAD' : '分支未知'}
-                onClick={() => selectPanel('branches')}
-              >
-                <BranchesOutlined />
-                <span>
-                  {status
-                    ? status.branch
-                      ? formatBranchName(status.branch)
-                      : '游离 HEAD'
-                    : '分支未知'}
-                </span>
-                <DownOutlined />
-              </button>
-              <WorktreesMenu key={id} repoId={id!} />
-              <span className="workspace-diff-label">
-                {activePanel === 'changes' ? '工作区中的更改' : activeLabel}
-              </span>
-            </div>
-            <span className="workspace-sync-summary">
-              {status
-                ? changeCount + ' 个文件有改动 · ↑' + status.ahead + ' ↓' + status.behind
-                : '正在读取状态'}
-            </span>
-          </div>
           {(statusEntry?.phase === 'error' || statusStale || !status) && (
             <div className="repository-status-notice" role="status">
               <RepositoryStatusIndicator id={id!} />
