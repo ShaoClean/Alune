@@ -600,42 +600,12 @@ body,
   overflow: hidden;
 }
 
-.app-brand {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 5px 6px;
-  color: #20334f;
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
-  text-align: left;
-  transition: background 150ms ease, box-shadow 150ms ease;
-}
-
-.app-brand:hover {
-  background: rgb(255 255 255 / 70%);
-  box-shadow: inset 0 0 0 1px rgb(37 99 235 / 8%);
-}
-
 .app-brand__mark {
   display: block;
   flex: 0 0 auto;
   width: 34px;
   height: 34px;
   object-fit: contain;
-}
-
-.app-brand__text {
-  overflow: hidden;
-  color: #20334f;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -.01em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .sidebar-toggle {
@@ -998,14 +968,6 @@ body,
   font-size: 10px;
 }
 
-.app-shell--collapsed .app-brand {
-  flex: 0 0 auto;
-  justify-content: center;
-  width: 40px;
-  padding: 4px;
-}
-
-.app-shell--collapsed .app-brand__text,
 .app-shell--collapsed .sidebar-nav-item__label,
 .app-shell--collapsed .sidebar-workspace,
 .app-shell--collapsed .sidebar-divider,
