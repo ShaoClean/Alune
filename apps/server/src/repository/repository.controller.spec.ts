@@ -1,4 +1,4 @@
-import { GitLogChangedError, GitLogOptionsError } from '@remote-git/ssh-client';
+import { DiffImageAbsentError, GitLogChangedError, GitLogOptionsError } from '@remote-git/ssh-client';
 import { RepositoryController } from './repository.controller';
 import { RepositoryService } from './repository.service';
 
@@ -40,6 +40,40 @@ describe('RepositoryController', () => {
       status: 400,
       message: '文件已不存在，请刷新仓库状态。',
     });
+  });
+
+  it('requires an explicit image side and separates a missing version from a failure', async () => {
+    const image = { path: 'a.png', side: 'after', mediaType: 'image/png', byteLength: 3, content: 'AAA' };
+    const getDiffImage = jest.fn().mockResolvedValue(image);
+    const controller = new RepositoryController({
+      getDiffImage,
+    } as unknown as RepositoryService);
+    for (const query of [{}, { file: 'a.png' }, { file: 'a.png', side: 'left' }, { side: 'after' }])
+      await expect(controller.getDiffImage('fixture', query)).rejects.toMatchObject({ status: 400 });
+    expect(getDiffImage).not.toHaveBeenCalled();
+
+    expect(
+      await controller.getDiffImage('fixture', { file: '中文 a.png', side: 'before', staged: 'true' }),
+    ).toEqual(image);
+    expect(getDiffImage).toHaveBeenLastCalledWith(
+      'fixture',
+      expect.objectContaining({ file: '中文 a.png', side: 'before', staged: true }),
+    );
+    await controller.getDiffImage('fixture', { file: 'a.png', side: 'after', commit: 'c' });
+    expect(getDiffImage).toHaveBeenLastCalledWith(
+      'fixture',
+      expect.objectContaining({ commit: 'c', staged: false }),
+    );
+
+    // An absent side is a normal added/deleted case, so the page can tell them apart.
+    getDiffImage.mockRejectedValueOnce(new DiffImageAbsentError());
+    await expect(
+      controller.getDiffImage('fixture', { file: 'a.png', side: 'before' }),
+    ).rejects.toMatchObject({ status: 404 });
+    getDiffImage.mockRejectedValueOnce(new Error('图片超出预览限制（5 MiB）'));
+    await expect(
+      controller.getDiffImage('fixture', { file: 'a.png', side: 'after' }),
+    ).rejects.toMatchObject({ status: 400, message: expect.stringContaining('5 MiB') });
   });
 
   it('keeps registration and remote state on separate endpoints', async () => {

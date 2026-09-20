@@ -2,9 +2,16 @@ import { Injectable, Inject, NotFoundException, GatewayTimeoutException } from '
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { ConnectionService } from '../connection/connection.service';
-import { GitCommands, GitWorktrees, worktreePathKey } from '@remote-git/ssh-client';
+import { DiffImages, GitCommands, GitWorktrees, worktreePathKey } from '@remote-git/ssh-client';
 import { REPOSITORY_STATUS_TIMEOUT_MS } from '@remote-git/shared';
-import type { Repository, RepositoryStatus, DiffOptions, LogOptions } from '@remote-git/shared';
+import type {
+  Repository,
+  RepositoryStatus,
+  DiffOptions,
+  DiffImageContent,
+  DiffImageOptions,
+  LogOptions,
+} from '@remote-git/shared';
 
 @Injectable()
 export class RepositoryService {
@@ -241,6 +248,12 @@ export class RepositoryService {
     const conn = await this.connectionService.ensureConnected(repo.connectionId);
     const git = new GitCommands(conn);
     return git.diff(repo.path, options);
+  }
+
+  async getDiffImage(id: string, options: DiffImageOptions): Promise<DiffImageContent> {
+    const repo = await this.get(id);
+    const conn = await this.connectionService.ensureConnected(repo.connectionId);
+    return new DiffImages(conn).read(repo.path, options);
   }
 
   async getCommitFiles(id: string, commit: string, parentCommit?: string) {
