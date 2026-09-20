@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { RepositoryToolbar } from '../src/components/RepositoryToolbar.tsx';
-import { RepositorySwitcher } from '../src/components/RepositorySwitcher.tsx';
+import { RepositorySwitcher, filterRepositories } from '../src/components/RepositorySwitcher.tsx';
 import { toolbarTier } from '../src/hooks/useToolbarTier.ts';
 
 const render = (props = {}) =>
@@ -53,9 +54,15 @@ const renderSwitcher = (props = {}) =>
         { id: 'dev', name: '开发服务器', host: 'dev.example.com', username: 'git' },
         { id: 'test', name: '预发布服务器', host: 'test.example.com', username: 'git' },
       ],
+      statuses: {
+        dev: { status: 'connected' },
+        test: { status: 'disconnected' },
+      },
+      version: 'v0.3.0',
       onSelect() {},
       onBrowse() {},
       onConnections() {},
+      onSettings() {},
       ...props,
     }),
   );
@@ -216,16 +223,57 @@ test('四档断点按窗口宽度划分', () => {
   assert.equal(toolbarTier(699), 'minimal');
 });
 
-test('仓库切换入口同时展示当前连接、当前仓库和全部打开数量', () => {
+test('统一导航入口同时展示当前连接、当前仓库和全部打开数量', () => {
   const html = renderSwitcher();
   const [trigger] = buttons(html);
-  assert.equal(trigger.label, '切换仓库，开发服务器 / remote-git，共 2 个已打开仓库');
+  assert.equal(trigger.label, '工作区导航，开发服务器 / remote-git，共 2 个已打开仓库');
   assert.match(trigger.text, /开发服务器.*remote-git.*2/);
 });
 
-test('未选中仓库时仍保留全部已打开仓库的统一入口', () => {
+test('未选中仓库时统一入口显示品牌与实际打开数量', () => {
   const html = renderSwitcher({ repository: null });
   const [trigger] = buttons(html);
-  assert.equal(trigger.label, '切换仓库，选择已打开仓库，共 2 个已打开仓库');
-  assert.match(trigger.text, /已打开仓库.*2/);
+  assert.equal(trigger.label, '工作区导航，RemoteGit，共 2 个已打开仓库');
+  assert.match(trigger.text, /RemoteGit.*2/);
+});
+
+test('仓库搜索覆盖名称、分支、路径、连接名和端点', () => {
+  const repositories = [
+    { id: 'a', connectionId: 'dev', name: 'remote-git', path: '/workspace/remote-git', currentBranch: 'main' },
+    { id: 'b', connectionId: 'test', name: 'design-system', path: '/workspace/ui', currentBranch: 'feature/theme' },
+  ];
+  const connections = [
+    { id: 'dev', name: '开发服务器', host: 'dev.example.com', username: 'git' },
+    { id: 'test', name: '预发布服务器', host: 'test.example.com', username: 'deploy' },
+  ];
+  for (const query of ['remote', 'feature/theme', '/workspace/ui', '预发布', 'git@dev.example.com'])
+    assert.equal(filterRepositories(repositories, connections, query).length, 1, query);
+  assert.equal(filterRepositories(repositories, connections, '不存在').length, 0);
+  assert.equal(filterRepositories(repositories, connections, '  ').length, 2);
+});
+
+test('统一导航保留工作区与应用入口，旧侧栏菜单不再参与布局', () => {
+  const switcher = readFileSync(new URL('../src/components/RepositorySwitcher.tsx', import.meta.url), 'utf8');
+  const layout = readFileSync(new URL('../src/components/Layout.tsx', import.meta.url), 'utf8');
+  assert.match(switcher, /浏览全部仓库/);
+  assert.match(switcher, /管理远程连接/);
+  assert.match(switcher, /帮助与文档/);
+  assert.match(switcher, /<span>\{version\}<\/span>/);
+  assert.doesNotMatch(layout, /WorkspaceMenu|app-sidebar__footer/);
+});
+
+test('移动布局覆盖后置工具栏列定义，状态栏和仓库徽标保持可见', () => {
+  const css = readFileSync(new URL('../src/workspace-layout.css', import.meta.url), 'utf8');
+  const toolbar = css.indexOf('.repository-toolbar-row {');
+  const mobileOverride = css.indexOf('@media (max-width: 899px)', toolbar);
+  assert.ok(toolbar >= 0 && mobileOverride > toolbar);
+  assert.match(
+    css.slice(mobileOverride, css.indexOf('.repository-toolbar {', mobileOverride)),
+    /\.repository-toolbar-row\s*\{\s*grid-column: 1;/,
+  );
+  const narrow = css.slice(css.indexOf('@media (max-width: 520px)'));
+  assert.doesNotMatch(
+    narrow.slice(0, narrow.indexOf('/* Repository toolbar')),
+    /\.repository-switcher__count[\s\S]*?display: none;/,
+  );
 });

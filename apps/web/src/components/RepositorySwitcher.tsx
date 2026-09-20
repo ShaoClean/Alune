@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Dropdown } from 'antd';
-import type { MenuProps } from 'antd';
+import { Dropdown, Input } from 'antd';
+import type { InputRef, MenuProps } from 'antd';
 import {
   CheckOutlined,
   CloudServerOutlined,
   CodeOutlined,
   FolderOpenOutlined,
+  QuestionCircleOutlined,
   RightOutlined,
+  SearchOutlined,
   SettingOutlined,
   UpOutlined,
 } from '@ant-design/icons';
-import type { Repository } from '@remote-git/shared';
+import type { ConnectionStatusInfo, Repository } from '@remote-git/shared';
+import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { BrandIcon } from './BrandIcon';
 
 interface ConnectionSummary {
@@ -26,9 +29,12 @@ interface Props {
   repository?: Repository | null;
   repositories: Repository[];
   connections: ConnectionSummary[];
+  statuses: Record<string, ConnectionStatusInfo>;
+  version: string;
   onSelect: (id: string) => void;
   onBrowse: () => void;
   onConnections: () => void;
+  onSettings: () => void;
 }
 
 const endpointLabel = (connection?: ConnectionSummary) => {
@@ -37,17 +43,46 @@ const endpointLabel = (connection?: ConnectionSummary) => {
   return connection.port && connection.port !== 22 ? `${host}:${connection.port}` : host;
 };
 
+const normalizeSearch = (value: string) => value.trim().toLocaleLowerCase();
+
+export const filterRepositories = (
+  repositories: Repository[],
+  connections: ConnectionSummary[],
+  query: string,
+) => {
+  const search = normalizeSearch(query);
+  if (!search) return repositories;
+  const connectionById = new Map(connections.map((connection) => [connection.id, connection]));
+  return repositories.filter((repository) => {
+    const connection = connectionById.get(repository.connectionId);
+    return [
+      repository.name,
+      repository.path,
+      repository.currentBranch,
+      connection?.name,
+      endpointLabel(connection),
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLocaleLowerCase().includes(search));
+  });
+};
+
 export function RepositorySwitcher({
   repository,
   repositories,
   connections,
+  statuses,
+  version,
   onSelect,
   onBrowse,
   onConnections,
+  onSettings,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLElement>(null);
+  const search = useRef<InputRef>(null);
   const connectionById = useMemo(
     () => new Map(connections.map((connection) => [connection.id, connection])),
     [connections],
@@ -57,20 +92,28 @@ export function RepositorySwitcher({
   const contextLabel = repository
     ? `${activeConnectionLabel} / ${repository.name}`
     : repositories.length
-      ? '选择已打开仓库'
-      : '暂无已打开仓库';
+      ? 'RemoteGit'
+      : 'RemoteGit，暂无已打开仓库';
   const contextDetail = repository
     ? [activeConnectionLabel, endpointLabel(activeConnection), repository.name, repository.path]
         .filter(Boolean)
         .join(' · ')
     : contextLabel;
+  const filteredRepositories = useMemo(
+    () => filterRepositories(repositories, connections, query),
+    [connections, query, repositories],
+  );
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setQuery('');
+      return;
+    }
     const frame = requestAnimationFrame(() => {
+      search.current?.focus();
       panel.current
         ?.querySelector<HTMLElement>('.repository-switcher-menu__repository-item--active')
-        ?.scrollIntoView({ block: 'center' });
+        ?.scrollIntoView({ block: 'nearest' });
     });
     return () => cancelAnimationFrame(frame);
   }, [open, repository?.id]);
@@ -80,7 +123,7 @@ export function RepositorySwitcher({
       string,
       { connection?: ConnectionSummary; connectionId: string; repositories: Repository[] }
     >();
-    for (const item of repositories) {
+    for (const item of filteredRepositories) {
       const group = groups.get(item.connectionId) || {
         connection: connectionById.get(item.connectionId),
         connectionId: item.connectionId,
@@ -90,7 +133,7 @@ export function RepositorySwitcher({
       groups.set(item.connectionId, group);
     }
     return [...groups.values()];
-  }, [connectionById, repositories]);
+  }, [connectionById, filteredRepositories]);
 
   const closeAndFocus = () => {
     setOpen(false);
@@ -105,7 +148,7 @@ export function RepositorySwitcher({
     callback();
   };
 
-  const repositoryItems: MenuProps['items'] = repositories.length
+  const repositoryItems: MenuProps['items'] = filteredRepositories.length
     ? groupedRepositories.map((group): NonNullable<MenuProps['items']>[number] => ({
         type: 'group',
         key: `connection:${group.connectionId}`,
@@ -115,6 +158,16 @@ export function RepositorySwitcher({
             <span className="repository-switcher-group__identity">
               <strong>{group.connection?.name || group.connectionId}</strong>
               {endpointLabel(group.connection) && <small>{endpointLabel(group.connection)}</small>}
+            </span>
+            <span
+              className="repository-switcher-group__status"
+              title={connectionStatusLabel(statuses[group.connectionId])}
+            >
+              <span
+                className={`connection-dot connection-dot--${connectionStatus(statuses[group.connectionId])}`}
+                aria-hidden="true"
+              />
+              {connectionStatusLabel(statuses[group.connectionId])}
             </span>
             <span className="repository-switcher-group__count">{group.repositories.length}</span>
           </span>
@@ -152,17 +205,17 @@ export function RepositorySwitcher({
           label: (
             <span className="repository-switcher-menu__empty">
               <span className="repository-switcher-menu__empty-icon">
-                <FolderOpenOutlined />
+                {query ? <SearchOutlined /> : <FolderOpenOutlined />}
               </span>
-              <strong>还没有打开的仓库</strong>
-              <small>从下方浏览并打开一个工作区</small>
+              <strong>{query ? '没有匹配的仓库' : '还没有打开的仓库'}</strong>
+              <small>{query ? '请尝试仓库名、分支、路径或连接名' : '从下方浏览并打开一个工作区'}</small>
             </span>
           ),
         },
       ];
 
   const openFromKeyboard = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter') {
       event.preventDefault();
       setOpen(true);
     }
@@ -172,19 +225,22 @@ export function RepositorySwitcher({
     <Dropdown
       trigger={['click']}
       placement="topLeft"
-      autoFocus
       transitionName="repository-switcher-motion"
       destroyOnHidden
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) requestAnimationFrame(() => trigger.current?.focus());
+      }}
       classNames={{ root: 'repository-switcher-menu' }}
       popupRender={(menu) => (
         <section
           ref={panel}
           className="repository-switcher-panel"
-          aria-label="仓库切换面板"
+          aria-label="工作区导航"
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
+              event.preventDefault();
               event.stopPropagation();
               closeAndFocus();
             }
@@ -196,12 +252,8 @@ export function RepositorySwitcher({
                 <BrandIcon className="repository-switcher-panel__title-mark" />
               </span>
               <span>
-                <strong>切换仓库</strong>
-                <small>
-                  {repositories.length
-                    ? `${repositories.length} 个仓库 · 按远程连接归类`
-                    : '从工作区打开一个仓库'}
-                </small>
+                <strong>已打开仓库</strong>
+                <small>{repositories.length} 个仓库 · 按远程连接分组</small>
               </span>
             </span>
             <span
@@ -212,33 +264,87 @@ export function RepositorySwitcher({
             </span>
           </header>
 
+          <div className="repository-switcher-panel__search">
+            <Input
+              ref={search}
+              allowClear
+              aria-label="搜索已打开的仓库"
+              placeholder="搜索已打开的仓库…"
+              prefix={<SearchOutlined />}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowDown') return;
+                event.preventDefault();
+                panel.current
+                  ?.querySelector<HTMLElement>('.ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled)')
+                  ?.focus();
+              }}
+            />
+          </div>
+
           <div className="repository-switcher-panel__list">{menu}</div>
 
+          <div className="repository-switcher-panel__sections">
+            <section aria-label="工作区入口">
+              <button
+                type="button"
+                className="repository-switcher-panel__action"
+                onClick={() => openPage(onBrowse)}
+              >
+                <FolderOpenOutlined />
+                <span>
+                  <strong>浏览全部仓库</strong>
+                  <small>查看并打开工作区</small>
+                </span>
+                <RightOutlined />
+              </button>
+              <button
+                type="button"
+                className="repository-switcher-panel__action"
+                onClick={() => openPage(onConnections)}
+              >
+                <CloudServerOutlined />
+                <span>
+                  <strong>管理远程连接</strong>
+                  <small>配置 SSH 主机</small>
+                </span>
+                <RightOutlined />
+              </button>
+            </section>
+            <section aria-label="应用入口">
+              <button
+                type="button"
+                className="repository-switcher-panel__action"
+                onClick={() => openPage(onSettings)}
+              >
+                <SettingOutlined />
+                <span>
+                  <strong>设置</strong>
+                  <small>⌘ / Ctrl ,</small>
+                </span>
+                <RightOutlined />
+              </button>
+              <a
+                className="repository-switcher-panel__action"
+                href="https://github.com/ShaoClean/remote-git/wiki"
+                target="_blank"
+                rel="noreferrer"
+                onClick={closeAndFocus}
+              >
+                <QuestionCircleOutlined />
+                <span>
+                  <strong>帮助与文档</strong>
+                  <small>使用指南和常见问题</small>
+                </span>
+                <RightOutlined />
+              </a>
+            </section>
+          </div>
+
           <footer className="repository-switcher-panel__footer">
-            <button
-              type="button"
-              className="repository-switcher-panel__action"
-              onClick={() => openPage(onBrowse)}
-            >
-              <FolderOpenOutlined />
-              <span>
-                <strong>浏览仓库</strong>
-                <small>查看全部工作区</small>
-              </span>
-              <RightOutlined />
-            </button>
-            <button
-              type="button"
-              className="repository-switcher-panel__action"
-              onClick={() => openPage(onConnections)}
-            >
-              <SettingOutlined />
-              <span>
-                <strong>远程连接</strong>
-                <small>管理 SSH 主机</small>
-              </span>
-              <RightOutlined />
-            </button>
+            <span>RemoteGit</span>
+            <span>{version}</span>
           </footer>
         </section>
       )}
@@ -255,7 +361,7 @@ export function RepositorySwitcher({
         type="button"
         className="repository-switcher"
         title={contextDetail}
-        aria-label={`切换仓库，${contextLabel}，共 ${repositories.length} 个已打开仓库`}
+        aria-label={`工作区导航，${contextLabel}，共 ${repositories.length} 个已打开仓库`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? 'open-repository-menu' : undefined}
@@ -272,7 +378,7 @@ export function RepositorySwitcher({
               <strong className="repository-switcher__repository">{repository.name}</strong>
             </>
           ) : (
-            <strong className="repository-switcher__repository">已打开仓库</strong>
+            <strong className="repository-switcher__repository">RemoteGit</strong>
           )}
         </span>
         {repository?.isDirty && <span className="repository-switcher__dirty" aria-label="有改动" />}

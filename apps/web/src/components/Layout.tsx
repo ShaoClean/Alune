@@ -19,7 +19,6 @@ import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 import { PanelResizeHandle } from './PanelResizeHandle';
 import { SettingsCenter } from './settings/SettingsCenter';
 import { PanelToggle } from './PanelToggle';
-import { WorkspaceMenu } from './WorkspaceMenu';
 import { SIDEBAR_MIN } from '../stores/workspaceLayout';
 import { WorkspaceStatusBar } from './WorkspaceStatusBar';
 
@@ -269,11 +268,6 @@ export function Layout() {
         <div className="app-tabbar" inert={compact && mobileNavOpen}>
           {(!sidebarVisible || compact) && (
             <div className="app-tabbar__leading">
-              <WorkspaceMenu
-                compact
-                version={'v' + __APP_VERSION__}
-                onSettings={() => openSettings()}
-              />
               <PanelToggle
                 side="left"
                 expanded={sidebarVisible}
@@ -381,23 +375,6 @@ export function Layout() {
             </section>
           </div>
 
-          <div className="app-sidebar__footer">
-            {sidebarVisible && (
-              <WorkspaceMenu
-                version={
-                  isDesktop
-                    ? updateState
-                      ? 'v' + updateState.currentVersion
-                      : '…'
-                    : 'v' + __APP_VERSION__
-                }
-                onSettings={() => {
-                  setMobileNavOpen(false);
-                  openSettings();
-                }}
-              />
-            )}
-          </div>
         </aside>
 
         {!compact && !collapsed && (
@@ -437,6 +414,7 @@ export function Layout() {
         <WorkspaceStatusBar
           repository={activeRepository}
           repositories={openRepositories}
+          version={`v${updateState?.currentVersion || __APP_VERSION__}`}
           inert={compact && mobileNavOpen}
           notices={[
             ...(storageError ? [storageError] : []),
@@ -444,6 +422,7 @@ export function Layout() {
               ? [`RemoteGit v${updateState.latestVersion} 可用`]
               : []),
           ]}
+          onSettings={() => openSettings()}
           onUpdates={isDesktop ? () => openSettings('updates') : undefined}
         />
       </div>
