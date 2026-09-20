@@ -104,6 +104,7 @@ export function Layout() {
     fetchRepositories,
     openRepository,
     closeRepository,
+    deleteRepository,
   } = useRepositoryStore();
 
   useEffect(() => {
@@ -228,6 +229,23 @@ export function Layout() {
 
     closeRepository(id);
     if (isActive) navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
+  };
+
+  const handleDeleteRepository = async (repo: any) => {
+    const isActive = activeRepositoryId === repo.id;
+    const closedIndex = openRepositories.findIndex((item: any) => item.id === repo.id);
+    const nextRepository =
+      closedIndex >= 0
+        ? openRepositories[closedIndex + 1] || openRepositories[closedIndex - 1]
+        : undefined;
+
+    try {
+      await deleteRepository(repo.id);
+      message.success(`已移除仓库“${repo.name}”`);
+      if (isActive) navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
+    } catch (err: any) {
+      message.error(err.message || `移除仓库“${repo.name}”失败`);
+    }
   };
 
   return (
@@ -358,6 +376,7 @@ export function Layout() {
                 statuses={statuses}
                 activeId={activeRepository?.id}
                 onOpenRepository={handleOpenRepository}
+                onDeleteRepository={handleDeleteRepository}
               />
             </section>
           </div>
