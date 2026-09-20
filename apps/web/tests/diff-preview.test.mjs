@@ -1,5 +1,7 @@
 import { beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { getDiffLines, getDiffNotice, getNumberedDiffLines } from '../src/components/diff-lines.ts';
 
 const storage = new Map();
@@ -10,6 +12,7 @@ globalThis.localStorage = {
 };
 const { createRepositoryStore } = await import('../src/stores/repositoryStore.ts');
 const { repositoryApi } = await import('../src/api/index.ts');
+const { DiffViewer } = await import('../src/components/DiffViewer.tsx');
 let store;
 beforeEach(() => {
   store = createRepositoryStore();
@@ -177,4 +180,31 @@ test('changing repository, file, side, commit or parent never retains another co
   assert.equal(store.getState().diff, '');
   assert.equal(store.getState().diffRefreshing, false);
   assert.equal(store.getState().diffKey, null);
+});
+
+test('视图切换只显示图标，并保留可访问名称与选中态', () => {
+  const html = renderToStaticMarkup(
+    createElement(DiffViewer, { diff: textPatch, title: 'new', splitView: true }),
+  );
+  const items = [
+    ...html.matchAll(/<label class="([^"]*ant-segmented-item[^"]*)">([\s\S]*?)<\/label>/g),
+  ].map(([, className, content]) => ({
+    selected: className.includes('ant-segmented-item-selected'),
+    checked: /<input[^>]*checked/.test(content),
+    icons: [...content.matchAll(/class="diff-view-icon"/g)].length,
+    text: content.replace(/<[^>]*>/g, '').trim(),
+  }));
+  assert.equal(items.length, 2);
+  assert.deepEqual(
+    items.map((item) => item.text),
+    ['统一视图', '分栏视图'],
+    'accessible names survive dropping the visible caption',
+  );
+  for (const item of items) {
+    assert.equal(item.icons, 1, 'every option renders exactly one icon');
+  }
+  assert.match(html, /diff-view-switch__label">统一视图/, 'the caption is visually hidden only');
+  assert.equal(items[1].checked, true, 'splitView keeps driving the selected option');
+  assert.equal(items[1].selected, true);
+  assert.equal(items[0].checked, false);
 });

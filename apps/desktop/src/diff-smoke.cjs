@@ -96,7 +96,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     );
     assert.equal(await execute("document.querySelectorAll('.diff-code-row--remove').length"), 0);
     await execute(
-      "Array.from(document.querySelectorAll('.ant-segmented-item')).find(item => item.textContent === '分栏').click()",
+      "Array.from(document.querySelectorAll('.diff-view-switch .ant-segmented-item')).find(item => item.textContent.trim() === '分栏视图').click()",
     );
     await waitFor(
       "document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop first')",
