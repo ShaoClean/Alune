@@ -23,8 +23,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(`Client disconnected: ${client.id}`);
   }
 
-  emitConnectionStatus(connectionId: string, status: string, error?: string) {
-    this.server.emit('connection:status', { connectionId, status, error });
+  emitConnectionStatus(connectionId: string, status: string, error?: string, updatedAt?: number) {
+    this.server?.emit('connection:status', { connectionId, status, error, updatedAt });
   }
 
   emitRepoStatus(repositoryId: string, connectionId: string, data: any) {

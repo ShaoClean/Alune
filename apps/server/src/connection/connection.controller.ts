@@ -17,13 +17,18 @@ export class ConnectionController {
     return connections.map(({ password, passphrase, ...rest }) => ({
       ...rest,
       hasAuth: !!(password || passphrase),
+      ...this.connectionService.getStatus(rest.id),
     }));
   }
 
   @Get(':id')
   async get(@Param('id', ParseUUIDPipe) id: string) {
     const { password, passphrase, ...rest } = await this.connectionService.get(id);
-    return { ...rest, hasAuth: !!(password || passphrase) };
+    return {
+      ...rest,
+      hasAuth: !!(password || passphrase),
+      ...this.connectionService.getStatus(id),
+    };
   }
 
   @Delete(':id')
