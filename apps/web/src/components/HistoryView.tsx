@@ -301,17 +301,6 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
           </div>
         </div>
       )}
-      {log.length > 0 && (
-        <footer className="history-footer">
-          <span aria-live="polite">
-            {logLoadingMore
-              ? '正在加载更多提交…'
-              : !logHasMore
-                ? '已加载 ' + log.length + ' 条提交 · 已到历史末尾'
-                : '已加载 ' + log.length + ' 条提交'}
-          </span>
-        </footer>
-      )}
     </section>
   );
 }

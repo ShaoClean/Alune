@@ -110,25 +110,29 @@ module.exports = async ({ window, origin, token, backend }) => {
     await wait(
       "document.querySelector('.history-detail .diff-shell__title')?.textContent.includes('graph.ts')",
     );
-    await execute("document.querySelector('.history-viewport').scrollTop = 200");
     for (const count of [100, 150, 155]) {
-      await click('.history-footer button');
-      await wait(
-        "document.querySelector('.history-footer').textContent.includes('" + count + " 条提交')",
+      await execute(
+        "(() => { const el = document.querySelector('.history-viewport'); el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll', { bubbles: true })); })()",
       );
-      assert.equal(await execute("document.querySelector('.history-viewport').scrollTop"), 200);
+      await wait(
+        "Number(document.querySelector('.history-table').getAttribute('aria-rowcount')) === " +
+          (count + 1),
+      );
       assert.equal(await execute("document.querySelector('.history-detail') !== null"), true);
     }
-    assert.equal(await execute("document.querySelector('.history-footer button') === null"), true);
     assert.ok((await execute("document.querySelectorAll('.history-row').length")) < 100);
     await click('[aria-label="更多仓库视图"]');
     await execute(
       "Array.from(document.querySelectorAll('.ant-dropdown-menu-item')).find(item => item.textContent.includes('刷新仓库')).click()",
     );
-    await wait("document.querySelector('.history-footer').textContent.includes('50 条提交')");
+    await wait(
+      "Number(document.querySelector('.history-table').getAttribute('aria-rowcount')) === 51",
+    );
     assert.equal(await execute("document.querySelector('.history-detail') !== null"), true);
     revision = 'second';
-    await click('.history-footer button');
+    await execute(
+      "(() => { const el = document.querySelector('.history-viewport'); el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll', { bubbles: true })); })()",
+    );
     await wait(
       "document.querySelector('.history-notice--error')?.textContent.includes('历史已变化')",
     );

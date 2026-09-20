@@ -129,18 +129,6 @@
   background: #f4efff;
   color: #7b4cb5;
 }
-.history-footer {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 42px;
-  padding: 6px 14px;
-  border-top: 1px solid var(--line);
-  color: var(--text-muted);
-  font-size: 11px;
-}
 .history-notice {
   display: flex;
   align-items: center;
@@ -277,10 +265,6 @@
   border-bottom: 1px solid var(--line);
 }
 @media (max-width: 560px) {
-  .history-footer {
-    gap: 6px;
-    padding-inline: 10px;
-  }
   .history-detail__header > code {
     display: none;
   }
