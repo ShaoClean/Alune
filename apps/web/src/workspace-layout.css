@@ -1194,16 +1194,11 @@
   place-items: center;
   width: 24px;
   height: 24px;
-  color: #fff;
-  background: linear-gradient(145deg, #4d86ed, #2563eb);
-  border-radius: 5px;
-  box-shadow:
-    inset 0 1px rgb(255 255 255 / 25%),
-    0 2px 5px rgb(37 99 235 / 18%);
 }
-.repository-switcher__icon .anticon {
-  color: inherit;
-  font-size: 13px;
+
+.repository-switcher__icon-mark {
+  width: 100%;
+  height: 100%;
 }
 .repository-switcher__context {
   display: flex;
@@ -1327,14 +1322,11 @@
   place-items: center;
   width: 34px;
   height: 34px;
-  color: #2563eb;
-  background: linear-gradient(145deg, #eff5ff, #e4eeff);
-  border: 1px solid #cfdef7;
-  border-radius: 9px;
-  box-shadow: inset 0 1px rgb(255 255 255 / 78%);
 }
-.repository-switcher-panel__title-icon .anticon {
-  font-size: 15px;
+
+.repository-switcher-panel__title-mark {
+  width: 100%;
+  height: 100%;
 }
 .repository-switcher-panel__title > span:last-child {
   min-width: 0;
