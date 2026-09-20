@@ -121,7 +121,10 @@ module.exports = async ({ window, origin, token, backend }) => {
     }
     assert.equal(await execute("document.querySelector('.history-footer button') === null"), true);
     assert.ok((await execute("document.querySelectorAll('.history-row').length")) < 100);
-    await click('[aria-label="刷新提交历史"]');
+    await click('[aria-label="更多仓库视图"]');
+    await execute(
+      "Array.from(document.querySelectorAll('.ant-dropdown-menu-item')).find(item => item.textContent.includes('刷新仓库')).click()",
+    );
     await wait("document.querySelector('.history-footer').textContent.includes('50 条提交')");
     assert.equal(await execute("document.querySelector('.history-detail') !== null"), true);
     revision = 'second';
@@ -156,7 +159,10 @@ module.exports = async ({ window, origin, token, backend }) => {
     await wait("!document.querySelector('.history-workspace--compact')");
     commits = commits.slice(1);
     revision = 'third';
-    await click('[aria-label="刷新提交历史"]');
+    await click('[aria-label="更多仓库视图"]');
+    await execute(
+      "Array.from(document.querySelectorAll('.ant-dropdown-menu-item')).find(item => item.textContent.includes('刷新仓库')).click()",
+    );
     await wait("!document.querySelector('.history-detail')");
     console.log(
       'Desktop history passed: graph selection, file Diff, 155 commits, virtual rows, scroll retention, refresh conflicts and compact return.',

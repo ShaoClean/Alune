@@ -2,9 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { GraphCommit, CommitReference } from '@remote-git/shared';
 import { Button } from 'antd';
-import { HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { EmptyState, formatRelativeDate, PanelHeader } from './ui';
+import { EmptyState, formatRelativeDate } from './ui';
 import { appendGraph, emptyGraph, GRAPH_LANE_WIDTH, GRAPH_ROW_HEIGHT } from './commit-graph';
 import type { GraphLayout, GraphRow } from './commit-graph';
 import '../history.css';
@@ -169,26 +168,6 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
 
   return (
     <section className="workspace-panel history-panel" aria-label="所有分支提交历史">
-      <PanelHeader
-        title="提交历史"
-        count={log.length}
-        description="所有分支 · 本地已有历史"
-        icon={<HistoryOutlined />}
-        extra={
-          <>
-            <span className="history-scope">所有分支</span>
-            <Button
-              type="text"
-              icon={<ReloadOutlined />}
-              aria-label="刷新提交历史"
-              onClick={() => void fetchLog(repoId)}
-              loading={logLoading}
-            >
-              刷新
-            </Button>
-          </>
-        }
-      />
       {logError && (
         <div className="history-notice history-notice--error" role="alert">
           <span>{logError}</span>
