@@ -7,6 +7,12 @@ import type { NumberedDiffLine } from './diff-lines';
 import { ImageDiffView } from './ImageDiffView';
 import type { DiffImageOptions } from '@remote-git/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
+import { SplitViewIcon, UnifiedViewIcon } from './DiffViewIcons';
+
+const DIFF_MODES = [
+  { value: 'unified' as const, label: '统一视图', icon: <UnifiedViewIcon /> },
+  { value: 'split' as const, label: '分栏视图', icon: <SplitViewIcon /> },
+];
 
 interface Props {
   oldCode?: string;
@@ -257,13 +263,18 @@ export function DiffViewer({
           <div className="diff-toolbar">
             <span className="diff-mode">视图</span>
             <Segmented
+              className="diff-view-switch"
+              aria-label="Diff 视图"
               size="small"
               value={mode}
               onChange={(value) => setMode(value as 'unified' | 'split')}
-              options={[
-                { label: '统一', value: 'unified' },
-                { label: '分栏', value: 'split' },
-              ]}
+              options={DIFF_MODES.map(({ value, label, icon }) => ({
+                value,
+                icon,
+                // The visually hidden text keeps the radio's accessible name after dropping the caption.
+                label: <span className="diff-view-switch__label">{label}</span>,
+                tooltip: label,
+              }))}
             />
             <Button
               type="text"

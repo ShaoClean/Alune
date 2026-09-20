@@ -279,6 +279,18 @@ test('a confirmed full registry removal prunes pending cache without accepting i
   assert.deepEqual(store.getState().repositories, [repo('b')]);
 });
 
+test('deletion failure preserves the registered repository and workspace state', async () => {
+  await store.getState().fetchRepositories();
+  const failure = new Error('registry is read-only');
+  repositoryApi.delete = async () => { throw failure; };
+  store.getState().openRepository(repo('a'));
+  await assert.rejects(store.getState().deleteRepository('a'), failure);
+  assert.deepEqual(store.getState().repositories.map((item) => item.id), ['a', 'b', 'c']);
+  assert.deepEqual(store.getState().openRepositories.map((item) => item.id), ['a']);
+  assert.equal(store.getState().currentRepo.id, 'a');
+  assert.deepEqual(workspace.getState().repositoryOrderByConnection['host-a'], ['a', 'b']);
+});
+
 test('a Git mutation waits for a pre-mutation read, then shares a fresh validation request', async () => {
   store.getState().resetWorkspace('a');
   const pending = deferred();

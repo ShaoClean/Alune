@@ -17,6 +17,7 @@ export interface ConnectionStatusEvent {
   connectionId: string;
   status: 'connected' | 'disconnected' | 'connecting' | 'error';
   error?: string;
+  updatedAt?: number;
 }
 
 export interface RepositoryStatusEvent {

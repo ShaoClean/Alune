@@ -12,6 +12,7 @@ import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { RepositoryTabs } from './RepositoryTabs';
 import { useDesktopUpdates } from '../hooks/useDesktopUpdates';
+import { useConnectionStatusSync } from '../hooks/useConnectionStatusSync';
 import { WorkspaceTree } from './WorkspaceTree';
 import { useWorkspaceStorageStatus } from '../stores/workspaceStorage';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
@@ -94,7 +95,8 @@ export function Layout() {
       });
     }
   }, [updateState, notifications, openSettings]);
-  const { connections, testResults, fetchConnections } = useConnectionStore();
+  const { connections, statuses, fetchConnections } = useConnectionStore();
+  useConnectionStatusSync();
   const {
     repositories,
     openRepositories,
@@ -102,6 +104,7 @@ export function Layout() {
     fetchRepositories,
     openRepository,
     closeRepository,
+    deleteRepository,
   } = useRepositoryStore();
 
   useEffect(() => {
@@ -226,6 +229,23 @@ export function Layout() {
 
     closeRepository(id);
     if (isActive) navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
+  };
+
+  const handleDeleteRepository = async (repo: any) => {
+    const isActive = activeRepositoryId === repo.id;
+    const closedIndex = openRepositories.findIndex((item: any) => item.id === repo.id);
+    const nextRepository =
+      closedIndex >= 0
+        ? openRepositories[closedIndex + 1] || openRepositories[closedIndex - 1]
+        : undefined;
+
+    try {
+      await deleteRepository(repo.id);
+      message.success(`已移除仓库“${repo.name}”`);
+      if (isActive) navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
+    } catch (err: any) {
+      message.error(err.message || `移除仓库“${repo.name}”失败`);
+    }
   };
 
   return (
@@ -353,9 +373,10 @@ export function Layout() {
                 query={repositoryQuery}
                 connections={connections}
                 repositories={repositories}
-                testResults={testResults}
+                statuses={statuses}
                 activeId={activeRepository?.id}
                 onOpenRepository={handleOpenRepository}
+                onDeleteRepository={handleDeleteRepository}
               />
             </section>
           </div>

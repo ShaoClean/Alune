@@ -4,7 +4,7 @@ import { BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/ico
 import type { Repository } from '@remote-git/shared';
 import { useNavigate } from 'react-router-dom';
 import { useConnectionStore } from '../stores/connectionStore';
-import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
+import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { RepositorySwitcher } from './RepositorySwitcher';
 import { StatusButton } from './StatusButton';
 import { useSyncStatusStore } from '../stores/syncStatusStore';
@@ -28,29 +28,18 @@ export function WorkspaceStatusBar({
   // Only surface the progress of the repository this status bar describes.
   const progress = repository && syncRepoId === repository.id ? syncDetail : null;
   const connections = useConnectionStore((state) => state.connections);
-  const results = useConnectionStore((state) => state.testResults);
+  const statuses = useConnectionStore((state) => state.statuses);
   const connection = connections.find((item) => item.id === repository?.connectionId);
-  const { entry, stale } = useRepositoryStatus(repository?.id || '');
   const [notificationOpen, setNotificationOpen] = useState(false);
   const notificationTrigger = useRef<HTMLButtonElement>(null);
   const notificationPanel = useRef<HTMLElement>(null);
-  const result = connection ? results[connection.id] : undefined;
+  const info = connection ? statuses[connection.id] : undefined;
+  const state = connectionStatus(info);
   const connectionLabel = !connection
     ? '未选择远程连接'
-    : result
-      ? `SSH ${result.success ? '测试成功' : '测试失败'} · ${connection.name}${result.error ? ` · ${result.error}` : ''}`
-      : entry?.phase === 'error'
-        ? `SSH 状态待确认 · ${connection.name} · ${entry.error || '仓库读取失败'}`
-        : entry?.data && !stale
-          ? `SSH 可用 · ${connection.name}`
-          : `SSH 状态未确认 · ${connection.name}`;
-  const connectionState = result
-    ? result.success
-      ? 'connected'
-      : 'error'
-    : entry?.data && !stale
-      ? 'connected'
-      : 'disconnected';
+    : [`SSH ${connectionStatusLabel(info)}`, connection.name, info?.error]
+        .filter(Boolean)
+        .join(' · ');
 
   return (
     <footer className="status-bar" aria-label="工作区状态栏" inert={inert}>
@@ -84,7 +73,7 @@ export function WorkspaceStatusBar({
           onClick={() => navigate('/')}
         >
           <CloudServerOutlined />
-          <span className={`connection-dot connection-dot--${connectionState}`} />
+          <span className={`connection-dot connection-dot--${state}`} />
           <span className="status-bar__connection-label">{connection?.name || '远程连接'}</span>
         </StatusButton>
         <Popover

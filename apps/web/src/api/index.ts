@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@remote-git/shared';
 import type {
+  ConnectionTestResult,
   DiffImageContent,
   DiffImageOptions,
   NewFileDeletionPreview,
@@ -21,7 +22,8 @@ export const connectionApi = {
   get: (id: string) => api.get(`/connections/${id}`).then((r) => r.data),
   create: (data: any) => api.post('/connections', data).then((r) => r.data),
   delete: (id: string) => api.delete(`/connections/${id}`).then((r) => r.data),
-  test: (id: string) => api.post(`/connections/${id}/test`).then((r) => r.data),
+  test: (id: string): Promise<ConnectionTestResult> =>
+    api.post(`/connections/${id}/test`).then((r) => r.data),
 };
 
 // Repository APIs

@@ -242,6 +242,8 @@ button { cursor: pointer; }
 .connection-dot--connected, .connection-dot--ready { background: #4ade80; box-shadow: 0 0 0 3px rgb(74 222 128 / 12%); }
 .connection-dot--connecting { background: #fbbf24; }
 .connection-dot--error { background: #f87171; }
+/* Never attempted reads as hollow, so it cannot be mistaken for a closed connection. */
+.connection-dot--unknown { background: transparent; box-shadow: inset 0 0 0 1.5px #8390a2; }
 .tree-empty { padding: 14px 9px; color: #75849b; font-size: 12px; }
 .resource-sidebar__footer { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-top: 1px solid rgb(255 255 255 / 7%); }
 .sidebar-footer__version { color: #687991; font-family: 'DM Mono', monospace; font-size: 10px; }
@@ -435,12 +437,9 @@ button { cursor: pointer; }
 .file-row__status { width: 15px; color: var(--text-muted); font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600; text-align: center; }
 .file-row__stats { display: flex; gap: 7px; font-family: 'DM Mono', monospace; font-size: 10px; }
 .file-row__actions { display: flex; margin-left: 5px; }
-.commit-box { margin: 14px 0 0; padding: 14px; background: linear-gradient(145deg, var(--surface-muted), #f2f6fc); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-sm); }
-.commit-box__heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; color: var(--text); font-size: 12px; font-weight: 600; }
+.commit-box { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 0; padding: 14px; background: linear-gradient(145deg, var(--surface-muted), #f2f6fc); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-sm); }
+.commit-box__heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; color: var(--text); font-size: 12px; font-weight: 600; }
 .commit-box__heading span { color: var(--text-muted); font-size: 10px; font-weight: 400; }
-.commit-box .ant-input, .commit-box textarea { margin-bottom: 8px; }
-.commit-box__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.commit-box__hint { color: var(--text-muted); font-size: 10px; }
 .diff-shell { display: flex; flex-direction: column; height: 100%; min-height: 100%; }
 .diff-shell__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 13px 15px; background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%); border-bottom: 1px solid var(--line); }
 .diff-shell__title { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; }
@@ -464,6 +463,11 @@ button { cursor: pointer; }
 .diff-error span { max-width: 260px; color: var(--text-muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 .diff-toolbar { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .diff-mode { color: var(--text-muted); font-size: 10px; }
+.diff-view-switch .ant-segmented-item-label { display: flex; align-items: center; justify-content: center; min-width: 28px; padding: 0 6px; }
+.diff-view-switch .ant-segmented-item-icon { display: flex; align-items: center; }
+.diff-view-switch .ant-segmented-item-icon + * { margin-inline-start: 0; }
+.diff-view-switch__label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.diff-view-icon { display: block; }
 .diff-zoom-modal .ant-modal-content { height: calc(100vh - 48px); padding: 0; overflow: hidden; }
 .diff-zoom-modal .ant-modal-header { margin: 0; padding: 14px 18px; }
 .diff-zoom-modal .ant-modal-body { height: calc(100% - 56px); padding: 0; overflow: hidden; }
@@ -579,7 +583,6 @@ button { cursor: pointer; }
   .panel-header { flex-wrap: wrap; }
   .panel-header__actions { flex-basis: 100%; flex-wrap: wrap; justify-content: flex-start; }
   .panel-header__actions .ant-btn { padding-inline: 6px; }
-  .commit-box__footer { align-items: flex-start; flex-direction: column; }
   .remote-card__url { grid-template-columns: 34px minmax(0, 1fr) 25px; }
   .repo-search { width: 100%; }
   .commit-row { grid-template-columns: 21px 27px minmax(0, 1fr) auto; gap: 7px; padding-inline: 9px; }
@@ -858,13 +861,17 @@ body,
   color: #78879c;
 }
 
-.tree-node__action { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; min-height: 23px; padding: 0; color: inherit; font: inherit; text-align: left; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
+.tree-node__action { display: flex; align-items: center; gap: 7px; flex: 1 1 auto; min-width: 0; min-height: 23px; padding: 0; color: inherit; font: inherit; text-align: left; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
 .tree-node__chevron { flex: 0 0 10px; font-size: 9px; }
 .tree-sort-handle { display: grid; place-items: center; flex: 0 0 16px; width: 16px; height: 23px; padding: 0; color: #8495ad; background: transparent; border: 0; border-radius: 4px; cursor: grab; opacity: .55; }
 .tree-sort-handle:hover, .tree-sort-handle:focus-visible, .tree-node:hover > .tree-sort-handle { opacity: 1; color: #3f72b3; }
 .tree-sort-handle:active { cursor: grabbing; }
 .tree-sort-handle:disabled { opacity: .18; cursor: default; }
-.tree-sort-handle:focus-visible, .tree-node__action:focus-visible { outline: 2px solid #6395e8; outline-offset: 2px; }
+.tree-sort-handle:focus-visible, .tree-node__action:focus-visible, .tree-node__delete:focus-visible { outline: 2px solid #6395e8; outline-offset: 2px; }
+.tree-node__delete { display: grid; place-items: center; flex: 0 0 24px; width: 24px; height: 24px; padding: 0; color: #8b9ab0; background: transparent; border: 0; border-radius: 5px; cursor: pointer; opacity: .55; transition: color 150ms ease, background 150ms ease, opacity 150ms ease; }
+.tree-node--repo:hover .tree-node__delete, .tree-node--repo:focus-within .tree-node__delete { opacity: 1; }
+.tree-node__delete:hover { color: var(--red); background: var(--red-soft); }
+.tree-node__delete:disabled { cursor: wait; opacity: .45; }
 .tree-group, .tree-node--repo { position: relative; }
 .tree-item--dragging { opacity: .45; }
 .tree-drop--before::before, .tree-drop--after::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: #397ee9; border-radius: 2px; pointer-events: none; z-index: 1; }
@@ -899,6 +906,9 @@ body,
   color: #8b99ac;
   font-size: 12px;
 }
+.tree-delete-confirm { display: grid; gap: 4px; max-width: 270px; line-height: 1.45; }
+.tree-delete-confirm > div { overflow-wrap: anywhere; }
+.tree-delete-confirm small { margin-top: 4px; color: var(--text-muted); line-height: 1.5; }
 
 .sidebar-link {
   color: #708099;

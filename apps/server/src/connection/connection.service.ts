@@ -2,15 +2,54 @@ import { Injectable, Inject, NotFoundException, OnModuleDestroy } from '@nestjs/
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { SSHConnectionPool, SSHConnection } from '@remote-git/ssh-client';
-import type { SSHConnectionConfig } from '@remote-git/shared';
+import type {
+  ConnectionActivityStatus,
+  ConnectionStatusInfo,
+  ConnectionTestResult,
+  SSHConnectionConfig,
+} from '@remote-git/shared';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class ConnectionService implements OnModuleDestroy {
   private pool = new SSHConnectionPool();
   private connecting = new Map<string, Promise<SSHConnection>>();
+  private statuses = new Map<string, ConnectionStatusInfo>();
+  private readonly startedAt = Date.now();
+  private lastStatusAt = this.startedAt;
 
-  constructor(@Inject('DATABASE') private db: Database.Database) {
+  constructor(
+    @Inject('DATABASE') private db: Database.Database,
+    private events: EventsGateway,
+  ) {
     this._initTable();
+    // SSH activity is the single source of truth for the status shown in the UI.
+    this.pool.on('connection:connecting', (id: string) => this._setStatus(id, 'connecting'));
+    this.pool.on('connection:connected', (id: string) => this._setStatus(id, 'connected'));
+    this.pool.on('connection:disconnected', (id: string) => {
+      // ssh2 closes the socket right after reporting an error; keep the specific
+      // failure instead of replacing it with a bare "disconnected".
+      if (this.statuses.get(id)?.status !== 'error') this._setStatus(id, 'disconnected');
+    });
+    this.pool.on('connection:error', (id: string, error: Error) =>
+      this._setStatus(id, 'error', error?.message),
+    );
+  }
+
+  private _setStatus(id: string, status: ConnectionActivityStatus, error?: string) {
+    const current = this.statuses.get(id);
+    // ensureConnected reports the attempt before ssh2 does; do not emit it twice.
+    if (current && current.status === status && current.error === error) return current;
+    const updatedAt = Math.max(Date.now(), this.lastStatusAt + 1);
+    this.lastStatusAt = updatedAt;
+    const info: ConnectionStatusInfo = { status, error, updatedAt };
+    this.statuses.set(id, info);
+    this.events.emitConnectionStatus(id, status, error, info.updatedAt);
+    return info;
+  }
+
+  getStatus(id: string): ConnectionStatusInfo {
+    return this.statuses.get(id) ?? { status: 'unknown', updatedAt: this.startedAt };
   }
 
   onModuleDestroy() {
@@ -78,25 +117,27 @@ export class ConnectionService implements OnModuleDestroy {
 
   async delete(id: string): Promise<void> {
     this.pool.removeConnection(id);
+    this.statuses.delete(id);
     this.db.prepare('DELETE FROM connections WHERE id = ?').run(id);
   }
 
-  async test(id: string): Promise<{ success: boolean; error?: string }> {
-    const config = await this.get(id);
+  async test(id: string): Promise<ConnectionTestResult> {
+    // Preserve the controller's 404 behavior for unknown connection IDs.
+    await this.get(id);
     try {
-      const conn = this.pool.createConnection(id, {
-        host: config.host,
-        port: config.port,
-        username: config.username,
-        password: config.password,
-        privateKeyPath: config.privateKeyPath,
-        passphrase: config.passphrase,
-      });
-      await conn.connect();
-      conn.disconnect();
-      return { success: true };
+      // Reuse the pooled connection so an explicit test and an opened repository
+      // report one status, and testing never drops a connection already in use.
+      await this.ensureConnected(id);
+      const status = this.getStatus(id);
+      return { success: true, status: status.status, updatedAt: status.updatedAt };
     } catch (err: any) {
-      return { success: false, error: err.message };
+      const status = this.getStatus(id);
+      return {
+        success: false,
+        status: status.status,
+        error: status.error || err.message,
+        updatedAt: status.updatedAt,
+      };
     }
   }
 
@@ -109,6 +150,9 @@ export class ConnectionService implements OnModuleDestroy {
     if (pending) return pending;
     const existing = this.pool.getConnection(id);
     if (existing?.connected) return existing;
+    // Report the attempt immediately: reading the config or the key file happens
+    // before ssh2 can emit anything of its own.
+    this._setStatus(id, 'connecting');
     const request = (async () => {
       const config = await this.get(id);
       const conn = this.pool.createConnection(id, {
@@ -121,7 +165,15 @@ export class ConnectionService implements OnModuleDestroy {
       });
       await conn.connect();
       return conn;
-    })().finally(() => this.connecting.delete(id));
+    })()
+      .catch((error: any) => {
+        // A failure before ssh2 reports one of its own errors (unknown connection,
+        // unreadable key file) must not leave the status stuck on "connecting".
+        if (this.statuses.get(id)?.status === 'connecting')
+          this._setStatus(id, 'error', error?.message);
+        throw error;
+      })
+      .finally(() => this.connecting.delete(id));
     // Concurrent status reads for one host must share its connection attempt.
     this.connecting.set(id, request);
     return request;

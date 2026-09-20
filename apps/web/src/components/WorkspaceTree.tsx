@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
+import { Popconfirm } from 'antd';
 import {
   BranchesOutlined,
+  DeleteOutlined,
   DownOutlined,
   FolderOpenOutlined,
   HolderOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import type { Repository } from '@remote-git/shared';
+import type { ConnectionStatusInfo, Repository } from '@remote-git/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
+import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { RepositoryStatusIndicator } from './RepositoryStatusIndicator';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { canMoveTreeItem, orderItems } from '../stores/sidebarOrder';
@@ -17,25 +20,26 @@ import type { Placement, TreeItem } from '../stores/sidebarOrder';
 interface Connection {
   id: string;
   name: string;
-  status?: string;
 }
 interface Props {
   connections: Connection[];
   repositories: Repository[];
-  testResults: Record<string, { success: boolean }>;
+  statuses: Record<string, ConnectionStatusInfo>;
   activeId?: string;
   query?: string;
   onOpenRepository: (repo: Repository) => void;
+  onDeleteRepository: (repo: Repository) => Promise<void>;
 }
 type DropTarget = { item: TreeItem; placement: Placement };
 
 export function WorkspaceTree({
   connections,
   repositories,
-  testResults,
+  statuses,
   activeId,
   query = '',
   onOpenRepository,
+  onDeleteRepository,
 }: Props) {
   const {
     treeOpen,
@@ -50,6 +54,7 @@ export function WorkspaceTree({
   const [dragging, setDragging] = useState<TreeItem | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [deletingRepositoryId, setDeletingRepositoryId] = useState<string | null>(null);
   const dragSource = useRef<TreeItem | null>(null);
   const suppressClickUntil = useRef(0);
   const tree = useRef<HTMLDivElement>(null);
@@ -185,6 +190,16 @@ export function WorkspaceTree({
     }
   };
 
+  const handleDelete = async (repo: Repository) => {
+    if (deletingRepositoryId) return;
+    setDeletingRepositoryId(repo.id);
+    try {
+      await onDeleteRepository(repo);
+    } finally {
+      setDeletingRepositoryId(null);
+    }
+  };
+
   const sortHandle = (item: TreeItem, siblings: { id: string }[], name: string) => (
     <button
       type="button"
@@ -293,7 +308,15 @@ export function WorkspaceTree({
                       {open ? <DownOutlined /> : <RightOutlined />}
                     </span>
                     <span
-                      className={`connection-dot connection-dot--${connection.status || (testResults[connection.id]?.success ? 'connected' : testResults[connection.id] ? 'error' : 'disconnected')}`}
+                      role="img"
+                      aria-label={`连接状态：${connectionStatusLabel(statuses[connection.id])}`}
+                      title={[
+                        connectionStatusLabel(statuses[connection.id]),
+                        statuses[connection.id]?.error,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                      className={`connection-dot connection-dot--${connectionStatus(statuses[connection.id])}`}
                     />
                     <span className="tree-node__label" title={connection.name}>
                       {connection.name}
@@ -329,6 +352,32 @@ export function WorkspaceTree({
                           </span>
                           <RepositoryStatusIndicator id={repo.id} compact />
                         </button>
+                        <Popconfirm
+                          title="确认移除仓库？"
+                          description={
+                            <div className="tree-delete-confirm">
+                              <div><strong>名称：</strong>{repo.name}</div>
+                              <div><strong>路径：</strong>{repo.path}</div>
+                              <small>仅移除应用内登记，不会删除远端仓库或仓库文件。</small>
+                            </div>
+                          }
+                          okText="确认移除"
+                          cancelText="取消"
+                          placement="right"
+                          onConfirm={() => handleDelete(repo)}
+                        >
+                          <button
+                            type="button"
+                            className="tree-node__delete"
+                            aria-label={`删除 ${repo.name}`}
+                            aria-busy={deletingRepositoryId === repo.id}
+                            title="删除仓库登记"
+                            disabled={Boolean(deletingRepositoryId)}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <DeleteOutlined />
+                          </button>
+                        </Popconfirm>
                       </div>
                     );
                   })}
