@@ -22,22 +22,6 @@
   border-radius: 0;
   box-shadow: none;
 }
-.history-panel .panel-header {
-  border-bottom: 1px solid var(--line);
-}
-.history-panel .panel-header__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.history-scope {
-  padding: 3px 9px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  color: var(--text-muted);
-  font-size: 11px;
-  white-space: nowrap;
-}
 .history-viewport {
   flex: 1;
   min-height: 0;
@@ -293,9 +277,6 @@
   border-bottom: 1px solid var(--line);
 }
 @media (max-width: 560px) {
-  .history-scope {
-    display: none;
-  }
   .history-footer {
     gap: 6px;
     padding-inline: 10px;
