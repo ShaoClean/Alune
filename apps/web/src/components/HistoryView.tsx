@@ -144,6 +144,22 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
     element.addEventListener('scroll', handleScroll);
     return () => element.removeEventListener('scroll', handleScroll);
   }, []);
+  useEffect(() => {
+    if (!logHasMore || logLoading || logLoadingMore || logChanged || logError) return;
+    const total = log.length * GRAPH_ROW_HEIGHT;
+    if (total - (scrollTop + height) <= GRAPH_ROW_HEIGHT * 4) void fetchLog(repoId, 'more');
+  }, [
+    scrollTop,
+    height,
+    log.length,
+    logHasMore,
+    logLoading,
+    logLoadingMore,
+    logChanged,
+    logError,
+    repoId,
+    fetchLog,
+  ]);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!log.length) return;
     let index = focused;
@@ -288,18 +304,12 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
       {log.length > 0 && (
         <footer className="history-footer">
           <span aria-live="polite">
-            已加载 {log.length} 条提交{!logHasMore ? ' · 已到历史末尾' : ''}
+            {logLoadingMore
+              ? '正在加载更多提交…'
+              : !logHasMore
+                ? '已加载 ' + log.length + ' 条提交 · 已到历史末尾'
+                : '已加载 ' + log.length + ' 条提交'}
           </span>
-          {logHasMore && (
-            <Button
-              size="small"
-              disabled={logLoading || logChanged}
-              loading={logLoadingMore}
-              onClick={() => void fetchLog(repoId, 'more')}
-            >
-              加载更多提交
-            </Button>
-          )}
         </footer>
       )}
     </section>
