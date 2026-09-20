@@ -20,6 +20,11 @@ registerHooks({
     return nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {
+    // Vite resolves static asset imports (svg/png/...) to a URL string; Node's loader
+    // has no such transform, so stub the same shape for components that import them.
+    if (/\.(svg|png|jpe?g|gif|webp)$/.test(url)) {
+      return { format: 'module', shortCircuit: true, source: `export default ${JSON.stringify(url)};` };
+    }
     if (url.endsWith('.tsx')) {
       const source = readFileSync(new URL(url), 'utf8');
       return {

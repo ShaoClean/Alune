@@ -12,6 +12,7 @@ import {
   UpOutlined,
 } from '@ant-design/icons';
 import type { Repository } from '@remote-git/shared';
+import { BrandIcon } from './BrandIcon';
 
 interface ConnectionSummary {
   id: string;
@@ -192,7 +193,7 @@ export function RepositorySwitcher({
           <header className="repository-switcher-panel__header">
             <span className="repository-switcher-panel__title">
               <span className="repository-switcher-panel__title-icon" aria-hidden="true">
-                <CodeOutlined />
+                <BrandIcon className="repository-switcher-panel__title-mark" />
               </span>
               <span>
                 <strong>切换仓库</strong>
@@ -261,7 +262,7 @@ export function RepositorySwitcher({
         onKeyDown={openFromKeyboard}
       >
         <span className="repository-switcher__icon" aria-hidden="true">
-          <CodeOutlined />
+          <BrandIcon className="repository-switcher__icon-mark" />
         </span>
         <span className="repository-switcher__context">
           {repository ? (
