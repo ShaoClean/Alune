@@ -18,7 +18,10 @@ const compact = source
 const generated = '<!-- Generated from apps/desktop/assets/icon.svg by npm run icons:generate. -->\n';
 const outputs = [
   ['apps/desktop/assets/icon.png', new Resvg(source).render().asPng()],
-  ['apps/web/public/favicon.svg', Buffer.from(generated + compact)],
+  // Lives under src/assets, not public/, so Vite content-hashes the built file. A
+  // fixed /favicon.svg URL let browsers and Electron's persistent session cache serve
+  // a stale icon across upgrades; a hashed URL changes whenever the artwork changes.
+  ['apps/web/src/assets/favicon.svg', Buffer.from(generated + compact)],
 ];
 
 for (const [name, contents] of outputs) {
