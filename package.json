@@ -9,7 +9,7 @@
     "lint:commits": "node scripts/lint-commits.mjs",
     "test:hooks": "node --test scripts/pre-push.test.mjs",
     "test:release-notes": "node --test scripts/release-notes.test.mjs",
-    "release:notes": "git-cliff --config cliff.toml",
+    "release:notes": "node scripts/release-notes.mjs",
     "release:notes:github": "node scripts/generate-release-notes.mjs",
     "dev": "turbo dev",
     "build": "npm run icons:check && turbo build",
