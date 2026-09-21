@@ -12,14 +12,18 @@ import { useSyncStatusStore } from '../stores/syncStatusStore';
 export function WorkspaceStatusBar({
   repository,
   repositories,
+  version,
   inert,
   notices,
+  onSettings,
   onUpdates,
 }: {
   repository?: Repository | null;
   repositories: Repository[];
+  version: string;
   inert: boolean;
   notices: string[];
+  onSettings: () => void;
   onUpdates?: () => void;
 }) {
   const navigate = useNavigate();
@@ -48,9 +52,12 @@ export function WorkspaceStatusBar({
           repository={repository}
           repositories={repositories}
           connections={connections}
+          statuses={statuses}
+          version={version}
           onSelect={(id) => navigate(`/repositories/${id}`)}
           onBrowse={() => navigate('/repositories')}
           onConnections={() => navigate('/')}
+          onSettings={onSettings}
         />
         {repository && <span className="status-bar__divider" aria-hidden="true" />}
         {repository && (
