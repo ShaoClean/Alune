@@ -11,7 +11,6 @@ import {
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { ToolbarButton } from './ToolbarButton';
-import { useMenuAlign } from '../hooks/useMenuAlign';
 
 // The pill is a context selector, so clicking it opens the switch list instead of
 // navigating to the branch view. Branch management stays reachable from the overflow menu.
@@ -41,7 +40,6 @@ export function BranchPicker({
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLElement>(null);
   const mounted = useRef(true);
-  const { measure, align } = useMenuAlign();
 
   useEffect(() => {
     mounted.current = true;
@@ -137,15 +135,13 @@ export function BranchPicker({
     <>
       <Popover
         trigger="click"
-        align={align}
+        placement="bottomRight"
         arrow={false}
         open={open}
         onOpenChange={(value) => {
           setOpen(value);
-          if (value) {
-            measure(trigger.current);
-            void load();
-          } else setQuery('');
+          if (value) void load();
+          else setQuery('');
         }}
         afterOpenChange={(value) => {
           if (value) panel.current?.focus();
