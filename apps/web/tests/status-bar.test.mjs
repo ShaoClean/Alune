@@ -186,6 +186,14 @@ test('分支胶囊是打开切换菜单的选择器，而不是跳转到分支�
   assert.equal(branchPill.text, 'feature/long-branch');
 });
 
+test('分支菜单锚定按钮右下方，不随右侧文件列表横移', () => {
+  const source = readFileSync(new URL('../src/components/BranchPicker.tsx', import.meta.url), 'utf8');
+  const popover = source.slice(source.indexOf('<Popover'), source.indexOf('content={'));
+  assert.match(popover, /placement="bottomRight"/);
+  assert.doesNotMatch(popover, /\balign=|\bmeasure\(/);
+  assert.doesNotMatch(source, /useMenuAlign|#workspace-list/);
+});
+
 test('窄屏功能收进溢出菜单而不是隐藏，核心操作始终可触达', () => {
   const required = ['改动', '提交历史', '分支', '拉取', '推送'];
   for (const tier of ['full', 'compact', 'condensed', 'minimal']) {
