@@ -194,6 +194,17 @@ test('分支菜单锚定按钮右下方，不随右侧文件列表横移', () =>
   assert.doesNotMatch(source, /useMenuAlign|#workspace-list/);
 });
 
+test('推送菜单锚定按钮右下方，不受当前视图的文件列表位置影响', () => {
+  const source = readFileSync(new URL('../src/components/RepositoryToolbar.tsx', import.meta.url), 'utf8');
+  const menuId = source.indexOf("id: 'repository-push-menu'");
+  assert.ok(menuId >= 0);
+  const dropdown = source.slice(source.lastIndexOf('<Dropdown', menuId), menuId);
+  assert.match(dropdown, /placement="bottomRight"/);
+  assert.match(dropdown, /onOpenChange=\{setPushOpen\}/);
+  assert.doesNotMatch(dropdown, /\balign=|\bmeasure\(/);
+  assert.doesNotMatch(source, /useMenuAlign|pushAlign/);
+});
+
 test('窄屏功能收进溢出菜单而不是隐藏，核心操作始终可触达', () => {
   const required = ['改动', '提交历史', '分支', '拉取', '推送'];
   for (const tier of ['full', 'compact', 'condensed', 'minimal']) {

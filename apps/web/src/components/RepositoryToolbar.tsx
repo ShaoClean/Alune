@@ -24,7 +24,6 @@ import { WorktreesMenu } from './WorktreesMenu';
 import { WorktreesPanel } from './WorktreesPanel';
 import { BranchPicker } from './BranchPicker';
 import { useToolbarTier } from '../hooks/useToolbarTier';
-import { useMenuAlign } from '../hooks/useMenuAlign';
 import { syncLabel } from '../stores/syncStatusStore';
 import type { SyncOperation } from '../stores/syncStatusStore';
 
@@ -70,7 +69,6 @@ export function RepositoryToolbar({
   const moreTrigger = useRef<HTMLButtonElement>(null);
   const pushTrigger = useRef<HTMLButtonElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
-  const pushAlign = useMenuAlign();
 
   const branch = status ? status.branch || '游离 HEAD' : '分支未知';
   const changes = status ? new Set(status.files.map((file) => file.path)).size : undefined;
@@ -301,13 +299,10 @@ export function RepositoryToolbar({
           </ToolbarButton>
           <Dropdown
             trigger={['click']}
-            align={pushAlign.align}
+            placement="bottomRight"
             autoFocus
             open={pushOpen}
-            onOpenChange={(value) => {
-              setPushOpen(value);
-              if (value) pushAlign.measure(pushTrigger.current);
-            }}
+            onOpenChange={setPushOpen}
             menu={{
               id: 'repository-push-menu',
               'aria-label': '推送与获取',
