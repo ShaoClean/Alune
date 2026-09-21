@@ -37,7 +37,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: 构建共享依赖
-        if: matrix.workspace == 'server' || matrix.workspace == 'ssh-client'
+        if: matrix.workspace != 'desktop'
         run: npm run build -w @remote-git/shared
       - name: 构建服务端的 SSH 依赖
         if: matrix.workspace == 'server'
