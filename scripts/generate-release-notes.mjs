@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stableTagPattern } from './release-version.mjs';
+import { renderReleaseNotes } from './release-notes.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
@@ -36,12 +37,11 @@ export function generateReleaseNotes({ tag, previousTag, repository, directory =
   }
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository)) throw new Error('GH_REPO must be an owner/repository name');
   const range = previousTag ? `${previousTag}..${tag}` : git(directory, 'rev-parse', `${tag}^{commit}`);
-  const notes = execFileSync(process.execPath, [
-    fileURLToPath(import.meta.resolve('git-cliff/cli')),
-    range, '--repository', directory, '--config', path.join(root, 'cliff.toml'),
+  const notes = renderReleaseNotes([
+    range, '--repository', directory,
     // Intermediate failed/unpublished tags must not split this release's notes.
     '--tag-pattern', `^${tag.replaceAll('.', '\\.')}$`,
-  ], { cwd: directory, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).trim();
+  ], directory).trim();
   const body = notes || `## ${tag}\n\n本次更新主要包含构建、测试或维护调整。`;
   const link = previousTag ? `compare/${previousTag}...${tag}` : `commits/${tag}`;
   return `${body}\n\n**完整变更**：https://github.com/${repository}/${link}\n`;

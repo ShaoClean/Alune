@@ -117,7 +117,7 @@ npm run commitlint -- --last --verbose
 
 ## 预览 Release 说明
 
-`cliff.toml` 保存分类、过滤规则和 Markdown 模板，git-cliff 已锁定在开发依赖中，无需单独全局安装。
+`cliff.toml` 保存分类、过滤规则和 Markdown 模板，git-cliff 已锁定在开发依赖中，无需单独全局安装。本地预览和 CI 发布共用去重生成入口；预览支持提交范围、`--repository`、`--tag`、`--tag-pattern`、`--latest`、`--current`、`--unreleased` 和 `--output`。
 
 在准备发布前，可以指定上一已发布版本和当前提交预览。下面以 `v0.1.2` 为上一版本、计划发布 `v0.2.0` 为例：
 
@@ -136,6 +136,14 @@ GH_REPO=ShaoClean/remote-git npm run release:notes:github -- v0.1.2 release-note
 该入口会分页读取成功发布的稳定 Release，从当前 tag 的 first-parent 历史中选择最近的、更低版本的已发布 tag。草稿、预发布、当前 tag、其他发布分支上的 tag，以及只有 tag 但没有已公开 Release 的版本都不作为起点。没有符合条件的上一版本时，从当前 tag 可达的历史起点生成说明。
 
 生成范围固定在当前 tag 上，之后新增的提交不会混入。中间未发布 tag 的变更会合并到本次说明。只有构建、测试或维护提交时，会给出维护说明并附完整变更链接。
+
+每个版本内，同分类、同模块且不兼容标记及迁移说明一致时，按以下规则去重并保留生成顺序中的第一条原始记录（含原 PR 编号）：
+
+- 标题相同，或仅末尾的 `(#数字)` PR 标记不同，视为同一功能；不会模糊匹配不同标题。
+- 正文中显式的 `Refs`、`Closes`、`Fixes`、`Resolves` 等引用行指向完全相同的 Issue 集合时，视为同一事项；支持 `#编号` 和 `owner/repo#编号`，集合只部分重叠不会合并。
+- 不同版本、分类、模块及不同迁移说明分别保留，普通正文中提及编号不会触发 Issue 去重。
+
+重复执行生成命令会覆盖输出文件而不是追加。去重发生在渲染 Markdown 之前，不改变现有分类和排版；直接调用 git-cliff 会绕过去重。历史上已公开的 Release 不会自动回写。
 
 ## 发布新版本
 
@@ -179,6 +187,6 @@ npm run test:release-notes
 npm run desktop:test:unit
 ```
 
-hooks 测试在临时仓库中验证提交拦截、推送版本检查和 CI 提交范围；说明测试验证分类、旧格式记录、不兼容变更、首次发布、失败 tag 和维护版本。这些测试不会发布 GitHub Release。
+hooks 测试在临时仓库中验证提交拦截、推送版本检查和 CI 提交范围；说明测试验证分类、旧格式记录、不兼容变更、首次发布、失败 tag、维护版本、功能及 Issue 去重、跨版本保留和重复生成的一致性。这些测试不会发布 GitHub Release。
 
 桌面构建、各平台安装包及实际升级验收要求见[开发与打包](docs/development.md#测试与发布验收)。实际验收记录与配套附件按上述约定维护在 Wiki。
