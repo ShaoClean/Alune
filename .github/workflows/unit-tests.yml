@@ -1,0 +1,46 @@
+name: 单元测试
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: 单元测试 (${{ matrix.workspace }})
+    if: github.event_name != 'push' || !github.event.deleted
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: desktop
+            command: npm run desktop:test:unit
+          - workspace: web
+            command: npm test -w web
+          - workspace: server
+            command: npm test -w server -- --ci --runInBand
+          - workspace: ssh-client
+            command: npm test -w @remote-git/ssh-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - name: 构建共享依赖
+        if: matrix.workspace != 'desktop'
+        run: npm run build -w @remote-git/shared
+      - name: 构建服务端的 SSH 依赖
+        if: matrix.workspace == 'server'
+        run: npm run build -w @remote-git/ssh-client
+      - name: 运行单元测试
+        run: ${{ matrix.command }}
