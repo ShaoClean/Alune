@@ -7,12 +7,12 @@ const { createWorkspacePreferences, isTrustedWorkspaceSender } = require('./work
 const { createExternalLinkHandler } = require('./external-links.cjs');
 
 const smokeTest = process.argv.includes('--smoke-test');
-app.setName('RemoteGit');
+app.setName('Alune');
 if (smokeTest) {
-  if (!process.env.REMOTE_GIT_SMOKE_DIR) throw new Error('Smoke tests require an isolated data directory');
-  app.setPath('userData', process.env.REMOTE_GIT_SMOKE_DIR);
+  if (!process.env.ALUNE_SMOKE_DIR) throw new Error('Smoke tests require an isolated data directory');
+  app.setPath('userData', process.env.ALUNE_SMOKE_DIR);
 } else {
-  app.setPath('userData', path.join(app.getPath('appData'), 'RemoteGit'));
+  app.setPath('userData', path.join(app.getPath('appData'), 'Alune'));
 }
 
 let backend;
@@ -29,7 +29,7 @@ function createWindow() {
   let state = {};
   try { state = JSON.parse(readFileSync(windowStatePath, 'utf8')); } catch {}
   window = new BrowserWindow({
-    title: 'RemoteGit',
+    title: 'Alune',
     icon: iconPath,
     width: Number.isFinite(state.width) ? Math.max(320, Math.min(state.width, 3840)) : 1440,
     height: Number.isFinite(state.height) ? Math.max(680, Math.min(state.height, 2160)) : 900,
@@ -40,7 +40,7 @@ function createWindow() {
     autoHideMenuBar: process.platform !== 'darwin',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
-      partition: 'remote-git-desktop',
+      partition: 'alune-desktop',
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -72,12 +72,12 @@ async function start() {
   if (process.platform === 'darwin') app.dock.setIcon(iconPath);
   const dataDir = app.getPath('userData');
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-  process.env.REMOTE_GIT_DATA_DIR = dataDir;
-  const legacyDatabase = path.join(os.homedir(), '.remote-git', 'remote-git.db');
-  const databasePath = path.join(dataDir, 'remote-git.db');
-  if (!smokeTest && !existsSync(databasePath) && existsSync(legacyDatabase)) {
+  process.env.ALUNE_DATA_DIR = dataDir;
+  const standaloneDatabase = path.join(os.homedir(), '.alune', 'alune.db');
+  const databasePath = path.join(dataDir, 'alune.db');
+  if (!smokeTest && !existsSync(databasePath) && existsSync(standaloneDatabase)) {
     const Database = require('better-sqlite3');
-    const source = new Database(legacyDatabase, { readonly: true });
+    const source = new Database(standaloneDatabase, { readonly: true });
     try { await source.backup(databasePath); } finally { source.close(); }
   }
   const { startServer } = require('./server/bootstrap.js');
@@ -122,7 +122,7 @@ async function start() {
       return preferences[operation](value);
     });
   }
-  const desktopSession = session.fromPartition('remote-git-desktop');
+  const desktopSession = session.fromPartition('alune-desktop');
   desktopSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   desktopSession.setPermissionCheckHandler(() => false);
   // Keep the per-launch credential in the main process, including WebSocket upgrades.
@@ -200,6 +200,6 @@ function closeBackend() {
 
 function fail(error) {
   console.error(error);
-  if (!smokeTest) dialog.showErrorBox('RemoteGit 启动失败', error.message || String(error));
+  if (!smokeTest) dialog.showErrorBox('Alune 启动失败', error.message || String(error));
   app.exit(1);
 }

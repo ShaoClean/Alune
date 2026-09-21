@@ -1,13 +1,13 @@
 import { Injectable, Inject, NotFoundException, OnModuleDestroy } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
-import { SSHConnectionPool, SSHConnection } from '@remote-git/ssh-client';
+import { SSHConnectionPool, SSHConnection } from '@alune/ssh-client';
 import type {
   ConnectionActivityStatus,
   ConnectionStatusInfo,
   ConnectionTestResult,
   SSHConnectionConfig,
-} from '@remote-git/shared';
+} from '@alune/shared';
 import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()

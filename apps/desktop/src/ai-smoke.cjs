@@ -6,7 +6,7 @@ const { join } = require('node:path');
 module.exports = async ({ backend, origin, token, window, restore = false }) => {
   const { AiService } = require('./server/ai/ai.service');
   const settings = backend.get(AiService).settings;
-  const marker = join(process.env.REMOTE_GIT_DATA_DIR, 'ai-smoke.json');
+  const marker = join(process.env.ALUNE_DATA_DIR, 'ai-smoke.json');
   const key = 'isolated-desktop-fixture-key';
   if (restore) {
     const { id, protectedKey } = JSON.parse(readFileSync(marker, 'utf8'));
@@ -57,7 +57,7 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
     const id = config.providers.at(-1).id;
     assert.equal(JSON.stringify(config).includes(key), false);
     assert.equal(
-      readFileSync(join(process.env.REMOTE_GIT_DATA_DIR, 'ai-settings.json'), 'utf8').includes(key),
+      readFileSync(join(process.env.ALUNE_DATA_DIR, 'ai-settings.json'), 'utf8').includes(key),
       false,
     );
     const tested = await call(`providers/${id}/test`, 'POST', {
@@ -106,9 +106,9 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
         await execute(`document.querySelector('input[aria-label="API Key"]').value`),
         '',
       );
-      if (process.env.REMOTE_GIT_AI_SMOKE_SCREENSHOT)
+      if (process.env.ALUNE_AI_SMOKE_SCREENSHOT)
         writeFileSync(
-          process.env.REMOTE_GIT_AI_SMOKE_SCREENSHOT,
+          process.env.ALUNE_AI_SMOKE_SCREENSHOT,
           (await window.webContents.capturePage()).toPNG(),
         );
       await execute(

@@ -24,7 +24,7 @@ const connections = [
   },
 ];
 const repositories = [
-  { id: 'repo-a', name: 'remote-git', connectionId: 'dev', path: '/workspace/remote-git' },
+  { id: 'repo-a', name: 'alune', connectionId: 'dev', path: '/workspace/alune' },
   { id: 'repo-b', name: 'design-system', connectionId: 'dev', path: '/workspace/design-system' },
   { id: 'empty', name: 'empty-repo', connectionId: 'test', path: '/workspace/empty' },
 ];
@@ -179,8 +179,8 @@ const server = createServer(async (request, response) => {
         return json(response, [
           {
             name: 'origin',
-            fetchUrl: 'https://example.invalid/team/remote-git.git',
-            pushUrl: 'https://example.invalid/team/remote-git.git',
+            fetchUrl: 'https://example.invalid/team/alune.git',
+            pushUrl: 'https://example.invalid/team/alune.git',
           },
         ]);
       if (operation === 'diff') {

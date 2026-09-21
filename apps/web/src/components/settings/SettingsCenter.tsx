@@ -50,7 +50,7 @@ export function SettingsCenter({
       <header className="settings-header">
         <div className="settings-brand">
           <BrandIcon />
-          <strong>RemoteGit</strong>
+          <strong>Alune</strong>
         </div>
         <div className="settings-header__bar">
           <span>
@@ -105,7 +105,7 @@ export function SettingsCenter({
             <span>
               <DesktopOutlined /> 此设备的设置
             </span>
-            <span>RemoteGit · v{updates.state?.currentVersion || __APP_VERSION__}</span>
+            <span>Alune · v{updates.state?.currentVersion || __APP_VERSION__}</span>
           </div>
         </aside>
         <main className="settings-main" aria-label={`${category.name}设置`}>
@@ -118,7 +118,7 @@ export function SettingsCenter({
           ) : category.id === 'updates' ? (
             <div className="settings-page-content">
               <h1>版本更新</h1>
-              <p className="settings-lead">检查与安装 RemoteGit 的新版本。离开设置后下载会继续。</p>
+              <p className="settings-lead">检查与安装 Alune 的新版本。离开设置后下载会继续。</p>
               {updates.isDesktop ? (
                 <UpdatePanelContent
                   state={updates.state}
@@ -167,7 +167,7 @@ export function SettingsCenter({
         <span>
           <DesktopOutlined /> 设置应用于此设备的所有仓库
         </span>
-        <span>RemoteGit · v{updates.state?.currentVersion || __APP_VERSION__}</span>
+        <span>Alune · v{updates.state?.currentVersion || __APP_VERSION__}</span>
       </footer>
     </div>
   );

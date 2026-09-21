@@ -10,9 +10,9 @@ import * as os from 'os';
     {
       provide: 'DATABASE',
       useFactory: () => {
-        const dbDir = process.env.REMOTE_GIT_DATA_DIR || path.join(os.homedir(), '.remote-git');
+        const dbDir = process.env.ALUNE_DATA_DIR || path.join(os.homedir(), '.alune');
         fs.mkdirSync(dbDir, { recursive: true, mode: 0o700 });
-        const db = new Database(path.join(dbDir, 'remote-git.db'));
+        const db = new Database(path.join(dbDir, 'alune.db'));
         db.pragma('journal_mode = WAL');
         db.pragma('foreign_keys = ON');
         return db;

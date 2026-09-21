@@ -12,7 +12,7 @@ test(
     skip: process.platform !== 'win32',
   },
   (t) => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "RemoteGit-shell-中文 ' "));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "Alune-shell-中文 ' "));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     execFileSync('git', ['-C', root, 'init', '-q']);
     fs.mkdirSync(path.join(root, 'nested'));

@@ -12,7 +12,7 @@ const { RepositoryService } = require('../dist/repository/repository.service');
 
 async function main() {
   const fixture = createRepository();
-  process.env.REMOTE_GIT_DATA_DIR = join(fixture.root, 'app-data');
+  process.env.ALUNE_DATA_DIR = join(fixture.root, 'app-data');
   fixture.write('src/commit.ts', 'export const stagedOnly = true;\n');
   fixture.git('add', 'src/commit.ts');
   fixture.write('src/commit.ts', 'export const unstagedOnly = true;\n');
@@ -21,7 +21,7 @@ async function main() {
     {
       id: '11111111-1111-4111-8111-111111111111',
       connectionId: '33333333-3333-4333-8333-333333333333',
-      name: 'remote-git · AI 验证',
+      name: 'alune · AI 验证',
       path: fixture.repo,
       pinned: true,
     },
@@ -146,9 +146,9 @@ async function main() {
     root: fixture.root,
   };
   console.log(JSON.stringify(address));
-  if (process.env.REMOTE_GIT_AI_FIXTURE_INFO)
+  if (process.env.ALUNE_AI_FIXTURE_INFO)
     require('node:fs').writeFileSync(
-      process.env.REMOTE_GIT_AI_FIXTURE_INFO,
+      process.env.ALUNE_AI_FIXTURE_INFO,
       JSON.stringify(address),
     );
   let closing = false;

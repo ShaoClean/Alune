@@ -6,7 +6,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const Module = require('node:module');
 const Database = require('better-sqlite3');
-const { GitCommands } = require('@remote-git/ssh-client');
+const { GitCommands } = require('@alune/ssh-client');
 const { RepositoryService } = require('../../server/dist/repository/repository.service');
 const root = path.resolve(__dirname, '../../..');
 const baseline = '9c260f6';
@@ -234,7 +234,7 @@ if (require.main === module) {
   } else {
     createFixture({
       legacy: process.argv.includes('--legacy'),
-      webRoot: process.env.REMOTE_GIT_FIXTURE_WEB_ROOT || path.join(root, 'apps/web/dist'),
+      webRoot: process.env.ALUNE_FIXTURE_WEB_ROOT || path.join(root, 'apps/web/dist'),
     }).then(({ origin }) => console.log(`Repository loading fixture: ${origin}`));
   }
 }

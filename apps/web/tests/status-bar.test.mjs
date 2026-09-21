@@ -33,15 +33,15 @@ const renderSwitcher = (props = {}) =>
       repository: {
         id: 'repo-a',
         connectionId: 'dev',
-        name: 'remote-git',
-        path: '/workspace/remote-git',
+        name: 'alune',
+        path: '/workspace/alune',
       },
       repositories: [
         {
           id: 'repo-a',
           connectionId: 'dev',
-          name: 'remote-git',
-          path: '/workspace/remote-git',
+          name: 'alune',
+          path: '/workspace/alune',
         },
         {
           id: 'repo-b',
@@ -245,27 +245,27 @@ test('四档断点按窗口宽度划分', () => {
 test('统一导航入口同时展示当前连接、当前仓库和全部打开数量', () => {
   const html = renderSwitcher();
   const [trigger] = buttons(html);
-  assert.equal(trigger.label, '工作区导航，开发服务器 / remote-git，共 2 个已打开仓库');
-  assert.match(trigger.text, /开发服务器.*remote-git.*2/);
+  assert.equal(trigger.label, '工作区导航，开发服务器 / alune，共 2 个已打开仓库');
+  assert.match(trigger.text, /开发服务器.*alune.*2/);
 });
 
 test('未选中仓库时统一入口显示品牌与实际打开数量', () => {
   const html = renderSwitcher({ repository: null });
   const [trigger] = buttons(html);
-  assert.equal(trigger.label, '工作区导航，RemoteGit，共 2 个已打开仓库');
-  assert.match(trigger.text, /RemoteGit.*2/);
+  assert.equal(trigger.label, '工作区导航，Alune，共 2 个已打开仓库');
+  assert.match(trigger.text, /Alune.*2/);
 });
 
 test('仓库搜索覆盖名称、分支、路径、连接名和端点', () => {
   const repositories = [
-    { id: 'a', connectionId: 'dev', name: 'remote-git', path: '/workspace/remote-git', currentBranch: 'main' },
+    { id: 'a', connectionId: 'dev', name: 'alune', path: '/workspace/alune', currentBranch: 'main' },
     { id: 'b', connectionId: 'test', name: 'design-system', path: '/workspace/ui', currentBranch: 'feature/theme' },
   ];
   const connections = [
     { id: 'dev', name: '开发服务器', host: 'dev.example.com', username: 'git' },
     { id: 'test', name: '预发布服务器', host: 'test.example.com', username: 'deploy' },
   ];
-  for (const query of ['remote', 'feature/theme', '/workspace/ui', '预发布', 'git@dev.example.com'])
+  for (const query of ['alune', 'feature/theme', '/workspace/ui', '预发布', 'git@dev.example.com'])
     assert.equal(filterRepositories(repositories, connections, query).length, 1, query);
   assert.equal(filterRepositories(repositories, connections, '不存在').length, 0);
   assert.equal(filterRepositories(repositories, connections, '  ').length, 2);

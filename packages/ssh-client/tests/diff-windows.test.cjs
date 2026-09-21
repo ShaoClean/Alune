@@ -18,7 +18,7 @@ test('Windows diff rejects non-relative paths before contacting the remote host'
 test('Windows previews untracked and staged files with literal paths without changing the index', {
   skip: process.platform !== 'win32',
 }, async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "RemoteGit-diff-中文 ' "));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "Alune-diff-中文 ' "));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const run = (...args) => execFileSync('git', ['-C', root, ...args]);
   run('init', '-q');

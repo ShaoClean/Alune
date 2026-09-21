@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { CommitReference, GraphCommit, LogOptions, LogPage } from '@remote-git/shared';
+import type { CommitReference, GraphCommit, LogOptions, LogPage } from '@alune/shared';
 import type { SSHConnection } from './connection-manager';
 import { gitFileCommand } from './git-shell';
 

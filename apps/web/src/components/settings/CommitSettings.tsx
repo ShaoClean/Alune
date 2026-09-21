@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Input } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
-import type { AiSettings, CommitGenerationPreferences } from '@remote-git/shared';
+import type { AiSettings, CommitGenerationPreferences } from '@alune/shared';
 import { aiApi, aiError } from '../../api/ai';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
 

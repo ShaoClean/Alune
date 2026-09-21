@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { NewFileDeletion, NewFileDeletionError } from '@remote-git/ssh-client';
+import { NewFileDeletion, NewFileDeletionError } from '@alune/ssh-client';
 import { GitService } from './git.service';
 import { GitController } from './git.controller';
 import { ConnectionService } from '../connection/connection.service';

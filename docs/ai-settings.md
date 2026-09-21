@@ -1,6 +1,6 @@
 # AI 提交生成与本机设置
 
-对应 [Issue #21](https://github.com/ShaoClean/remote-git/issues/21)。设置按设备保存，应用于所有仓库，不依赖远端 AI CLI。
+对应 [Issue #21](https://github.com/ShaoClean/Alune/issues/21)。设置按设备保存，应用于所有仓库，不依赖远端 AI CLI。
 
 ## 配置与使用
 
@@ -42,7 +42,7 @@ API Key 只使用用户在设置页保存的值，不读取服务商的环境变
 
 独立 Node 服务首次启动会在应用数据目录自动创建 `ai-master-key`（32 个随机字节），重启时复用。新建目录权限为 `0700`，密钥文件在 POSIX 系统上限制为当前用户读写（`0600`）；Windows 使用用户数据目录的 ACL。文件密钥依赖本机账户和文件权限保护，具有该目录读取权限的用户可恢复 API Key，保护能力不同于桌面的系统密钥存储。备份时需一起保管 `ai-settings.json` 和 `ai-master-key`，不要提交到仓库。密钥文件损坏或目录不可用时保留原文件并显示错误，不使用明文回退；无需认证的自建服务仍可使用。已保存密钥解密失败时，需要恢复原保护环境或重新输入 API Key。
 
-桌面数据目录沿用应用 `userData`；独立服务沿用 `REMOTE_GIT_DATA_DIR` 或 `~/.remote-git`。AI 配置文件损坏会使 AI 接口提示恢复配置，不阻止 Git 工作区启动，也不会覆盖损坏文件。同一本地服务的不同页面发生配置版本冲突时会拒绝写入，可通过错误提示中的重新加载操作读取新配置。
+桌面数据目录沿用应用 `userData`；独立服务沿用 `ALUNE_DATA_DIR` 或 `~/.alune`。AI 配置文件损坏会使 AI 接口提示恢复配置，不阻止 Git 工作区启动，也不会覆盖损坏文件。同一本地服务的不同页面发生配置版本冲突时会拒绝写入，可通过错误提示中的重新加载操作读取新配置。
 
 设置中心复用现有布局 store 与桌面更新状态。布局即时生效并保留恢复默认能力；离开设置不停止更新下载。不支持更新的平台仍可使用其他设置分类。
 
@@ -60,4 +60,4 @@ API Key 只使用用户在设置页保存的值，不读取服务商的环境变
 
 OpenAI 协议参考官方 [Chat Completions](https://developers.openai.com/api/reference/chat-completions/overview/) 与 [Create a chat completion](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)。具体账号权限、可用模型 ID、代理兼容性以服务商为准；预置模型可以替换。
 
-设计方案见 [Issue #21 Wiki](https://github.com/ShaoClean/remote-git/wiki/Issue-21)；实际执行范围、截图及未验证平台见 [验证记录](https://github.com/ShaoClean/remote-git/wiki/Issue-21-Validation)。
+设计方案见 [Issue #21 Wiki](https://github.com/ShaoClean/Alune/wiki/Issue-21)；实际执行范围、截图及未验证平台见 [验证记录](https://github.com/ShaoClean/Alune/wiki/Issue-21-Validation)。

@@ -17,15 +17,15 @@ describe('automatic local AI secret storage', () => {
   let dir: string;
   let previousMasterKey: string | undefined;
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'remote-git-local-secrets-'));
+    root = mkdtempSync(join(tmpdir(), 'alune-local-secrets-'));
     dir = join(root, 'app-data');
-    previousMasterKey = process.env.REMOTE_GIT_AI_MASTER_KEY;
-    delete process.env.REMOTE_GIT_AI_MASTER_KEY;
+    previousMasterKey = process.env.ALUNE_AI_MASTER_KEY;
+    delete process.env.ALUNE_AI_MASTER_KEY;
   });
   afterEach(() => {
     if (previousMasterKey === undefined)
-      delete process.env.REMOTE_GIT_AI_MASTER_KEY;
-    else process.env.REMOTE_GIT_AI_MASTER_KEY = previousMasterKey;
+      delete process.env.ALUNE_AI_MASTER_KEY;
+    else process.env.ALUNE_AI_MASTER_KEY = previousMasterKey;
     rmSync(root, { recursive: true, force: true });
   });
 
@@ -43,7 +43,7 @@ describe('automatic local AI secret storage', () => {
       expect(statSync(file).mode & 0o777).toBe(0o600);
     }
     // Even an old/invalid environment value must not change which local key is used.
-    process.env.REMOTE_GIT_AI_MASTER_KEY = 'ignored-environment-value';
+    process.env.ALUNE_AI_MASTER_KEY = 'ignored-environment-value';
     const restarted = localSecretStorage(dir);
     expect(restarted.available).toBe(true);
     expect(restarted.decrypt(encrypted)).toBe('manually-entered-api-key');

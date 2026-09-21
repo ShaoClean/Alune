@@ -1,12 +1,12 @@
 # 贡献与发布指南
 
-RemoteGit 使用 Conventional Commits 描述变更，commitlint 校验提交信息，git-cliff 按提交记录生成中文 Release 说明。版本号和发布时机由维护者决定，推送稳定版本 tag 后由 GitHub Actions 构建和发布。
+Alune 使用 Conventional Commits 描述变更，commitlint 校验提交信息，git-cliff 按提交记录生成中文 Release 说明。版本号和发布时机由维护者决定，推送稳定版本 tag 后由 GitHub Actions 构建和发布。
 
 ## 设计文档与验收资料
 
-功能、优化及缺陷修复设计统一维护在 [GitHub Wiki](https://github.com/ShaoClean/remote-git/wiki)，包括方案、验收记录、截图和附件。页面按 `Issue-<编号>` 命名，在 Wiki、Issue 和 PR 之间补充双向链接；新增页面使用 [设计模板](https://github.com/ShaoClean/remote-git/wiki/Design-Template)，并更新对应分类索引。维护流程、附件路径与修订记录要求见 [Wiki 维护约定](https://github.com/ShaoClean/remote-git/wiki/Contributing)。
+功能、优化及缺陷修复设计统一维护在 [GitHub Wiki](https://github.com/ShaoClean/Alune/wiki)，包括方案、验收记录、截图和附件。页面按 `Issue-<编号>` 命名，在 Wiki、Issue 和 PR 之间补充双向链接；新增页面使用 [设计模板](https://github.com/ShaoClean/Alune/wiki/Design-Template)，并更新对应分类索引。维护流程、附件路径与修订记录要求见 [Wiki 维护约定](https://github.com/ShaoClean/Alune/wiki/Contributing)。
 
-本指南、README、现行配置说明及测试必需的 fixtures 继续随代码维护。历史资料的原路径与新入口见 [迁移清单](https://github.com/ShaoClean/remote-git/wiki/Migration-25)；不要将 Wiki 文档和配套附件的完整副本重新提交到主仓库。Wiki 使用独立 Git 历史，代码 PR 中应提供页面链接及被审阅的 Wiki 修订，代码回退时需单独核对文档。
+本指南、README、现行配置说明及测试必需的 fixtures 继续随代码维护。历史资料的原路径与新入口见 [迁移清单](https://github.com/ShaoClean/Alune/wiki/Migration-25)；不要将 Wiki 文档和配套附件的完整副本重新提交到主仓库。Wiki 使用独立 Git 历史，代码 PR 中应提供页面链接及被审阅的 Wiki 修订，代码回退时需单独核对文档。
 
 ## 初始化开发环境
 
@@ -130,7 +130,7 @@ npm run release:notes -- v0.1.2..HEAD --tag v0.2.0 --tag-pattern '^v0\.2\.0$' --
 已有本地 tag 时，可以使用与 CI 相同的生成入口。该命令需要已配置认证的 GitHub CLI，只读取 GitHub 的 Release 列表并写入本地文件：
 
 ```sh
-GH_REPO=ShaoClean/remote-git npm run release:notes:github -- v0.1.2 release-notes.preview.md
+GH_REPO=ShaoClean/Alune npm run release:notes:github -- v0.1.2 release-notes.preview.md
 ```
 
 该入口会分页读取成功发布的稳定 Release，从当前 tag 的 first-parent 历史中选择最近的、更低版本的已发布 tag。草稿、预发布、当前 tag、其他发布分支上的 tag，以及只有 tag 但没有已公开 Release 的版本都不作为起点。没有符合条件的上一版本时，从当前 tag 可达的历史起点生成说明。
@@ -177,7 +177,7 @@ git push origin "$RELEASE_TAG"
 
 构建或说明生成失败时不会发布新 Release；附件上传失败保留草稿供重跑。已公开的 Release 不会被工作流覆盖。发布仅使用 Actions 的 `GITHUB_TOKEN`，无需新增个人令牌。生成的 Markdown 写入 Release 正文，不会自动提交 `CHANGELOG.md` 或修改版本号。
 
-安装包命名为 `RemoteGit-<version>-<mac|win|linux>-<arch>.<dmg|zip|exe|AppImage>`，Linux x64 的 AppImage 使用架构名 `x86_64`。请保留工作流生成的 blockmap、`latest.yml`、`latest-linux.yml` 和 `SHA256SUMS`，不要单独替换安装包。构建阶段禁用发布，只有最终发布任务拥有 `contents: write`；当前流程尚未配置平台签名证书。客户端从公开 Releases 获取更新，安装与更新条件见[桌面端说明](docs/desktop.md)。
+安装包命名为 `Alune-<version>-<mac|win|linux>-<arch>.<dmg|zip|exe|AppImage>`，Linux x64 的 AppImage 使用架构名 `x86_64`。请保留工作流生成的 blockmap、`latest.yml`、`latest-linux.yml` 和 `SHA256SUMS`，不要单独替换安装包。构建阶段禁用发布，只有最终发布任务拥有 `contents: write`；当前流程尚未配置平台签名证书。客户端从公开 Releases 获取更新，安装与更新条件见[桌面端说明](docs/desktop.md)。
 
 ## 验证修改
 

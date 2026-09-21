@@ -14,8 +14,8 @@ async function startWorktreesFixture(webRoot = path.resolve(__dirname, '../dist'
   const fixture = createWorktreeRepository();
   const empty = createRepository();
   const remote = await startSSHServer();
-  const previous = process.env.REMOTE_GIT_DATA_DIR;
-  process.env.REMOTE_GIT_DATA_DIR = path.join(fixture.root, 'app-data');
+  const previous = process.env.ALUNE_DATA_DIR;
+  process.env.ALUNE_DATA_DIR = path.join(fixture.root, 'app-data');
   // Express sendFile rejects hidden checkout ancestors such as .cindy-worktrees.
   // Serve a disposable copy, as a packaged app would, without changing production routing.
   const servedRoot = path.join(fixture.root, 'web');
@@ -35,7 +35,7 @@ async function startWorktreesFixture(webRoot = path.resolve(__dirname, '../dist'
   app
     .get('DATABASE')
     .prepare('UPDATE repositories SET name = ? WHERE id = ?')
-    .run('remote-git', main.id);
+    .run('alune', main.id);
   app
     .get('DATABASE')
     .prepare('UPDATE repositories SET name = ? WHERE id = ?')
@@ -51,8 +51,8 @@ async function startWorktreesFixture(webRoot = path.resolve(__dirname, '../dist'
       await remote.close();
       fixture.close();
       empty.close();
-      if (previous === undefined) delete process.env.REMOTE_GIT_DATA_DIR;
-      else process.env.REMOTE_GIT_DATA_DIR = previous;
+      if (previous === undefined) delete process.env.ALUNE_DATA_DIR;
+      else process.env.ALUNE_DATA_DIR = previous;
     },
   };
 }

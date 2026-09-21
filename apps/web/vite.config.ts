@@ -12,7 +12,7 @@ export default defineConfig({
     // The linked workspace builds CommonJS for Node. Serve its TypeScript source
     // as ESM in the browser, including on a fresh checkout before dist exists.
     alias: {
-      '@remote-git/shared': fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
+      '@alune/shared': fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
     },
   },
   server: {

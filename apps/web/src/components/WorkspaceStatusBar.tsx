@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Popover } from 'antd';
 import { BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
-import type { Repository } from '@remote-git/shared';
+import type { Repository } from '@alune/shared';
 import { useNavigate } from 'react-router-dom';
 import { useConnectionStore } from '../stores/connectionStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';

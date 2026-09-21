@@ -14,7 +14,7 @@ import type {
   CommitGenerationPreferences,
   SaveAiProvider,
   TestAiProvider,
-} from '@remote-git/shared';
+} from '@alune/shared';
 import { AiService } from './ai.service';
 
 @Controller('ai')

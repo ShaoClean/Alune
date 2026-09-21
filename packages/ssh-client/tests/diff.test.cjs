@@ -49,7 +49,7 @@ const readOnlyDiff = async (dir, options) => {
 };
 
 before(async () => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'remote-git-diff-'));
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-diff-'));
   remote = await startSSHServer();
   connection = new SSHConnection(remote.options);
   await connection.connect();

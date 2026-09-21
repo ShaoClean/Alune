@@ -15,7 +15,7 @@ function success(result) {
 }
 
 function fixture(t, { install = true, lockVersion = '0.1.1', lockRootVersion = '0.1.1' } = {}) {
-  const directory = mkdtempSync(path.join(tmpdir(), 'remote-git-pre-push-'));
+  const directory = mkdtempSync(path.join(tmpdir(), 'alune-pre-push-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const root = path.join(directory, 'checkout');
   const remote = path.join(directory, 'remote.git');

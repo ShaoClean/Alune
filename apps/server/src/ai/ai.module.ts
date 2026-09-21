@@ -22,7 +22,7 @@ export class AiModule {
           provide: AiSettingsStore,
           useFactory: () => {
             const dataDir =
-              process.env.REMOTE_GIT_DATA_DIR || join(homedir(), '.remote-git');
+              process.env.ALUNE_DATA_DIR || join(homedir(), '.alune');
             return new AiSettingsStore(
               join(dataDir, 'ai-settings.json'),
               secrets || localSecretStorage(dataDir),

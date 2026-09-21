@@ -10,7 +10,7 @@ const connections = ['开发服务器', '测试服务器', '归档服务器'].ma
 }));
 const repositories = connections.flatMap((connection, index) => Array.from({ length: index === 2 ? 35 : 3 }, (_, number) => ({
   id: `repo-${index + 1}-${number + 1}`, connectionId: connection.id,
-  name: ['remote-git', '业务服务', '工具仓库'][number] || `archive-${number + 1}`,
+  name: ['alune', '业务服务', '工具仓库'][number] || `archive-${number + 1}`,
   path: `/workspace/${connection.id}/repository-${number + 1}`, isDirty: number === 1,
 })));
 const server = createServer(async (request, response) => {

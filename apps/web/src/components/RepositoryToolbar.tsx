@@ -18,7 +18,7 @@ import {
   DownloadOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import type { RepositoryStatus } from '@remote-git/shared';
+import type { RepositoryStatus } from '@alune/shared';
 import { ToolbarButton } from './ToolbarButton';
 import { WorktreesMenu } from './WorktreesMenu';
 import { WorktreesPanel } from './WorktreesPanel';

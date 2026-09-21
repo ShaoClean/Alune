@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ConnectionStatusInfo, ConnectionTestResult } from '@remote-git/shared';
+import type { ConnectionStatusInfo, ConnectionTestResult } from '@alune/shared';
 import { connectionApi } from '../api';
 import { hydrateWorkspace, useWorkspaceStore } from './workspaceStore';
 

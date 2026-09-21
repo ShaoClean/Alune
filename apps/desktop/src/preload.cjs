@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('desktopUpdates', {
   },
 });
 
-contextBridge.exposeInMainWorld('remoteGitWorkspace', {
+contextBridge.exposeInMainWorld('aluneWorkspace', {
   load: () => ipcRenderer.invoke('workspace:load'),
   save: (value) => ipcRenderer.invoke('workspace:save', value),
   clear: () => ipcRenderer.invoke('workspace:clear'),

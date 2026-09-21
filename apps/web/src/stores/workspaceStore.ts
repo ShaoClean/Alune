@@ -166,7 +166,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       setTreeOpen: (treeOpen) => set({ treeOpen }),
     }),
     {
-      name: 'remote-git-workspace',
+      name: 'alune-workspace',
       version: 1,
       skipHydration: true,
       storage: createJSONStorage(() => createWorkspaceStorage()),

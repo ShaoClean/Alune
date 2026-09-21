@@ -16,7 +16,7 @@ async function startHistoryFixture(root = path.resolve(__dirname, '../dist'), le
   const empty = createRepository({ initial: false });
   const fixtures = { history: history, empty: empty };
   const repositories = [
-    { id: 'history', connectionId: 'fixture', name: 'remote-git', path: '/workspace/remote-git' },
+    { id: 'history', connectionId: 'fixture', name: 'alune', path: '/workspace/alune' },
     { id: 'empty', connectionId: 'fixture', name: 'empty-repo', path: '/workspace/empty-repo' },
   ];
   let failNext = false;

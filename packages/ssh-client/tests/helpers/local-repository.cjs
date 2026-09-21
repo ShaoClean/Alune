@@ -6,7 +6,7 @@ const { exec, execFileSync } = require('node:child_process');
 // Exercise the production commands against real Git and disk, behind the same
 // exec/SFTP interface used by SSH. Each fixture owns its entire temporary root.
 function createRepository({ initial = true } = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'remote-git-delete-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-delete-'));
   const repo = path.join(root, "仓库 ' $repo");
   fs.mkdirSync(repo);
   const env = {

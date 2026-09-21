@@ -5,7 +5,7 @@ import {
   GatewayTimeoutException,
   OnModuleDestroy,
 } from '@nestjs/common';
-import { StagedChanges, StagedChangesError } from '@remote-git/ssh-client';
+import { StagedChanges, StagedChangesError } from '@alune/ssh-client';
 import { ConnectionService } from '../connection/connection.service';
 import { RepositoryService } from '../repository/repository.service';
 import { AiSettingsStore } from './ai-settings';

@@ -1,6 +1,6 @@
 import { posix } from 'path';
 import { promisify } from 'util';
-import type { WorktreeInfo } from '@remote-git/shared';
+import type { WorktreeInfo } from '@alune/shared';
 import type { SSHConnection } from './connection-manager';
 import { gitFileCommand, isWindowsPath } from './git-shell';
 

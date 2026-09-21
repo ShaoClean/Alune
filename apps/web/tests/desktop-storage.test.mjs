@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 let release;
 const pending = new Promise((resolve) => { release = resolve; });
 const writes = [];
-globalThis.window = { remoteGitWorkspace: {
+globalThis.window = { aluneWorkspace: {
   load: () => pending,
   save: async (value) => { writes.push(value); },
   clear: async () => {},
@@ -44,12 +44,12 @@ test('storage failures are reported without rejecting UI updates, and later writ
     save: async () => { if (fail) throw new Error('disk full'); },
     clear: async () => { throw new Error('permission denied'); },
   });
-  assert.equal(await storage.getItem('remote-git-workspace'), null);
-  await storage.setItem('remote-git-workspace', '{}');
+  assert.equal(await storage.getItem('alune-workspace'), null);
+  await storage.setItem('alune-workspace', '{}');
   assert.match(useWorkspaceStorageStatus.getState().error, /保存失败/);
   fail = false;
-  await storage.setItem('remote-git-workspace', '{}');
+  await storage.setItem('alune-workspace', '{}');
   assert.equal(useWorkspaceStorageStatus.getState().error, null);
-  await storage.removeItem('remote-git-workspace');
+  await storage.removeItem('alune-workspace');
   assert.match(useWorkspaceStorageStatus.getState().error, /清除失败/);
 });

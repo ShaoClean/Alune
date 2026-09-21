@@ -13,7 +13,7 @@ import {
   SettingOutlined,
   UpOutlined,
 } from '@ant-design/icons';
-import type { ConnectionStatusInfo, Repository } from '@remote-git/shared';
+import type { ConnectionStatusInfo, Repository } from '@alune/shared';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { BrandIcon } from './BrandIcon';
 
@@ -92,8 +92,8 @@ export function RepositorySwitcher({
   const contextLabel = repository
     ? `${activeConnectionLabel} / ${repository.name}`
     : repositories.length
-      ? 'RemoteGit'
-      : 'RemoteGit，暂无已打开仓库';
+      ? 'Alune'
+      : 'Alune，暂无已打开仓库';
   const contextDetail = repository
     ? [activeConnectionLabel, endpointLabel(activeConnection), repository.name, repository.path]
         .filter(Boolean)
@@ -327,7 +327,7 @@ export function RepositorySwitcher({
               </button>
               <a
                 className="repository-switcher-panel__action"
-                href="https://github.com/ShaoClean/remote-git/wiki"
+                href="https://github.com/ShaoClean/Alune/wiki"
                 target="_blank"
                 rel="noreferrer"
                 onClick={closeAndFocus}
@@ -343,7 +343,7 @@ export function RepositorySwitcher({
           </div>
 
           <footer className="repository-switcher-panel__footer">
-            <span>RemoteGit</span>
+            <span>Alune</span>
             <span>{version}</span>
           </footer>
         </section>
@@ -378,7 +378,7 @@ export function RepositorySwitcher({
               <strong className="repository-switcher__repository">{repository.name}</strong>
             </>
           ) : (
-            <strong className="repository-switcher__repository">RemoteGit</strong>
+            <strong className="repository-switcher__repository">Alune</strong>
           )}
         </span>
         {repository?.isDirty && <span className="repository-switcher__dirty" aria-label="有改动" />}

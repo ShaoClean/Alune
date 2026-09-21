@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { writeFileSync } = require('node:fs');
 
 module.exports = async ({ window, origin, token }) => {
-  const fixture = JSON.parse(process.env.REMOTE_GIT_WORKTREE_FIXTURE);
+  const fixture = JSON.parse(process.env.ALUNE_WORKTREE_FIXTURE);
   const request = async (route, body) => {
     const response = await fetch(origin + '/api' + route, {
       method: body ? 'POST' : 'GET',
@@ -88,10 +88,10 @@ module.exports = async ({ window, origin, token }) => {
     'document.querySelectorAll(".worktree-option").length === 4 && document.querySelector(".worktrees-menu").getBoundingClientRect().width > 250',
   );
   await wait('document.documentElement.scrollWidth <= innerWidth');
-  if (process.env.REMOTE_GIT_WORKTREE_SCREENSHOT) {
+  if (process.env.ALUNE_WORKTREE_SCREENSHOT) {
     await wait('!document.querySelector(".ant-popover")?.className.includes("zoom-big")');
     writeFileSync(
-      process.env.REMOTE_GIT_WORKTREE_SCREENSHOT,
+      process.env.ALUNE_WORKTREE_SCREENSHOT,
       (await window.webContents.capturePage()).toPNG(),
     );
   }

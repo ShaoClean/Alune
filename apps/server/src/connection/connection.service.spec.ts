@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { SSHConnection } from '@remote-git/ssh-client';
+import { SSHConnection } from '@alune/ssh-client';
 import { ConnectionService } from './connection.service';
 
 describe('ConnectionService concurrent status reads', () => {

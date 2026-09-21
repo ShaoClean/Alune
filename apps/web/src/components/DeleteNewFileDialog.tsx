@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Modal, Spin, message } from 'antd';
-import type { NewFileDeletionPreview } from '@remote-git/shared';
+import type { NewFileDeletionPreview } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 

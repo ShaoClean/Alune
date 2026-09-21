@@ -14,7 +14,7 @@ describe('AI settings and protected keys', () => {
   let dir: string;
   let store: AiSettingsStore;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'remote-git-ai-settings-'));
+    dir = mkdtempSync(join(tmpdir(), 'alune-ai-settings-'));
     store = new AiSettingsStore(
       join(dir, 'settings.json'),
       localSecretStorage(dir),

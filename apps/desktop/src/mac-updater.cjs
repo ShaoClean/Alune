@@ -6,7 +6,7 @@ const semver = require('semver');
 const { stableVersion } = require('./update-service.cjs');
 const { createMacInstaller, appBundlePath } = require('./mac-installer.cjs');
 
-const repository = 'ShaoClean/remote-git';
+const repository = 'ShaoClean/Alune';
 const downloadPrefix = `https://github.com/${repository}/releases/download/`;
 const redirectHosts = new Set(['github.com', 'release-assets.githubusercontent.com', 'objects.githubusercontent.com']);
 
@@ -22,7 +22,7 @@ async function githubFetch(fetchImpl, url, signal) {
   for (let count = 0; count < 6; count++) {
     const response = await fetchImpl(url, {
       signal, redirect: 'manual', headers: {
-        'User-Agent': 'RemoteGit-Updater',
+        'User-Agent': 'Alune-Updater',
         Accept: new URL(url).hostname === 'api.github.com' ? 'application/vnd.github+json' : 'application/octet-stream',
       },
     });
@@ -79,7 +79,7 @@ function createMacUpdater({ version, arch, cacheDir, shell, app, installer, fetc
       const nextVersion = stableVersion(release.tag_name);
       if (release.draft || release.prerelease || !nextVersion || !semver.gt(nextVersion, version)) return null;
       if (!['arm64', 'x64'].includes(arch)) throw new Error(`暂不支持此 macOS 架构：${arch}`);
-      const name = `RemoteGit-${nextVersion}-mac-${arch}.dmg`;
+      const name = `Alune-${nextVersion}-mac-${arch}.dmg`;
       const assets = Array.isArray(release.assets) ? release.assets : [];
       const dmg = assets.find((asset) => asset.name === name);
       const checksums = assets.find((asset) => asset.name === 'SHA256SUMS');

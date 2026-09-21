@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 
 module.exports = async ({ window, origin, token, backend }) => {
   const { ConnectionService } = require('./server/connection/connection.service');
-  const { GitCommands } = require('@remote-git/ssh-client');
+  const { GitCommands } = require('@alune/ssh-client');
   const connections = backend.get(ConnectionService);
   const originalConnect = connections.ensureConnected;
   const originalStatus = GitCommands.prototype.status;

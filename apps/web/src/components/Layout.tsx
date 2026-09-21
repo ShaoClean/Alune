@@ -83,7 +83,7 @@ export function Layout() {
     ) {
       notifiedVersion.current = updateState.latestVersion;
       notifications.info({
-        title: `RemoteGit v${updateState.latestVersion} 可用`,
+        title: `Alune v${updateState.latestVersion} 可用`,
         description: '新版本已发布，可查看更新说明并下载安装。',
         actions: (
           <Button type="primary" size="small" onClick={() => openSettings('updates')}>
@@ -419,7 +419,7 @@ export function Layout() {
           notices={[
             ...(storageError ? [storageError] : []),
             ...(updateState?.status === 'available'
-              ? [`RemoteGit v${updateState.latestVersion} 可用`]
+              ? [`Alune v${updateState.latestVersion} 可用`]
               : []),
           ]}
           onSettings={() => openSettings()}

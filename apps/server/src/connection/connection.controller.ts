@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Delete, Body, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ConnectionService } from './connection.service';
-import type { SSHConnectionConfig } from '@remote-git/shared';
+import type { SSHConnectionConfig } from '@alune/shared';
 
 @Controller('connections')
 export class ConnectionController {

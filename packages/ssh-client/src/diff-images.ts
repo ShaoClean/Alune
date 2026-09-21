@@ -3,8 +3,8 @@ import { promisify } from 'util';
 import {
   DIFF_IMAGE_MAX_BYTES,
   diffImageMediaType,
-} from '@remote-git/shared';
-import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@remote-git/shared';
+} from '@alune/shared';
+import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/shared';
 import { SSHConnection, CommandOutputLimitError } from './connection-manager';
 import { gitFileCommand, isWindowsPath } from './git-shell';
 

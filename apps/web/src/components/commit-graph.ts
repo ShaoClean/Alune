@@ -1,4 +1,4 @@
-import type { GraphCommit } from '@remote-git/shared';
+import type { GraphCommit } from '@alune/shared';
 
 export const GRAPH_ROW_HEIGHT = 36;
 export const GRAPH_LANE_WIDTH = 18;

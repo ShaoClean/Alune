@@ -9,7 +9,7 @@ import {
   HolderOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import type { ConnectionStatusInfo, Repository } from '@remote-git/shared';
+import type { ConnectionStatusInfo, Repository } from '@alune/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { RepositoryStatusIndicator } from './RepositoryStatusIndicator';
@@ -129,7 +129,7 @@ export function WorkspaceTree({
     dragSource.current = item;
     setDragging(item);
     event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('application/x-remote-git-tree', JSON.stringify(item));
+    event.dataTransfer.setData('application/x-alune-tree', JSON.stringify(item));
     if (event.currentTarget.parentElement)
       event.dataTransfer.setDragImage(event.currentTarget.parentElement, 15, 15);
   };

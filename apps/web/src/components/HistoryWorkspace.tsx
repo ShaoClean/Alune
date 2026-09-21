@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { CommitFile, GraphCommit } from '@remote-git/shared';
+import type { CommitFile, GraphCommit } from '@alune/shared';
 import { Button } from 'antd';
 import { ArrowLeftOutlined, CloseOutlined } from '@ant-design/icons';
 import { HistoryReference, HistoryView } from './HistoryView';

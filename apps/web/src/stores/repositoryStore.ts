@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { StateCreator } from 'zustand';
-import { REPOSITORY_STATUS_CACHE_MS } from '@remote-git/shared';
-import type { Repository, RepositoryStatus, GraphCommit, DiffOptions } from '@remote-git/shared';
+import { REPOSITORY_STATUS_CACHE_MS } from '@alune/shared';
+import type { Repository, RepositoryStatus, GraphCommit, DiffOptions } from '@alune/shared';
 import { repositoryApi } from '../api';
 import { hydrateWorkspace, useWorkspaceStore } from './workspaceStore';
 

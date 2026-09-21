@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="apps/desktop/assets/icon.png" width="96" height="96" alt="RemoteGit 图标" />
+  <img src="apps/desktop/assets/icon.png" width="96" height="96" alt="Alune 图标" />
 </p>
 
-<h1 align="center">RemoteGit</h1>
+<h1 align="center">Alune</h1>
 
 <p align="center">
   <strong>在桌面上，看清并管理远程服务器上的 Git 改动。</strong>
@@ -14,20 +14,20 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ShaoClean/remote-git/releases/latest">下载安装</a> ·
+  <a href="https://github.com/ShaoClean/Alune/releases/latest">下载安装</a> ·
   <a href="#快速上手">快速上手</a> ·
   <a href="#核心功能">核心功能</a> ·
-  <a href="https://github.com/ShaoClean/remote-git/wiki">项目文档</a> ·
+  <a href="https://github.com/ShaoClean/Alune/wiki">项目文档</a> ·
   <a href="https://github.com/users/ShaoClean/projects/1">公开 TODO</a>
 </p>
 
-![RemoteGit 提交历史：左侧仓库导航、所有分支提交图，以及下方的文件变更与 Diff](https://raw.githubusercontent.com/wiki/ShaoClean/remote-git/assets/issue-36/history-detail.png)
+![Alune 提交历史：左侧仓库导航、所有分支提交图，以及下方的文件变更与 Diff](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-36/history-detail.png)
 
 <p align="center">多仓库导航、分支提交图和文件差异，集中在同一个工作区。</p>
 
-## 为什么使用 RemoteGit
+## 为什么使用 Alune
 
-代码在远程开发机或构建服务器上时，RemoteGit 让你直接查看和操作那里的 Git 仓库，无需为查看改动再克隆一份到本地。按连接组织多个仓库，在标签页间切换，完成从检查差异到提交、拉取和推送的日常工作。
+代码在远程开发机或构建服务器上时，Alune 让你直接查看和操作那里的 Git 仓库，无需为查看改动再克隆一份到本地。按连接组织多个仓库，在标签页间切换，完成从检查差异到提交、拉取和推送的日常工作。
 
 ## 核心功能
 
@@ -45,7 +45,7 @@
 <details>
 <summary><strong>查看改动与 Worktree 独立标签截图</strong></summary>
 
-![RemoteGit 改动工作区：Worktree 在独立标签打开，中央显示 Diff，右侧管理暂存内容与提交](https://raw.githubusercontent.com/wiki/ShaoClean/remote-git/assets/issue-29/worktree-tab.png)
+![Alune 改动工作区：Worktree 在独立标签打开，中央显示 Diff，右侧管理暂存内容与提交](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-29/worktree-tab.png)
 
 </details>
 
@@ -53,18 +53,18 @@
 
 ## 下载安装
 
-前往 **[最新稳定版 Release](https://github.com/ShaoClean/remote-git/releases/latest)**，在 Assets 中选择与你的系统和芯片匹配的安装包。
+前往 **[最新稳定版 Release](https://github.com/ShaoClean/Alune/releases/latest)**，在 Assets 中选择与你的系统和芯片匹配的安装包。
 
 | 系统               | 选择的文件                               | 安装方式                                            |
 | ------------------ | ---------------------------------------- | --------------------------------------------------- |
-| macOS · Apple 芯片 | `RemoteGit-<版本>-mac-arm64.dmg`         | 打开 DMG，将 RemoteGit 拖入“应用程序”后启动。       |
-| macOS · Intel 芯片 | `RemoteGit-<版本>-mac-x64.dmg`           | 打开 DMG，将 RemoteGit 拖入“应用程序”后启动。       |
-| Windows · x64      | `RemoteGit-<版本>-win-x64.exe`           | 运行安装程序，按提示选择安装位置。                  |
-| Linux · x64        | `RemoteGit-<版本>-linux-x86_64.AppImage` | 在文件属性中允许作为程序执行，再直接运行 AppImage。 |
+| macOS · Apple 芯片 | `Alune-<版本>-mac-arm64.dmg`         | 打开 DMG，将 Alune 拖入“应用程序”后启动。       |
+| macOS · Intel 芯片 | `Alune-<版本>-mac-x64.dmg`           | 打开 DMG，将 Alune 拖入“应用程序”后启动。       |
+| Windows · x64      | `Alune-<版本>-win-x64.exe`           | 运行安装程序，按提示选择安装位置。                  |
+| Linux · x64        | `Alune-<版本>-linux-x86_64.AppImage` | 在文件属性中允许作为程序执行，再直接运行 AppImage。 |
 
 Release 同时提供 `SHA256SUMS` 供校验。当前安装包尚未配置平台签名，macOS 尚未公证；首次启动可能出现系统提示。安装与更新条件见[桌面端说明](docs/desktop.md)。
 
-已安装的桌面版可在 **设置 → 版本更新** 中检查、下载新版本，下载完成后点击“重启安装”。[全部版本与更新记录](https://github.com/ShaoClean/remote-git/releases)
+已安装的桌面版可在 **设置 → 版本更新** 中检查、下载新版本，下载完成后点击“重启安装”。[全部版本与更新记录](https://github.com/ShaoClean/Alune/releases)
 
 ## 快速上手
 
@@ -86,10 +86,10 @@ AI 生成会将已暂存差异发送给你配置的模型服务；不启用 AI �
 | AI 服务商、模型与密钥配置       | [AI 设置说明](docs/ai-settings.md)                                                       |
 | 从源码运行、构建与测试          | [开发与打包](docs/development.md)                                                        |
 | 提交规范、Git hooks 与版本发布  | [贡献与发布指南](CONTRIBUTE.md)                                                          |
-| 功能设计、验收记录与截图        | [GitHub Wiki](https://github.com/ShaoClean/remote-git/wiki) · [文档索引](docs/README.md) |
+| 功能设计、验收记录与截图        | [GitHub Wiki](https://github.com/ShaoClean/Alune/wiki) · [文档索引](docs/README.md) |
 
 ## 反馈与贡献
 
-欢迎通过 [Issue 模板](https://github.com/ShaoClean/remote-git/issues/new/choose)报告问题、提出功能或优化建议，也可以从[公开 TODO 看板](https://github.com/users/ShaoClean/projects/1)了解进展、挑选任务。计划中的能力以 Issue 为准。
+欢迎通过 [Issue 模板](https://github.com/ShaoClean/Alune/issues/new/choose)报告问题、提出功能或优化建议，也可以从[公开 TODO 看板](https://github.com/users/ShaoClean/projects/1)了解进展、挑选任务。计划中的能力以 Issue 为准。
 
-提交 PR 前请阅读[贡献指南](.github/CONTRIBUTING.md)，关联对应 Issue 并记录验证结果。设计、验收和配套截图统一维护在 Wiki，文档归属及旧路径见[维护约定](https://github.com/ShaoClean/remote-git/wiki/Contributing)与[迁移清单](https://github.com/ShaoClean/remote-git/wiki/Migration-25)。
+提交 PR 前请阅读[贡献指南](.github/CONTRIBUTING.md)，关联对应 Issue 并记录验证结果。设计、验收和配套截图统一维护在 Wiki，文档归属及旧路径见[维护约定](https://github.com/ShaoClean/Alune/wiki/Contributing)与[迁移清单](https://github.com/ShaoClean/Alune/wiki/Migration-25)。

@@ -1,5 +1,5 @@
 import { BadGatewayException, HttpException } from '@nestjs/common';
-import type { AiModel, AiProvider } from '@remote-git/shared';
+import type { AiModel, AiProvider } from '@alune/shared';
 
 const RESPONSE_MAX_BYTES = 1024 * 1024;
 

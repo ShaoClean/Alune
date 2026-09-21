@@ -34,17 +34,17 @@ for (const name of ['shared', 'ssh-client']) {
   await writeFile(path.join(target, `packages/${name}/package.json`), JSON.stringify(manifest, null, 2));
 }
 await writeFile(path.join(target, 'package.json'), JSON.stringify({
-  name: 'remote-git-desktop',
+  name: 'alune-desktop',
   version: rootPackage.version,
-  description: 'RemoteGit 桌面远程 Git 工作区',
-  author: 'RemoteGit',
+  description: 'Alune 桌面远程 Git 工作区',
+  author: 'Alune',
   private: true,
   main: 'main.cjs',
   dependencies: {
     ...server.dependencies,
     ...desktopPackage.dependencies,
-    '@remote-git/shared': 'file:packages/shared',
-    '@remote-git/ssh-client': 'file:packages/ssh-client',
+    '@alune/shared': 'file:packages/shared',
+    '@alune/ssh-client': 'file:packages/ssh-client',
   },
   devDependencies: { electron: rootPackage.devDependencies.electron },
 }, null, 2));

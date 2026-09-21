@@ -3,7 +3,7 @@ import type { Ref } from 'react';
 import { Button } from 'antd';
 import { ExportOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { WorktreeInfo } from '@remote-git/shared';
+import type { WorktreeInfo } from '@alune/shared';
 import { repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 

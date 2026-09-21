@@ -6,11 +6,11 @@ const { tmpdir } = require('node:os');
 const path = require('node:path');
 const yaml = require('js-yaml');
 // electron-builder uses the AppImage architecture name in the output filename.
-const linuxArtifact = 'RemoteGit-1.2.3-linux-x86_64.AppImage';
+const linuxArtifact = 'Alune-1.2.3-linux-x86_64.AppImage';
 
 async function fixture(t) {
   const release = await import('../scripts/release.mjs');
-  const directory = await mkdtemp(path.join(tmpdir(), 'remote-git-release-test-'));
+  const directory = await mkdtemp(path.join(tmpdir(), 'alune-release-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   for (const target of release.targets) {
     const files = target === 'linux-x64' ? [linuxArtifact, 'latest-linux.yml'] : release.artifacts(target, '1.2.3');
@@ -35,16 +35,16 @@ test('complete releases accept electron-builder AppImage names and both macOS ar
   const { directory, verifyRelease } = await fixture(t);
   await verifyRelease(directory, '1.2.3');
   const sums = await readFile(path.join(directory, 'SHA256SUMS'), 'utf8');
-  assert.match(sums, /^[a-f0-9]{64}  RemoteGit-1\.2\.3-mac-arm64\.dmg$/m);
-  assert.match(sums, /^[a-f0-9]{64}  RemoteGit-1\.2\.3-mac-x64\.dmg$/m);
-  assert.match(sums, /^[a-f0-9]{64}  RemoteGit-1\.2\.3-linux-x86_64\.AppImage$/m);
+  assert.match(sums, /^[a-f0-9]{64}  Alune-1\.2\.3-mac-arm64\.dmg$/m);
+  assert.match(sums, /^[a-f0-9]{64}  Alune-1\.2\.3-mac-x64\.dmg$/m);
+  assert.match(sums, /^[a-f0-9]{64}  Alune-1\.2\.3-linux-x86_64\.AppImage$/m);
 });
 
 test('release publication rejects missing platform artifacts and corrupt metadata', async (t) => {
   for (const failure of ['missing', 'checksum', 'version', 'unexpected']) {
     const { directory, verifyRelease } = await fixture(t);
-    if (failure === 'missing') await rm(path.join(directory, 'RemoteGit-1.2.3-mac-x64.dmg'));
-    if (failure === 'checksum') await writeFile(path.join(directory, 'RemoteGit-1.2.3-win-x64.exe'), 'corrupted bytes');
+    if (failure === 'missing') await rm(path.join(directory, 'Alune-1.2.3-mac-x64.dmg'));
+    if (failure === 'checksum') await writeFile(path.join(directory, 'Alune-1.2.3-win-x64.exe'), 'corrupted bytes');
     if (failure === 'version') {
       const file = path.join(directory, 'latest-linux.yml');
       await writeFile(file, (await readFile(file, 'utf8')).replace('1.2.3', '1.2.2'));

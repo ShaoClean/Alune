@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { REPOSITORY_STATUS_CACHE_MS } from '@remote-git/shared';
+import { REPOSITORY_STATUS_CACHE_MS } from '@alune/shared';
 import { useRepositoryStore } from '../stores/repositoryStore';
 
 export function useRepositoryStatus(id: string) {

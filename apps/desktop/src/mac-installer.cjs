@@ -15,7 +15,7 @@ stage_dir="$3"
 status_file="$4"
 launcher="$5"
 remaining="$6"
-new_app="$stage_dir/RemoteGit.app"
+new_app="$stage_dir/Alune.app"
 backup="$stage_dir/Previous.app"
 report() { printf '%s\n%s\n' "$1" "$stage_dir" > "$status_file"; }
 cleanup() { /bin/rm -rf "$stage_dir"; }
@@ -71,22 +71,22 @@ function appBundlePath(executable) {
   const contents = path.dirname(macOS);
   const bundle = path.dirname(contents);
   if (path.basename(macOS) !== 'MacOS' || path.basename(contents) !== 'Contents' || !bundle.endsWith('.app')) {
-    throw new Error('无法定位当前应用，请从已安装的 RemoteGit.app 中重试更新。');
+    throw new Error('无法定位当前应用，请从已安装的 Alune.app 中重试更新。');
   }
   return bundle;
 }
 
-function createMacInstaller({ appBundle, cacheDir, arch, bundleId = 'com.remotegit.desktop',
+function createMacInstaller({ appBundle, cacheDir, arch, bundleId = 'com.alune.desktop',
   run = promisify(execFile), spawnImpl = spawn, parentPid = process.pid, launcher = '/usr/bin/open', quitTimeout = 60 }) {
   const command = (file, args) => run(file, args, { timeout: 120000, maxBuffer: 1024 * 1024 });
 
   async function validateBundle(bundle, version) {
-    if (!(await lstat(bundle)).isDirectory()) throw new Error('更新包中的 RemoteGit.app 无效。');
+    if (!(await lstat(bundle)).isDirectory()) throw new Error('更新包中的 Alune.app 无效。');
     const info = path.join(bundle, 'Contents/Info.plist');
     const metadata = JSON.parse((await command('/usr/bin/plutil', ['-convert', 'json', '-o', '-', info])).stdout);
     if (metadata.CFBundleIdentifier !== bundleId || metadata.CFBundleShortVersionString !== version
-      || metadata.CFBundleExecutable !== 'RemoteGit') throw new Error('更新包中的应用标识或版本不匹配。');
-    const executable = path.join(bundle, 'Contents/MacOS/RemoteGit');
+      || metadata.CFBundleExecutable !== 'Alune') throw new Error('更新包中的应用标识或版本不匹配。');
+    const executable = path.join(bundle, 'Contents/MacOS/Alune');
     const resolved = await realpath(executable);
     if (!resolved.startsWith(`${await realpath(bundle)}${path.sep}`)) throw new Error('更新包中的应用路径无效。');
     await access(executable, constants.X_OK);
@@ -102,13 +102,13 @@ function createMacInstaller({ appBundle, cacheDir, arch, bundleId = 'com.remoteg
     async prepare(file, version) {
       const target = await realpath(appBundle);
       if (target.startsWith('/Volumes/') || target.includes('/AppTranslocation/')) {
-        throw new Error('请先将 RemoteGit 移到“应用程序”或其他可写目录，再重启安装更新。');
+        throw new Error('请先将 Alune 移到“应用程序”或其他可写目录，再重启安装更新。');
       }
       let stageDir;
-      try { stageDir = await mkdtemp(path.join(path.dirname(target), '.RemoteGit-update-')); }
+      try { stageDir = await mkdtemp(path.join(path.dirname(target), '.Alune-update-')); }
       catch (error) {
         if (['EACCES', 'EPERM', 'EROFS'].includes(error.code)) {
-          throw new Error('当前应用目录不可写，请将 RemoteGit 移到个人“应用程序”目录后重试。');
+          throw new Error('当前应用目录不可写，请将 Alune 移到个人“应用程序”目录后重试。');
         }
         throw error;
       }
@@ -121,9 +121,9 @@ function createMacInstaller({ appBundle, cacheDir, arch, bundleId = 'com.remoteg
         try {
           await command('/usr/bin/hdiutil', ['attach', '-readonly', '-nobrowse', '-noautoopen', '-mountpoint', mountPoint, file]);
           mounted = true;
-          const source = path.join(mountPoint, 'RemoteGit.app');
+          const source = path.join(mountPoint, 'Alune.app');
           await validateBundle(source, version);
-          const stagedApp = path.join(stageDir, 'RemoteGit.app');
+          const stagedApp = path.join(stageDir, 'Alune.app');
           await command('/usr/bin/ditto', [source, stagedApp]);
           await validateBundle(stagedApp, version);
         } finally {

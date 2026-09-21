@@ -3,7 +3,7 @@ const { readFileSync, writeFileSync } = require('node:fs');
 const path = require('node:path');
 
 module.exports = async ({ window, origin, token, restore }) => {
-  const fixturePath = path.join(process.env.REMOTE_GIT_SMOKE_DIR, 'sidebar-smoke.json');
+  const fixturePath = path.join(process.env.ALUNE_SMOKE_DIR, 'sidebar-smoke.json');
   const execute = (script) => window.webContents.executeJavaScript(script);
   const waitFor = (expression) =>
     execute(`new Promise((resolve, reject) => {
@@ -48,7 +48,7 @@ module.exports = async ({ window, origin, token, restore }) => {
   await waitFor(
     "document.querySelectorAll('.tree-group').length === 2 && document.querySelectorAll('[data-repository-id]').length === 4",
   );
-  assert.deepEqual(await execute('Object.keys(window.remoteGitWorkspace).sort()'), [
+  assert.deepEqual(await execute('Object.keys(window.aluneWorkspace).sort()'), [
     'clear',
     'load',
     'save',
@@ -80,7 +80,7 @@ module.exports = async ({ window, origin, token, restore }) => {
   await waitFor(`document.querySelector('.tree-group')?.dataset.connectionId === ${JSON.stringify(b)}
     && document.querySelector('[data-connection-id="${b}"] .tree-node__action')?.getAttribute('aria-expanded') === 'false'
     && JSON.stringify([...document.querySelectorAll('[data-connection-id="${a}"] [data-repository-id]')].map((row) => row.dataset.repositoryId)) === ${JSON.stringify(JSON.stringify(expectedOrder))}`);
-  const saved = JSON.parse(await execute('window.remoteGitWorkspace.load()')).state;
+  const saved = JSON.parse(await execute('window.aluneWorkspace.load()')).state;
   assert.deepEqual(saved.connectionOrder, [b, a]);
   assert.deepEqual(saved.collapsedConnectionIds, [b]);
   assert.deepEqual(saved.repositoryOrderByConnection[a], expectedOrder);
@@ -103,7 +103,7 @@ module.exports = async ({ window, origin, token, restore }) => {
       );
     await window.loadURL(`${origin}/repositories`);
     await waitFor("document.querySelectorAll('[data-repository-id]').length === 28");
-    const beforeDrag = await execute('window.remoteGitWorkspace.load()');
+    const beforeDrag = await execute('window.aluneWorkspace.load()');
     await execute(`(() => {
       const container = document.querySelector('.app-sidebar__content');
       const rect = container.getBoundingClientRect();
@@ -119,7 +119,7 @@ module.exports = async ({ window, origin, token, restore }) => {
       "document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))",
     );
     await waitFor("document.querySelectorAll('.tree-item--dragging').length === 0");
-    assert.equal(await execute('window.remoteGitWorkspace.load()'), beforeDrag);
+    assert.equal(await execute('window.aluneWorkspace.load()'), beforeDrag);
     for (const extra of extras) {
       const response = await fetch(`${origin}/api/repositories/${extra.id}`, {
         method: 'DELETE',
@@ -132,7 +132,7 @@ module.exports = async ({ window, origin, token, restore }) => {
     console.log('Desktop long-list edge scrolling and Escape cancellation passed.');
   }
   assert.equal(
-    await execute("window.remoteGitWorkspace.save('{invalid').then(() => false, () => true)"),
+    await execute("window.aluneWorkspace.save('{invalid').then(() => false, () => true)"),
     true,
   );
   if (!restore) {
@@ -165,7 +165,7 @@ module.exports = async ({ window, origin, token, restore }) => {
     );
     await execute(`document.querySelector('[aria-label="隐藏左侧工作区"]').click()`);
     await waitFor("document.querySelector('.app-shell--collapsed') !== null");
-    const withLayout = JSON.parse(await execute('window.remoteGitWorkspace.load()')).state;
+    const withLayout = JSON.parse(await execute('window.aluneWorkspace.load()')).state;
     assert.deepEqual(withLayout.layout, {
       sidebarWidth: 310,
       changesWidth: 430,
@@ -177,8 +177,8 @@ module.exports = async ({ window, origin, token, restore }) => {
     console.log('Desktop layout UI saved widths and collapse state without altering tree order.');
   }
   if (restore) {
-    await execute('window.remoteGitWorkspace.clear()');
-    assert.equal(await execute('window.remoteGitWorkspace.load()'), null);
+    await execute('window.aluneWorkspace.clear()');
+    assert.equal(await execute('window.aluneWorkspace.load()'), null);
     console.log(
       `Desktop sidebar restore passed across process restart (${fixture.origin} -> ${origin}).`,
     );

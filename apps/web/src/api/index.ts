@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@remote-git/shared';
+import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@alune/shared';
 import type {
   ConnectionTestResult,
   DiffImageContent,
@@ -9,7 +9,7 @@ import type {
   LogPage,
   Repository,
   WorktreeInfo,
-} from '@remote-git/shared';
+} from '@alune/shared';
 
 const api = axios.create({
   baseURL: '/api',

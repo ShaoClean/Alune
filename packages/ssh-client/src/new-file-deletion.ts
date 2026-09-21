@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
 import { promisify } from 'node:util';
 import type { SFTPWrapper } from 'ssh2';
-import type { NewFileDeletionPreview } from '@remote-git/shared';
+import type { NewFileDeletionPreview } from '@alune/shared';
 import { SSHConnection } from './connection-manager';
 import { parseStatus } from './git-status';
 import { gitFileCommand, isWindowsPath } from './git-shell';

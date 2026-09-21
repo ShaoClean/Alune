@@ -8,7 +8,7 @@ export interface WorkspaceBridge {
 }
 
 declare global {
-  interface Window { remoteGitWorkspace?: WorkspaceBridge }
+  interface Window { aluneWorkspace?: WorkspaceBridge }
 }
 
 export const useWorkspaceStorageStatus = create<{ error: string | null }>(() => ({ error: null }));
@@ -24,7 +24,7 @@ function validJSON(value: string | null): string | null {
 
 // Desktop storage has a stable location even though its HTTP port changes each launch.
 export function createWorkspaceStorage(
-  bridge: WorkspaceBridge | undefined = typeof window === 'undefined' ? undefined : window.remoteGitWorkspace,
+  bridge: WorkspaceBridge | undefined = typeof window === 'undefined' ? undefined : window.aluneWorkspace,
 ): StateStorage {
   return {
     getItem: async (name) => {

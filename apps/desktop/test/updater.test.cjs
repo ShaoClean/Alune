@@ -193,11 +193,11 @@ test('IPC rejects other windows, child frames, external origins and all renderer
 });
 
 async function macFixture(t, { arch = 'arm64', mutate = () => {}, downloadBody, checksum, fetchError, downloadFetch, idleTimeout, installer, app } = {}) {
-  const cacheDir = await mkdtemp(path.join(tmpdir(), 'remote-git-update-test-'));
+  const cacheDir = await mkdtemp(path.join(tmpdir(), 'alune-update-test-'));
   t.after(() => rm(cacheDir, { recursive: true, force: true }));
   const data = Buffer.from('test DMG bytes');
-  const name = `RemoteGit-1.1.0-mac-${arch}.dmg`;
-  const url = `https://github.com/ShaoClean/remote-git/releases/download/v1.1.0/`;
+  const name = `Alune-1.1.0-mac-${arch}.dmg`;
+  const url = `https://github.com/ShaoClean/Alune/releases/download/v1.1.0/`;
   const release = { tag_name: 'v1.1.0', body: 'Release notes', draft: false, prerelease: false,
     assets: [
       { name, size: data.length, browser_download_url: url + name },
@@ -300,7 +300,7 @@ test('macOS checks handle prereleases, missing assets, unsupported architectures
 
 test('GitHub errors and redirects are bounded and do not follow untrusted hosts', async () => {
   for (const status of [404, 403, 429, 500]) {
-    await assert.rejects(githubFetch(async () => new Response('', { status }), 'https://api.github.com/repos/ShaoClean/remote-git/releases/latest', new AbortController().signal), /GitHub|Release/);
+    await assert.rejects(githubFetch(async () => new Response('', { status }), 'https://api.github.com/repos/ShaoClean/Alune/releases/latest', new AbortController().signal), /GitHub|Release/);
   }
   let calls = 0;
   await assert.rejects(githubFetch(async () => {

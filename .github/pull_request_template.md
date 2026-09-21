@@ -19,7 +19,7 @@
 
 ## 设计文档（Wiki）
 
-<!-- 填写 https://github.com/ShaoClean/remote-git/wiki/Issue-<编号>，并附页面修订链接或 Wiki commit SHA。方案、验收记录、截图及附件统一维护在 Wiki，页面需反向关联本 PR 和 Issue，并加入分类索引；没有独立设计文档时注明“不适用”及原因。维护约定：https://github.com/ShaoClean/remote-git/wiki/Contributing -->
+<!-- 填写 https://github.com/ShaoClean/Alune/wiki/Issue-<编号>，并附页面修订链接或 Wiki commit SHA。方案、验收记录、截图及附件统一维护在 Wiki，页面需反向关联本 PR 和 Issue，并加入分类索引；没有独立设计文档时注明“不适用”及原因。维护约定：https://github.com/ShaoClean/Alune/wiki/Contributing -->
 
 ## 验证
 

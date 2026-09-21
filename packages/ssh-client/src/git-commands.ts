@@ -13,7 +13,7 @@ import type {
   CommitFile,
   DiffOptions,
   LogOptions,
-} from '@remote-git/shared';
+} from '@alune/shared';
 
 export const DIFF_PREVIEW_MAX_BYTES = 1024 * 1024;
 const previewLimitMessage = '文件或差异超出预览限制（1 MiB），请在远端查看。';

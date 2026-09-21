@@ -8,13 +8,13 @@ test('web links open in the system browser without creating an Electron window',
     opened.push(url);
   });
   for (const url of [
-    'https://github.com/ShaoClean/remote-git/releases',
+    'https://github.com/ShaoClean/Alune/releases',
     'http://example.com/notes',
   ]) {
     assert.deepEqual(handler({ url }), { action: 'deny' });
   }
   assert.deepEqual(opened, [
-    'https://github.com/ShaoClean/remote-git/releases',
+    'https://github.com/ShaoClean/Alune/releases',
     'http://example.com/notes',
   ]);
 });

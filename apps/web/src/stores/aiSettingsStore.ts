@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AiSettings } from '@remote-git/shared';
+import type { AiSettings } from '@alune/shared';
 import { aiApi, aiError } from '../api/ai';
 
 let request = 0;

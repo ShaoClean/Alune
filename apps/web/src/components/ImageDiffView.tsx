@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@remote-git/shared';
+import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/shared';
 import { repositoryApi } from '../api';
 import type { ImageDiffKind } from './diff-lines';
 

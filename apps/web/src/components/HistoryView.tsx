@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import type { GraphCommit, CommitReference } from '@remote-git/shared';
+import type { GraphCommit, CommitReference } from '@alune/shared';
 import { Button } from 'antd';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { EmptyState, formatRelativeDate } from './ui';

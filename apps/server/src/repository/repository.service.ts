@@ -2,8 +2,8 @@ import { Injectable, Inject, NotFoundException, GatewayTimeoutException } from '
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { ConnectionService } from '../connection/connection.service';
-import { DiffImages, GitCommands, GitWorktrees, worktreePathKey } from '@remote-git/ssh-client';
-import { REPOSITORY_STATUS_TIMEOUT_MS } from '@remote-git/shared';
+import { DiffImages, GitCommands, GitWorktrees, worktreePathKey } from '@alune/ssh-client';
+import { REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
 import type {
   Repository,
   RepositoryStatus,
@@ -11,7 +11,7 @@ import type {
   DiffImageContent,
   DiffImageOptions,
   LogOptions,
-} from '@remote-git/shared';
+} from '@alune/shared';
 
 @Injectable()
 export class RepositoryService {

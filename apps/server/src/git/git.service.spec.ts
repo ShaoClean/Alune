@@ -1,7 +1,7 @@
 import { GitService } from './git.service';
 import { ConnectionService } from '../connection/connection.service';
 import { RepositoryService } from '../repository/repository.service';
-import { GitCommands } from '@remote-git/ssh-client';
+import { GitCommands } from '@alune/ssh-client';
 
 describe('GitService index operations', () => {
   afterEach(() => jest.restoreAllMocks());

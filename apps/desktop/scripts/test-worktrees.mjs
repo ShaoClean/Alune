@@ -11,7 +11,7 @@ const {
 } = require('../../../packages/ssh-client/tests/helpers/worktree-repository.cjs');
 const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
 const fixture = createWorktreeRepository();
-const root = await mkdtemp(path.join(tmpdir(), 'remote-git-worktree-desktop-'));
+const root = await mkdtemp(path.join(tmpdir(), 'alune-worktree-desktop-'));
 let remote;
 try {
   remote = await startSSHServer();
@@ -29,8 +29,8 @@ try {
   );
   const env = {
     ...process.env,
-    REMOTE_GIT_SMOKE_DIR: path.join(root, 'data'),
-    REMOTE_GIT_WORKTREE_FIXTURE: JSON.stringify({ connection: remote.options, path: fixture.repo }),
+    ALUNE_SMOKE_DIR: path.join(root, 'data'),
+    ALUNE_WORKTREE_FIXTURE: JSON.stringify({ connection: remote.options, path: fixture.repo }),
   };
   delete env.ELECTRON_RUN_AS_NODE;
   const child = spawn(require('electron'), [appPath, '--smoke-test'], { env, stdio: 'inherit' });

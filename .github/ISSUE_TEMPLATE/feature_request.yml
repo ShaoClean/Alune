@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        感谢帮助改进 RemoteGit！请先搜索已有 Issues；尚未确定的方案请明确标注“待确认”，不必预先设计完整实现。
+        感谢帮助改进 Alune！请先搜索已有 Issues；尚未确定的方案请明确标注“待确认”，不必预先设计完整实现。
         请勿提交 SSH 密码、私钥、访问令牌或包含私人服务器信息的原始日志。
   - type: textarea
     id: background
@@ -69,5 +69,5 @@ body:
     id: design_wiki
     attributes:
       label: 设计文档（Wiki）
-      description: '可选。已有设计请填写 Wiki 页面链接；暂无设计可留空，由维护者按 Issue 编号创建并补充反向链接。约定见 https://github.com/ShaoClean/remote-git/wiki/Contributing 。'
-      placeholder: 'https://github.com/ShaoClean/remote-git/wiki/Issue-<编号>'
+      description: '可选。已有设计请填写 Wiki 页面链接；暂无设计可留空，由维护者按 Issue 编号创建并补充反向链接。约定见 https://github.com/ShaoClean/Alune/wiki/Contributing 。'
+      placeholder: 'https://github.com/ShaoClean/Alune/wiki/Issue-<编号>'

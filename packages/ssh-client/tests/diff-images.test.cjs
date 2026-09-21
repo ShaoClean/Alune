@@ -40,7 +40,7 @@ const repo = () => {
 };
 
 before(async () => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'remote-git-image-'));
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-image-'));
   remote = await startSSHServer();
   connection = new SSHConnection(remote.options);
   await connection.connect();

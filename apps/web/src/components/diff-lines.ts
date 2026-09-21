@@ -1,4 +1,4 @@
-import { diffImageMediaType } from '@remote-git/shared';
+import { diffImageMediaType } from '@alune/shared';
 
 export type DiffLine = { text: string; kind: 'meta' | 'context' | 'add' | 'remove' };
 export type NumberedDiffLine = DiffLine & { oldLine?: number; newLine?: number };

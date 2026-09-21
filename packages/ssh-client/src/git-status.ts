@@ -1,4 +1,4 @@
-import type { FileStatus, RepositoryStatus } from '@remote-git/shared';
+import type { FileStatus, RepositoryStatus } from '@alune/shared';
 
 export interface StatusRecord {
   path: string;

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 // Renderer integration fixture. Real Git-over-SSH semantics are covered in ssh-client/tests.
 module.exports = async ({ window, origin, token, backend }) => {
   const { ConnectionService } = require('./server/connection/connection.service');
-  const { GitCommands } = require('@remote-git/ssh-client');
+  const { GitCommands } = require('@alune/ssh-client');
   const connections = backend.get(ConnectionService);
   const originalConnect = connections.ensureConnected;
   const originals = Object.fromEntries(
@@ -109,9 +109,9 @@ module.exports = async ({ window, origin, token, backend }) => {
     await waitFor(
       "document.querySelector('.app-shell--collapsed') && document.querySelector('.workspace-body--right-hidden') && document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop first')",
     );
-    if (process.env.REMOTE_GIT_DIFF_SMOKE_SCREENSHOT) {
+    if (process.env.ALUNE_DIFF_SMOKE_SCREENSHOT) {
       require('node:fs').writeFileSync(
-        process.env.REMOTE_GIT_DIFF_SMOKE_SCREENSHOT,
+        process.env.ALUNE_DIFF_SMOKE_SCREENSHOT,
         (await window.webContents.capturePage()).toPNG(),
       );
     }

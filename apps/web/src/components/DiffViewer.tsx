@@ -5,7 +5,7 @@ import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { getNumberedDiffLines, getDiffNotice, getImageDiffKind } from './diff-lines';
 import type { NumberedDiffLine } from './diff-lines';
 import { ImageDiffView } from './ImageDiffView';
-import type { DiffImageOptions } from '@remote-git/shared';
+import type { DiffImageOptions } from '@alune/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { SplitViewIcon, UnifiedViewIcon } from './DiffViewIcons';
 

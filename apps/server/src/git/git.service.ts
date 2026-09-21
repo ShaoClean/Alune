@@ -6,7 +6,7 @@ import {
   NewFileDeletion,
   NewFileDeletionError,
   validateNewFilePath,
-} from '@remote-git/ssh-client';
+} from '@alune/ssh-client';
 
 @Injectable()
 export class GitService {

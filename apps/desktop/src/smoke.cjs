@@ -4,7 +4,7 @@ const { writeFileSync } = require('node:fs');
 const externalLinkOpened = Promise.withResolvers();
 
 module.exports = async ({ window, origin, token, updates, closeBackend, backend, version }) => {
-  if (process.env.REMOTE_GIT_SMOKE_PHASE === 'restore') {
+  if (process.env.ALUNE_SMOKE_PHASE === 'restore') {
     await require('./ai-smoke.cjs')({ backend, origin, token, restore: true });
     await require('./sidebar-smoke.cjs')({ window, origin, token, restore: true });
     return;
@@ -46,7 +46,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   assert.equal(renderer.node, 'undefined');
   assert.equal(renderer.require, 'undefined');
   assert.equal(renderer.status, 200);
-  assert.match(renderer.text, /RemoteGit/);
+  assert.match(renderer.text, /Alune/);
   assert.ok(renderer.text.includes(`v${version}`));
   await window.webContents.executeJavaScript(`document.querySelector('.repository-switcher-panel').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
   await waitForUI(window, `document.querySelector('button.repository-switcher')?.getAttribute('aria-expanded') === 'false'`);
@@ -84,7 +84,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
     assert.equal(await Promise.race([
       externalLinkOpened.promise,
       new Promise((_, reject) => { linkTimeout = setTimeout(() => reject(new Error('External link was not opened')), 3000); }),
-    ]), 'https://github.com/ShaoClean/remote-git/releases');
+    ]), 'https://github.com/ShaoClean/Alune/releases');
   } finally { clearTimeout(linkTimeout); }
   assert.equal(BrowserWindow.getAllWindows().length, windowCount);
   assert.equal(window.webContents.getURL(), originalUrl);
@@ -118,11 +118,11 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
     };
     document.body.append(frame);
   })`), true);
-  if (process.env.REMOTE_GIT_SMOKE_SCREENSHOT) {
+  if (process.env.ALUNE_SMOKE_SCREENSHOT) {
     // Hidden packaged windows can throttle the modal entrance animation indefinitely.
     const style = await window.webContents.insertCSS('.ant-modal, .ant-modal-mask { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }');
     try {
-      writeFileSync(process.env.REMOTE_GIT_SMOKE_SCREENSHOT, (await window.webContents.capturePage()).toPNG());
+      writeFileSync(process.env.ALUNE_SMOKE_SCREENSHOT, (await window.webContents.capturePage()).toPNG());
     } finally { await window.webContents.removeInsertedCSS(style); }
   }
   await window.loadURL(`${origin}/repositories`);
@@ -201,7 +201,7 @@ module.exports.createUpdateAdapter = (version) => ({
   installs: 0,
   async check() { return {
     version: require('semver').inc(version, 'patch'),
-    releaseNotes: '# Smoke release notes\n\n- **Markdown**\n\n[Release](https://github.com/ShaoClean/remote-git/releases)\n\n```text\n**literal**\n```\n\n| Platform | Status |\n| --- | --- |\n| Desktop | Ready |\n\n<script>alert(1)</script>\n\n[unsafe](javascript:alert%281%29)',
+    releaseNotes: '# Smoke release notes\n\n- **Markdown**\n\n[Release](https://github.com/ShaoClean/Alune/releases)\n\n```text\n**literal**\n```\n\n| Platform | Status |\n| --- | --- |\n| Desktop | Ready |\n\n<script>alert(1)</script>\n\n[unsafe](javascript:alert%281%29)',
   }; },
   async download(signal, progress) {
     for (let percent = 0; percent <= 100; percent += 10) {

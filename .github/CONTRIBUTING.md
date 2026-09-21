@@ -1,8 +1,8 @@
-# 参与 RemoteGit
+# 参与 Alune
 
 ## 提交 Issue
 
-请先[搜索已有 Issues](https://github.com/ShaoClean/remote-git/issues)，再通过[模板选择页](https://github.com/ShaoClean/remote-git/issues/new/choose)提交：
+请先[搜索已有 Issues](https://github.com/ShaoClean/Alune/issues)，再通过[模板选择页](https://github.com/ShaoClean/Alune/issues/new/choose)提交：
 
 | 模板     | 用途                                     | 自动标签       |
 | -------- | ---------------------------------------- | -------------- |
@@ -28,10 +28,10 @@ PR 标题和提交信息须遵守 Conventional Commits，使用 `feat: ...`、`f
 
 ## 维护设计文档
 
-[GitHub Wiki](https://github.com/ShaoClean/remote-git/wiki) 是功能、优化及缺陷修复设计的统一入口。使用 [设计模板](https://github.com/ShaoClean/remote-git/wiki/Design-Template) 新建 `Issue-<编号>` 页面；较长验收记录可拆为 `Issue-<编号>-Validation`。内容包括背景、目标、方案、验收标准、关联 PR 和实际验证结果。
+[GitHub Wiki](https://github.com/ShaoClean/Alune/wiki) 是功能、优化及缺陷修复设计的统一入口。使用 [设计模板](https://github.com/ShaoClean/Alune/wiki/Design-Template) 新建 `Issue-<编号>` 页面；较长验收记录可拆为 `Issue-<编号>-Validation`。内容包括背景、目标、方案、验收标准、关联 PR 和实际验证结果。
 
-新增或更新页面时，同步维护 [功能设计索引](https://github.com/ShaoClean/remote-git/wiki/Feature-Designs) 或 [缺陷修复索引](https://github.com/ShaoClean/remote-git/wiki/Bugfix-Designs)，在 Issue / PR 正文填写完整 Wiki 链接。图片和附件存放在 Wiki 仓库的 `assets/issue-<编号>/`，检查页面、图片和附件可访问。PR 审阅时附 Wiki 修订链接或 commit SHA，完整操作见 [Wiki 维护约定](https://github.com/ShaoClean/remote-git/wiki/Contributing)。
+新增或更新页面时，同步维护 [功能设计索引](https://github.com/ShaoClean/Alune/wiki/Feature-Designs) 或 [缺陷修复索引](https://github.com/ShaoClean/Alune/wiki/Bugfix-Designs)，在 Issue / PR 正文填写完整 Wiki 链接。图片和附件存放在 Wiki 仓库的 `assets/issue-<编号>/`，检查页面、图片和附件可访问。PR 审阅时附 Wiki 修订链接或 commit SHA，完整操作见 [Wiki 维护约定](https://github.com/ShaoClean/Alune/wiki/Contributing)。
 
-没有 Wiki 写权限时，可先在 Issue / PR 中提供草案与附件，由维护者整理后补充链接。运行、开发、发布及现行配置说明、测试必需的 fixtures 留在代码仓库；设计文档、验收记录及截图不再在主仓库保留完整副本。已迁移资料的旧路径对应关系见 [迁移清单](https://github.com/ShaoClean/remote-git/wiki/Migration-25)。
+没有 Wiki 写权限时，可先在 Issue / PR 中提供草案与附件，由维护者整理后补充链接。运行、开发、发布及现行配置说明、测试必需的 fixtures 留在代码仓库；设计文档、验收记录及截图不再在主仓库保留完整副本。已迁移资料的旧路径对应关系见 [迁移清单](https://github.com/ShaoClean/Alune/wiki/Migration-25)。
 
 公开日志与截图请先脱敏，避免提交真实数据库、私人服务器地址、SSH 密码、私钥和访问令牌。

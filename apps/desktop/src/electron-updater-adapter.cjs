@@ -14,7 +14,7 @@ function createElectronUpdater({ updater, nativeUpdater, logger = console, check
   updater.disableWebInstaller = true;
   updater.autoRunAppAfterInstall = true;
   updater.logger = logger;
-  updater.setFeedURL({ provider: 'github', owner: 'ShaoClean', repo: 'remote-git', private: false, releaseType: 'release' });
+  updater.setFeedURL({ provider: 'github', owner: 'ShaoClean', repo: 'alune', private: false, releaseType: 'release' });
   // The library also emits errors for rejected operations. Always handle that event.
   updater.on('error', (error) => logger.error('[updater]', error.message));
 

@@ -11,7 +11,7 @@ import {
   ReloadOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import type { AiModel, AiProvider, AiSettings, SaveAiProvider } from '@remote-git/shared';
+import type { AiModel, AiProvider, AiSettings, SaveAiProvider } from '@alune/shared';
 import { aiApi, aiError } from '../../api/ai';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
 

@@ -1,4 +1,4 @@
-# RemoteGit v0.2.1
+# Alune v0.2.1
 
 本次更新改进了 **版本更新体验**，并修复了 *长内容阅读* 问题。
 
@@ -6,7 +6,7 @@
 
 - 支持 Markdown 更新说明。
   - 保留嵌套列表与 `行内代码`。
-  - 阅读 [完整变更](https://github.com/ShaoClean/remote-git/compare/v0.2.0...v0.2.1)。
+  - 阅读 [完整变更](https://github.com/ShaoClean/Alune/compare/v0.2.0...v0.2.1)。
 - ~~直接展示 Markdown 原文~~。
 
 ## 升级步骤
@@ -39,11 +39,11 @@ git log --format="%H %s" -- https://example.com/a/very/long/path/that/must/stay/
 
 | 平台 | 文件名 | 校验摘要 | 下载通道 | 发布类型 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| macOS | RemoteGit-desktop-universal.dmg | abcdef0123456789abcdef0123456789abcdef0123456789 | GitHub Releases | stable | 表格支持横向滚动 |
+| macOS | Alune-desktop-universal.dmg | abcdef0123456789abcdef0123456789abcdef0123456789 | GitHub Releases | stable | 表格支持横向滚动 |
 
 ### 长链接
 
-<https://github.com/ShaoClean/remote-git/releases/tag/this-is-a-long-release-reference-that-should-wrap-within-the-notes-panel-without-expanding-the-dialog>
+<https://github.com/ShaoClean/Alune/releases/tag/this-is-a-long-release-reference-that-should-wrap-within-the-notes-panel-without-expanding-the-dialog>
 
 ### 维护事项
 

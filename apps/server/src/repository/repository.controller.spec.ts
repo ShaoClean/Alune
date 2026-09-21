@@ -1,4 +1,4 @@
-import { DiffImageAbsentError, GitLogChangedError, GitLogOptionsError } from '@remote-git/ssh-client';
+import { DiffImageAbsentError, GitLogChangedError, GitLogOptionsError } from '@alune/ssh-client';
 import { RepositoryController } from './repository.controller';
 import { RepositoryService } from './repository.service';
 

@@ -19,7 +19,7 @@ import type {
   AiSettings,
   CommitGenerationPreferences,
   SaveAiProvider,
-} from '@remote-git/shared';
+} from '@alune/shared';
 import type { AiSecretStorage } from './secret-storage';
 
 type StoredProvider = Omit<AiProvider, 'hasApiKey'> & { encryptedKey?: string };

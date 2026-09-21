@@ -28,7 +28,7 @@ jobs:
           - workspace: server
             command: npm test -w server -- --ci --runInBand
           - workspace: ssh-client
-            command: npm test -w @remote-git/ssh-client
+            command: npm test -w @alune/ssh-client
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,9 +38,9 @@ jobs:
       - run: npm ci
       - name: 构建共享依赖
         if: matrix.workspace != 'desktop'
-        run: npm run build -w @remote-git/shared
+        run: npm run build -w @alune/shared
       - name: 构建服务端的 SSH 依赖
         if: matrix.workspace == 'server'
-        run: npm run build -w @remote-git/ssh-client
+        run: npm run build -w @alune/ssh-client
       - name: 运行单元测试
         run: ${{ matrix.command }}

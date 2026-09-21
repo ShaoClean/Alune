@@ -3,15 +3,15 @@
 开发环境使用 Node.js 22.12+ 和 npm。首次构建需要下载 Electron 和原生依赖；原生模块没有预编译包时，需要系统 C++ 编译工具（macOS：Xcode Command Line Tools；Windows：Visual Studio C++ Build Tools 和 Python；Linux：编译工具链和 Python）。
 
 ```sh
-git clone https://github.com/ShaoClean/remote-git.git
-cd remote-git
+git clone https://github.com/ShaoClean/Alune.git
+cd alune
 npm ci
 npm run desktop:dev
 ```
 
 在仓库根目录运行以上命令。依赖安装同时配置 Git hooks，说明见[贡献与发布指南](../CONTRIBUTE.md)。
 
-`desktop:dev` 构建当前源码并打开桌面窗口。修改源码后重新运行该命令；前端热更新开发先运行 `npm run build -w @remote-git/shared` 和 `npm run build -w @remote-git/ssh-client`，再运行 `npm run dev`，浏览器访问 `http://localhost:5173`；本地服务默认监听 `127.0.0.1:3000`。
+`desktop:dev` 构建当前源码并打开桌面窗口。修改源码后重新运行该命令；前端热更新开发先运行 `npm run build -w @alune/shared` 和 `npm run build -w @alune/ssh-client`，再运行 `npm run dev`，浏览器访问 `http://localhost:5173`；本地服务默认监听 `127.0.0.1:3000`。
 
 ```sh
 npm run desktop:pack  # 生成当前系统可运行的应用目录
@@ -44,8 +44,8 @@ Linux CI 的桌面测试使用 `xvfb-run -a`。测试中的模拟更新适配器
 
 若本机 npm 配置禁用了安装脚本，首次启动前执行 `node node_modules/electron/install.js` 下载 Electron。构建脚本会在隔离的暂存目录中为 Electron 重建 SQLite，保留网页开发所用的 Node.js 原生模块。
 
-集成测试使用临时数据目录，验证实际 Electron 页面、深链接刷新、SQLite 增删查、HTTP / WebSocket 认证和页面沙箱，不会连接远程服务器或修改已有数据。也可用 `REMOTE_GIT_TEST_EXECUTABLE` 指定已打包应用的可执行文件进行同样的测试。
+集成测试使用临时数据目录，验证实际 Electron 页面、深链接刷新、SQLite 增删查、HTTP / WebSocket 认证和页面沙箱，不会连接远程服务器或修改已有数据。也可用 `ALUNE_TEST_EXECUTABLE` 指定已打包应用的可执行文件进行同样的测试。
 
-实际验收结果、截图和未验证场景统一记录到 [Wiki](https://github.com/ShaoClean/remote-git/wiki)，不在本页累积历史记录。正式发布步骤见[贡献与发布指南](../CONTRIBUTE.md#发布新版本)。
+实际验收结果、截图和未验证场景统一记录到 [Wiki](https://github.com/ShaoClean/Alune/wiki)，不在本页累积历史记录。正式发布步骤见[贡献与发布指南](../CONTRIBUTE.md#发布新版本)。
 
 [返回项目首页](../README.md) · [文档索引](README.md)

@@ -9,7 +9,7 @@ const render = (notes) => renderToStaticMarkup(createElement(ReleaseNotes, { not
 
 test('release notes render Markdown, nested lists and GFM tables without interpreting code', () => {
   const html = render(readFileSync(new URL('./fixtures/update-notes.md', import.meta.url), 'utf8'));
-  assert.match(html, /<h1>RemoteGit v0\.2\.1<\/h1>/);
+  assert.match(html, /<h1>Alune v0\.2\.1<\/h1>/);
   assert.match(html, /<h2>新功能<\/h2>/);
   assert.match(html, /<strong>版本更新体验<\/strong>/);
   assert.match(html, /<em>长内容阅读<\/em>/);
@@ -28,7 +28,7 @@ test('release notes render Markdown, nested lists and GFM tables without interpr
   assert.match(html, /<input type="checkbox" disabled="" checked=""\/>/);
   assert.match(
     html,
-    /href="https:\/\/github\.com\/ShaoClean\/remote-git\/compare\/v0\.2\.0\.\.\.v0\.2\.1" target="_blank" rel="noopener noreferrer"/,
+    /href="https:\/\/github\.com\/ShaoClean\/Alune\/compare\/v0\.2\.0\.\.\.v0\.2\.1" target="_blank" rel="noopener noreferrer"/,
   );
 });
 

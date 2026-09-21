@@ -36,9 +36,9 @@ test('connection folds are independent and survive root folding and hydration', 
   state.setConnectionCollapsed('a', false);
   state.setTreeOpen(false);
   state.setTreeOpen(true);
-  const saved = storage.get('remote-git-workspace');
+  const saved = storage.get('alune-workspace');
   workspace.setState(workspace.getInitialState(), true);
-  storage.set('remote-git-workspace', saved);
+  storage.set('alune-workspace', saved);
   await workspace.persist.rehydrate();
   assert.deepEqual(workspace.getState().collapsedConnectionIds, ['b']);
   assert.equal(workspace.getState().treeOpen, true);
@@ -60,7 +60,7 @@ test('both levels reorder without changing open tabs, selection or repository ow
 
 test('cross-connection, mixed-level, missing and self drops do not alter saved order', () => {
   seed();
-  const saved = storage.get('remote-git-workspace');
+  const saved = storage.get('alune-workspace');
   const state = workspace.getState();
   for (const [source, target] of [
     [repositoryItem('a1'), repositoryItem('b1', 'b')],
@@ -68,7 +68,7 @@ test('cross-connection, mixed-level, missing and self drops do not alter saved o
     [repositoryItem('missing'), repositoryItem('a1')],
     [connectionItem('a'), connectionItem('a')],
   ]) assert.equal(state.moveTreeItem(source, target, 'after'), false);
-  assert.equal(storage.get('remote-git-workspace'), saved);
+  assert.equal(storage.get('alune-workspace'), saved);
 });
 
 test('refresh preserves custom order, appends new items and removes confirmed missing IDs', () => {
@@ -103,10 +103,10 @@ test('individual create and delete update only the affected preferences', () => 
 test('failed list requests preserve all sidebar settings', async () => {
   seed();
   workspace.getState().setConnectionCollapsed('a', true);
-  const saved = storage.get('remote-git-workspace');
+  const saved = storage.get('alune-workspace');
   repositoryApi.list = connectionApi.list = async () => { throw new Error('offline'); };
   await Promise.all([repositories.getState().fetchRepositories(), connections.getState().fetchConnections()]);
-  assert.equal(storage.get('remote-git-workspace'), saved);
+  assert.equal(storage.get('alune-workspace'), saved);
 });
 
 test('page filtering uses a full registry and cannot erase another connection order', async () => {
@@ -142,7 +142,7 @@ test('a repository list started before deletion cannot restore the removed order
 });
 
 test('legacy and malformed preferences normalize sidebar data without restoring unrelated state', async () => {
-  storage.set('remote-git-workspace', JSON.stringify({ version: 1, state: {
+  storage.set('alune-workspace', JSON.stringify({ version: 1, state: {
     openRepositoryIds: ['a1', 'a1', 7], panels: { a1: 'history' },
     drafts: { a1: { message: 'draft', description: 'body' } },
     connectionOrder: ['b', 2, 'b', 'a'], collapsedConnectionIds: 'bad',
@@ -159,7 +159,7 @@ test('legacy and malformed preferences normalize sidebar data without restoring 
   assert.equal(workspace.getState().status, undefined);
   assert.equal(workspace.getState().setPanel, undefined);
   workspace.setState(workspace.getInitialState(), true);
-  storage.set('remote-git-workspace', '{broken');
+  storage.set('alune-workspace', '{broken');
   await workspace.persist.rehydrate();
   assert.deepEqual(workspace.getState().connectionOrder, []);
 });
@@ -169,7 +169,7 @@ test('repository validation keeps live metadata separate from persisted preferen
   await repositories.getState().fetchRepositories();
   assert.deepEqual(workspace.getState().repositoryOrderByConnection, { a: ['a1'] });
   assert.equal(repositories.getState().repositories[0].name, 'renamed');
-  const saved = JSON.parse(storage.get('remote-git-workspace')).state;
+  const saved = JSON.parse(storage.get('alune-workspace')).state;
   assert.equal(saved.validatedConnectionIds, undefined);
   assert.equal(saved.repositories, undefined);
   assert.equal(saved.isDirty, undefined);

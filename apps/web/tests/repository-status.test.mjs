@@ -197,20 +197,20 @@ test('status and failed registry refreshes preserve order, folds, and prior regi
       { kind: 'repository', id: 'a', connectionId: 'host-a' },
       'before',
     );
-  const preferences = storage.get('remote-git-workspace');
+  const preferences = storage.get('alune-workspace');
   await store.getState().refreshRepositoryStatuses(['a']);
   const previous = store.getState().repositories;
-  assert.equal(storage.get('remote-git-workspace'), preferences);
+  assert.equal(storage.get('alune-workspace'), preferences);
   repositoryApi.list = async () => {
     throw new Error('registry failed');
   };
   await store.getState().fetchRepositories();
   assert.equal(store.getState().repositories, previous);
-  assert.equal(storage.get('remote-git-workspace'), preferences);
+  assert.equal(storage.get('alune-workspace'), preferences);
   repositoryApi.list = async () => [repo('a'), repo('b'), repo('c', 'host-b')];
   await store.getState().fetchRepositories();
   assert.equal(store.getState().repositories[0].currentBranch, 'main');
-  assert.equal(storage.get('remote-git-workspace'), preferences);
+  assert.equal(storage.get('alune-workspace'), preferences);
 });
 
 test('switching cancels the previous foreground read and ignores its late response', async () => {

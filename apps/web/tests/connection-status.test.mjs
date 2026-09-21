@@ -23,7 +23,7 @@ const renderTree = (statuses) =>
   renderToStaticMarkup(
     createElement(WorkspaceTree, {
       connections: [{ id: 'dev', name: '开发服务器' }],
-      repositories: [{ id: 'repo-a', connectionId: 'dev', name: 'remote-git', path: '/w/remote-git' }],
+      repositories: [{ id: 'repo-a', connectionId: 'dev', name: 'alune', path: '/w/alune' }],
       statuses,
       onOpenRepository() {},
     }),

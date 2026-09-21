@@ -1,7 +1,7 @@
 import { createServer, Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
-import type { AiProtocol } from '@remote-git/shared';
+import type { AiProtocol } from '@alune/shared';
 import type { ConnectionService } from '../connection/connection.service';
 import type { RepositoryService } from '../repository/repository.service';
 import { AiSettingsStore } from './ai-settings';

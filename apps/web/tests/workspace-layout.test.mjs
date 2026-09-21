@@ -55,7 +55,7 @@ test('window fitting preserves inspector space without replacing saved preferenc
 
 test('old tree preferences survive adding, saving, rehydrating and resetting layout', async () => {
   saved.set(
-    'remote-git-workspace',
+    'alune-workspace',
     JSON.stringify({
       version: 1,
       state: {
@@ -77,7 +77,7 @@ test('old tree preferences survive adding, saving, rehydrating and resetting lay
       changesCollapsed: true,
       diffMode: 'split',
     });
-  const persisted = saved.get('remote-git-workspace');
+  const persisted = saved.get('alune-workspace');
   assert.deepEqual(JSON.parse(persisted).state.layout, {
     ...DEFAULT_LAYOUT,
     changesCollapsed: true,

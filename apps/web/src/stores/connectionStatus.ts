@@ -1,4 +1,4 @@
-import type { ConnectionActivityStatus, ConnectionStatusInfo } from '@remote-git/shared';
+import type { ConnectionActivityStatus, ConnectionStatusInfo } from '@alune/shared';
 
 const LABELS: Record<ConnectionActivityStatus, string> = {
   connected: '在线',

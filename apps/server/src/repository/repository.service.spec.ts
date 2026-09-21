@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
-import { GitCommands, GitWorktrees } from '@remote-git/ssh-client';
-import { REPOSITORY_STATUS_TIMEOUT_MS } from '@remote-git/shared';
+import { GitCommands, GitWorktrees } from '@alune/ssh-client';
+import { REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
 import { RepositoryService } from './repository.service';
 import { ConnectionService } from '../connection/connection.service';
 

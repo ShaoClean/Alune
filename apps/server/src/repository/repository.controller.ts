@@ -17,8 +17,8 @@ import {
   DiffImageAbsentError,
   GitLogChangedError,
   GitLogOptionsError,
-} from '@remote-git/ssh-client';
-import type { DiffImageOptions, DiffOptions } from '@remote-git/shared';
+} from '@alune/ssh-client';
+import type { DiffImageOptions, DiffOptions } from '@alune/shared';
 
 @Controller('repositories')
 export class RepositoryController {
