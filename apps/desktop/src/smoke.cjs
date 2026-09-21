@@ -34,7 +34,9 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
     };
     check();
   })`);
-  await waitForUI(window, `document.querySelector('.workspace-menu-version')?.textContent === ${JSON.stringify(`v${version}`)}`);
+  await waitForUI(window, `document.querySelector('button.repository-switcher')`);
+  await window.webContents.executeJavaScript(`document.querySelector('button.repository-switcher').click()`);
+  await waitForUI(window, `document.querySelector('button.repository-switcher')?.getAttribute('aria-expanded') === 'true' && document.querySelector('.repository-switcher-panel__footer span:last-child')?.textContent === ${JSON.stringify(`v${version}`)}`);
   const renderer = await window.webContents.executeJavaScript(`(async () => ({
     node: typeof process,
     require: typeof require,
@@ -46,6 +48,8 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   assert.equal(renderer.status, 200);
   assert.match(renderer.text, /RemoteGit/);
   assert.ok(renderer.text.includes(`v${version}`));
+  await window.webContents.executeJavaScript(`document.querySelector('.repository-switcher-panel').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+  await waitForUI(window, `document.querySelector('button.repository-switcher')?.getAttribute('aria-expanded') === 'false'`);
   assert.deepEqual(await window.webContents.executeJavaScript(`Object.keys(window.desktopUpdates).sort()`),
     ['cancel', 'check', 'download', 'getState', 'install', 'openFile', 'revealFile', 'subscribe'].sort());
   assert.equal(await window.webContents.executeJavaScript(`typeof window.desktopUpdates.send`), 'undefined');
@@ -185,7 +189,7 @@ async function waitForUI(window, condition) {
     const started = Date.now();
     const check = () => {
       if (${condition}) return resolve(true);
-      if (Date.now() - started > 10000) return reject(new Error('Expected update UI did not appear'));
+      if (Date.now() - started > 10000) return reject(new Error(${JSON.stringify(`界面等待超时，条件：${condition}`)} + '；当前路由：' + location.pathname));
       setTimeout(check, 50);
     };
     check();

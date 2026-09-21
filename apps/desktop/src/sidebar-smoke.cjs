@@ -10,7 +10,7 @@ module.exports = async ({ window, origin, token, restore }) => {
     const start = Date.now();
     const check = () => {
       if (${expression}) return resolve(true);
-      if (Date.now() - start > 15000) return reject(new Error('Sidebar state did not settle'));
+      if (Date.now() - start > 15000) return reject(new Error(${JSON.stringify(`侧栏等待超时，条件：${expression}`)} + '；当前路由：' + location.pathname));
       setTimeout(check, 30);
     };
     check();
@@ -146,9 +146,9 @@ module.exports = async ({ window, origin, token, restore }) => {
     await execute(
       `document.querySelector('[aria-label="调整工作区宽度"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))`,
     );
-    await execute('document.querySelector(\'[aria-label="设置与帮助"]\').click()');
-    await waitFor('document.querySelector(\'[role="menu"]\') !== null');
-    await execute('document.querySelector(\'[role="menuitem"]\').click()');
+    await execute("document.querySelector('button.repository-switcher').click()");
+    await waitFor("document.querySelector('.repository-switcher-panel') !== null");
+    await execute("Array.from(document.querySelectorAll('.repository-switcher-panel button')).find(button => button.querySelector('strong')?.textContent === '设置').click()");
     await waitFor("document.querySelector('.settings-navigation') !== null");
     await execute(
       "Array.from(document.querySelectorAll('.settings-navigation button')).find(button => button.textContent === '布局').click()",

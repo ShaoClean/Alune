@@ -23,7 +23,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     execute(
       'new Promise((resolve, reject) => { const start = Date.now(); const check = () => { if (' +
         expression +
-        ') return resolve(true); if (Date.now() - start > 10000) return reject(new Error("History smoke timed out")); setTimeout(check, 30); }; check(); })',
+        ') return resolve(true); if (Date.now() - start > 10000) return reject(new Error(' + JSON.stringify('历史冒烟等待超时，条件：' + expression) + ' + "；行数：" + document.querySelector(".history-table")?.getAttribute("aria-rowcount") + "；滚动：" + document.querySelector(".history-viewport")?.scrollTop)); setTimeout(check, 30); }; check(); })',
     );
   const click = (selector) =>
     execute('document.querySelector(' + JSON.stringify(selector) + ').click()');
@@ -82,10 +82,8 @@ module.exports = async ({ window, origin, token, backend }) => {
     });
     repo = await create('repositories', { connectionId: connection.id, path: '/fixture/history' });
     await window.loadURL(origin + '/repositories/' + repo.id);
-    await wait("document.querySelector('.workspace-panel-tabs')");
-    await execute(
-      "Array.from(document.querySelectorAll('.workspace-panel-tabs > button')).find(button => button.textContent === '提交历史').click()",
-    );
+    await wait("document.querySelector('[aria-label=\"提交历史\"]')");
+    await click('[aria-label="提交历史"]');
     await wait("document.querySelectorAll('.history-row').length > 0");
     assert.equal(
       await execute('document.querySelector(\'[aria-label="显示右侧面板"]\').disabled'),
@@ -121,7 +119,10 @@ module.exports = async ({ window, origin, token, backend }) => {
       assert.equal(await execute("document.querySelector('.history-detail') !== null"), true);
     }
     assert.ok((await execute("document.querySelectorAll('.history-row').length")) < 100);
+    await execute("(() => { const viewport = document.querySelector('.history-viewport'); viewport.scrollTop = 0; viewport.dispatchEvent(new Event('scroll', { bubbles: true })); })()");
+    await wait("document.querySelector('.history-viewport').scrollTop === 0");
     await click('[aria-label="更多仓库视图"]');
+    await wait("document.querySelector('#repository-more-menu') !== null");
     await execute(
       "Array.from(document.querySelectorAll('.ant-dropdown-menu-item')).find(item => item.textContent.includes('刷新仓库')).click()",
     );
@@ -136,7 +137,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     await wait(
       "document.querySelector('.history-notice--error')?.textContent.includes('历史已变化')",
     );
-    assert.equal(await execute("document.querySelectorAll('.history-row--selected').length"), 1);
+    assert.equal(await execute("document.querySelector('.history-detail__header code')?.getAttribute('title')"), hash(1));
     await click('.history-notice--error button');
     await wait("!document.querySelector('.history-notice--error')");
     await execute(
@@ -164,6 +165,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     commits = commits.slice(1);
     revision = 'third';
     await click('[aria-label="更多仓库视图"]');
+    await wait("document.querySelector('#repository-more-menu') !== null");
     await execute(
       "Array.from(document.querySelectorAll('.ant-dropdown-menu-item')).find(item => item.textContent.includes('刷新仓库')).click()",
     );

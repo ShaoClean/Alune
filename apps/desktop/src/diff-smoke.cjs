@@ -19,7 +19,10 @@ module.exports = async ({ window, origin, token, backend }) => {
     assert.equal(response.ok, true);
     return response.json();
   };
-  const execute = (script) => window.webContents.executeJavaScript(script);
+  const execute = async (script) => {
+    try { return await window.webContents.executeJavaScript(script); }
+    catch (error) { throw new Error(`差异冒烟脚本执行失败：${script}`, { cause: error }); }
+  };
   const waitFor = (expression) =>
     execute(`new Promise((resolve, reject) => {
     const started = Date.now();
@@ -117,7 +120,9 @@ module.exports = async ({ window, origin, token, backend }) => {
     await click(`button[aria-label="暂存 ${file}"]`);
     await waitFor("document.querySelector('.diff-shell__title')?.textContent.includes('已暂存')");
     edited = true;
-    await click('[aria-label="刷新仓库"]');
+    await click('[aria-label="更多仓库视图"]');
+    await waitFor("document.querySelector('#repository-more-menu') !== null");
+    await execute("Array.from(document.querySelectorAll('#repository-more-menu [role=\"menuitem\"]')).find(item => item.textContent.trim() === '刷新仓库').click()");
     await waitFor(
       `document.querySelectorAll('.file-row__select[aria-label*="${file}"]').length === 2`,
     );
