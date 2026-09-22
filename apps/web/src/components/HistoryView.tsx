@@ -14,7 +14,7 @@ interface Props {
   selectedHash?: string | null;
   visible?: boolean;
 }
-const colors = ['#2563eb', '#8b5cf6', '#0d9488', '#d97706', '#db2777', '#0891b2'];
+const colors = ['var(--graph-1)', 'var(--graph-2)', 'var(--graph-3)', 'var(--graph-4)', 'var(--graph-5)', 'var(--graph-6)'];
 const color = (index: number) => colors[index % colors.length];
 const x = (lane: number) => 20 + lane * GRAPH_LANE_WIDTH;
 

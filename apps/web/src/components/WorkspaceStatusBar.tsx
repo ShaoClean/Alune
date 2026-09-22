@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Popover } from 'antd';
 import { BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
 import type { Repository } from '@alune/shared';
@@ -31,6 +31,13 @@ export function WorkspaceStatusBar({
   const syncRepoId = useSyncStatusStore((state) => state.repoId);
   // Only surface the progress of the repository this status bar describes.
   const progress = repository && syncRepoId === repository.id ? syncDetail : null;
+  const [longRunning, setLongRunning] = useState(false);
+  useEffect(() => {
+    setLongRunning(false);
+    if (!progress) return;
+    const timer = window.setTimeout(() => setLongRunning(true), 30_000);
+    return () => window.clearTimeout(timer);
+  }, [progress, syncRepoId]);
   const connections = useConnectionStore((state) => state.connections);
   const statuses = useConnectionStore((state) => state.statuses);
   const connection = connections.find((item) => item.id === repository?.connectionId);
@@ -68,7 +75,7 @@ export function WorkspaceStatusBar({
         {progress && (
           <span className="status-bar__progress" role="status">
             <SyncOutlined spin />
-            {progress}
+            {longRunning ? `仍在运行 · ${progress}` : progress}
           </span>
         )}
       </div>

@@ -1,11 +1,11 @@
 .settings-center {
-  --settings-line: #e1e7ef;
-  --settings-muted: #718096;
+  --settings-line: var(--blue-soft);
+  --settings-muted: var(--text-muted);
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  color: #253047;
-  background: #fff;
+  color: var(--text);
+  background: var(--surface);
   font-size: 13px;
 }
 .settings-center * {
@@ -37,7 +37,7 @@
 .commit-ai-generate:focus-visible,
 .commit-ai-feedback button:focus-visible,
 .commit-ai-undo:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--blue);
   outline-offset: 3px;
 }
 .settings-header {
@@ -51,7 +51,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  background: #edf3f9;
+  background: var(--sidebar-bg);
   border-right: 1px solid var(--settings-line);
 }
 .settings-header__bar {
@@ -78,7 +78,7 @@
   min-height: 0;
 }
 .settings-navigation {
-  background: #edf3f9;
+  background: var(--sidebar-bg);
   border-right: 1px solid var(--settings-line);
   padding: 16px 11px;
   display: flex;
@@ -93,7 +93,7 @@
 .settings-navigation nav button {
   border: 1px solid transparent;
   background: transparent;
-  color: #64748b;
+  color: var(--text-muted);
   padding: 12px;
   border-radius: 7px;
   display: flex;
@@ -105,12 +105,12 @@
   text-align: left;
 }
 .settings-navigation nav button:hover {
-  background: #fff;
+  background: var(--surface);
 }
 .settings-navigation nav button[aria-current] {
-  background: #eaf1ff;
-  color: #2563eb;
-  border-color: #ceddff;
+  background: var(--blue-soft);
+  color: var(--blue);
+  border-color: var(--line);
   font-weight: 600;
 }
 .settings-navigation__footer {
@@ -138,7 +138,7 @@
   min-height: 28px;
   padding: 5px 14px;
   border-top: 1px solid var(--settings-line);
-  background: #edf3f9;
+  background: var(--sidebar-bg);
   color: var(--settings-muted);
   display: flex;
   align-items: center;
@@ -155,7 +155,7 @@
   min-height: 100%;
 }
 .provider-list {
-  background: #f7f9fc;
+  background: var(--surface-muted);
   border-right: 1px solid var(--settings-line);
   padding: 24px 14px;
   min-width: 0;
@@ -182,7 +182,7 @@
   width: 100%;
   background: transparent;
   border: 1px solid transparent;
-  color: #253047;
+  color: var(--text);
   display: flex;
   align-items: center;
   text-align: left;
@@ -192,11 +192,11 @@
   cursor: pointer;
 }
 .provider-list__item:hover {
-  background: white;
+  background: var(--surface);
 }
 .provider-list__item[aria-current] {
-  border-color: #ceddff;
-  background: #eaf1ff;
+  border-color: var(--line);
+  background: var(--blue-soft);
 }
 .provider-list__copy {
   display: flex;
@@ -215,7 +215,7 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--settings-line);
   border-radius: 8px;
   font-size: 14px;
@@ -224,16 +224,16 @@
 .provider-avatar--large {
   width: 44px;
   height: 44px;
-  background: #eaf1ff;
+  background: var(--blue-soft);
   border: 0;
-  color: #2563eb;
+  color: var(--blue);
   font-size: 21px;
 }
 .provider-enabled-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #158348;
+  background: var(--green);
   flex-shrink: 0;
 }
 .provider-list__add {
@@ -282,7 +282,7 @@
   gap: 8px;
   margin: 20px 0 0;
   min-width: 0;
-  color: #344156;
+  color: var(--text);
   font-size: 12px;
   font-weight: 500;
 }
@@ -293,12 +293,12 @@
 }
 .settings-field select,
 .settings-mobile-category select {
-  background: white;
-  border: 1px solid #d4dce8;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
   border-radius: 6px;
   min-height: 34px;
   padding: 6px 9px;
-  color: #253047;
+  color: var(--text);
   width: 100%;
   min-width: 0;
 }
@@ -315,7 +315,7 @@
   border: 0;
   padding: 0;
   background: transparent;
-  color: #2563eb;
+  color: var(--blue);
   cursor: pointer;
 }
 .settings-secret-toggle {
@@ -368,17 +368,17 @@
   color: var(--red);
 }
 .provider-model-modal {
-  --settings-muted: #718096;
+  --settings-muted: var(--text-muted);
 }
 .provider-model-modal--delete .ant-btn-primary.ant-btn-dangerous:not(:disabled) {
-  color: #fff;
+  color: var(--primary-on);
   background: var(--red);
   border-color: var(--red);
   box-shadow: none;
 }
 .provider-model-modal--delete .ant-btn-primary.ant-btn-dangerous:not(:disabled):hover {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: var(--red);
+  border-color: var(--red);
 }
 .provider-model-delete-copy {
   overflow-wrap: anywhere;
@@ -417,7 +417,7 @@
   margin: 32px 0 22px;
   padding: 18px;
   border: 1px solid var(--settings-line);
-  background: #f7f9fc;
+  background: var(--surface-muted);
   border-radius: 8px;
 }
 .commit-format-preview > span {
@@ -449,7 +449,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #2563eb;
+  color: var(--blue);
   cursor: pointer;
 }
 .commit-ai-generate > :first-child {
@@ -458,10 +458,10 @@
   line-height: 1;
 }
 .commit-ai-generate:hover:not(:disabled) {
-  background: #eaf1ff;
+  background: var(--blue-soft);
 }
 .commit-ai-generate:disabled {
-  color: #9ba9c0;
+  color: var(--text-muted);
   cursor: default;
 }
 .commit-ai-bar {
@@ -473,7 +473,7 @@
   margin-inline: calc(var(--commit-ai-bar-inset) * -1);
   column-gap: calc(10px - var(--commit-ai-bar-inset));
   row-gap: 2px;
-  color: #718096;
+  color: var(--text-muted);
   font-size: 11px;
   line-height: 1.5;
 }
@@ -489,7 +489,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #53647d;
+  color: var(--text-muted);
   font-size: 11px;
   line-height: inherit;
   cursor: pointer;
@@ -507,8 +507,8 @@
   text-overflow: ellipsis;
 }
 .commit-ai-bar__model:hover {
-  color: #2563eb;
-  background: #eef3fb;
+  color: var(--blue);
+  background: var(--blue-soft);
 }
 .commit-ai-bar__hint {
   /* Wraps to its own row once a long model name leaves it too little space. */
@@ -524,7 +524,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  color: #718096;
+  color: var(--text-muted);
   font-size: 11px;
   line-height: 1.6;
 }
@@ -534,12 +534,12 @@
   border: 0;
   padding: 2px 0;
   cursor: pointer;
-  color: #2563eb;
+  color: var(--blue);
   font-size: 11px;
   flex-shrink: 0;
 }
 .commit-ai-feedback--error {
-  color: #b8323b;
+  color: var(--red);
 }
 .commit-ai-undo {
   align-self: flex-start;
@@ -591,7 +591,7 @@
   .settings-mobile-category {
     display: block;
     padding: 10px 16px;
-    background: #edf3f9;
+    background: var(--sidebar-bg);
     border-bottom: 1px solid var(--settings-line);
   }
   .settings-mobile-category label {

@@ -1,3 +1,4 @@
+import { AppearanceSettings } from './AppearanceSettings';
 import { useEffect, useRef } from 'react';
 import { Alert, Button } from 'antd';
 import {
@@ -7,6 +8,7 @@ import {
   LayoutOutlined,
   ReloadOutlined,
   SettingOutlined,
+  SkinOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
@@ -23,6 +25,7 @@ const categories = [
   { id: 'providers', name: 'AI 服务商', icon: <ApartmentOutlined /> },
   { id: 'commit', name: '提交生成', icon: <Sparkles /> },
   { id: 'layout', name: '布局', icon: <LayoutOutlined /> },
+  { id: 'appearance', name: '外观', icon: <SkinOutlined /> },
   { id: 'updates', name: '版本更新', icon: <ReloadOutlined /> },
 ];
 
@@ -109,7 +112,9 @@ export function SettingsCenter({
           </div>
         </aside>
         <main className="settings-main" aria-label={`${category.name}设置`}>
-          {category.id === 'layout' ? (
+          {category.id === 'appearance' ? (
+            <AppearanceSettings />
+          ) : category.id === 'layout' ? (
             <div className="settings-page-content settings-page-content--layout">
               <h1>布局</h1>
               <p className="settings-lead">调整工作区的显示空间，修改立即生效。</p>

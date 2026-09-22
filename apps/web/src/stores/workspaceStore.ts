@@ -1,3 +1,5 @@
+import { DEFAULT_APPEARANCE, readAppearancePreferences } from './appearance';
+import type { AppearancePreferences } from './appearance';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { canMoveTreeItem, moveBeforeOrAfter, orderedIds } from './sidebarOrder';
@@ -8,6 +10,7 @@ import type { LayoutPreferences } from './workspaceLayout';
 
 type RepositoryIdentity = { id: string; connectionId: string };
 type Preferences = {
+  appearance: AppearancePreferences;
   layout: LayoutPreferences;
   treeOpen: boolean;
   collapsedConnectionIds: string[];
@@ -15,6 +18,7 @@ type Preferences = {
   repositoryOrderByConnection: Record<string, string[]>;
 };
 interface WorkspaceState extends Preferences {
+  updateAppearance: (patch: Partial<AppearancePreferences>) => void;
   updateLayout: (patch: Partial<LayoutPreferences>) => void;
   resetLayout: () => void;
   validatedConnectionIds: string[] | null;
@@ -30,6 +34,7 @@ interface WorkspaceState extends Preferences {
 }
 
 const defaults: Preferences = {
+  appearance: DEFAULT_APPEARANCE,
   layout: DEFAULT_LAYOUT,
   treeOpen: true,
   collapsedConnectionIds: [],
@@ -50,6 +55,7 @@ const record = (value: unknown): Record<string, unknown> =>
 function readPreferences(value: unknown): Preferences {
   const saved = record(value);
   return {
+    appearance: readAppearancePreferences(saved.appearance),
     layout: readLayoutPreferences(saved.layout),
     treeOpen: typeof saved.treeOpen === 'boolean' ? saved.treeOpen : true,
     collapsedConnectionIds: stringIds(saved.collapsedConnectionIds),
@@ -66,6 +72,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
     (set, get) => ({
       ...defaults,
+      updateAppearance: (patch) =>
+        set((state) => ({ appearance: readAppearancePreferences({ ...state.appearance, ...patch }) })),
       updateLayout: (patch) =>
         set((state) => ({ layout: readLayoutPreferences({ ...state.layout, ...patch }) })),
       resetLayout: () => set({ layout: { ...DEFAULT_LAYOUT } }),
@@ -176,12 +184,14 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         connectionOrder,
         repositoryOrderByConnection,
         layout,
+        appearance,
       }) => ({
         treeOpen,
         collapsedConnectionIds,
         connectionOrder,
         repositoryOrderByConnection,
         layout,
+        appearance,
       }),
       merge: (saved, current) => ({ ...current, ...readPreferences(saved) }),
     },

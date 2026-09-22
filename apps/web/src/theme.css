@@ -1,0 +1,246 @@
+/* Moonlight palette. Existing geometry, typography and component tokens stay intact. */
+:root {
+  color-scheme: light;
+  --content: #f5f7fb;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-muted: #f5f7fb;
+  --surface-hover: #eaf0fc;
+  --code: #fbfcfe;
+  --text: #1b2943;
+  --text-muted: #526076;
+  --text-faint: #526076;
+  --line: #d8e0ee;
+  --line-strong: #77859c;
+  --blue: #415ab0;
+  --primary-hover: #354b98;
+  --primary-on: #ffffff;
+  --blue-soft: #eaf0fc;
+  --green: #0f6d56;
+  --green-soft: #e9f7ef;
+  --green-line: #a5cdbb;
+  --orange: #995413;
+  --orange-soft: #fff3e3;
+  --orange-line: #dbc29f;
+  --red: #ad3b49;
+  --red-soft: #fcecef;
+  --red-line: #e1b7bf;
+  --purple: #7046a0;
+  --purple-soft: #f1ebfa;
+  --purple-line: #cdb9e5;
+  --sidebar-bg: #e9eff9;
+  --sidebar-bg-deep: #e9eff9;
+  --sidebar-surface: #f5f7fb;
+  --sidebar-line: var(--line);
+  --sidebar-text: var(--text);
+  --sidebar-muted: var(--text-muted);
+  --sidebar-active: #dce5f7;
+  --nav-900: var(--sidebar-bg);
+  --nav-850: var(--sidebar-bg);
+  --nav-800: var(--sidebar-surface);
+  --nav-700: var(--sidebar-active);
+  --diff-add: #e9f7ef;
+  --diff-remove: #fcecef;
+  --diff-meta: #eaf0fc;
+  --scrollbar: #8491a8;
+  --overlay: rgb(10 14 22 / 48%);
+  --highlight: rgb(255 255 255 / 75%);
+  --shadow-color: rgb(16 24 40 / 7%);
+  --focus-soft: rgb(65 90 176 / 18%);
+  --shadow-sm: 0 1px 2px var(--shadow-color);
+  --shadow-md: 0 8px 24px var(--shadow-color);
+  --shadow-card: 0 2px 8px var(--shadow-color), 0 1px 2px var(--shadow-color);
+  --graph-1: var(--blue);
+  --graph-2: var(--purple);
+  --graph-3: var(--green);
+  --graph-4: var(--orange);
+  --graph-5: var(--red);
+  --graph-6: #146c89;
+  --radius-control: 7px;
+  --radius-panel: 8px;
+  --space-control-gap: 8px;
+  --motion-hover: 100ms;
+  --motion-select: 160ms;
+  --motion-result: 120ms;
+  --motion-panel: 220ms;
+  --motion-wait: 1600ms;
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --content: #151e30;
+  --surface: #202c43;
+  --surface-raised: #202c43;
+  --surface-muted: #151e30;
+  --surface-hover: #253654;
+  --code: #192438;
+  --text: #e8effc;
+  --text-muted: #b7c8ec;
+  --text-faint: #b7c8ec;
+  --line: #3b4a65;
+  --line-strong: #7c8fab;
+  --blue: #afc6ff;
+  --primary-hover: #c5d5ff;
+  --primary-on: #151e30;
+  --blue-soft: #253654;
+  --green: #b0e5cc;
+  --green-soft: #153328;
+  --green-line: #47765e;
+  --orange: #ffd096;
+  --orange-soft: #3b2d20;
+  --orange-line: #85633d;
+  --red: #ffb7c0;
+  --red-soft: #431d27;
+  --red-line: #8e5460;
+  --purple: #d4baff;
+  --purple-soft: #342644;
+  --purple-line: #71558e;
+  --sidebar-bg: #101a2d;
+  --sidebar-bg-deep: #101a2d;
+  --sidebar-surface: #202c43;
+  --sidebar-active: #253654;
+  --diff-add: #153328;
+  --diff-remove: #431d27;
+  --diff-meta: #253654;
+  --scrollbar: #7c8fab;
+  --overlay: rgb(4 8 16 / 65%);
+  --highlight: rgb(183 200 236 / 8%);
+  --shadow-color: rgb(0 0 0 / 24%);
+  --focus-soft: rgb(175 198 255 / 22%);
+  --graph-6: #8fd8ee;
+}
+
+/* Immediate focus, including native controls outside Ant Design. */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+:where(input, select) {
+  accent-color: var(--blue);
+}
+::selection {
+  color: var(--text);
+  background: var(--sidebar-active);
+}
+
+.diff-shell__body,
+.diff-zoom-modal__body,
+.diff-unified-view,
+.diff-split-view,
+.diff-split-cell--context {
+  background: var(--code);
+}
+.diff-code-row--meta,
+.diff-split-row--meta,
+.diff-line--meta {
+  color: var(--blue);
+  background: var(--diff-meta);
+}
+.diff-split-cell--add {
+  color: var(--green);
+}
+.diff-split-cell--remove {
+  color: var(--red);
+}
+/* Split rows retain a textual change marker as well as the color. */
+.diff-split-cell--add code::before {
+  content: '+';
+}
+.diff-split-cell--remove code::before {
+  content: '-';
+}
+
+.ant-btn-primary {
+  color: var(--primary-on);
+  background: var(--blue);
+}
+.ant-btn-primary:not(:disabled):hover {
+  color: var(--primary-on);
+  background: var(--primary-hover);
+}
+.ant-btn-primary.ant-btn-dangerous {
+  color: var(--primary-on);
+  background: var(--red);
+  border-color: var(--red);
+}
+.ant-btn.ant-btn-primary.ant-btn-dangerous:not(:disabled):hover {
+  color: var(--primary-on);
+  background: var(--red);
+  border-color: var(--red);
+}
+.ant-btn-primary:disabled {
+  color: var(--text-muted);
+  background: var(--surface-hover);
+  border-color: var(--line);
+}
+.activity-button:hover,
+.activity-button--active,
+.sidebar-toggle:hover,
+.tree-section-toggle:hover,
+.sidebar-link:hover {
+  color: var(--text);
+}
+
+.repository-tab,
+.file-row,
+.sidebar-nav-item,
+.tree-node,
+.toolbar-button {
+  transition:
+    color var(--motion-select) var(--ease-enter),
+    background-color var(--motion-select) var(--ease-enter),
+    border-color var(--motion-select) var(--ease-enter);
+}
+/* Only newly mounted, ready content fades. No width/height or scroll animation. */
+.diff-unified-view,
+.diff-split-view,
+.image-diff-view {
+  animation: moonlight-content var(--motion-select) var(--ease-enter);
+}
+.ant-message-notice-content {
+  animation: moonlight-content var(--motion-result) var(--ease-enter);
+}
+.anticon-spin {
+  animation-duration: var(--motion-wait);
+}
+@keyframes moonlight-content {
+  from {
+    opacity: 0.65;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Keep completion events for library overlays while suppressing perceptible motion. */
+:root[data-reduced-motion='true'] *,
+:root[data-reduced-motion='true'] *::before,
+:root[data-reduced-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The shell is still empty before hydration; desktop supplies the saved background. */
+:root:not([data-theme]) body {
+  background: transparent;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --content: #151e30;
+  }
+}

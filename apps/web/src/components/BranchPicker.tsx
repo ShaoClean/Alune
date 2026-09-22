@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Input, Modal, Popover, message } from 'antd';
+import { Input, Modal, Popover, App } from 'antd';
 import {
   BranchesOutlined,
   CheckOutlined,
@@ -29,6 +29,7 @@ export function BranchPicker({
   maxWidth?: number;
   onSwitched: () => void;
 }) {
+  const { message } = App.useApp();
   const branches = useRepositoryStore((state) => state.branches);
   const fetchBranches = useRepositoryStore((state) => state.fetchBranches);
   const [open, setOpen] = useState(false);

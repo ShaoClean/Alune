@@ -6,6 +6,7 @@ const externalLinkOpened = Promise.withResolvers();
 module.exports = async ({ window, origin, token, updates, closeBackend, backend, version }) => {
   if (process.env.ALUNE_SMOKE_PHASE === 'restore') {
     await require('./ai-smoke.cjs')({ backend, origin, token, restore: true });
+    await require('./appearance-smoke.cjs')({ window, origin, restore: true });
     await require('./sidebar-smoke.cjs')({ window, origin, token, restore: true });
     return;
   }
@@ -149,6 +150,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   await require('./diff-smoke.cjs')({ window, origin, token, backend });
   await require('./history-smoke.cjs')({ window, origin, token, backend });
   await require('./sidebar-smoke.cjs')({ window, origin, token, restore: false });
+  await require('./appearance-smoke.cjs')({ window, origin, restore: false });
   // Keep an upgraded connection alive to reproduce shutdown hangs seen in packaged apps.
   const pendingSocket = new WebSocket(`${origin.replace('http:', 'ws:')}/socket.io/?EIO=4&transport=websocket`, { headers });
   await new Promise((resolve, reject) => { pendingSocket.once('open', resolve); pendingSocket.once('error', reject); });

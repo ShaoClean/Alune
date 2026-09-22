@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Input, Modal, Popconfirm, Select, Space, message } from 'antd';
+import { Button, Input, Modal, Popconfirm, Select, Space, App } from 'antd';
 import {
   BranchesOutlined,
   DeleteOutlined,
@@ -16,6 +16,7 @@ import { EmptyState, ErrorState, formatBranchName, LoadingState } from '../compo
 import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicator';
 
 export function RepositoriesPage() {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const connectionId = searchParams.get('connectionId') || undefined;

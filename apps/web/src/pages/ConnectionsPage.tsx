@@ -8,7 +8,7 @@ import {
   Modal,
   Popconfirm,
   Select,
-  message,
+  App,
 } from 'antd';
 import {
   ApartmentOutlined,
@@ -36,6 +36,7 @@ interface ConnectionFormValues {
 }
 
 export function ConnectionsPage() {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const {
     connections,
