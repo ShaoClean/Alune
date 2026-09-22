@@ -3,25 +3,28 @@ import { Resvg } from '@resvg/resvg-js';
 
 const root = new URL('../', import.meta.url);
 const check = process.argv.includes('--check');
-const source = await readFile(new URL('apps/desktop/assets/icon.svg', root), 'utf8');
-const compactViewBox = source.match(/ data-compact-view-box="([^"]+)"/)?.[1];
-if (!compactViewBox) throw new Error('icon.svg must declare data-compact-view-box for the web icon.');
+const source = await readFile(new URL('apps/desktop/assets/alune.png', root));
+const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+if (!source.subarray(0, 8).equals(signature) || source.toString('ascii', 12, 16) !== 'IHDR') {
+  throw new Error('apps/desktop/assets/alune.png must be a PNG image.');
+}
+const width = source.readUInt32BE(16);
+const height = source.readUInt32BE(20);
+if (width !== height || width < 1024) {
+  throw new Error('apps/desktop/assets/alune.png must be square and at least 1024 pixels wide.');
+}
 
-// Preserve the exact artwork. Only the desktop padding and shadow are removed
-// for favicons and in-app marks, where every pixel counts.
-const compact = source
-  .replace(/ data-compact-view-box="[^"]+"/, '')
-  .replace('width="1024" height="1024"', 'width="64" height="64"')
-  .replace(/ viewBox="[^"]+"/, ` viewBox="${compactViewBox}"`)
-  .replace(/    <filter id="icon-shadow"[\s\S]*?<\/filter>\n/, '')
-  .replace(' filter="url(#icon-shadow)"', '');
-const generated = '<!-- Generated from apps/desktop/assets/icon.svg by npm run icons:generate. -->\n';
+// Keep the original illustration as the source of truth. Resvg scales its
+// pixels and alpha consistently for the desktop icon and the web brand mark.
+const artwork = source.toString('base64');
+function render(size) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${size}" height="${size}" viewBox="0 0 ${width} ${height}"><image width="${width}" height="${height}" xlink:href="data:image/png;base64,${artwork}"/></svg>`;
+  return new Resvg(svg).render().asPng();
+}
 const outputs = [
-  ['apps/desktop/assets/icon.png', new Resvg(source).render().asPng()],
-  // Lives under src/assets, not public/, so Vite content-hashes the built file. A
-  // fixed /favicon.svg URL let browsers and Electron's persistent session cache serve
-  // a stale icon across upgrades; a hashed URL changes whenever the artwork changes.
-  ['apps/web/src/assets/favicon.svg', Buffer.from(generated + compact)],
+  ['apps/desktop/assets/icon.png', render(1024)],
+  // Vite content-hashes this imported image, avoiding stale Electron favicons.
+  ['apps/web/src/assets/favicon.png', render(64)],
 ];
 
 for (const [name, contents] of outputs) {
@@ -40,4 +43,4 @@ for (const [name, contents] of outputs) {
     console.log(`Generated ${name}`);
   }
 }
-if (check && !process.exitCode) console.log('Desktop and web icons match the SVG source.');
+if (check && !process.exitCode) console.log('Desktop and web icons match the Alune PNG source.');

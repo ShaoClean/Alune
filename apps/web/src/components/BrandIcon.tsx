@@ -1,5 +1,5 @@
-/** The favicon and every in-app brand mark share the generated compact artwork. */
-import favicon from '../assets/favicon.svg';
+/** The favicon and every in-app brand mark share the generated Alune portrait. */
+import favicon from '../assets/favicon.png';
 
 export function BrandIcon({ className = 'app-brand__mark' }: { className?: string }) {
   return (

@@ -224,7 +224,7 @@ const server = createServer(async (request, response) => {
   }
   const file = path.resolve(
     root,
-    pathname.startsWith('/assets/') || pathname === '/favicon.svg' ? `.${pathname}` : 'index.html',
+    pathname.startsWith('/assets/') || pathname === '/favicon.png' ? `.${pathname}` : 'index.html',
   );
   if (path.relative(root, file).startsWith('..')) {
     response.writeHead(403).end();
