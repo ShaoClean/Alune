@@ -96,7 +96,7 @@ async function startHistoryFixture(root = path.resolve(__dirname, '../dist'), le
       if (url.pathname.startsWith('/api/')) return json(res, []);
       const filename = path.resolve(
         root,
-        url.pathname.startsWith('/assets/') || url.pathname === '/favicon.svg'
+        url.pathname.startsWith('/assets/') || url.pathname === '/favicon.png'
           ? '.' + url.pathname
           : 'index.html',
       );
