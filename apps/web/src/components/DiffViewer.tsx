@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button, Modal, Segmented } from 'antd';
-import { CloseOutlined, DiffOutlined, ExpandOutlined } from '@ant-design/icons';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Button, Segmented } from 'antd';
+import {
+  CloseOutlined,
+  CompressOutlined,
+  DiffOutlined,
+  ExpandOutlined,
+  AimOutlined,
+} from '@ant-design/icons';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { getNumberedDiffLines, getDiffNotice, getImageDiffKind } from './diff-lines';
 import type { NumberedDiffLine } from './diff-lines';
@@ -8,6 +14,7 @@ import { ImageDiffView } from './ImageDiffView';
 import type { DiffImageOptions } from '@alune/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { SplitViewIcon, UnifiedViewIcon } from './DiffViewIcons';
+import { useDiffFullscreen } from './useDiffFullscreen';
 
 const DIFF_MODES = [
   { value: 'unified' as const, label: '统一视图', icon: <UnifiedViewIcon /> },
@@ -137,15 +144,20 @@ export function DiffViewer({
   useEffect(() => {
     setMode(splitView === undefined ? preferredMode : splitView ? 'split' : 'unified');
   }, [preferredMode, splitView]);
-  const [zoomed, setZoomed] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const zoomBodyRef = useRef<HTMLDivElement>(null);
+  const {
+    fullscreen,
+    shellRef,
+    toggleFullscreen,
+    onFullscreenKeyDown,
+    onFullscreenCancel,
+    onFullscreenClose,
+  } = useDiffFullscreen(bodyRef, JSON.stringify([comparisonKey, mode, title]));
   const hasDiff = Boolean(diff || oldCode || newCode);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     bodyRef.current?.scrollTo({ top: 0, left: 0 });
-    zoomBodyRef.current?.scrollTo({ top: 0, left: 0 });
-  }, [comparisonKey, mode, title, zoomed]);
+  }, [comparisonKey, mode, title]);
 
   const renderUnifiedDiff = (value: string) => {
     const lines = getNumberedDiffLines(value);
@@ -276,70 +288,77 @@ export function DiffViewer({
   };
 
   return (
-    <>
-      <div className="diff-shell">
-        <div className="diff-shell__header">
-          <div className="diff-shell__title" title={title || '差异预览'}>
-            <DiffOutlined />
-            <div className="diff-shell__filename">
-              <span>{title || '差异预览'}</span>
-              {subtitle && <small>{subtitle}</small>}
-            </div>
+    <dialog
+      open
+      className={`diff-shell${fullscreen ? ' diff-shell--fullscreen' : ''}`}
+      ref={shellRef}
+      role={fullscreen ? 'dialog' : 'region'}
+      aria-modal={fullscreen || undefined}
+      aria-label={fullscreen ? `${title || '差异预览'} · 全屏查看` : title || '差异预览'}
+      tabIndex={fullscreen ? -1 : undefined}
+      onKeyDown={onFullscreenKeyDown}
+      onCancel={onFullscreenCancel}
+      onClose={onFullscreenClose}
+    >
+      <div className="diff-shell__header">
+        <div className="diff-shell__title" title={title || '差异预览'}>
+          <DiffOutlined />
+          <div className="diff-shell__filename">
+            <span>{title || '差异预览'}</span>
+            {subtitle && <small>{subtitle}</small>}
           </div>
-          <div className="diff-toolbar">
-            <span className="diff-mode">视图</span>
-            <Segmented
-              className="diff-view-switch"
-              aria-label="Diff 视图"
-              size="small"
-              value={mode}
-              onChange={(value) => setMode(value as 'unified' | 'split')}
-              options={DIFF_MODES.map(({ value, label, icon }) => ({
-                value,
-                icon,
-                // The visually hidden text keeps the radio's accessible name after dropping the caption.
-                label: <span className="diff-view-switch__label">{label}</span>,
-                tooltip: label,
-              }))}
-            />
+        </div>
+        <div className="diff-toolbar">
+          <span className="diff-mode">视图</span>
+          <Segmented
+            className="diff-view-switch"
+            aria-label="Diff 视图"
+            size="small"
+            value={mode}
+            onChange={(value) => setMode(value as 'unified' | 'split')}
+            options={DIFF_MODES.map(({ value, label, icon }) => ({
+              value,
+              icon,
+              // The visually hidden text keeps the radio's accessible name after dropping the caption.
+              label: <span className="diff-view-switch__label">{label}</span>,
+              tooltip: label,
+            }))}
+          />
+          {onFocus && !fullscreen && (
             <Button
               type="text"
               size="small"
-              icon={<ExpandOutlined />}
-              aria-label={onFocus ? '专注阅读差异' : '放大查看差异'}
-              title={onFocus ? '专注阅读差异 · 隐藏两侧面板' : '放大查看差异'}
+              icon={<AimOutlined />}
+              aria-label="专注阅读差异"
+              title="专注阅读差异 · 隐藏两侧面板"
               disabled={loading || Boolean(error) || !hasDiff}
-              onClick={() => (onFocus ? onFocus() : setZoomed(true))}
+              onClick={onFocus}
             />
-            {onClose && (
-              <Button
-                type="text"
-                size="small"
-                icon={<CloseOutlined />}
-                aria-label="关闭差异"
-                onClick={onClose}
-              />
-            )}
-          </div>
-        </div>
-        <div className="diff-shell__body" ref={bodyRef}>
-          {renderDiffContent()}
+          )}
+          <Button
+            type="text"
+            size="small"
+            icon={fullscreen ? <CompressOutlined /> : <ExpandOutlined />}
+            aria-label={fullscreen ? '退出全屏查看' : '全屏查看差异'}
+            title={fullscreen ? '退出全屏查看 · Esc' : '全屏查看差异 · 铺满应用窗口'}
+            aria-pressed={fullscreen}
+            disabled={!fullscreen && (loading || Boolean(error) || !hasDiff)}
+            onClick={toggleFullscreen}
+          />
+          {onClose && (
+            <Button
+              type="text"
+              size="small"
+              icon={<CloseOutlined />}
+              aria-label="关闭差异"
+              onClick={onClose}
+            />
+          )}
         </div>
       </div>
-      {zoomed && (
-        <Modal
-          className="diff-zoom-modal"
-          open
-          onCancel={() => setZoomed(false)}
-          footer={null}
-          title={title || '差异预览'}
-          width="calc(100vw - 48px)"
-        >
-          <div className="diff-zoom-modal__body" ref={zoomBodyRef}>
-            {renderDiffContent()}
-          </div>
-        </Modal>
-      )}
-    </>
+      <div className="diff-shell__body" ref={bodyRef}>
+        {renderDiffContent()}
+      </div>
+    </dialog>
   );
 }

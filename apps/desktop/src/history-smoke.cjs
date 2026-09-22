@@ -93,6 +93,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     await wait(
       "document.querySelector('.history-detail .diff-code-row--add')?.textContent.includes('graph = true')",
     );
+    await require('./diff-fullscreen-smoke.cjs')({ window });
     const split = await execute(
       "Number(document.querySelector('.history-resize').getAttribute('aria-valuenow'))",
     );

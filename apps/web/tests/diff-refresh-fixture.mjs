@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Resvg } from '@resvg/resvg-js';
 
 const root = path.resolve(fileURLToPath(new URL('../dist/', import.meta.url)));
 const repo = {
@@ -23,7 +24,14 @@ const files = [
   { path: 'long.txt', status: 'modified', staged: false },
   { path: 'other.txt', status: 'modified', staged: false },
   { path: 'new.txt', status: 'untracked', staged: false },
+  { path: 'image.png', status: 'modified', staged: false },
+  { path: 'no-diff.txt', status: 'modified', staged: false },
 ];
+const image = new Resvg(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"><rect x="100" y="100" width="1000" height="400" rx="80" fill="#6b82c5" fill-opacity=".7"/></svg>',
+)
+  .render()
+  .asPng();
 const control = { statusDelay: 0, diffDelay: 0, statusError: false, diffError: false, version: 1 };
 const requests = [];
 const commits = ['a', 'b'].map((letter) => ({
@@ -97,15 +105,25 @@ const server = createServer(async (req, res) => {
         const version = control.version;
         const error = control.diffError;
         const patch =
-          `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1,400 +1,400 @@\n` +
-          Array.from(
-            { length: 400 },
-            (_, i) =>
-              `-old ${i + 1}\n+${file} ${staged} ${commit} version ${version} line ${i + 1}\n`,
-          ).join('');
+          file === 'no-diff.txt'
+            ? ''
+            : file === 'image.png'
+              ? `diff --git a/image.png b/image.png\nindex 111..222 100644\nBinary files a/image.png and b/image.png differ\n`
+              : `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1,400 +1,400 @@\n` +
+                Array.from(
+                  { length: 400 },
+                  (_, i) =>
+                    `-old ${i + 1}\n+${file} ${staged} ${commit} version ${version} line ${i + 1}\n`,
+                ).join('');
         await pause(control.diffDelay);
         return json(res, error ? { message: 'Diff unavailable' } : patch, error ? 503 : 200);
       }
+      if (action === 'diff-image')
+        return json(res, {
+          mediaType: 'image/png',
+          byteLength: image.length,
+          content: image.toString('base64'),
+        });
       if (action === 'log')
         return json(res, {
           commits,
@@ -117,6 +135,7 @@ const server = createServer(async (req, res) => {
       if (action === 'commit-files')
         return json(res, [
           { path: 'long.txt', status: 'modified', additions: 400, deletions: 400 },
+          { path: 'image.png', status: 'modified', additions: 0, deletions: 0 },
         ]);
       if (action === 'branches') return json(res, [{ name: 'main', current: true }]);
       if (action === 'delete-new-file/preview')

@@ -24,6 +24,29 @@ const emptyPatch = 'diff --git a/new b/new\nnew file mode 100644\nindex 0000000.
 const binaryPatch =
   'diff --git a/new b/new\nnew file mode 100644\nBinary files /dev/null and b/new differ\n';
 
+test('fullscreen and focus are separate actions, including when a focus callback is provided', () => {
+  for (const onFocus of [undefined, () => {}]) {
+    const html = renderToStaticMarkup(createElement(DiffViewer, { diff: textPatch, onFocus }));
+    assert.match(html, /aria-label="全屏查看差异"/);
+    assert.equal(html.includes('aria-label="专注阅读差异"'), Boolean(onFocus));
+    assert.doesNotMatch(html, /role="dialog"/);
+  }
+});
+
+test('loading, error and empty diffs disable the fullscreen entry', () => {
+  for (const props of [
+    { loading: true, diff: textPatch },
+    { error: 'offline', diff: textPatch },
+    { diff: '' },
+    {},
+  ]) {
+    const html = renderToStaticMarkup(createElement(DiffViewer, props));
+    const button = html.match(/<button[^>]*aria-label="全屏查看差异"[^>]*>/)?.[0];
+    assert.ok(button);
+    assert.match(button, /disabled/);
+  }
+});
+
 test('hunk parsing marks header-like file content as an addition', () => {
   assert.equal(getDiffLines(textPatch).filter(({ kind }) => kind === 'add').length, 2);
   assert.equal(getDiffNotice(textPatch), null);

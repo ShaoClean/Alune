@@ -40,7 +40,7 @@
 | **多标签与 Worktree**   | 将已有的关联 Worktree 打开为独立仓库标签，各自查看改动、暂存和提交；关闭标签不删除目录。     |
 | **AI 提交信息（可选）** | 配置 OpenAI、Anthropic、Gemini、DeepSeek 或兼容服务，根据已暂存改动生成可编辑的摘要和描述。  |
 
-左右面板支持隐藏、拖动调宽和专注阅读，布局偏好在本机保存。更多操作与快捷键见[工作区使用说明](docs/workspace.md)。
+左右面板支持隐藏、拖动调宽和专注阅读，布局偏好在本机保存。Diff 支持铺满应用窗口查看，退出后恢复阅读位置，不改变布局偏好。更多操作与快捷键见[工作区使用说明](docs/workspace.md)。
 
 <details>
 <summary><strong>查看改动与 Worktree 独立标签截图</strong></summary>
