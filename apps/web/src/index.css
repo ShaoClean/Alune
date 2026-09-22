@@ -409,7 +409,7 @@ button { cursor: pointer; }
 .diff-shell__title { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; }
 .diff-shell__title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .diff-shell__body { flex: 1; min-height: 0; overflow: auto; }
-.diff-shell__body pre, .diff-zoom-modal__body pre { min-width: max-content; margin: 0; padding: 13px 15px; color: var(--text); background: var(--surface-raised); font-family: 'DM Mono', monospace; font-size: 11px; line-height: 1.65; white-space: pre; }
+.diff-shell__body pre { min-width: max-content; margin: 0; padding: 13px 15px; color: var(--text); background: var(--surface-raised); font-family: 'DM Mono', monospace; font-size: 11px; line-height: 1.65; white-space: pre; }
 .diff-line--add { display: block; margin-inline: -15px; padding-inline: 15px; background: var(--diff-add); }
 .diff-line--remove { display: block; margin-inline: -15px; padding-inline: 15px; background: var(--diff-remove); }
 .diff-line--meta { display: block; margin-inline: -15px; padding-inline: 15px; color: var(--blue); background: var(--diff-meta); }
@@ -432,10 +432,6 @@ button { cursor: pointer; }
 .diff-view-switch .ant-segmented-item-icon + * { margin-inline-start: 0; }
 .diff-view-switch__label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .diff-view-icon { display: block; }
-.diff-zoom-modal .ant-modal-content { height: calc(100vh - 48px); padding: 0; overflow: hidden; }
-.diff-zoom-modal .ant-modal-header { margin: 0; padding: 14px 18px; }
-.diff-zoom-modal .ant-modal-body { height: calc(100% - 56px); padding: 0; overflow: hidden; }
-.diff-zoom-modal__body { height: 100%; overflow: auto; }
 
 .image-diff { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
 .image-diff__header { display: flex; align-items: baseline; gap: var(--space-control-gap); color: var(--text); font-size: 12px; }

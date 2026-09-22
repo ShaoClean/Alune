@@ -51,7 +51,7 @@ module.exports = async ({ window, origin, token, backend }) => {
       files: [
         { path: file, staged, status: staged ? 'added' : 'untracked' },
         ...(staged && edited ? [{ path: file, staged: false, status: 'modified' }] : []),
-        ...['empty.txt', 'binary.dat', 'large.txt', 'slow.txt'].map((path) => ({
+        ...['empty.txt', 'binary.dat', 'large.txt', 'slow.txt', 'long.txt'].map((path) => ({
           path,
           status: 'untracked',
           staged: false,
@@ -59,6 +59,9 @@ module.exports = async ({ window, origin, token, backend }) => {
       ],
     });
     GitCommands.prototype.diff = async (_path, options) => {
+      if (options.file === 'long.txt')
+        return 'diff --git a/long.txt b/long.txt\n--- a/long.txt\n+++ b/long.txt\n@@ -1,400 +1,400 @@\n' +
+          Array.from({ length: 400 }, (_, index) => `-old ${index}\n+new ${index}\n`).join('');
       if (options.file === 'empty.txt')
         return 'diff --git a/empty b/empty\nnew file mode 100644\nindex 0000000..e69de29\n';
       if (options.file === 'binary.dat')
@@ -105,6 +108,11 @@ module.exports = async ({ window, origin, token, backend }) => {
       "document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop first')",
     );
     assert.equal(await execute("document.querySelectorAll('.diff-split-cell--remove').length"), 0);
+    await preview('long.txt');
+    await waitFor("document.querySelectorAll('.diff-split-cell--add').length === 400");
+    await require('./diff-fullscreen-smoke.cjs')({ window, scroll: true });
+    await preview(file);
+    await waitFor("document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop first')");
     await click('[aria-label="专注阅读差异"]');
     await waitFor(
       "document.querySelector('.app-shell--collapsed') && document.querySelector('.workspace-body--right-hidden') && document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop first')",
@@ -175,8 +183,11 @@ module.exports = async ({ window, origin, token, backend }) => {
       ),
       false,
     );
+    await click('[aria-label="全屏查看差异"]');
+    await waitFor("document.querySelector('.diff-shell--fullscreen')");
     await click('[aria-label="关闭差异"]');
     await waitFor("!document.querySelector('.diff-shell')");
+    assert.equal(await execute("document.querySelector('.app-tabbar').inert"), false);
     console.log(
       'Desktop new-file diff passed: unified, split, focus, staging, editing, unstaging, feedback, late responses and closing.',
     );

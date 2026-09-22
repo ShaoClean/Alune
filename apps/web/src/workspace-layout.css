@@ -744,7 +744,18 @@
   background: var(--surface);
 }
 .diff-shell {
+  position: static;
+  width: 100%;
+  max-width: none;
+  max-height: none;
   min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+}
+.diff-shell::backdrop {
+  background: var(--code);
 }
 .workspace-body .diff-shell__header {
   flex-wrap: nowrap;
@@ -780,6 +791,27 @@
 .diff-toolbar .ant-btn {
   width: 28px;
   padding: 0;
+}
+/* Expand in place to preserve the content and leave saved workspace layout alone. */
+.diff-shell.diff-shell--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background: var(--code);
+}
+.diff-shell--fullscreen .diff-shell__header {
+  flex-shrink: 0;
+}
+.diff-shell--fullscreen .image-diff-pane__canvas img {
+  max-height: max(180px, calc(100dvh - 200px));
+  object-fit: contain;
 }
 .diff-split-view {
   min-width: 0;
@@ -2057,4 +2089,3 @@
   min-width: 30px;
   padding-inline: 6px;
 }
-
