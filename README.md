@@ -21,7 +21,6 @@
   <a href="https://github.com/users/ShaoClean/projects/1">公开 TODO</a>
 </p>
 
-> **版本范围（2026-09-22）：** 最新稳定版为 [v0.3.2](https://github.com/ShaoClean/Alune/releases/tag/v0.3.2)。本文按开发分支 [`59886de`](https://github.com/ShaoClean/Alune/commit/59886de0cbf2eedd0e0670f37943f6c3d1b52ae2) 核对；“设置 → 外观”（PR #89）和窗口内全屏 Diff（PR #90）已合入开发分支，尚未包含在 v0.3.2 安装包中。
 
 ![Alune 开发版浅色改动工作区：顶部标签与仓库工具条、左侧仓库导航、中央文本 Diff、右侧暂存与提交，以及底部工作区导航](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-59/workspace-light.png)
 
