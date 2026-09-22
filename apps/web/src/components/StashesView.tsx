@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, Modal, Popconfirm, message } from 'antd';
+import { Button, Input, Modal, Popconfirm, App } from 'antd';
 import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
@@ -11,6 +11,7 @@ interface Props {
 }
 
 export function StashesView({ repoId, onRefresh }: Props) {
+  const { message } = App.useApp();
   const { stashes, fetchStashes } = useRepositoryStore();
   const [loading, setLoading] = useState(false);
   const [stashModalVisible, setStashModalVisible] = useState(false);

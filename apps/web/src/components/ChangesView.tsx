@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Input, Popconfirm, Tooltip, message } from 'antd';
+import { Button, Input, Popconfirm, Tooltip, App } from 'antd';
 import {
   CheckOutlined,
   DeleteOutlined,
@@ -65,6 +65,7 @@ export function ChangesView({
   selectedFile,
   onFileChanged,
 }: Props) {
+  const { message } = App.useApp();
   const { entry, stale } = useRepositoryStatus(repoId);
   const { status, fetchStatus } = useRepositoryStore();
   const draft = useCommitDraftStore((state) => state.drafts[repoId] || EMPTY_DRAFT);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Input, message, notification } from 'antd';
+import { Button, Input, App, notification } from 'antd';
 import {
   ApartmentOutlined,
   FolderOpenOutlined,
@@ -28,6 +28,7 @@ const navItems = [
 ];
 
 export function Layout() {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const isSettings = location.pathname.startsWith('/settings');

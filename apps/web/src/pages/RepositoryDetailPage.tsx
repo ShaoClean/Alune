@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Button, message } from 'antd';
+import { Button, App } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -37,6 +37,7 @@ export function RepositoryDetailPage() {
 }
 
 function RepositoryWorkspace({ id }: { id: string | undefined }) {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const { setRightPanelAvailable, repositoryToolbarSlot } = useOutletContext<{
     setRightPanelAvailable: (available: boolean) => void;

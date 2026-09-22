@@ -1,9 +1,9 @@
-const { app, BrowserWindow, Menu, dialog, session, ipcMain, shell, autoUpdater: nativeUpdater } = require('electron');
+const { app, BrowserWindow, nativeTheme, Menu, dialog, session, ipcMain, shell, autoUpdater: nativeUpdater } = require('electron');
 const { randomBytes } = require('node:crypto');
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { createWorkspacePreferences, isTrustedWorkspaceSender } = require('./workspace-preferences.cjs');
+const { createWorkspacePreferences, isTrustedWorkspaceSender, workspaceBackground } = require('./workspace-preferences.cjs');
 const { createExternalLinkHandler } = require('./external-links.cjs');
 
 const smokeTest = process.argv.includes('--smoke-test');
@@ -28,6 +28,8 @@ const iconPath = path.join(__dirname, 'assets', 'icon.png');
 function createWindow() {
   let state = {};
   try { state = JSON.parse(readFileSync(windowStatePath, 'utf8')); } catch {}
+  let savedPreferences = null;
+  try { savedPreferences = createWorkspacePreferences(path.join(app.getPath('userData'), 'workspace.json')).load(); } catch {}
   window = new BrowserWindow({
     title: 'Alune',
     icon: iconPath,
@@ -35,7 +37,10 @@ function createWindow() {
     height: Number.isFinite(state.height) ? Math.max(680, Math.min(state.height, 2160)) : 900,
     minWidth: 320,
     minHeight: 680,
-    backgroundColor: '#f4f6f9',
+    backgroundColor: workspaceBackground(
+      savedPreferences,
+      nativeTheme.shouldUseDarkColors,
+    ),
     show: false,
     autoHideMenuBar: process.platform !== 'darwin',
     webPreferences: {

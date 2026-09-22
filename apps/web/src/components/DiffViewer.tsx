@@ -221,8 +221,7 @@ export function DiffViewer({
             : '当前比较没有差异，请刷新仓库状态。'}
         </div>
       );
-    const imageKind =
-      diff && repoId && filePath ? getImageDiffKind(diff, filePath) : null;
+    const imageKind = diff && repoId && filePath ? getImageDiffKind(diff, filePath) : null;
     if (diff && imageKind && repoId && filePath)
       return (
         <ImageDiffView
@@ -237,6 +236,33 @@ export function DiffViewer({
     if (!diff)
       return (
         <ReactDiffViewer
+          styles={{
+            variables: {
+              light: {
+                diffViewerBackground: 'var(--code)',
+                diffViewerColor: 'var(--text)',
+                addedBackground: 'var(--diff-add)',
+                addedColor: 'var(--green)',
+                removedBackground: 'var(--diff-remove)',
+                removedColor: 'var(--red)',
+                wordAddedBackground: 'var(--green-line)',
+                wordRemovedBackground: 'var(--red-line)',
+                addedGutterBackground: 'var(--diff-add)',
+                removedGutterBackground: 'var(--diff-remove)',
+                gutterBackground: 'var(--code)',
+                gutterBackgroundDark: 'var(--surface-muted)',
+                gutterColor: 'var(--text-muted)',
+                addedGutterColor: 'var(--green)',
+                removedGutterColor: 'var(--red)',
+                codeFoldBackground: 'var(--diff-meta)',
+                codeFoldContentColor: 'var(--blue)',
+                emptyLineBackground: 'var(--surface-muted)',
+                diffViewerTitleBackground: 'var(--surface)',
+                diffViewerTitleColor: 'var(--text)',
+                diffViewerTitleBorderColor: 'var(--line)',
+              },
+            },
+          }}
           oldValue={oldCode}
           newValue={newCode}
           splitView={mode === 'split'}

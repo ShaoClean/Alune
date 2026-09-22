@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input, Modal, Popconfirm, message } from 'antd';
+import { Button, Input, Modal, Popconfirm, App } from 'antd';
 import { BranchesOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, SwapOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
@@ -11,6 +11,7 @@ interface Props {
 }
 
 export function BranchesView({ repoId, onRefresh }: Props) {
+  const { message } = App.useApp();
   const { branches, fetchBranches } = useRepositoryStore();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');

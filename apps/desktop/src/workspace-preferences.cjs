@@ -38,4 +38,10 @@ function createWorkspacePreferences(filePath) {
   };
 }
 
-module.exports = { createWorkspacePreferences, isTrustedWorkspaceSender };
+function workspaceBackground(value, systemDark) {
+  let theme;
+  try { theme = JSON.parse(value).state.appearance.theme; } catch {}
+  return (theme === 'dark' || (theme !== 'light' && systemDark)) ? '#151e30' : '#f5f7fb';
+}
+
+module.exports = { workspaceBackground, createWorkspacePreferences, isTrustedWorkspaceSender };
