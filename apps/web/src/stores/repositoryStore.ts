@@ -4,6 +4,8 @@ import { REPOSITORY_STATUS_CACHE_MS } from '@alune/shared';
 import type { Repository, RepositoryStatus, GraphCommit, DiffOptions } from '@alune/shared';
 import { repositoryApi } from '../api';
 import { hydrateWorkspace, useWorkspaceStore } from './workspaceStore';
+import { moveBeforeOrAfter } from './sidebarOrder';
+import type { Placement } from './sidebarOrder';
 
 export interface RepositoryStatusEntry {
   phase: 'queued' | 'loading' | 'success' | 'error';
@@ -76,6 +78,7 @@ interface RepositoryState {
   addWorktree: (id: string, path: string) => Promise<Repository>;
   deleteRepository: (id: string) => Promise<void>;
   openRepository: (repo: any) => void;
+  moveOpenRepository: (sourceId: string, targetId: string, placement: Placement) => boolean;
   closeRepository: (id: string) => void;
   setCurrentRepo: (repo: any) => void;
   resetWorkspace: (id?: string) => void;
@@ -401,6 +404,16 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           : [...state.openRepositories, repo];
         return { openRepositories, currentRepo: existing ? { ...existing, ...repo } : repo };
       });
+    },
+
+    moveOpenRepository: (sourceId, targetId, placement) => {
+      const openRepositories = get().openRepositories;
+      const ids = openRepositories.map((repo) => repo.id);
+      const reordered = moveBeforeOrAfter(ids, sourceId, targetId, placement);
+      if (reordered === ids) return false;
+      const byId = new Map(openRepositories.map((repo) => [repo.id, repo]));
+      set({ openRepositories: reordered.map((id) => byId.get(id)!) });
+      return true;
     },
 
     closeRepository: (id) =>

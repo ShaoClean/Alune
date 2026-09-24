@@ -222,6 +222,14 @@ button { cursor: pointer; }
 .repository-tab:hover { background: var(--surface-hover); border-color: var(--line); }
 .repository-tab--active { margin-bottom: -1px; background: var(--surface); border-color: var(--line); box-shadow: 0 -2px 8px var(--shadow-color); }
 .repository-tab--active::before { position: absolute; inset: -1px 12px auto; height: 2px; content: ''; background: linear-gradient(90deg, var(--blue), var(--blue)); border-radius: 0 0 3px 3px; }
+.repository-tab[draggable="true"] .repository-tab__select { cursor: grab; user-select: none; }
+.repository-tab--dragging { opacity: .45; }
+.repository-tabs__scroll--dragging .repository-tab { transition: transform 180ms var(--ease-enter), opacity 100ms var(--ease-enter); }
+.repository-tab--dragging.repository-tab--previewing { opacity: 0; }
+.repository-tab--dragging .repository-tab__select { cursor: grabbing; }
+.repository-tab--drop-before::after, .repository-tab--drop-after::after { position: absolute; z-index: 1; top: 3px; bottom: 3px; width: 2px; content: ''; background: var(--blue); border-radius: 2px; pointer-events: none; }
+.repository-tab--drop-before::after { left: -3px; }
+.repository-tab--drop-after::after { right: -3px; }
 .repository-tab__select, .repository-tab__close, .repository-tabs__open { color: var(--text-muted); background: transparent; border: 0; }
 .repository-tab__select { display: flex; flex: 1 1 auto; align-items: center; gap: var(--space-control-gap); min-width: 0; padding: 0 4px 0 12px; font-size: 11px; font-weight: 500; }
 .repository-tab__select:hover, .repository-tab--active .repository-tab__select { color: var(--text); }
