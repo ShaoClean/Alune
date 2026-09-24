@@ -1,11 +1,28 @@
 import type { ReactNode } from 'react';
 import { Alert, Empty, Spin, Tag, Tooltip, Typography } from 'antd';
-import {
-  CodeOutlined,
-  FileOutlined,
-  FileTextOutlined,
-  SettingOutlined,
-} from '@ant-design/icons';
+import typescriptIcon from 'material-icon-theme/icons/typescript.svg';
+import reactTypescriptIcon from 'material-icon-theme/icons/react_ts.svg';
+import javascriptIcon from 'material-icon-theme/icons/javascript.svg';
+import reactIcon from 'material-icon-theme/icons/react.svg';
+import jsonIcon from 'material-icon-theme/icons/json.svg';
+import cssIcon from 'material-icon-theme/icons/css.svg';
+import sassIcon from 'material-icon-theme/icons/sass.svg';
+import markdownIcon from 'material-icon-theme/icons/markdown.svg';
+import yamlIcon from 'material-icon-theme/icons/yaml.svg';
+import pythonIcon from 'material-icon-theme/icons/python.svg';
+import goIcon from 'material-icon-theme/icons/go.svg';
+import rustIcon from 'material-icon-theme/icons/rust.svg';
+import vueIcon from 'material-icon-theme/icons/vue.svg';
+import htmlIcon from 'material-icon-theme/icons/html.svg';
+import svgIcon from 'material-icon-theme/icons/svg.svg';
+import consoleIcon from 'material-icon-theme/icons/console.svg';
+import documentIcon from 'material-icon-theme/icons/document.svg';
+import settingsIcon from 'material-icon-theme/icons/settings.svg';
+import gitIcon from 'material-icon-theme/icons/git.svg';
+import dockerIcon from 'material-icon-theme/icons/docker.svg';
+import npmIcon from 'material-icon-theme/icons/npm.svg';
+import tsconfigIcon from 'material-icon-theme/icons/tsconfig.svg';
+import genericFileIcon from 'material-icon-theme/icons/file.svg';
 
 interface PanelHeaderProps {
   title: string;
@@ -79,16 +96,51 @@ export function StatusBadge({
   );
 }
 
-export function FileIcon({ path, status }: { path: string; status?: string }) {
-  const extension = path.split('.').pop()?.toLowerCase();
-  const Icon = ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'scss', 'html'].includes(extension || '')
-    ? CodeOutlined
-    : ['md', 'txt', 'yml', 'yaml'].includes(extension || '')
-      ? FileTextOutlined
-      : ['env', 'config'].includes(extension || '')
-        ? SettingOutlined
-        : FileOutlined;
-  return <Icon className={`file-icon${status ? ` file-icon--${status}` : ''}`} />;
+const fileIcons: Record<string, string> = {
+  ts: typescriptIcon,
+  tsx: reactTypescriptIcon,
+  js: javascriptIcon,
+  jsx: reactIcon,
+  mjs: javascriptIcon,
+  cjs: javascriptIcon,
+  json: jsonIcon,
+  jsonc: jsonIcon,
+  css: cssIcon,
+  scss: sassIcon,
+  sass: sassIcon,
+  md: markdownIcon,
+  mdx: markdownIcon,
+  yml: yamlIcon,
+  yaml: yamlIcon,
+  py: pythonIcon,
+  go: goIcon,
+  rs: rustIcon,
+  vue: vueIcon,
+  html: htmlIcon,
+  htm: htmlIcon,
+  svg: svgIcon,
+  sh: consoleIcon,
+  txt: documentIcon,
+};
+
+const namedFileIcons: Record<string, string> = {
+  'package.json': npmIcon,
+  'package-lock.json': npmIcon,
+  'tsconfig.json': tsconfigIcon,
+  '.gitignore': gitIcon,
+  '.gitattributes': gitIcon,
+};
+
+export function FileIcon({ path }: { path: string }) {
+  const name = path.split(/[\\/]/).pop()?.toLowerCase() || '';
+  const extension = name.split('.').pop() || '';
+  const icon = name.startsWith('.env')
+    ? settingsIcon
+    : name.startsWith('dockerfile') || name === '.dockerignore'
+      ? dockerIcon
+      : namedFileIcons[name] || fileIcons[extension] || genericFileIcon;
+
+  return <img className="file-icon" src={icon} alt="" aria-hidden="true" draggable={false} />;
 }
 
 export function EmptyState({

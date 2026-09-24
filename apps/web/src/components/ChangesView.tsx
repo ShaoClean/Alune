@@ -162,7 +162,7 @@ export function ChangesView({
         >
           {statusLabels[file.status] || '?'}
         </span>
-        <FileIcon path={file.path} status={file.status} />
+        <FileIcon path={file.path} />
         <span
           className="file-row__path"
           title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
@@ -171,11 +171,9 @@ export function ChangesView({
             {file.oldPath ? `${file.oldPath.split('/').pop()} → ` : ''}
             {file.path.split('/').pop()}
           </strong>
-          <small>
-            {file.path.includes('/')
-              ? file.path.slice(0, file.path.lastIndexOf('/'))
-              : '仓库根目录'}
-          </small>
+          {file.path.includes('/') && (
+            <small>{file.path.slice(0, file.path.lastIndexOf('/'))}</small>
+          )}
         </span>
         <span className="file-row__stats">
           {file.additions ? <span className="additions">+{file.additions}</span> : null}
