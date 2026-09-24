@@ -103,6 +103,7 @@ export function Layout() {
     currentRepo,
     fetchRepositories,
     openRepository,
+    moveOpenRepository,
     closeRepository,
     deleteRepository,
   } = useRepositoryStore();
@@ -286,6 +287,7 @@ export function Layout() {
               repositories={openRepositories}
               activeId={activeRepository?.id}
               onSelect={(id) => navigate(`/repositories/${id}`)}
+              onMove={moveOpenRepository}
               onClose={handleCloseRepository}
               onOpenRepository={() => navigate('/repositories')}
             />

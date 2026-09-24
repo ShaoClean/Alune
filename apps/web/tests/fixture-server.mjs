@@ -13,6 +13,12 @@ const repositories = connections.flatMap((connection, index) => Array.from({ len
   name: ['alune', '业务服务', '工具仓库'][number] || `archive-${number + 1}`,
   path: `/workspace/${connection.id}/repository-${number + 1}`, isDirty: number === 1,
 })));
+const aiSettings = {
+  revision: 'fixture',
+  providers: [],
+  commit: { providerId: null, modelId: null, language: 'zh-CN', format: 'conventional', prompt: '' },
+  secretStorage: { available: false, description: '示例服务不配置 AI' },
+};
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
   if (request.method !== 'GET') { response.writeHead(405).end(); return; }
@@ -20,7 +26,9 @@ const server = createServer(async (request, response) => {
     let result = [];
     if (pathname === '/api/connections') result = connections;
     else if (pathname === '/api/repositories') result = repositories;
+    else if (pathname === '/api/ai/settings') result = aiSettings;
     else if (pathname.endsWith('/status')) result = { branch: 'main', files: [], ahead: 0, behind: 0 };
+    else if (pathname.endsWith('/log')) result = { commits: [], hasMore: false, nextSkip: 0, revision: 'fixture', shallow: false };
     else if (/^\/api\/repositories\/[^/]+$/.test(pathname)) result = repositories.find((repo) => repo.id === pathname.split('/').at(-1));
     response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(result));
     return;
@@ -33,4 +41,4 @@ const server = createServer(async (request, response) => {
     response.writeHead(200, { 'Content-Type': type }).end(content);
   } catch { response.writeHead(404).end(); }
 });
-server.listen(0, '127.0.0.1', () => console.log(`Sidebar fixture: http://127.0.0.1:${server.address().port}`));
+server.listen(Number(process.env.ALUNE_FIXTURE_PORT || 0), '127.0.0.1', () => console.log(`Sidebar fixture: http://127.0.0.1:${server.address().port}`));
