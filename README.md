@@ -15,6 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/ShaoClean/Alune/releases/latest">下载安装</a> ·
+  <a href="https://github.com/ShaoClean/Alune/issues/97">更新日志</a> ·
   <a href="#快速上手">快速上手</a> ·
   <a href="#核心功能">核心功能</a> ·
   <a href="https://github.com/ShaoClean/Alune/wiki">项目文档</a> ·
@@ -75,7 +76,7 @@
 
 Release 同时提供 `SHA256SUMS` 供校验。当前安装包尚未配置平台签名，macOS 尚未公证；首次启动可能出现系统提示。安装与更新条件见[桌面端说明](docs/desktop.md)。
 
-已安装的桌面版可在 **设置 → 版本更新** 中检查、下载新版本，下载完成后点击“重启安装”。[全部版本与更新记录](https://github.com/ShaoClean/Alune/releases)
+已安装的桌面版可在 **设置 → 版本更新** 中检查、下载新版本，下载完成后点击“重启安装”。开发中的变更和各版本记录见[公开更新日志](https://github.com/ShaoClean/Alune/issues/97)；正式发布说明见[全部 Releases](https://github.com/ShaoClean/Alune/releases)。
 
 ## 快速上手
 
@@ -96,6 +97,7 @@ AI 只分析已暂存改动，会将这些差异发送给你配置的模型服�
 | 安装更新、数据目录与桌面行为    | [桌面端说明](docs/desktop.md)                                                       |
 | AI 服务商、模型与密钥配置       | [AI 设置说明](docs/ai-settings.md)                                                  |
 | 从源码运行、构建与测试          | [开发与打包](docs/development.md)                                                   |
+| 待发布变更和版本历史            | [公开更新日志](https://github.com/ShaoClean/Alune/issues/97)                         |
 | 提交规范、Git hooks 与版本发布  | [贡献与发布指南](CONTRIBUTE.md)                                                     |
 | 功能设计、验收记录与截图        | [GitHub Wiki](https://github.com/ShaoClean/Alune/wiki) · [文档索引](docs/README.md) |
 

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { generateReleaseNotes, selectPreviousTag } from './generate-release-notes.mjs';
+import { generateReleaseHistoryMarkdown } from './generate-release-history.mjs';
 import { deduplicateReleaseCommits } from './release-notes.mjs';
 
 function fixture(t) {
@@ -39,6 +40,28 @@ test('release boundaries use successful stable releases on the first-parent hist
   assert.equal(selectPreviousTag('v2.0.0', ['v1.0.0', 'v1.5.0', 'v2.0.0'], directory), 'v1.0.0');
   assert.equal(selectPreviousTag('v2.0.0', ['v1.0.0', 'v1.0.1'], directory), 'v1.0.1');
   assert.equal(selectPreviousTag('v1.0.0', ['v1.0.0'], directory), undefined);
+});
+
+test('public release history keeps unpublished tags pending and moves them into history after publication', (t) => {
+  const { directory, git, commit } = fixture(t);
+  commit('feat: 等待发布的功能');
+  git('tag', 'v1.0.1'); // A tag alone is not a published release.
+  commit('fix: 后续修复');
+  const history = (publishedTags) => generateReleaseHistoryMarkdown({ publishedTags, repository: 'example/project', directory });
+  const beforeFirstRelease = history([]);
+  assert.match(beforeFirstRelease, /## 待发布[\s\S]*旧版本功能[\s\S]*等待发布的功能/);
+  assert.doesNotMatch(beforeFirstRelease, /## v1\.0\.0/);
+  const pending = history(['v1.0.0']);
+  assert.match(pending, /## 待发布[\s\S]*等待发布的功能[\s\S]*后续修复/);
+  assert.match(pending, /compare\/v1\.0\.0\.\.\.development/);
+  assert.equal((pending.match(/等待发布的功能/g) || []).length, 1);
+  commit('chore(release): 发布 1.1.0');
+  git('tag', 'v1.1.0');
+  const released = history(['v1.0.0', 'v1.1.0']);
+  assert.match(released, /## 待发布\n\n暂无待发布变更。/);
+  assert.match(released, /## v1\.1\.0[\s\S]*等待发布的功能[\s\S]*后续修复/);
+  assert.equal((released.match(/等待发布的功能/g) || []).length, 1);
+  assert.equal(history(['v1.0.0', 'v1.1.0']), released);
 });
 
 test('git-cliff groups changes, preserves breaking and legacy messages, and folds unpublished tags into one release', (t) => {
