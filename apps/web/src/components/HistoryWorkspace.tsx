@@ -222,7 +222,7 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
                       >
                         {statuses[item.status]}
                       </span>
-                      <FileIcon path={item.path} status={item.status} />
+                      <FileIcon path={item.path} />
                       <span className="commit-file-row__path">{item.path}</span>
                       <span className="commit-file-row__stats">
                         {item.additions ? (

@@ -296,11 +296,7 @@ button { cursor: pointer; }
 .status-badge--error, .status-badge--offline { color: var(--red); background: var(--red-soft); border-color: var(--red-line); }
 .status-badge--error .status-badge__dot, .status-badge--offline .status-badge__dot { background: var(--red); }
 .status-badge--subtle { padding: 0; color: var(--green); background: transparent; }
-.file-icon { color: var(--text-muted); font-size: 15px; }
-.file-icon--added, .file-icon--untracked { color: var(--green); }
-.file-icon--modified { color: var(--orange); }
-.file-icon--deleted { color: var(--red); }
-.file-icon--renamed { color: var(--purple); }
+.file-icon { display: block; flex: 0 0 18px; width: 18px; height: 18px; object-fit: contain; }
 .ref-badge { margin-inline-end: 4px; border: 1px solid transparent !important; border-radius: 5px !important; font-size: 10px; }
 .ref-badge--head { color: var(--red); background: var(--red-soft); }
 .ref-badge--branch { color: var(--green); background: var(--green-soft); }

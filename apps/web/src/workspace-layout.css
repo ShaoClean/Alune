@@ -507,6 +507,7 @@
   flex: 1;
   min-height: 40px;
   padding: 4px 8px 8px;
+  container-type: inline-size;
   overscroll-behavior: contain;
 }
 .changes-no-results {
@@ -542,7 +543,7 @@
 .changes-panel .file-row {
   display: flex;
   min-width: 0;
-  min-height: 42px;
+  min-height: 0;
   padding: 0 2px;
   border-radius: 4px;
 }
@@ -550,9 +551,9 @@
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   min-width: 0;
-  padding: 8px 4px;
+  padding: 3px 4px;
   color: inherit;
   background: transparent;
   border: 0;
@@ -564,7 +565,10 @@
   flex-shrink: 0;
 }
 .file-row__select .file-row__path {
+  display: flex;
+  align-items: baseline;
   flex: 1;
+  gap: 6px;
   min-width: 0;
   font-size: 11px;
   overflow: hidden;
@@ -579,25 +583,31 @@
   white-space: nowrap;
 }
 .file-row__path strong {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 11px;
   font-weight: 500;
 }
 .file-row__path small {
-  margin-top: 3px;
+  flex: 0 1 auto;
+  max-width: 35%;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 .file-row__stats {
   flex-shrink: 0;
   gap: 3px;
+  font-variant-numeric: tabular-nums;
 }
 .changes-panel .file-row__actions {
   flex-shrink: 0;
   margin-left: 0;
 }
 .changes-panel .file-row__actions .ant-btn {
-  width: 23px;
-  min-width: 23px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
 }
 .changes-panel .commit-box {
   flex: 0 0 auto;
@@ -847,7 +857,6 @@
   padding: 8px 14px;
 }
 .changes-panel .file-row {
-  min-height: 50px;
   border-radius: 6px;
 }
 .file-row__path strong {
@@ -857,15 +866,19 @@
   font-size: 10px;
 }
 .changes-panel .file-row__stats {
-  display: none;
+  display: flex;
 }
 .changes-panel .file-row__select .file-row__status {
-  order: 1;
-  margin-left: auto;
   font-size: 10px;
 }
 .changes-panel .file-row__select .file-icon {
-  font-size: 14px;
+  width: 18px;
+  height: 18px;
+}
+@container (max-width: 399px) {
+  .changes-panel .file-row__path small {
+    display: none;
+  }
 }
 .changes-panel .commit-box {
   padding: 16px;
