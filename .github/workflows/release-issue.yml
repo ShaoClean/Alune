@@ -1,0 +1,34 @@
+name: 公开更新日志
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: public-release-issue
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/development'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: development
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: 更新公开 Issue 中的版本记录
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: npm run release:issue -- 97

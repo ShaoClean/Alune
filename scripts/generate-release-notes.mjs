@@ -31,6 +31,32 @@ export function selectPreviousTag(tag, publishedTags, directory = root) {
   return previous;
 }
 
+export function selectLatestPublishedTag(ref, publishedTags, directory = root) {
+  const tags = git(directory, 'tag', '--merged', ref, '--sort=-version:refname').split('\n');
+  const ancestors = new Map(git(directory, 'rev-list', '--first-parent', ref).split('\n').map((sha, index) => [sha, index]));
+  const published = new Set(publishedTags);
+  let latest;
+  let distance = Infinity;
+  for (const candidate of tags) {
+    if (!stableTagPattern.test(candidate) || !published.has(candidate)) continue;
+    const index = ancestors.get(git(directory, 'rev-parse', `${candidate}^{commit}`));
+    if (index !== undefined && index < distance) {
+      latest = candidate;
+      distance = index;
+    }
+  }
+  return latest;
+}
+
+export function publishedReleaseTags(repository) {
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repository)) throw new Error('GH_REPO must be an owner/repository name');
+  // API errors must fail instead of silently changing the release boundary.
+  return execFileSync('gh', [
+    'api', '--paginate', `repos/${repository}/releases?per_page=100`, '--jq',
+    '.[] | select(.draft == false and .prerelease == false) | .tag_name',
+  ], { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).trim().split('\n').filter(Boolean);
+}
+
 export function generateReleaseNotes({ tag, previousTag, repository, directory = root }) {
   if (!stableTagPattern.test(tag) || (previousTag && !stableTagPattern.test(previousTag))) {
     throw new Error('Release boundaries must be stable tags (vX.Y.Z)');
@@ -54,11 +80,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (!stableTagPattern.test(tag)) throw new Error('A stable release tag (vX.Y.Z) is required');
     const repository = process.env.GH_REPO || process.env.GITHUB_REPOSITORY;
     if (!repository || !/^[\w.-]+\/[\w.-]+$/.test(repository)) throw new Error('Set GH_REPO to owner/repository');
-    // API errors fail the job rather than silently changing the release boundary.
-    const publishedTags = execFileSync('gh', [
-      'api', '--paginate', `repos/${repository}/releases?per_page=100`, '--jq',
-      '.[] | select(.draft == false and .prerelease == false) | .tag_name',
-    ], { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).trim().split('\n');
+    const publishedTags = publishedReleaseTags(repository);
     const previousTag = selectPreviousTag(tag, publishedTags);
     writeFileSync(path.resolve(output), generateReleaseNotes({ tag, previousTag, repository }));
     console.log(`[release-notes] ${previousTag || 'repository start'} -> ${tag}: ${output}`);

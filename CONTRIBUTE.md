@@ -119,6 +119,12 @@ npm run commitlint -- --last --verbose
 
 `cliff.toml` 保存分类、过滤规则和 Markdown 模板，git-cliff 已锁定在开发依赖中，无需单独全局安装。本地预览和 CI 发布共用去重生成入口；预览支持提交范围、`--repository`、`--tag`、`--tag-pattern`、`--latest`、`--current`、`--unreleased` 和 `--output`。
 
+公开的 [版本更新日志 Issue](https://github.com/ShaoClean/Alune/issues/97) 由 `.github/workflows/release-issue.yml` 自动更新。每次有提交进入 `development`，工作流会按最近一个已公开稳定 Release 到分支最新提交的范围生成“待发布”，并展示已公开版本的历史记录；只创建 tag、草稿或预发布不会把变更移出“待发布”。正式 Release 发布成功后，发布工作流会再次触发更新。生成内容来自已合并的提交，尚未合并的 PR 不会显示；正式发布说明以 GitHub Release 为准。工作流使用 `GITHUB_TOKEN` 编辑专用 Issue，不提交生成文件，也不需要个人令牌或 Project 权限。若工作流失败，可在 Actions 中手动运行“公开更新日志”；维护者也可以本地运行：
+
+```sh
+GH_REPO=ShaoClean/Alune npm run release:issue -- 97
+```
+
 在准备发布前，可以指定上一已发布版本和当前提交预览。下面以 `v0.1.2` 为上一版本、计划发布 `v0.2.0` 为例：
 
 ```sh
@@ -175,7 +181,7 @@ git push origin "$RELEASE_TAG"
 5. 创建 Release 草稿并写入说明；重跑已有草稿时也更新说明。
 6. 上传全部附件，成功后公开 Release 并标记为最新版本。
 
-构建或说明生成失败时不会发布新 Release；附件上传失败保留草稿供重跑。已公开的 Release 不会被工作流覆盖。发布仅使用 Actions 的 `GITHUB_TOKEN`，无需新增个人令牌。生成的 Markdown 写入 Release 正文，不会自动提交 `CHANGELOG.md` 或修改版本号。
+构建或说明生成失败时不会发布新 Release；附件上传失败保留草稿供重跑。已公开的 Release 不会被工作流覆盖。发布仅使用 Actions 的 `GITHUB_TOKEN`，无需新增个人令牌。生成的 Markdown 写入 Release 正文；发布成功后触发公开更新日志工作流，但不会修改版本号。
 
 安装包命名为 `Alune-<version>-<mac|win|linux>-<arch>.<dmg|zip|exe|AppImage>`，Linux x64 的 AppImage 使用架构名 `x86_64`。请保留工作流生成的 blockmap、`latest.yml`、`latest-linux.yml` 和 `SHA256SUMS`，不要单独替换安装包。构建阶段禁用发布，只有最终发布任务拥有 `contents: write`；当前流程尚未配置平台签名证书。客户端从公开 Releases 获取更新，安装与更新条件见[桌面端说明](docs/desktop.md)。
 

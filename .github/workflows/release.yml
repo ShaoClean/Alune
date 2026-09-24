@@ -135,3 +135,15 @@ jobs:
           gh release edit "$RELEASE_TAG" --notes-file release-notes.md
           gh release upload "$RELEASE_TAG" release-assets/* --clobber
           gh release edit "$RELEASE_TAG" --draft=false --latest
+
+  refresh-release-issue:
+    needs: publish
+    runs-on: ubuntu-22.04
+    permissions:
+      actions: write
+    steps:
+      - name: 刷新公开更新日志
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run release-issue.yml --ref development

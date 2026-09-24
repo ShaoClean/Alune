@@ -11,6 +11,7 @@
     "test:release-notes": "node --test scripts/release-notes.test.mjs",
     "release:notes": "node scripts/release-notes.mjs",
     "release:notes:github": "node scripts/generate-release-notes.mjs",
+    "release:issue": "node scripts/update-release-issue.mjs",
     "dev": "turbo dev",
     "build": "npm run icons:check && turbo build",
     "icons:generate": "node scripts/generate-icons.mjs",
