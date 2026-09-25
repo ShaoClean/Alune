@@ -105,6 +105,7 @@ export function Layout() {
     openRepository,
     moveOpenRepository,
     closeRepository,
+    closeRepositories,
     deleteRepository,
   } = useRepositoryStore();
 
@@ -232,6 +233,13 @@ export function Layout() {
     if (isActive) navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
   };
 
+  // Batch closes keep a surviving active tab; otherwise the menu's target takes over.
+  const handleCloseRepositories = (ids: string[], targetId: string) => {
+    closeRepositories(ids);
+    if (activeRepositoryId && ids.includes(activeRepositoryId))
+      navigate(`/repositories/${targetId}`);
+  };
+
   const handleDeleteRepository = async (repo: any) => {
     const isActive = activeRepositoryId === repo.id;
     const closedIndex = openRepositories.findIndex((item: any) => item.id === repo.id);
@@ -289,6 +297,7 @@ export function Layout() {
               onSelect={(id) => navigate(`/repositories/${id}`)}
               onMove={moveOpenRepository}
               onClose={handleCloseRepository}
+              onCloseMany={handleCloseRepositories}
               onOpenRepository={() => navigate('/repositories')}
             />
           ) : (
