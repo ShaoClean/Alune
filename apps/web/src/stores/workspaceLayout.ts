@@ -3,6 +3,7 @@ export interface LayoutPreferences {
   changesCollapsed: boolean;
   sidebarWidth: number;
   changesWidth: number;
+  filesTreeWidth: number;
   diffMode: 'unified' | 'split';
 }
 
@@ -11,6 +12,7 @@ export const DEFAULT_LAYOUT: LayoutPreferences = {
   changesCollapsed: false,
   sidebarWidth: 236,
   changesWidth: 320,
+  filesTreeWidth: 280,
   diffMode: 'unified',
 };
 export const SIDEBAR_MIN = 184;
@@ -18,6 +20,10 @@ export const SIDEBAR_MAX = 320;
 export const CHANGES_MIN = 280;
 export const CHANGES_MAX = 520;
 export const INSPECTOR_MIN = 360;
+export const FILES_TREE_MIN = 200;
+export const FILES_TREE_MAX = 520;
+// Below this width the files view stacks the tree above the preview.
+export const FILES_STACKED_WIDTH = 640;
 export const RESIZE_WIDTH = 4;
 export const COMPACT_WIDTH = 900;
 
@@ -35,6 +41,12 @@ export function readLayoutPreferences(value: unknown): LayoutPreferences {
     diffMode: saved.diffMode === 'split' ? 'split' : 'unified',
     sidebarWidth: width(saved.sidebarWidth, DEFAULT_LAYOUT.sidebarWidth, SIDEBAR_MIN, SIDEBAR_MAX),
     changesWidth: width(saved.changesWidth, DEFAULT_LAYOUT.changesWidth, CHANGES_MIN, CHANGES_MAX),
+    filesTreeWidth: width(
+      saved.filesTreeWidth,
+      DEFAULT_LAYOUT.filesTreeWidth,
+      FILES_TREE_MIN,
+      FILES_TREE_MAX,
+    ),
   };
 }
 

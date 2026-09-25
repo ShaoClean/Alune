@@ -8,6 +8,8 @@ import type {
   LogOptions,
   LogPage,
   Repository,
+  RepositoryFilePreview,
+  RepositoryTreeListing,
   WorktreeInfo,
 } from '@alune/shared';
 
@@ -64,6 +66,13 @@ export const repositoryApi = {
   ): Promise<DiffImageContent> =>
     api
       .get(`/repositories/${id}/diff-image`, { params, signal, timeout: 60000 })
+      .then((r) => r.data),
+  // Read-only worktree browsing; '' is the repository root.
+  tree: (id: string, path: string, signal?: AbortSignal): Promise<RepositoryTreeListing> =>
+    api.get(`/repositories/${id}/tree`, { params: { path }, signal }).then((r) => r.data),
+  file: (id: string, path: string, signal?: AbortSignal): Promise<RepositoryFilePreview> =>
+    api
+      .get(`/repositories/${id}/file`, { params: { path }, signal, timeout: 60000 })
       .then((r) => r.data),
   branches: (id: string) => api.get(`/repositories/${id}/branches`).then((r) => r.data),
   stashes: (id: string) => api.get(`/repositories/${id}/stashes`).then((r) => r.data),

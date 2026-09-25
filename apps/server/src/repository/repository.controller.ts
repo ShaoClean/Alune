@@ -6,6 +6,7 @@ import {
   Get,
   Post,
   Delete,
+  ForbiddenException,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -17,6 +18,7 @@ import {
   DiffImageAbsentError,
   GitLogChangedError,
   GitLogOptionsError,
+  RepositoryFileError,
 } from '@alune/ssh-client';
 import type { DiffImageOptions, DiffOptions } from '@alune/shared';
 
@@ -170,6 +172,34 @@ export class RepositoryController {
       // A missing side is a normal added/deleted case; the page must tell them apart.
       if (error instanceof DiffImageAbsentError) throw new NotFoundException(error.message);
       throw new BadRequestException(error instanceof Error ? error.message : '无法读取图片');
+    }
+  }
+
+  // Read-only worktree browsing. Absent and unreadable paths keep their own
+  // status so the tree can show them in place without failing the whole view.
+  @Get(':id/tree')
+  async getTree(@Param('id', ParseUUIDPipe) id: string, @Query('path') path?: unknown) {
+    if (path !== undefined && typeof path !== 'string')
+      throw new BadRequestException('path must be a string');
+    return this.readFiles(() => this.repoService.listTree(id, path ?? ''), '无法读取目录');
+  }
+
+  @Get(':id/file')
+  async getFile(@Param('id', ParseUUIDPipe) id: string, @Query('path') path?: unknown) {
+    if (typeof path !== 'string' || !path) throw new BadRequestException('path is required');
+    return this.readFiles(() => this.repoService.readFile(id, path), '无法读取文件');
+  }
+
+  private async readFiles<T>(operation: () => Promise<T>, fallback: string): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      if (error instanceof RepositoryFileError && error.statusCode === 404)
+        throw new NotFoundException(error.message);
+      if (error instanceof RepositoryFileError && error.statusCode === 403)
+        throw new ForbiddenException(error.message);
+      throw new BadRequestException(error instanceof Error ? error.message : fallback);
     }
   }
 

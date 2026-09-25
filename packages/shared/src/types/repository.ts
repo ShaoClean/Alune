@@ -149,6 +149,45 @@ export function diffImageMediaType(path: string): string | null {
   return DIFF_IMAGE_MEDIA_TYPES[name.slice(dot + 1).toLowerCase()] || null;
 }
 
+// Read-only worktree browsing. Paths are repository-relative and '/'-separated;
+// the root directory is ''. Links and nested repositories are never followed.
+export type RepositoryTreeEntryKind = 'directory' | 'file' | 'symlink' | 'submodule' | 'other';
+
+export interface RepositoryTreeEntry {
+  name: string;
+  path: string;
+  kind: RepositoryTreeEntryKind;
+  size?: number;
+  // Symlink target as stored in the link, shown but not resolved.
+  target?: string;
+}
+
+export interface RepositoryTreeListing {
+  path: string;
+  entries: RepositoryTreeEntry[];
+  // Entries in the directory before truncation, excluding the hidden .git.
+  total: number;
+  truncated: boolean;
+}
+
+export type RepositoryFilePreview =
+  | {
+      path: string;
+      kind: 'text';
+      size: number;
+      encoding: 'utf-8' | 'utf-16le' | 'utf-16be';
+      content: string;
+    }
+  | { path: string; kind: 'image'; size: number; mediaType: string; content: string }
+  | { path: string; kind: 'binary'; size: number }
+  | { path: string; kind: 'too-large'; size: number; limit: number }
+  | { path: string; kind: 'unsupported-encoding'; size: number }
+  | { path: string; kind: 'symlink'; target: string }
+  | { path: string; kind: 'other' };
+
+export const REPOSITORY_TREE_MAX_ENTRIES = 5000;
+export const REPOSITORY_TEXT_PREVIEW_MAX_BYTES = 1024 * 1024;
+
 export interface LogOptions {
   branch?: string;
   file?: string;
