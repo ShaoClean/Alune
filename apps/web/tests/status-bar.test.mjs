@@ -90,11 +90,14 @@ test('工具条按导航 / 上下文 / 动作三段排列，改动数按路径�
     items.map((item) => item.label),
     [
       '改动 · 2 个文件',
+      '文件',
       '提交历史',
       '分支',
-      '更多仓库视图',
+      '储藏',
+      '远程',
       '当前分支 feature/long-branch，切换分支',
       '查看关联 Worktrees',
+      '刷新仓库',
       '拉取',
       '推送',
       '更多推送选项',
@@ -155,17 +158,18 @@ test('推送是工具条上唯一的主色实心按钮', () => {
   );
   assert.equal(
     buttons(html).filter((item) => item.attributes.includes('toolbar-button--nav')).length,
-    3,
+    6,
   );
 });
 
-test('主视图及溢出菜单中的低频视图都有唯一选中态', () => {
+test('全部视图平铺为标签，每个视图都有唯一选中态', () => {
   for (const [activePanel, label] of [
     ['changes', '改动'],
+    ['files', '文件'],
     ['history', '提交历史'],
     ['branches', '分支'],
-    ['stashes', '更多仓库视图'],
-    ['remotes', '更多仓库视图'],
+    ['stashes', '储藏'],
+    ['remotes', '远程'],
   ]) {
     const selected = buttons(render({ activePanel })).filter((item) =>
       item.attributes.includes('toolbar-button--active'),
@@ -205,22 +209,53 @@ test('推送菜单锚定按钮右下方，不受当前视图的文件列表位�
   assert.doesNotMatch(source, /useMenuAlign|pushAlign/);
 });
 
-test('窄屏功能收进溢出菜单而不是隐藏，核心操作始终可触达', () => {
-  const required = ['改动', '提交历史', '分支', '拉取', '推送'];
+test('窄屏不隐藏也不折叠任何入口，每个视图和操作都只出现一次', () => {
+  const required = ['改动', '文件', '提交历史', '分支', '储藏', '远程', '查看关联 Worktrees', '刷新仓库', '拉取', '推送'];
   for (const tier of ['full', 'compact', 'condensed', 'minimal']) {
     const items = buttons(render({ status: status(), tier }));
     for (const label of required)
-      assert.ok(
-        items.some((item) => item.label === label || item.label.startsWith(`${label} ·`)),
-        `${tier} 缺少 ${label}`,
+      assert.equal(
+        items.filter((item) => item.label === label || item.label.startsWith(`${label} ·`)).length,
+        1,
+        `${tier} 中 ${label} 应恰好出现一次`,
       );
-    assert.ok(items.some((item) => item.label === '更多仓库视图'));
-    // Worktrees leaves the toolbar below 900px, but only into the overflow menu.
-    assert.equal(
-      items.some((item) => item.label === '查看关联 Worktrees'),
-      tier === 'full' || tier === 'compact',
-    );
+    assert.ok(!items.some((item) => /更多仓库视图|分支管理/.test(item.label)), tier);
   }
+});
+
+test('分支与分支管理合并为一个视图，刷新独立于视图标签', () => {
+  const html = render({ status: status() });
+  const nav = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'));
+  assert.deepEqual(
+    buttons(nav).map((item) => item.label.replace(/ · .*/, '')),
+    ['改动', '文件', '提交历史', '分支', '储藏', '远程'],
+  );
+  assert.doesNotMatch(nav, /刷新/);
+  const refresh = buttons(html).find((item) => item.label === '刷新仓库');
+  assert.match(refresh.attributes, /aria-busy="false"/);
+  assert.doesNotMatch(refresh.attributes, /toolbar-button--(nav|active)/);
+  const refreshing = buttons(render({ refreshing: true })).find((item) => item.label === '刷新仓库');
+  assert.match(refreshing.attributes, /aria-busy="true"/);
+  assert.match(refreshing.attributes, /aria-disabled="true"/);
+  const source = readFileSync(new URL('../src/components/RepositoryToolbar.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /EllipsisOutlined|WorktreesPanel|Modal/);
+});
+
+test('视图标签放不下时先收成图标再横向滚动，不用 display: none 隐藏', () => {
+  const css = readFileSync(new URL('../src/workspace-layout.css', import.meta.url), 'utf8');
+  const views = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]*repository-toolbar__views[^{}]*)\{([^}]*)\}/g)];
+  assert.ok(views.length > 0);
+  const base = views.find(([, selector]) => selector.trim() === '.repository-toolbar__views');
+  assert.match(base[2], /overflow-x: auto/);
+  for (const [selector, body] of views)
+    if (!selector.includes('::-webkit-scrollbar'))
+      assert.doesNotMatch(body, /display:\s*none/, selector.trim());
+  const minimal = buttons(render({ status: status(), tier: 'minimal' }));
+  for (const label of ['文件', '储藏', '远程'])
+    assert.equal(minimal.find((item) => item.label === label).text, '');
+  const full = buttons(render({ status: status(), tier: 'full' }));
+  for (const label of ['文件', '储藏', '远程'])
+    assert.equal(full.find((item) => item.label === label).text, label);
 });
 
 test('同步动作在 900-1100px 收起文字，<700px 视图导航转为图标分段', () => {

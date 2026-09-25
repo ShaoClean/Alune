@@ -73,6 +73,41 @@ const initialFiles = [
     deletions: 0,
   },
 ];
+// Read-only files view: one of each tree entry kind and preview outcome.
+const redPixel =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const entry = (path, kind, extra = {}) => ({ name: path.slice(path.lastIndexOf('/') + 1), path, kind, ...extra });
+const fixtureTree = {
+  '': [
+    entry('apps', 'directory'),
+    entry('locked', 'directory'),
+    entry('vendor', 'submodule'),
+    entry('README.md', 'file', { size: 64 }),
+    entry('logo.png', 'file', { size: 70 }),
+    entry('build.bin', 'file', { size: 4 }),
+    entry('huge.log', 'file', { size: 2_000_000 }),
+    entry('gbk.txt', 'file', { size: 4 }),
+    entry('secret.env', 'file', { size: 12 }),
+    entry('latest', 'symlink', { target: 'apps/web' }),
+  ],
+  apps: [entry('apps/web', 'directory'), entry('apps/empty', 'directory')],
+  'apps/web': [entry('apps/web/Workspace.tsx', 'file', { size: 120 })],
+  'apps/empty': [],
+};
+const fixtureFiles = {
+  'README.md': { kind: 'text', encoding: 'utf-8', content: '# Alune\n\n只读浏览仓库文件。\n' },
+  'apps/web/Workspace.tsx': {
+    kind: 'text',
+    encoding: 'utf-8',
+    content:
+      "import { useState } from 'react';\n\nexport function Workspace() {\n  const [open, setOpen] = useState(true);\n  return <main data-open={open} onClick={() => setOpen(!open)} />;\n}\n",
+  },
+  'logo.png': { kind: 'image', mediaType: 'image/png', content: redPixel },
+  'build.bin': { kind: 'binary' },
+  'huge.log': { kind: 'too-large', limit: 1024 * 1024 },
+  'gbk.txt': { kind: 'unsupported-encoding' },
+  latest: { kind: 'symlink', target: 'apps/web' },
+};
 const actions = [];
 let states;
 let syncBehavior = { delay: 0, fail: null };
@@ -174,6 +209,21 @@ const server = createServer(async (request, response) => {
                 ]
               : [],
         });
+      if (operation === 'tree') {
+        const dir = url.searchParams.get('path') || '';
+        if (dir === 'locked') return json(response, { message: '没有读取此目录的权限。' }, 403);
+        const entries = fixtureTree[dir];
+        if (!entries) return json(response, { message: `目录“${dir}”不存在` }, 404);
+        return json(response, { path: dir, entries, total: entries.length, truncated: false });
+      }
+      if (operation === 'file') {
+        const file = url.searchParams.get('path') || '';
+        if (file === 'secret.env') return json(response, { message: '没有读取此文件的权限。' }, 403);
+        const preview = fixtureFiles[file];
+        if (!preview) return json(response, { message: `文件“${file}”不存在` }, 404);
+        const size = Object.values(fixtureTree).flat().find((item) => item.path === file)?.size;
+        return json(response, { path: file, ...(size === undefined ? {} : { size }), ...preview });
+      }
       if (operation === 'commit-files') return json(response, initialFiles.slice(0, 3));
       if (operation === 'remotes')
         return json(response, [
@@ -244,6 +294,6 @@ const server = createServer(async (request, response) => {
     response.writeHead(404).end();
   }
 });
-server.listen(0, '127.0.0.1', () =>
+server.listen(Number(process.env.PORT) || 0, '127.0.0.1', () =>
   console.log(`Workspace fixture: http://127.0.0.1:${server.address().port}`),
 );

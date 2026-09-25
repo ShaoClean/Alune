@@ -1,4 +1,9 @@
-import { DiffImageAbsentError, GitLogChangedError, GitLogOptionsError } from '@alune/ssh-client';
+import {
+  DiffImageAbsentError,
+  GitLogChangedError,
+  GitLogOptionsError,
+  RepositoryFileError,
+} from '@alune/ssh-client';
 import { RepositoryController } from './repository.controller';
 import { RepositoryService } from './repository.service';
 
@@ -74,6 +79,41 @@ describe('RepositoryController', () => {
     await expect(
       controller.getDiffImage('fixture', { file: 'a.png', side: 'after' }),
     ).rejects.toMatchObject({ status: 400, message: expect.stringContaining('5 MiB') });
+  });
+
+  it('browses the tree read-only and keeps missing, forbidden and failed paths distinct', async () => {
+    const listing = { path: '', entries: [], total: 0, truncated: false };
+    const preview = { path: 'a.txt', kind: 'text', size: 1, encoding: 'utf-8', content: 'a' };
+    const listTree = jest.fn().mockResolvedValue(listing);
+    const readFile = jest.fn().mockResolvedValue(preview);
+    const controller = new RepositoryController({
+      listTree,
+      readFile,
+    } as unknown as RepositoryService);
+    expect(await controller.getTree('fixture')).toEqual(listing);
+    expect(listTree).toHaveBeenLastCalledWith('fixture', '');
+    await controller.getTree('fixture', '源码/子 目录');
+    expect(listTree).toHaveBeenLastCalledWith('fixture', '源码/子 目录');
+    await expect(controller.getTree('fixture', ['a', 'b'])).rejects.toMatchObject({ status: 400 });
+    for (const path of [undefined, '', ['a.txt']])
+      await expect(controller.getFile('fixture', path)).rejects.toMatchObject({ status: 400 });
+    expect(readFile).not.toHaveBeenCalled();
+    expect(await controller.getFile('fixture', 'a.txt')).toEqual(preview);
+
+    listTree.mockRejectedValueOnce(new RepositoryFileError('目录不存在', 404));
+    await expect(controller.getTree('fixture', 'gone')).rejects.toMatchObject({ status: 404 });
+    readFile.mockRejectedValueOnce(new RepositoryFileError('没有读取此文件的权限。', 403));
+    await expect(controller.getFile('fixture', 'secret')).rejects.toMatchObject({
+      status: 403,
+      message: '没有读取此文件的权限。',
+    });
+    readFile.mockRejectedValueOnce(new RepositoryFileError('“link/a”经过符号链接'));
+    await expect(controller.getFile('fixture', 'link/a')).rejects.toMatchObject({ status: 400 });
+    listTree.mockRejectedValueOnce(new Error('远端文件操作超时'));
+    await expect(controller.getTree('fixture', 'slow')).rejects.toMatchObject({
+      status: 400,
+      message: '远端文件操作超时',
+    });
   });
 
   it('keeps registration and remote state on separate endpoints', async () => {

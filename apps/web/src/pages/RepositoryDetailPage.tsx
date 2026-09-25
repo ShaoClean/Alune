@@ -11,6 +11,7 @@ import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicat
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { ChangesView } from '../components/ChangesView';
 import { DiffViewer } from '../components/DiffViewer';
+import { FilesView } from '../components/FilesView';
 import { HistoryWorkspace } from '../components/HistoryWorkspace';
 import { RemotesView } from '../components/RemotesView';
 import { StashesView } from '../components/StashesView';
@@ -25,6 +26,7 @@ import { useSyncStatusStore } from '../stores/syncStatusStore';
 type SelectedFile = { path: string; status: string; staged: boolean };
 const panelLabels: Record<Panel, string> = {
   changes: '改动',
+  files: '文件',
   history: '提交历史',
   branches: '分支',
   stashes: '储藏',
@@ -78,6 +80,9 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [syncing, setSyncing] = useState<SyncOperation | null>(null);
   const [syncingForce, setSyncingForce] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  // The files view keeps its own tree; a new token asks it to reload what is on screen.
+  const [filesRefresh, setFilesRefresh] = useState(0);
   const startSync = useSyncStatusStore((state) => state.startSync);
   const finishSync = useSyncStatusStore((state) => state.finishSync);
 
@@ -192,11 +197,21 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   // Explicit refreshes update the preview too; opening uses fetchStatus directly.
   const handleRefresh = async (afterMutation = true) => {
     if (!id) return;
+    if (activePanel === 'files') setFilesRefresh((token) => token + 1);
     await fetchStatus(id, afterMutation);
     if (activePanel === 'history') await fetchLog(id);
     if (activePanel === 'branches') await fetchBranches(id);
     if (activePanel === 'stashes') await fetchStashes(id);
     if (activePanel === 'remotes') await fetchRemotes(id);
+  };
+
+  const refreshFromToolbar = async () => {
+    setRefreshing(true);
+    try {
+      await handleRefresh();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const runSync = async (operation: SyncOperation, options?: { force?: boolean }) => {
@@ -267,6 +282,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           }}
         />
       );
+    if (activePanel === 'files')
+      return <FilesView key={id} repoId={id} refreshToken={filesRefresh} />;
     if (activePanel === 'history') return <HistoryWorkspace repoId={id} />;
     if (activePanel === 'branches')
       return <BranchesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
@@ -288,9 +305,10 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
             activePanel={activePanel}
             syncing={syncing}
             syncingForce={syncingForce}
+            refreshing={refreshing}
             onSelect={selectPanel}
             onSync={(operation, options) => void runSync(operation, options)}
-            onRefresh={() => void handleRefresh()}
+            onRefresh={() => void refreshFromToolbar()}
             onBranchSwitched={() => void handleRefresh(true)}
           />,
           repositoryToolbarSlot,

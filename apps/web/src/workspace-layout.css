@@ -1841,13 +1841,37 @@
   background: var(--surface-muted);
   border-bottom: 1px solid var(--line);
 }
+/* All views stay in the row. Labels give way to icons first; the row then scrolls
+   sideways (wheel, keyboard focus or touch) with a fade on the clipped side. */
 .repository-toolbar__views {
   display: flex;
   flex: 1;
   align-items: center;
+  align-self: stretch;
   min-width: 0;
+  margin-inline: -3px;
+  padding-inline: 3px;
   gap: 2px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.repository-toolbar__views::-webkit-scrollbar {
+  display: none;
+}
+.repository-toolbar__views[data-overflow='end'] {
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+.repository-toolbar__views[data-overflow='start'] {
+  mask-image: linear-gradient(90deg, transparent, #000 28px);
+}
+.repository-toolbar__views[data-overflow='both'] {
+  mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+}
+.repository-toolbar__views[data-labels='hidden'] .toolbar-button {
+  min-width: 30px;
+  padding-inline: 6px;
 }
 .repository-toolbar__context,
 .repository-toolbar__actions {
@@ -2084,21 +2108,14 @@
   outline: 2px solid var(--blue);
   outline-offset: -2px;
 }
-.worktrees-dialog .ant-modal-body {
-  padding-top: 8px;
-}
-
 /* 900-1100px: sync actions drop their labels but keep icon and number. */
 .repository-toolbar[data-tier='compact'] .repository-toolbar__actions .toolbar-button {
   padding-inline: 7px;
 }
-/* 700-900px: worktrees move into the overflow menu, branch pill shrinks. */
+/* Below 900px: the branch pill shrinks and spacing tightens; below 700px the view
+   tabs always show icons, with names in tooltips and accessible labels. */
 .repository-toolbar[data-tier='condensed'],
 .repository-toolbar[data-tier='minimal'] {
   padding-inline: 6px;
   gap: 6px;
-}
-.repository-toolbar[data-tier='minimal'] .repository-toolbar__views .toolbar-button {
-  min-width: 30px;
-  padding-inline: 6px;
 }

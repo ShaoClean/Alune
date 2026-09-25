@@ -23,6 +23,11 @@ import dockerIcon from 'material-icon-theme/icons/docker.svg';
 import npmIcon from 'material-icon-theme/icons/npm.svg';
 import tsconfigIcon from 'material-icon-theme/icons/tsconfig.svg';
 import genericFileIcon from 'material-icon-theme/icons/file.svg';
+import imageIcon from 'material-icon-theme/icons/image.svg';
+import folderIcon from 'material-icon-theme/icons/folder.svg';
+import folderOpenIcon from 'material-icon-theme/icons/folder-open.svg';
+import folderGitIcon from 'material-icon-theme/icons/folder-git.svg';
+import folderLinkIcon from 'material-icon-theme/icons/folder-link.svg';
 
 interface PanelHeaderProps {
   title: string;
@@ -121,6 +126,11 @@ const fileIcons: Record<string, string> = {
   svg: svgIcon,
   sh: consoleIcon,
   txt: documentIcon,
+  png: imageIcon,
+  jpg: imageIcon,
+  jpeg: imageIcon,
+  gif: imageIcon,
+  webp: imageIcon,
 };
 
 const namedFileIcons: Record<string, string> = {
@@ -140,6 +150,26 @@ export function FileIcon({ path }: { path: string }) {
       ? dockerIcon
       : namedFileIcons[name] || fileIcons[extension] || genericFileIcon;
 
+  return <img className="file-icon" src={icon} alt="" aria-hidden="true" draggable={false} />;
+}
+
+// Folder glyphs for the read-only file tree: nested repositories and links get
+// their own shapes so they do not look expandable like ordinary folders.
+export function FolderIcon({
+  open = false,
+  variant = 'folder',
+}: {
+  open?: boolean;
+  variant?: 'folder' | 'repository' | 'link';
+}) {
+  const icon =
+    variant === 'repository'
+      ? folderGitIcon
+      : variant === 'link'
+        ? folderLinkIcon
+        : open
+          ? folderOpenIcon
+          : folderIcon;
   return <img className="file-icon" src={icon} alt="" aria-hidden="true" draggable={false} />;
 }
 

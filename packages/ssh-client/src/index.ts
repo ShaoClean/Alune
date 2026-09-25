@@ -7,3 +7,9 @@ export { NewFileDeletion, NewFileDeletionError, validateNewFilePath } from './ne
 export { DiffImages, DiffImageError, DiffImageAbsentError } from './diff-images';
 
 export { GitLogChangedError, GitLogOptionsError } from './git-log';
+export {
+  RepositoryFiles,
+  RepositoryFileError,
+  validateRepositoryPath,
+  decodeTextPreview,
+} from './repository-files';

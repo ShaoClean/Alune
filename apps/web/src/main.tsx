@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import './workspace-layout.css';
+import './files.css';
 import './theme.css';
 import { initializeAppearance } from './appearance';
 import { hydrateWorkspace } from './stores/workspaceStore';

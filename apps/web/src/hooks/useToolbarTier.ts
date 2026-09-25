@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-// Four steps of the same toolbar. Narrow widths move entries into the overflow menu;
-// nothing is ever hidden with display:none.
+// Four steps of the same toolbar. Narrow widths shorten actions to icons and let the
+// view tabs fall back to icons or scroll; nothing is ever hidden with display:none.
 export type ToolbarTier = 'full' | 'compact' | 'condensed' | 'minimal';
 
 export function toolbarTier(width: number): ToolbarTier {

@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { generateKeyPairSync } = require('node:crypto');
 const {
@@ -13,6 +14,7 @@ function attachSftp(session) {
   session.on('sftp', (accept) => {
     const sftp = accept();
     const handles = new Map();
+    const directories = new Map();
     let nextHandle = 0;
     const failure = (id, error) =>
       sftp.status(
@@ -90,8 +92,36 @@ function attachSftp(session) {
         },
       );
     });
+    sftp.on('OPENDIR', (id, dirname) =>
+      fs.readdir(dirname, (error, names) => {
+        if (error) return failure(id, error);
+        const handle = Buffer.alloc(4);
+        handle.writeUInt32BE(nextHandle++);
+        directories.set(handle.readUInt32BE(), { dirname, names, sent: false });
+        sftp.handle(id, handle);
+      }),
+    );
+    // One batch per directory, then EOF, like a server with a large page size.
+    sftp.on('READDIR', (id, handle) => {
+      const directory = directories.get(handle.readUInt32BE());
+      if (!directory) return sftp.status(id, STATUS_CODE.FAILURE);
+      if (directory.sent) return sftp.status(id, STATUS_CODE.EOF);
+      directory.sent = true;
+      const entries = [];
+      for (const name of directory.names) {
+        try {
+          const stat = fs.lstatSync(path.join(directory.dirname, name));
+          entries.push({ filename: name, longname: name, attrs: attrs(stat) });
+        } catch {
+          // OpenSSH also skips entries it cannot lstat.
+        }
+      }
+      if (!entries.length) return sftp.status(id, STATUS_CODE.EOF);
+      sftp.name(id, entries);
+    });
     sftp.on('CLOSE', (id, handle) => {
       const key = handle.readUInt32BE();
+      if (directories.delete(key)) return sftp.status(id, STATUS_CODE.OK);
       fs.close(handles.get(key), (error) =>
         error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
       );

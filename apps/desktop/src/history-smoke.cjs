@@ -122,11 +122,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     assert.ok((await execute("document.querySelectorAll('.history-row').length")) < 100);
     await execute("(() => { const viewport = document.querySelector('.history-viewport'); viewport.scrollTop = 0; viewport.dispatchEvent(new Event('scroll', { bubbles: true })); })()");
     await wait("document.querySelector('.history-viewport').scrollTop === 0");
-    await click('[aria-label="更多仓库视图"]');
-    await wait("document.querySelector('#repository-more-menu') !== null");
-    await execute(
-      "Array.from(document.querySelectorAll('.ant-dropdown-menu-item')).find(item => item.textContent.includes('刷新仓库')).click()",
-    );
+    await click('[aria-label="刷新仓库"]');
     await wait(
       "Number(document.querySelector('.history-table').getAttribute('aria-rowcount')) === 51",
     );
@@ -165,11 +161,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     await wait("!document.querySelector('.history-workspace--compact')");
     commits = commits.slice(1);
     revision = 'third';
-    await click('[aria-label="更多仓库视图"]');
-    await wait("document.querySelector('#repository-more-menu') !== null");
-    await execute(
-      "Array.from(document.querySelectorAll('.ant-dropdown-menu-item')).find(item => item.textContent.includes('刷新仓库')).click()",
-    );
+    await click('[aria-label="刷新仓库"]');
     await wait("!document.querySelector('.history-detail')");
     console.log(
       'Desktop history passed: graph selection, file Diff, 155 commits, virtual rows, scroll retention, refresh conflicts and compact return.',

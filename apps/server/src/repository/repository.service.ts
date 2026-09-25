@@ -2,7 +2,13 @@ import { Injectable, Inject, NotFoundException, GatewayTimeoutException } from '
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { ConnectionService } from '../connection/connection.service';
-import { DiffImages, GitCommands, GitWorktrees, worktreePathKey } from '@alune/ssh-client';
+import {
+  DiffImages,
+  GitCommands,
+  GitWorktrees,
+  RepositoryFiles,
+  worktreePathKey,
+} from '@alune/ssh-client';
 import { REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
 import type {
   Repository,
@@ -11,6 +17,8 @@ import type {
   DiffImageContent,
   DiffImageOptions,
   LogOptions,
+  RepositoryFilePreview,
+  RepositoryTreeListing,
 } from '@alune/shared';
 
 @Injectable()
@@ -254,6 +262,18 @@ export class RepositoryService {
     const repo = await this.get(id);
     const conn = await this.connectionService.ensureConnected(repo.connectionId);
     return new DiffImages(conn).read(repo.path, options);
+  }
+
+  async listTree(id: string, path: string): Promise<RepositoryTreeListing> {
+    const repo = await this.get(id);
+    const conn = await this.connectionService.ensureConnected(repo.connectionId);
+    return new RepositoryFiles(conn).list(repo.path, path);
+  }
+
+  async readFile(id: string, path: string): Promise<RepositoryFilePreview> {
+    const repo = await this.get(id);
+    const conn = await this.connectionService.ensureConnected(repo.connectionId);
+    return new RepositoryFiles(conn).read(repo.path, path);
   }
 
   async getCommitFiles(id: string, commit: string, parentCommit?: string) {

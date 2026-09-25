@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
-import { GitCommands, GitWorktrees } from '@alune/ssh-client';
+import { NotFoundException } from '@nestjs/common';
+import { GitCommands, GitWorktrees, RepositoryFiles } from '@alune/ssh-client';
 import { REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
 import { RepositoryService } from './repository.service';
 import { ConnectionService } from '../connection/connection.service';
@@ -31,6 +32,22 @@ describe('RepositoryService registration and remote status', () => {
     jest.restoreAllMocks();
     jest.useRealTimers();
     db.close();
+  });
+
+  it('browses files relative to the registered repository path', async () => {
+    const list = jest
+      .spyOn(RepositoryFiles.prototype, 'list')
+      .mockResolvedValue({ path: 'src', entries: [], total: 0, truncated: false });
+    const read = jest
+      .spyOn(RepositoryFiles.prototype, 'read')
+      .mockResolvedValue({ path: 'src/a.bin', kind: 'binary', size: 2 });
+    const repo = await service.add('host-b', '/fixture/files');
+    expect(await service.listTree(repo.id, 'src')).toMatchObject({ path: 'src' });
+    expect(list).toHaveBeenCalledWith('/fixture/files', 'src');
+    expect(await service.readFile(repo.id, 'src/a.bin')).toMatchObject({ kind: 'binary' });
+    expect(read).toHaveBeenCalledWith('/fixture/files', 'src/a.bin');
+    expect(ensureConnected).toHaveBeenCalledWith('host-b');
+    await expect(service.listTree('missing', '')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('returns the complete local registry without invoking SSH or Git, even when all hosts hang', async () => {

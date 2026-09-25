@@ -128,9 +128,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     await click(`button[aria-label="暂存 ${file}"]`);
     await waitFor("document.querySelector('.diff-shell__title')?.textContent.includes('已暂存')");
     edited = true;
-    await click('[aria-label="更多仓库视图"]');
-    await waitFor("document.querySelector('#repository-more-menu') !== null");
-    await execute("Array.from(document.querySelectorAll('#repository-more-menu [role=\"menuitem\"]')).find(item => item.textContent.trim() === '刷新仓库').click()");
+    await click('[aria-label="刷新仓库"]');
     await waitFor(
       `document.querySelectorAll('.file-row__select[aria-label*="${file}"]').length === 2`,
     );
