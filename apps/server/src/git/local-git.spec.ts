@@ -241,7 +241,8 @@ describe('local repositories with real Git and SQLite', () => {
       (item) => item.isRemote,
     )!;
     await service.switchBranch(id, remoteBranch.name);
-    expect((await repos.getStatus(id)).branch).toBe('(detached)');
+    expect((await repos.getStatus(id)).branch).toBe('');
+    expect(git('rev-parse', '--abbrev-ref', 'HEAD').trim()).toBe('HEAD');
     await service.createBranch(id, 'origin/literal', true);
     await service.switchBranch(id, 'main');
     await service.switchBranch(id, 'origin/literal');
