@@ -74,12 +74,12 @@ test('cancellation stops a real commit hook and leaves staged data available', a
           .toString('utf16le')
           .replace(
             '$snapshot = @(Get-CimInstance Win32_Process)',
-            `$snapshot = @(Get-CimInstance Win32_Process)
+            () => `$snapshot = @(Get-CimInstance Win32_Process)
 $snapshot | Where-Object { $_.Name -match '^(git|sh|bash|sleep)\\.exe$' } | Select-Object ProcessId, ParentProcessId, Name | ConvertTo-Json -Compress`,
           )
           .replace(
             '[array]::Reverse($targets)',
-            `Write-Output ("targets: " + ($targets -join ','))
+            () => `Write-Output ("targets: " + ($targets -join ','))
 [array]::Reverse($targets)`,
           );
         args[index] = Buffer.from(script, 'utf16le').toString('base64');
