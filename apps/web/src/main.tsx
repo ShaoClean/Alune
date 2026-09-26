@@ -4,6 +4,7 @@ import App from './App';
 import './index.css';
 import './workspace-layout.css';
 import './files.css';
+import './pull-requests.css';
 import './theme.css';
 import { initializeAppearance } from './appearance';
 import { hydrateWorkspace } from './stores/workspaceStore';

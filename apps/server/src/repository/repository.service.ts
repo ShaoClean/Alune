@@ -297,10 +297,11 @@ export class RepositoryService {
     return git.stashList(repo.path);
   }
 
-  async getRemotes(id: string) {
+  async getRemotes(id: string, signal?: AbortSignal) {
     const repo = await this.get(id);
     const conn = await this.connectionService.ensureConnected(repo.connectionId);
+    signal?.throwIfAborted();
     const git = new GitCommands(conn);
-    return git.remoteList(repo.path);
+    return git.remoteList(repo.path, signal);
   }
 }
