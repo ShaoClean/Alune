@@ -63,5 +63,7 @@ jobs:
       - run: npm ci
       - run: npm run build -w @alune/shared
       - run: npm run build -w @alune/ssh-client
+        id: build-local-git
       - run: node --test packages/ssh-client/tests/local-connection.test.cjs
       - run: npm test -w server -- --ci --runInBand local-git.spec.ts
+        if: ${{ !cancelled() && steps.build-local-git.outcome == 'success' }}

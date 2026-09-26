@@ -27,6 +27,78 @@ const localFiles = {
   },
 } as unknown as SFTPWrapper;
 
+// Git for Windows can leave MSYS hook children holding its output pipes open.
+// Capture descendants before killing their parents, then rescan remembered
+// parents to catch a child created during termination. taskkill /T alone can
+// miss such a child once the intermediate parent has exited.
+function terminateWindowsTree(pid: number): Promise<void> {
+  const script = `
+$ErrorActionPreference = 'Stop'
+$known = @{ ${pid} = $true }
+for ($pass = 0; $pass -lt 3; $pass++) {
+  $snapshot = @(Get-CimInstance Win32_Process)
+  $targets = @(${pid})
+  do {
+    $added = $false
+    foreach ($entry in $snapshot) {
+      $childId = [int]$entry.ProcessId
+      if (!$known.ContainsKey($childId) -and $known.ContainsKey([int]$entry.ParentProcessId)) {
+        $known[$childId] = $true
+        $targets += $childId
+        $added = $true
+      }
+    }
+  } while ($added)
+  [array]::Reverse($targets)
+  foreach ($childId in $targets) {
+    Stop-Process -Id $childId -Force -ErrorAction SilentlyContinue
+  }
+  foreach ($childId in @($known.Keys)) {
+    Stop-Process -Id $childId -Force -ErrorAction SilentlyContinue
+  }
+  if ($pass -lt 2) { Start-Sleep -Milliseconds 100 }
+}`;
+  return new Promise((resolve) => {
+    let settled = false;
+    let fallbackStarted = false;
+    const helper = spawn(
+      'powershell.exe',
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-EncodedCommand',
+        Buffer.from(script, 'utf16le').toString('base64'),
+      ],
+      { windowsHide: true, stdio: 'ignore', shell: false },
+    );
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const fallback = () => {
+      if (settled || fallbackStarted) return;
+      fallbackStarted = true;
+      const taskkill = spawn('taskkill.exe', ['/PID', String(pid), '/T', '/F'], {
+        windowsHide: true,
+        stdio: 'ignore',
+        shell: false,
+      });
+      taskkill.once('error', finish);
+      taskkill.once('close', finish);
+    };
+    const timer = setTimeout(() => {
+      helper.kill();
+      fallback();
+    }, 8000);
+    timer.unref();
+    helper.once('error', fallback);
+    helper.once('close', (code) => (code === 0 ? finish() : fallback()));
+  });
+}
+
 export class LocalConnection implements RepositoryTransport {
   constructor(readonly signal?: AbortSignal) {}
 
@@ -85,16 +157,12 @@ export class LocalConnection implements RepositoryTransport {
       let bytes = 0;
       let failure: Error | undefined;
       let killTimer: ReturnType<typeof setTimeout> | undefined;
+      let termination: Promise<void> | undefined;
       const max = options.maxOutputBytes ?? 32 * 1024 * 1024;
       const kill = (force = false) => {
         if (!child.pid) return;
         if (process.platform === 'win32') {
-          const terminator = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
-            windowsHide: true,
-            stdio: 'ignore',
-            shell: false,
-          });
-          terminator.on('error', () => child.kill());
+          termination ??= terminateWindowsTree(child.pid);
         } else {
           try {
             process.kill(-child.pid, force ? 'SIGKILL' : 'SIGTERM');
@@ -107,8 +175,10 @@ export class LocalConnection implements RepositoryTransport {
         if (failure) return;
         failure = error;
         kill();
-        killTimer = setTimeout(() => kill(true), 1500);
-        killTimer.unref();
+        if (process.platform !== 'win32') {
+          killTimer = setTimeout(() => kill(true), 1500);
+          killTimer.unref();
+        }
       };
       const abort = () =>
         stop(signal?.reason instanceof Error ? signal.reason : new Error('Git 操作已取消。'));
@@ -140,7 +210,7 @@ export class LocalConnection implements RepositoryTransport {
       child.on('close', (exitCode) => {
         cleanup();
         if (failure) {
-          reject(failure);
+          void (termination ?? Promise.resolve()).then(() => reject(failure));
           return;
         }
         try {
