@@ -81,6 +81,11 @@ $snapshot | Where-Object { $_.Name -match '^(git|sh|bash|sleep)\\.exe$' } | Sele
             '[array]::Reverse($targets)',
             () => `Write-Output ("targets: " + ($targets -join ','))
 [array]::Reverse($targets)`,
+          )
+          .replace(
+            '$msysRows = @(& $msysPs -W)',
+            () => `$msysRows = @(& $msysPs -W)
+Write-Output ($msysRows -join "\\n")`,
           );
         args[index] = Buffer.from(script, 'utf16le').toString('base64');
       }

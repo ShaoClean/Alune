@@ -28,15 +28,52 @@ const localFiles = {
 } as unknown as SFTPWrapper;
 
 // Git for Windows can leave MSYS hook children holding its output pipes open.
-// Capture descendants before killing their parents, then rescan remembered
-// parents to catch a child created during termination. taskkill /T alone can
-// miss such a child once the intermediate parent has exited.
+// MSYS exec can replace a process with a new Windows PID whose Windows parent
+// has already exited. Merge MSYS's logical ancestry with the native process
+// tree before stopping descendants; taskkill /T alone misses these children.
 function terminateWindowsTree(pid: number): Promise<void> {
   const script = `
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$snapshot = @(Get-CimInstance Win32_Process)
+$root = $snapshot | Where-Object { $_.ProcessId -eq ${pid} } | Select-Object -First 1
+$msysPs = $null
+if ($root.ExecutablePath) {
+  $directory = Split-Path -Parent $root.ExecutablePath
+  for ($level = 0; $level -lt 4 -and $directory; $level++) {
+    $candidate = Join-Path $directory 'usr\\bin\\ps.exe'
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+      $msysPs = $candidate
+      break
+    }
+    $directory = Split-Path -Parent $directory
+  }
+}
 $known = @{ ${pid} = $true }
 for ($pass = 0; $pass -lt 3; $pass++) {
   $snapshot = @(Get-CimInstance Win32_Process)
+  if ($msysPs) {
+    $msysRows = @(& $msysPs -W)
+    $msysIds = @{}
+    $msysProcesses = @()
+    foreach ($row in $msysRows) {
+      if ($row -match '^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+') {
+        $logicalId = [int]$Matches[1]
+        $nativeId = [int]$Matches[4]
+        $msysIds[$logicalId] = $nativeId
+        $msysProcesses += [pscustomobject]@{
+          ProcessId = $nativeId
+          ParentProcessId = [int]$Matches[2]
+        }
+      }
+    }
+    foreach ($entry in $msysProcesses) {
+      if ($msysIds.ContainsKey($entry.ParentProcessId)) {
+        $entry.ParentProcessId = $msysIds[$entry.ParentProcessId]
+      }
+    }
+    $snapshot += $msysProcesses
+  }
   $targets = @(${pid})
   do {
     $added = $false
@@ -57,7 +94,8 @@ for ($pass = 0; $pass -lt 3; $pass++) {
     Stop-Process -Id $childId -Force -ErrorAction SilentlyContinue
   }
   if ($pass -lt 2) { Start-Sleep -Milliseconds 100 }
-}`;
+}
+exit 0`;
   return new Promise((resolve) => {
     let settled = false;
     let fallbackStarted = false;
