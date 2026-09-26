@@ -13,3 +13,7 @@ export {
   validateRepositoryPath,
   decodeTextPreview,
 } from './repository-files';
+
+export { LocalConnection } from './local-connection';
+export { runGit } from './repository-transport';
+export type { RepositoryTransport, CommandOptions } from './repository-transport';

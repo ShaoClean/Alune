@@ -1,9 +1,11 @@
+import { LOCAL_GROUP_ID, repositoryGroupId } from '../stores/repositorySource';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Dropdown, Input } from 'antd';
 import type { InputRef, MenuProps } from 'antd';
 import {
   CheckOutlined,
+  LaptopOutlined,
   CloudServerOutlined,
   CodeOutlined,
   FolderOpenOutlined,
@@ -54,7 +56,7 @@ export const filterRepositories = (
   if (!search) return repositories;
   const connectionById = new Map(connections.map((connection) => [connection.id, connection]));
   return repositories.filter((repository) => {
-    const connection = connectionById.get(repository.connectionId);
+    const connection = connectionById.get(repositoryGroupId(repository));
     return [
       repository.name,
       repository.path,
@@ -87,8 +89,13 @@ export function RepositorySwitcher({
     () => new Map(connections.map((connection) => [connection.id, connection])),
     [connections],
   );
-  const activeConnection = repository ? connectionById.get(repository.connectionId) : undefined;
-  const activeConnectionLabel = activeConnection?.name || repository?.connectionId || '未知连接';
+  const activeConnection = repository
+    ? connectionById.get(repositoryGroupId(repository))
+    : undefined;
+  const activeConnectionLabel =
+    repository?.source === 'local'
+      ? '本机'
+      : activeConnection?.name || repository?.connectionId || '未知连接';
   const contextLabel = repository
     ? `${activeConnectionLabel} / ${repository.name}`
     : repositories.length
@@ -124,13 +131,13 @@ export function RepositorySwitcher({
       { connection?: ConnectionSummary; connectionId: string; repositories: Repository[] }
     >();
     for (const item of filteredRepositories) {
-      const group = groups.get(item.connectionId) || {
-        connection: connectionById.get(item.connectionId),
-        connectionId: item.connectionId,
+      const group = groups.get(repositoryGroupId(item)) || {
+        connection: connectionById.get(repositoryGroupId(item)),
+        connectionId: repositoryGroupId(item),
         repositories: [],
       };
       group.repositories.push(item);
-      groups.set(item.connectionId, group);
+      groups.set(repositoryGroupId(item), group);
     }
     return [...groups.values()];
   }, [connectionById, filteredRepositories]);
@@ -154,21 +161,27 @@ export function RepositorySwitcher({
         key: `connection:${group.connectionId}`,
         label: (
           <span className="repository-switcher-group">
-            <CloudServerOutlined />
+            {group.connectionId === LOCAL_GROUP_ID ? <LaptopOutlined /> : <CloudServerOutlined />}
             <span className="repository-switcher-group__identity">
-              <strong>{group.connection?.name || group.connectionId}</strong>
+              <strong>
+                {group.connectionId === LOCAL_GROUP_ID
+                  ? '本机'
+                  : group.connection?.name || group.connectionId}
+              </strong>
               {endpointLabel(group.connection) && <small>{endpointLabel(group.connection)}</small>}
             </span>
-            <span
-              className="repository-switcher-group__status"
-              title={connectionStatusLabel(statuses[group.connectionId])}
-            >
+            {group.connectionId !== LOCAL_GROUP_ID && (
               <span
-                className={`connection-dot connection-dot--${connectionStatus(statuses[group.connectionId])}`}
-                aria-hidden="true"
-              />
-              {connectionStatusLabel(statuses[group.connectionId])}
-            </span>
+                className="repository-switcher-group__status"
+                title={connectionStatusLabel(statuses[group.connectionId])}
+              >
+                <span
+                  className={`connection-dot connection-dot--${connectionStatus(statuses[group.connectionId])}`}
+                  aria-hidden="true"
+                />
+                {connectionStatusLabel(statuses[group.connectionId])}
+              </span>
+            )}
             <span className="repository-switcher-group__count">{group.repositories.length}</span>
           </span>
         ),
@@ -208,7 +221,9 @@ export function RepositorySwitcher({
                 {query ? <SearchOutlined /> : <FolderOpenOutlined />}
               </span>
               <strong>{query ? '没有匹配的仓库' : '还没有打开的仓库'}</strong>
-              <small>{query ? '请尝试仓库名、分支、路径或连接名' : '从下方浏览并打开一个工作区'}</small>
+              <small>
+                {query ? '请尝试仓库名、分支、路径或连接名' : '从下方浏览并打开一个工作区'}
+              </small>
             </span>
           ),
         },
@@ -253,7 +268,7 @@ export function RepositorySwitcher({
               </span>
               <span>
                 <strong>已打开仓库</strong>
-                <small>{repositories.length} 个仓库 · 按远程连接分组</small>
+                <small>{repositories.length} 个仓库 · 按仓库来源分组</small>
               </span>
             </span>
             <span
@@ -277,7 +292,9 @@ export function RepositorySwitcher({
                 if (event.key !== 'ArrowDown') return;
                 event.preventDefault();
                 panel.current
-                  ?.querySelector<HTMLElement>('.ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled)')
+                  ?.querySelector<HTMLElement>(
+                    '.ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled)',
+                  )
                   ?.focus();
               }}
             />

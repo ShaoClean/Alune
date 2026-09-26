@@ -48,4 +48,17 @@ Linux CI 的桌面测试使用 `xvfb-run -a`。测试中的模拟更新适配器
 
 实际验收结果、截图和未验证场景统一记录到 [Wiki](https://github.com/ShaoClean/Alune/wiki)，不在本页累积历史记录。正式发布步骤见[贡献与发布指南](../CONTRIBUTE.md#发布新版本)。
 
+### 本地 Git 验证
+
+```sh
+npm run build -w @alune/shared
+npm run build -w @alune/ssh-client
+npm test -w server -- --runInBand local-git.spec.ts
+node --test packages/ssh-client/tests/local-connection.test.cjs
+```
+
+CI 对本地 Git 集成测试使用 macOS、Windows、Linux 三个平台。测试仓库、SQLite 数据库与远程 bare 仓库均为临时数据，不访问用户仓库。测试覆盖首次提交、部分暂存、字面路径、分支/合并、Stash、Worktree 保护、同步/上游、浅克隆、二进制和图片读取、旧数据库迁移、输出上限和真实 Git hook 取消。
+
+构建 server 和 web 后，运行 `node apps/server/test/local-ui-fixture.cjs` 可在 `http://127.0.0.1:59482` 验证真实本地仓库界面。控制台输出示例仓库、无首次提交仓库和本地 bare 远程的路径；退出时清理临时目录。平台 UI、目录选择器与真实凭据的实际验收结果见 Wiki 的 Issue-82-Validation。
+
 [返回项目首页](../README.md) · [文档索引](README.md)

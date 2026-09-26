@@ -1,12 +1,11 @@
-import { posix } from 'path';
+import { joinRepositoryPath } from './repository-path';
+import { runGit } from './repository-transport';
+import type { RepositoryTransport } from './repository-transport';
 import { promisify } from 'util';
-import {
-  DIFF_IMAGE_MAX_BYTES,
-  diffImageMediaType,
-} from '@alune/shared';
+import { DIFF_IMAGE_MAX_BYTES, diffImageMediaType } from '@alune/shared';
 import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/shared';
-import { SSHConnection, CommandOutputLimitError } from './connection-manager';
-import { gitFileCommand, isWindowsPath } from './git-shell';
+import { CommandOutputLimitError } from './connection-manager';
+import { isWindowsPath } from './git-shell';
 
 export class DiffImageError extends Error {
   constructor(
@@ -24,7 +23,7 @@ export class DiffImageAbsentError extends DiffImageError {
   }
 }
 
-const limitMessage = `图片超出预览限制（${DIFF_IMAGE_MAX_BYTES / (1024 * 1024)} MiB），请在远端查看。`;
+const limitMessage = `图片超出预览限制（${DIFF_IMAGE_MAX_BYTES / (1024 * 1024)} MiB），请在仓库中查看。`;
 
 function validateFilePath(file: string): void {
   if (
@@ -39,10 +38,10 @@ function validateFilePath(file: string): void {
 }
 
 export class DiffImages {
-  constructor(private readonly connection: SSHConnection) {}
+  constructor(private readonly connection: RepositoryTransport) {}
 
   private async git(repoPath: string, args: string[], signal?: AbortSignal) {
-    return this.connection.execCommand(gitFileCommand(repoPath, args), undefined, signal);
+    return runGit(this.connection, repoPath, args, signal);
   }
 
   // Which Git object each side of a comparison refers to. Returning null means
@@ -97,12 +96,10 @@ export class DiffImages {
     if (Number(size.stdout.trim()) > DIFF_IMAGE_MAX_BYTES) throw new DiffImageError(limitMessage);
 
     try {
-      const result = await this.connection.execCommand(
-        gitFileCommand(repoPath, ['cat-file', 'blob', spec]),
-        undefined,
-        signal,
-        { maxOutputBytes: DIFF_IMAGE_MAX_BYTES, binary: true },
-      );
+      const result = await runGit(this.connection, repoPath, ['cat-file', 'blob', spec], signal, {
+        maxOutputBytes: DIFF_IMAGE_MAX_BYTES,
+        binary: true,
+      });
       if (result.exitCode !== 0)
         throw new DiffImageError(
           `无法读取图片：${result.stderr.trim() || '远端 Git 命令失败，请刷新后重试。'}`,
@@ -119,7 +116,7 @@ export class DiffImages {
       return await this.connection.withSftp(async (sftp) => {
         // SFTP resolves Windows drive paths as well as POSIX paths without shell syntax.
         const root = await promisify(sftp.realpath.bind(sftp))(repoPath);
-        const target = posix.join(root, file);
+        const target = joinRepositoryPath(root, file);
         const stat = await promisify(sftp.lstat.bind(sftp))(target);
         if (!stat.isFile()) throw new DiffImageError('仅支持预览普通文件。');
         if (stat.size > DIFF_IMAGE_MAX_BYTES) throw new DiffImageError(limitMessage);

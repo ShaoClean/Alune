@@ -149,6 +149,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   await require('./repository-loading-smoke.cjs')({ window, origin, token, backend });
   await require('./diff-smoke.cjs')({ window, origin, token, backend });
   await require('./history-smoke.cjs')({ window, origin, token, backend });
+  await require('./local-git-smoke.cjs')({ window, origin, token });
   await require('./sidebar-smoke.cjs')({ window, origin, token, restore: false });
   await require('./appearance-smoke.cjs')({ window, origin, restore: false });
   // Keep an upgraded connection alive to reproduce shutdown hangs seen in packaged apps.

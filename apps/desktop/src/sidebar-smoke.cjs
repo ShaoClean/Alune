@@ -46,9 +46,10 @@ module.exports = async ({ window, origin, token, restore }) => {
   }
 
   await waitFor(
-    "document.querySelectorAll('.tree-group').length === 2 && document.querySelectorAll('[data-repository-id]').length === 4",
+    "document.querySelectorAll('.tree-group').length === 3 && document.querySelectorAll('[data-repository-id]').length === 4",
   );
   assert.deepEqual(await execute('Object.keys(window.aluneWorkspace).sort()'), [
+    'chooseDirectory',
     'clear',
     'load',
     'save',
@@ -92,6 +93,7 @@ module.exports = async ({ window, origin, token, restore }) => {
       sidebarCollapsed: true,
       changesCollapsed: false,
       diffMode: 'unified',
+      filesTreeWidth: 280,
     });
     await waitFor("document.querySelector('.app-shell--collapsed') !== null");
   }
@@ -172,11 +174,15 @@ module.exports = async ({ window, origin, token, restore }) => {
       sidebarCollapsed: true,
       changesCollapsed: false,
       diffMode: 'unified',
+      filesTreeWidth: 280,
     });
     assert.deepEqual(withLayout.repositoryOrderByConnection[a], expectedOrder);
     console.log('Desktop layout UI saved widths and collapse state without altering tree order.');
   }
   if (restore) {
+    // Unmount the app before clearing: registry reconciliation can legitimately
+    // persist again while a live workspace is mounted. Keep the trusted origin.
+    await window.loadURL(`${origin}/api/connections`);
     await execute('window.aluneWorkspace.clear()');
     assert.equal(await execute('window.aluneWorkspace.load()'), null);
     console.log(

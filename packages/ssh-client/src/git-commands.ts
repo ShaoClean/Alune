@@ -1,8 +1,10 @@
-import { SSHConnection, CommandOutputLimitError } from './connection-manager';
+import { joinRepositoryPath } from './repository-path';
+import { runGit } from './repository-transport';
+import type { RepositoryTransport } from './repository-transport';
+import { CommandOutputLimitError } from './connection-manager';
 import { parseStatus } from './git-status';
 import { readLog } from './git-log';
-import { gitFileCommand, isWindowsPath, quotePosixArgument } from './git-shell';
-import { posix } from 'path';
+import { isWindowsPath, quotePosixArgument } from './git-shell';
 import { promisify } from 'util';
 import type {
   FileStatus,
@@ -16,14 +18,10 @@ import type {
 } from '@alune/shared';
 
 export const DIFF_PREVIEW_MAX_BYTES = 1024 * 1024;
-const previewLimitMessage = '文件或差异超出预览限制（1 MiB），请在远端查看。';
+const previewLimitMessage = '文件或差异超出预览限制（1 MiB），请在仓库中查看。';
 
 export class GitCommands {
-  constructor(private connection: SSHConnection) {}
-
-  private _quoteArg(value: string): string {
-    return quotePosixArgument(value);
-  }
+  constructor(private connection: RepositoryTransport) {}
 
   private _git(repoPath: string, args: string): string {
     const path = isWindowsPath(repoPath)
@@ -40,13 +38,20 @@ export class GitCommands {
     ahead: number;
     behind: number;
     files: FileStatus[];
+    unborn?: boolean;
+    upstream?: string;
   }> {
-    const result = await this.connection.execCommand(
-      this._git(
-        repoPath,
-        '--no-optional-locks status --porcelain=v2 --branch -z --untracked-files=all',
-      ),
-      undefined,
+    const result = await runGit(
+      this.connection,
+      repoPath,
+      [
+        '--no-optional-locks',
+        'status',
+        '--porcelain=v2',
+        '--branch',
+        '-z',
+        '--untracked-files=all',
+      ],
       signal,
     );
 
@@ -54,8 +59,15 @@ export class GitCommands {
       throw new Error(`git status failed: ${result.stderr}`);
     }
 
-    const { branch, ahead, behind, files } = parseStatus(result.stdout);
-    return { branch, ahead, behind, files };
+    const { branch, ahead, behind, files, head, upstream } = parseStatus(result.stdout);
+    return {
+      branch,
+      ahead,
+      behind,
+      files,
+      ...(head === '(initial)' ? { unborn: true } : {}),
+      ...(upstream ? { upstream } : {}),
+    };
   }
 
   async log(repoPath: string, options?: LogOptions): Promise<LogPage> {
@@ -71,9 +83,13 @@ export class GitCommands {
     let untracked = false;
     if (options?.file && !options.commit) {
       const file = options.file;
-      const index = await this.connection.execCommand(
-        gitFileCommand(repoPath, ['ls-files', '--stage', '-z', '--', file]),
-      );
+      const index = await runGit(this.connection, repoPath, [
+        'ls-files',
+        '--stage',
+        '-z',
+        '--',
+        file,
+      ]);
       if (index.exitCode !== 0) throw new Error(`无法读取暂存区：${index.stderr}`);
       const entries = index.stdout.split('\0').filter(Boolean);
       if (entries.some((entry) => entry.slice(entry.indexOf('\t') + 1) !== file))
@@ -84,17 +100,20 @@ export class GitCommands {
         for (const entry of entries) {
           if (entry.startsWith('160000 ')) continue; // A gitlink is not a blob in this repository.
           const hash = entry.split(' ')[1];
-          const size = await this.connection.execCommand(
-            gitFileCommand(repoPath, ['cat-file', '-s', hash]),
-          );
+          const size = await runGit(this.connection, repoPath, ['cat-file', '-s', hash]);
           if (size.exitCode !== 0) throw new Error(`无法读取暂存内容：${size.stderr}`);
           if (Number(size.stdout.trim()) > DIFF_PREVIEW_MAX_BYTES)
             throw new Error(previewLimitMessage);
         }
       } else if (!options.staged && !entries.length) {
-        const others = await this.connection.execCommand(
-          gitFileCommand(repoPath, ['ls-files', '--others', '--exclude-standard', '-z', '--', file]),
-        );
+        const others = await runGit(this.connection, repoPath, [
+          'ls-files',
+          '--others',
+          '--exclude-standard',
+          '-z',
+          '--',
+          file,
+        ]);
         if (others.exitCode !== 0) throw new Error(`无法读取文件状态：${others.stderr}`);
         if (!others.stdout.split('\0').includes(file))
           throw new Error('文件已不存在或状态已改变，请刷新仓库状态。');
@@ -116,9 +135,10 @@ export class GitCommands {
     if (options?.file && !untracked) args.push('--', options.file);
 
     try {
-      const result = await this.connection.execCommand(
-        gitFileCommand(repoPath, ['-c', 'core.quotepath=false', ...args]),
-        undefined,
+      const result = await runGit(
+        this.connection,
+        repoPath,
+        ['-c', 'core.quotepath=false', ...args],
         undefined,
         { maxOutputBytes: DIFF_PREVIEW_MAX_BYTES, strictUtf8: true },
       );
@@ -129,7 +149,7 @@ export class GitCommands {
       )
         throw new Error(`无法读取差异：${result.stderr || '远端 Git 命令失败，请刷新后重试。'}`);
       if (result.stdout.split('\n').length > 10_000)
-        throw new Error('差异超过 10,000 行，无法预览，请在远端查看。');
+        throw new Error('差异超过 10,000 行，无法预览，请在仓库中查看。');
       return result.stdout;
     } catch (error) {
       if (error instanceof CommandOutputLimitError) throw new Error(previewLimitMessage);
@@ -148,7 +168,7 @@ export class GitCommands {
       await this.connection.withSftp(async (sftp) => {
         // SFTP resolves Windows drive paths as well as POSIX paths without shell syntax.
         const root = await promisify(sftp.realpath.bind(sftp))(repoPath);
-        const target = posix.join(root, file);
+        const target = joinRepositoryPath(root, file);
         const stat = await promisify(sftp.lstat.bind(sftp))(target);
         // Git previews the link itself, including dangling links, not its target.
         if (stat.isSymbolicLink()) return;
@@ -162,8 +182,7 @@ export class GitCommands {
       const code = (error as { code?: number | string })?.code;
       if (code === 2 || code === 'ENOENT')
         throw new Error('文件已不存在或状态已改变，请刷新仓库状态。');
-      if (code === 3 || code === 'EACCES')
-        throw new Error('无法读取文件：没有读取权限。');
+      if (code === 3 || code === 'EACCES') throw new Error('无法读取文件：没有读取权限。');
       throw error;
     }
   }
@@ -185,14 +204,18 @@ export class GitCommands {
   }
 
   async commit(repoPath: string, message: string) {
-    if (!message.trim() || message.includes('\0')) throw new Error('提交信息不能为空或包含 NUL 字符。');
-    return this.connection.execCommand(gitFileCommand(repoPath, ['commit', '--cleanup=verbatim', '-m', message]));
+    if (!message.trim() || message.includes('\0'))
+      throw new Error('提交信息不能为空或包含 NUL 字符。');
+    return runGit(this.connection, repoPath, ['commit', '--cleanup=verbatim', '-m', message]);
   }
 
   async unstage(repoPath: string, files: string[]): Promise<void> {
-    const head = await this.connection.execCommand(
-      this._git(repoPath, 'rev-parse --verify --quiet HEAD'),
-    );
+    const head = await runGit(this.connection, repoPath, [
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      'HEAD',
+    ]);
     if (head.exitCode !== 0 && head.exitCode !== 1) throw new Error(head.stderr);
     // An unborn branch has no HEAD to reset against; removing only index entries preserves files.
     await this._changeIndex(repoPath, files, head.exitCode === 0 ? 'reset HEAD' : 'rm --cached -f');
@@ -201,12 +224,7 @@ export class GitCommands {
   private async _changeIndex(repoPath: string, files: string[], command: string): Promise<void> {
     if (!files.length) throw new Error('请选择文件。');
     files.forEach((file) => this._validateFilePath(file));
-    const result = await this.connection.execCommand(
-      this._git(
-        repoPath,
-        `--literal-pathspecs ${command} -- ${files.map((file) => this._quoteArg(file)).join(' ')}`,
-      ),
-    );
+    const result = await runGit(this.connection, repoPath, [...command.split(' '), '--', ...files]);
     if (result.exitCode !== 0) throw new Error(result.stderr);
   }
 
@@ -215,11 +233,25 @@ export class GitCommands {
     commit: string,
     parentCommit?: string,
   ): Promise<CommitFile[]> {
-    const commitArg = this._quoteArg(commit);
+    if (
+      [commit, parentCommit].some(
+        (value) => value !== undefined && (!value || value.startsWith('-') || value.includes('\0')),
+      )
+    )
+      throw new Error('无效的提交引用。');
     const nameStatusArgs = parentCommit
-      ? `diff --no-color --name-status -z -M ${this._quoteArg(parentCommit)} ${commitArg}`
-      : `show --first-parent --format= --name-status -z --find-renames ${commitArg}`;
-    const nameStatusResult = await this.connection.execCommand(this._git(repoPath, nameStatusArgs));
+      ? ['diff', '--no-color', '--name-status', '-z', '-M', parentCommit, commit, '--']
+      : [
+          'show',
+          '--first-parent',
+          '--format=',
+          '--name-status',
+          '-z',
+          '--find-renames',
+          commit,
+          '--',
+        ];
+    const nameStatusResult = await runGit(this.connection, repoPath, nameStatusArgs);
     if (nameStatusResult.exitCode !== 0) {
       throw new Error(`git commit files failed: ${nameStatusResult.stderr}`);
     }
@@ -228,9 +260,9 @@ export class GitCommands {
     if (files.length === 0) return files;
 
     const numstatArgs = parentCommit
-      ? `diff --no-color --numstat -z -M ${this._quoteArg(parentCommit)} ${commitArg}`
-      : `show --first-parent --format= --no-patch --numstat -z --find-renames ${commitArg}`;
-    const numstatResult = await this.connection.execCommand(this._git(repoPath, numstatArgs));
+      ? ['diff', '--no-color', '--numstat', '-z', '-M', parentCommit, commit, '--']
+      : ['show', '--first-parent', '--format=', '--numstat', '-z', '--find-renames', commit, '--'];
+    const numstatResult = await runGit(this.connection, repoPath, numstatArgs);
     if (numstatResult.exitCode !== 0) {
       throw new Error(`git commit file stats failed: ${numstatResult.stderr}`);
     }
@@ -240,9 +272,7 @@ export class GitCommands {
   }
 
   async branchList(repoPath: string): Promise<BranchInfo[]> {
-    const result = await this.connection.execCommand(
-      this._git(repoPath, 'branch -a -v --no-color'),
-    );
+    const result = await runGit(this.connection, repoPath, ['branch', '-a', '-v', '--no-color']);
     if (result.exitCode !== 0) {
       throw new Error(`git branch failed: ${result.stderr}`);
     }
@@ -255,7 +285,7 @@ export class GitCommands {
   }
 
   async stashList(repoPath: string): Promise<StashEntry[]> {
-    const result = await this.connection.execCommand(this._git(repoPath, 'stash list'));
+    const result = await runGit(this.connection, repoPath, ['stash', 'list']);
     if (result.exitCode !== 0) {
       throw new Error(`git stash list failed: ${result.stderr}`);
     }
@@ -268,7 +298,7 @@ export class GitCommands {
   }
 
   async remoteList(repoPath: string): Promise<RemoteInfo[]> {
-    const result = await this.connection.execCommand(this._git(repoPath, 'remote -v'));
+    const result = await runGit(this.connection, repoPath, ['remote', '-v']);
     if (result.exitCode !== 0) {
       throw new Error(`git remote failed: ${result.stderr}`);
     }
@@ -292,9 +322,16 @@ export class GitCommands {
 
   async execute(
     repoPath: string,
-    args: string,
+    args: string | string[],
+    signal?: AbortSignal,
   ): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
-    return this.connection.execCommand(this._git(repoPath, args));
+    if (Array.isArray(args)) return runGit(this.connection, repoPath, args, signal);
+    if (this.connection.execGit) throw new Error('本地仓库不接受 shell 命令。');
+    return this.connection.execCommand(
+      this._git(repoPath, args),
+      undefined,
+      signal ?? this.connection.signal,
+    );
   }
 
   private _parseCommitNameStatus(output: string): CommitFile[] {
@@ -360,7 +397,7 @@ export class GitCommands {
   private _parseBranchLine(line: string): BranchInfo | null {
     try {
       const isCurrent = line.startsWith('*');
-      const cleaned = line.replace(/^\*?\s+/, '');
+      const cleaned = line.replace(/^[*+ ]\s*/, '');
       const isRemote = cleaned.startsWith('remotes/');
 
       const parts = cleaned.split(/\s+/);
@@ -379,7 +416,7 @@ export class GitCommands {
   }
 
   private _parseStashLine(line: string, index: number): StashEntry | null {
-    const match = line.match(/^(\d+):\s+(?:WIP on|On)\s+(\S+):\s+(.+)$/);
+    const match = line.match(/^stash@\{(\d+)\}:\s+(?:WIP on|On)\s+(\S+):\s+(.+)$/);
     if (match) {
       return {
         index: parseInt(match[1], 10),

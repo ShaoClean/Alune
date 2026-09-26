@@ -1,4 +1,4 @@
-export const isWindowsPath = (path: string) => /^(?:\/?[a-z]:[\\/]|\\\\)/i.test(path);
+export const isWindowsPath = (path: string) => /^(?:\/?[a-z]:[\\/]|\\\\|\/\/)/i.test(path);
 export const quotePosixArgument = (value: string) => `'${value.replace(/'/g, `'"'"'`)}'`;
 
 // Windows OpenSSH commonly starts cmd.exe; encoded PowerShell avoids both cmd

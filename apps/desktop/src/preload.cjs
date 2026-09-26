@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('desktopUpdates', {
 });
 
 contextBridge.exposeInMainWorld('aluneWorkspace', {
+  chooseDirectory: () => ipcRenderer.invoke('workspace:choose-directory'),
   load: () => ipcRenderer.invoke('workspace:load'),
   save: (value) => ipcRenderer.invoke('workspace:save', value),
   clear: () => ipcRenderer.invoke('workspace:clear'),

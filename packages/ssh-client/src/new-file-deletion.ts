@@ -1,11 +1,13 @@
+import { joinRepositoryPath } from './repository-path';
+import { runGit } from './repository-transport';
+import type { RepositoryTransport } from './repository-transport';
 import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
 import { promisify } from 'node:util';
 import type { SFTPWrapper } from 'ssh2';
 import type { NewFileDeletionPreview } from '@alune/shared';
-import { SSHConnection } from './connection-manager';
 import { parseStatus } from './git-status';
-import { gitFileCommand, isWindowsPath } from './git-shell';
+import { isWindowsPath } from './git-shell';
 
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -44,25 +46,21 @@ type Snapshot = NewFileDeletionPreview & { disk: DiskSnapshot; indexed: boolean 
 // The protocol deliberately unlinks a single SFTP path. git rm without --cached
 // also removes empty parent directories, and git clean may expand its scope.
 export class NewFileDeletion {
-  constructor(private readonly connection: SSHConnection) {}
+  constructor(private readonly connection: RepositoryTransport) {}
 
   private async git(repoPath: string, args: string[]) {
-    const result = await this.connection.execCommand(
-      gitFileCommand(repoPath, args),
-      undefined,
-      AbortSignal.timeout(15_000),
-    );
+    const result = await runGit(this.connection, repoPath, args, AbortSignal.timeout(15_000));
     if (result.exitCode !== 0) throw new Error(result.stderr.trim() || '远端 Git 命令未完成');
     return result.stdout;
   }
 
   private async disk(sftp: SFTPWrapper, repoPath: string, path: string): Promise<DiskSnapshot> {
     const root = await promisify(sftp.realpath.bind(sftp))(repoPath);
-    const target = posix.join(root, path);
+    const target = joinRepositoryPath(root, path);
     const parent = posix.dirname(target);
     let ancestor = root;
     for (const part of path.split('/').slice(0, -1)) {
-      ancestor = posix.join(ancestor, part);
+      ancestor = joinRepositoryPath(ancestor, part);
       try {
         const stat = await promisify(sftp.lstat.bind(sftp))(ancestor);
         if (!stat.isDirectory() || stat.isSymbolicLink()) {
@@ -222,7 +220,7 @@ export class NewFileDeletion {
           if (digest(await this.disk(sftp, repoPath, path)) !== digest(snapshot.disk)) {
             throw new NewFileDeletionError('删除前文件或父目录发生变化，已停止删除。');
           }
-          await promisify(sftp.unlink.bind(sftp))(posix.join(snapshot.disk.root, path));
+          await promisify(sftp.unlink.bind(sftp))(joinRepositoryPath(snapshot.disk.root, path));
         });
       }
       const outcome = await this.outcome(repoPath, path);
@@ -246,7 +244,7 @@ export class NewFileDeletion {
       disk = await this.connection.withSftp(async (sftp) => {
         const root = await promisify(sftp.realpath.bind(sftp))(repoPath);
         try {
-          await promisify(sftp.lstat.bind(sftp))(posix.join(root, path));
+          await promisify(sftp.lstat.bind(sftp))(joinRepositoryPath(root, path));
           return '仍存在';
         } catch (error) {
           if (missing(error)) return '已不存在';
