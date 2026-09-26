@@ -80,6 +80,7 @@ interface RepositoryState {
   openRepository: (repo: any) => void;
   moveOpenRepository: (sourceId: string, targetId: string, placement: Placement) => boolean;
   closeRepository: (id: string) => void;
+  closeRepositories: (ids: string[]) => void;
   setCurrentRepo: (repo: any) => void;
   resetWorkspace: (id?: string) => void;
   fetchStatus: (id: string, afterMutation?: boolean) => Promise<void>;
@@ -416,11 +417,17 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       return true;
     },
 
-    closeRepository: (id) =>
+    closeRepository: (id) => get().closeRepositories([id]),
+
+    // Only closes tabs; registrations, statuses and commit drafts stay intact.
+    closeRepositories: (ids) => {
+      const closing = new Set(ids);
       set((state) => ({
-        openRepositories: state.openRepositories.filter((repo) => repo.id !== id),
-        currentRepo: state.currentRepo?.id === id ? null : state.currentRepo,
-      })),
+        openRepositories: state.openRepositories.filter((repo) => !closing.has(repo.id)),
+        currentRepo:
+          state.currentRepo && closing.has(state.currentRepo.id) ? null : state.currentRepo,
+      }));
+    },
 
     setCurrentRepo: (repo) => {
       if (removed.has(repo.id)) return;

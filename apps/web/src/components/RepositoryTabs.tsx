@@ -1,8 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
+import { Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import { CloseOutlined, FolderOpenOutlined, PlusOutlined } from '@ant-design/icons';
 import { horizontalPlacement, moveBeforeOrAfter } from '../stores/sidebarOrder';
 import type { Placement } from '../stores/sidebarOrder';
+import { tabsToClose } from '../stores/tabCommands';
+import type { TabCloseCommand } from '../stores/tabCommands';
 
 interface Props {
   repositories: any[];
@@ -10,10 +14,23 @@ interface Props {
   onSelect: (id: string) => void;
   onMove: (sourceId: string, targetId: string, placement: Placement) => boolean;
   onClose: (id: string) => void;
+  onCloseMany: (ids: string[], targetId: string) => void;
   onOpenRepository: () => void;
 }
 
 type DropTarget = { id: string; placement: Placement };
+// `session` remounts the popup so every open aligns to its own anchor point.
+type TabMenu = { id: string; x: number; y: number; session: number };
+// Matches `.repository-tab-menu` in index.css.
+const MENU_WIDTH = 240;
+
+// `spoken` is the full name for screen readers; the visible label stays short.
+const closeCommands: { key: TabCloseCommand; label: string; spoken: string }[] = [
+  { key: 'current', label: '关闭此标签页', spoken: '关闭此标签页' },
+  { key: 'others', label: '关闭其他标签页', spoken: '关闭其他标签页' },
+  { key: 'right', label: '关闭右侧标签页', spoken: '关闭右侧所有标签页' },
+  { key: 'left', label: '关闭左侧标签页', spoken: '关闭左侧所有标签页' },
+];
 
 export function RepositoryTabs({
   repositories,
@@ -21,10 +38,12 @@ export function RepositoryTabs({
   onSelect,
   onMove,
   onClose,
+  onCloseMany,
   onOpenRepository,
 }: Props) {
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [menu, setMenu] = useState<TabMenu | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const dragSource = useRef<string | null>(null);
   const suppressClickUntil = useRef(0);
@@ -155,6 +174,7 @@ export function RepositoryTabs({
       return;
     }
     dragSource.current = id;
+    setMenu(null);
     animations.current.forEach((animation) => animation.cancel());
     animations.current = [];
     const gap = Number.parseFloat(getComputedStyle(scroll.current!).gap);
@@ -207,6 +227,64 @@ export function RepositoryTabs({
     }
   };
 
+  // antd only flips the popup, so narrow windows need the anchor itself kept 8px inside.
+  const openMenu = (id: string, x: number, y: number) => {
+    const left = Math.max(8, Math.min(x, window.innerWidth - 8 - MENU_WIDTH));
+    setMenu((current) => ({ id, x: left, y, session: (current?.session ?? 0) + 1 }));
+  };
+
+  const focusTab = (id: string | undefined) =>
+    requestAnimationFrame(() => {
+      if (!id) return;
+      const tabs = scroll.current;
+      const handle =
+        tabs?.querySelector<HTMLElement>(
+          `[data-repository-tab="${CSS.escape(id)}"] .repository-tab__select`,
+        ) || tabs?.querySelector<HTMLElement>('.repository-tab__select[aria-selected="true"]');
+      handle?.focus();
+    });
+
+  const closeMenu = (restoreFocus = false) => {
+    if (restoreFocus && menu) focusTab(menu.id);
+    setMenu(null);
+  };
+
+  const keyboardMenu = (event: KeyboardEvent<HTMLDivElement>, id: string) => {
+    if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const tab = event.currentTarget;
+    const container = scroll.current?.getBoundingClientRect();
+    const rect = tab.getBoundingClientRect();
+    const open = () => {
+      const { left, bottom } = tab.getBoundingClientRect();
+      openMenu(id, Math.max(left, container?.left ?? left), bottom);
+    };
+    if (container && (rect.left < container.left || rect.right > container.right)) {
+      tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      // Let this frame's scroll event pass; an open menu closes on scroll.
+      requestAnimationFrame(open);
+    } else open();
+  };
+
+  const runCommand = (command: TabCloseCommand, target: string) => {
+    const order = repositories.map((repo) => repo.id);
+    const ids = tabsToClose(order, target, command);
+    if (!ids.length) return;
+    if (command === 'current') onClose(target);
+    else onCloseMany(ids, target);
+    if (command !== 'current') setAnnouncement(`已关闭 ${ids.length} 个标签页`);
+    // Focus follows the closed tab's neighbor; batch closes always keep the target.
+    const index = order.indexOf(target);
+    focusTab(command === 'current' ? (order[index + 1] ?? order[index - 1]) : target);
+  };
+
+  // Registry refreshes can remove the target tab while its menu is open.
+  const menuTarget = menu && repositories.find((repo) => repo.id === menu.id);
+  useEffect(() => {
+    if (menu && !menuTarget) setMenu(null);
+  }, [menu, menuTarget]);
+
   if (repositories.length === 0) return null;
   const sourceIndex = repositories.findIndex((repo) => repo.id === dragging);
   const previewOrder =
@@ -219,6 +297,40 @@ export function RepositoryTabs({
         )
       : null;
   const destinationIndex = previewOrder?.indexOf(dragging!) ?? sourceIndex;
+  const menuTitle = menuTarget
+    ? menuTarget.path
+      ? `${menuTarget.name} · ${menuTarget.path}`
+      : menuTarget.name
+    : '';
+  const menuItems: MenuProps['items'] = menuTarget
+    ? [
+        {
+          key: 'target',
+          type: 'group',
+          label: (
+            <span className="repository-tab-menu__heading" title={menuTitle}>
+              <span className="repository-tab-menu__heading-prefix">标签页 ·</span>
+              <span className="repository-tab-menu__name">{menuTarget.name}</span>
+            </span>
+          ),
+          children: closeCommands.flatMap(({ key, label, spoken }) => {
+            const count = tabsToClose(
+              repositories.map((repo) => repo.id),
+              menuTarget.id,
+              key,
+            ).length;
+            const item = {
+              key,
+              label,
+              extra: <span aria-hidden="true">{count} 个</span>,
+              'aria-label': `${spoken}，将关闭 ${count} 个标签页`,
+              disabled: count === 0,
+            };
+            return key === 'current' ? [item, { type: 'divider' as const }] : [item];
+          }),
+        },
+      ]
+    : [];
 
   return (
     <div className="repository-tabs" aria-label="已打开的仓库">
@@ -250,6 +362,8 @@ export function RepositoryTabs({
             event.stopPropagation();
           }
         }}
+        // Also covers the portaled menu, where Windows' Menu key fires contextmenu on keyup.
+        onContextMenu={(event) => event.preventDefault()}
       >
         {repositories.map((repo, index) => {
           const active = repo.id === activeId;
@@ -261,7 +375,7 @@ export function RepositoryTabs({
                 : 0;
           return (
             <div
-              className={`repository-tab${active ? ' repository-tab--active' : ''}${dragging === repo.id ? ' repository-tab--dragging' : ''}${dragging === repo.id && dropTarget ? ' repository-tab--previewing' : ''}${dropTarget && dropTarget.id === repo.id ? ` repository-tab--drop-${dropTarget.placement}` : ''}`}
+              className={`repository-tab${active ? ' repository-tab--active' : ''}${menuTarget?.id === repo.id ? ' repository-tab--menu-target' : ''}${dragging === repo.id ? ' repository-tab--dragging' : ''}${dragging === repo.id && dropTarget ? ' repository-tab--previewing' : ''}${dropTarget && dropTarget.id === repo.id ? ` repository-tab--drop-${dropTarget.placement}` : ''}`}
               key={repo.id}
               role="presentation"
               data-repository-tab={repo.id}
@@ -269,12 +383,17 @@ export function RepositoryTabs({
               draggable={repositories.length > 1}
               onDragStart={(event) => startDrag(event, repo.id)}
               onDragEnd={finishDrag}
+              onContextMenu={(event) => {
+                // Dropdown adds the 4px vertical gap; match it horizontally.
+                if (!dragSource.current) openMenu(repo.id, event.clientX + 4, event.clientY);
+              }}
+              onKeyDown={(event) => keyboardMenu(event, repo.id)}
             >
               <button
                 type="button"
                 role="tab"
                 aria-selected={active}
-                aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
+                aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight Shift+F10 ContextMenu"
                 className="repository-tab__select"
                 title={repo.path ? `${repo.name} · ${repo.path}` : repo.name}
                 onClick={() => onSelect(repo.id)}
@@ -299,6 +418,42 @@ export function RepositoryTabs({
             </div>
           );
         })}
+        {menuTarget && (
+          <Dropdown
+            key={menu.session}
+            open
+            trigger={['contextMenu']}
+            autoFocus
+            rootClassName="repository-tab-menu"
+            onOpenChange={(open) => {
+              if (!open) closeMenu();
+            }}
+            menu={{
+              'aria-label': menuTarget.path
+                ? `${menuTarget.name} 的标签页菜单，${menuTarget.path}`
+                : `${menuTarget.name} 的标签页菜单`,
+              items: menuItems,
+              selectable: false,
+              onClick: ({ key }) => {
+                setMenu(null);
+                runCommand(key as TabCloseCommand, menuTarget.id);
+              },
+              onKeyDown: (event) => {
+                if (event.key === 'Escape' || event.key === 'Tab') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeMenu(true);
+                }
+              },
+            }}
+          >
+            <span
+              className="repository-tabs__menu-anchor"
+              style={{ left: menu.x, top: menu.y }}
+              aria-hidden
+            />
+          </Dropdown>
+        )}
       </div>
       <button
         type="button"

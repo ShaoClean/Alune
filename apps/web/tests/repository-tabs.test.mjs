@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { horizontalPlacement, moveBeforeOrAfter } from '../src/stores/sidebarOrder.ts';
+import { tabsToClose } from '../src/stores/tabCommands.ts';
 
 globalThis.localStorage = {
   getItem: () => null,
@@ -56,4 +57,35 @@ test('moving open tabs preserves selection and content state and does not notify
   store.getState().closeRepository('b');
   assert.deepEqual(ids(store), ['c', 'a', 'd', 'e']);
   unsubscribe();
+});
+
+test('close commands act on the target tab in the current visible order', () => {
+  const order = ['b', 'c', 'a', 'd'];
+  assert.deepEqual(tabsToClose(order, 'a', 'current'), ['a']);
+  assert.deepEqual(tabsToClose(order, 'a', 'others'), ['b', 'c', 'd']);
+  assert.deepEqual(tabsToClose(order, 'a', 'right'), ['d']);
+  assert.deepEqual(tabsToClose(order, 'a', 'left'), ['b', 'c']);
+  assert.deepEqual(tabsToClose(order, 'b', 'left'), []);
+  assert.deepEqual(tabsToClose(order, 'd', 'right'), []);
+  for (const command of ['others', 'right', 'left'])
+    assert.deepEqual(tabsToClose(['only'], 'only', command), []);
+  assert.deepEqual(tabsToClose(['only'], 'only', 'current'), ['only']);
+  assert.deepEqual(tabsToClose(order, 'missing', 'others'), []);
+});
+
+test('batch closing removes only open tabs and keeps registrations and statuses', () => {
+  const store = createRepositoryStore();
+  const registry = ['a', 'b', 'c', 'd'].map(repo);
+  const statuses = { a: { phase: 'success', data: { branch: 'main', files: [] } } };
+  store.setState({ repositories: registry, repositoryStatuses: statuses });
+  for (const id of ['a', 'b', 'c', 'd']) store.getState().openRepository(repo(id));
+  store.getState().setCurrentRepo(repo('b'));
+  store.getState().closeRepositories(['c', 'd']);
+  assert.deepEqual(ids(store), ['a', 'b']);
+  assert.equal(store.getState().currentRepo.id, 'b');
+  store.getState().closeRepositories(['a', 'b']);
+  assert.deepEqual(ids(store), []);
+  assert.equal(store.getState().currentRepo, null);
+  assert.equal(store.getState().repositories, registry);
+  assert.equal(store.getState().repositoryStatuses, statuses);
 });
