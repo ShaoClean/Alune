@@ -80,7 +80,7 @@ module.exports = async ({ window, origin, token }) => {
   await evaluate(
     '[...document.querySelectorAll(".worktree-option")].find(el => el.textContent.includes("游离 HEAD")).click()',
   );
-  await wait('document.querySelector(".workspace-branch")?.textContent.includes("游离 HEAD")');
+  await wait('document.querySelector(".branch-pill__name")?.textContent.includes("游离 HEAD")');
   window.setSize(320, 800);
   await wait('innerWidth === 320');
   await click('.worktrees-trigger');

@@ -1,3 +1,4 @@
+import { repositorySourceLabel } from '../stores/repositorySource';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import { CloseOutlined, FolderOpenOutlined, PlusOutlined } from '@ant-design/icons';
@@ -282,6 +283,7 @@ export function RepositoryTabs({
               >
                 <FolderOpenOutlined />
                 <span className="repository-tab__name">{repo.name}</span>
+                <span className="source-badge">{repositorySourceLabel(repo)}</span>
                 {repo.isDirty && <span className="repository-tab__dirty" aria-label="有改动" />}
               </button>
               <button

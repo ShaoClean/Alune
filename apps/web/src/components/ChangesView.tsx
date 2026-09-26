@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Input, Popconfirm, Tooltip, App } from 'antd';
+import { Button, Checkbox, Input, Popconfirm, Tooltip, App } from 'antd';
 import {
   CheckOutlined,
   DeleteOutlined,
@@ -70,6 +70,7 @@ export function ChangesView({
   const { status, fetchStatus } = useRepositoryStore();
   const draft = useCommitDraftStore((state) => state.drafts[repoId] || EMPTY_DRAFT);
   const { updateDraft, clearSubmittedDraft } = useCommitDraftStore();
+  const [discardConfirmed, setDiscardConfirmed] = useState(false);
   const [query, setQuery] = useState('');
   const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -158,9 +159,13 @@ export function ChangesView({
       >
         <span
           className={`file-row__status file-row__status--${file.status}`}
-          title={statusWords[file.status] || file.status}
+          title={
+            file.conflicted
+              ? '合并冲突：解决文件内容后暂存'
+              : statusWords[file.status] || file.status
+          }
         >
-          {statusLabels[file.status] || '?'}
+          {file.conflicted ? 'U' : statusLabels[file.status] || '?'}
         </span>
         <FileIcon path={file.path} />
         <span
@@ -206,10 +211,20 @@ export function ChangesView({
           <Popconfirm
             title="丢弃此文件的未暂存改动？"
             description={
-              addedPaths.has(file.path)
-                ? '将恢复为暂存区的内容，保留已暂存的新增文件。此操作不可撤销。'
-                : '此操作不可撤销。'
+              <div>
+                <p className="git-path-detail">{file.path}</p>
+                <p>将恢复为暂存区的内容，保留已暂存改动。此操作不可撤销。</p>
+                <Checkbox
+                  checked={discardConfirmed}
+                  onChange={(event) => setDiscardConfirmed(event.target.checked)}
+                >
+                  我确认丢弃未暂存改动
+                </Checkbox>
+              </div>
             }
+            onOpenChange={() => setDiscardConfirmed(false)}
+            okButtonProps={{ disabled: !discardConfirmed, danger: true }}
+            okText="丢弃改动"
             disabled={busy}
             onConfirm={() => discardFile(file.path)}
           >

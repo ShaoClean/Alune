@@ -23,7 +23,7 @@ import { SIDEBAR_MIN } from '../stores/workspaceLayout';
 import { WorkspaceStatusBar } from './WorkspaceStatusBar';
 
 const navItems = [
-  { key: '/', label: '连接', icon: <ApartmentOutlined /> },
+  { key: '/connections', label: '连接', icon: <ApartmentOutlined /> },
   { key: '/repositories', label: '仓库', icon: <FolderOpenOutlined /> },
 ];
 
@@ -210,7 +210,7 @@ export function Layout() {
 
   const selectedKey = useMemo(() => {
     if (location.pathname.startsWith('/repositories')) return '/repositories';
-    return '/';
+    return '/connections';
   }, [location.pathname]);
 
   const activeRepositoryId = location.pathname.match(/^\/repositories\/([^/]+)/)?.[1];
@@ -243,7 +243,8 @@ export function Layout() {
     try {
       await deleteRepository(repo.id);
       message.success(`已移除仓库“${repo.name}”`);
-      if (isActive) navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
+      if (isActive)
+        navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
     } catch (err: any) {
       message.error(err.message || `移除仓库“${repo.name}”失败`);
     }
@@ -289,10 +290,12 @@ export function Layout() {
               onSelect={(id) => navigate(`/repositories/${id}`)}
               onMove={moveOpenRepository}
               onClose={handleCloseRepository}
-              onOpenRepository={() => navigate('/repositories')}
+              onOpenRepository={() => navigate('/repositories?open=local')}
             />
           ) : (
-            <span className="app-tabbar__title">{selectedKey === '/' ? '连接' : '仓库'}</span>
+            <span className="app-tabbar__title">
+              {selectedKey === '/connections' ? '连接' : '仓库'}
+            </span>
           )}
           {activeRepositoryId && (
             <PanelToggle
@@ -320,9 +323,9 @@ export function Layout() {
                 type="text"
                 size="small"
                 icon={<PlusOutlined />}
-                aria-label="管理连接"
-                title="管理连接"
-                onClick={() => navigate('/')}
+                aria-label="打开本地仓库"
+                title="打开本地仓库"
+                onClick={() => navigate('/repositories?open=local')}
               />
               <PanelToggle
                 side="left"
@@ -357,7 +360,7 @@ export function Layout() {
                   <span className="sidebar-nav-item__icon">{item.icon}</span>
                   <span className="sidebar-nav-item__label">{item.label}</span>
                   <span className="sidebar-section__count">
-                    {item.key === '/' ? connections.length : repositories.length}
+                    {item.key === '/connections' ? connections.length : repositories.length}
                   </span>
                 </button>
               ))}
@@ -377,7 +380,6 @@ export function Layout() {
               />
             </section>
           </div>
-
         </aside>
 
         {!compact && !collapsed && (

@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { ConnectionsPage } from '../pages/ConnectionsPage';
 import { RepositoriesPage } from '../pages/RepositoriesPage';
@@ -15,6 +15,10 @@ export const router = createBrowserRouter([
       },
       {
         index: true,
+        element: <Navigate to="/repositories" replace />,
+      },
+      {
+        path: 'connections',
         element: <ConnectionsPage />,
       },
       {

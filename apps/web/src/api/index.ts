@@ -8,6 +8,8 @@ import type {
   LogOptions,
   LogPage,
   Repository,
+  RepositoryContext,
+  RepositoryStatus,
   RepositoryFilePreview,
   RepositoryTreeListing,
   WorktreeInfo,
@@ -17,6 +19,16 @@ const api = axios.create({
   baseURL: '/api',
   timeout: 30000,
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const detail = error.response?.data?.message;
+    if (detail) error.message = Array.isArray(detail) ? detail.join('；') : String(detail);
+    return Promise.reject(error);
+  },
+);
+const gitTimeout = { timeout: 310_000 };
 
 // Connection APIs
 export const connectionApi = {
@@ -30,14 +42,31 @@ export const connectionApi = {
 
 // Repository APIs
 export const repositoryApi = {
+  inspectLocal: (
+    path: string,
+  ): Promise<RepositoryContext & { name: string; status: RepositoryStatus }> =>
+    api.post('/repositories/local/inspect', { path }).then((r) => r.data),
+  addLocal: (path: string): Promise<Repository> =>
+    api.post('/repositories', { source: 'local', path }).then((r) => r.data),
+  context: (id: string, signal?: AbortSignal): Promise<RepositoryContext> =>
+    api.get(`/repositories/${id}/context`, { signal }).then((r) => r.data),
   worktrees: (id: string, signal?: AbortSignal): Promise<WorktreeInfo[]> =>
-    api.get('/repositories/' + id + '/worktrees', {
-      signal, timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
-    }).then((r) => r.data),
+    api
+      .get('/repositories/' + id + '/worktrees', {
+        signal,
+        timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
+      })
+      .then((r) => r.data),
   openWorktree: (id: string, path: string): Promise<Repository> =>
-    api.post('/repositories/' + id + '/worktrees/open', { path }, {
-      timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
-    }).then((r) => r.data),
+    api
+      .post(
+        '/repositories/' + id + '/worktrees/open',
+        { path },
+        {
+          timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
+        },
+      )
+      .then((r) => r.data),
   scan: (connectionId: string, path: string) =>
     api.get('/repositories/scan', { params: { connectionId, path } }).then((r) => r.data),
   add: (connectionId: string, path: string) =>
@@ -49,14 +78,18 @@ export const repositoryApi = {
   pin: (id: string, pinned: boolean) =>
     api.post(`/repositories/${id}/pin`, { pinned }).then((r) => r.data),
   status: (id: string, signal?: AbortSignal) =>
-    api.get(`/repositories/${id}/status`, {
-      signal,
-      timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
-    }).then((r) => r.data),
+    api
+      .get(`/repositories/${id}/status`, {
+        signal,
+        timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
+      })
+      .then((r) => r.data),
   log: (id: string, params?: LogOptions, signal?: AbortSignal): Promise<LogPage> =>
     api.get(`/repositories/${id}/log`, { params, signal }).then((r) => r.data),
   commitFiles: (id: string, commit: string, parentCommit?: string) =>
-    api.get(`/repositories/${id}/commit-files`, { params: { commit, parentCommit } }).then((r) => r.data),
+    api
+      .get(`/repositories/${id}/commit-files`, { params: { commit, parentCommit } })
+      .then((r) => r.data),
   diff: (id: string, params?: any) =>
     api.get(`/repositories/${id}/diff`, { params }).then((r) => r.data),
   diffImage: (
@@ -81,48 +114,87 @@ export const repositoryApi = {
 
 // Git Operation APIs
 export const gitApi = {
+  operation: (id: string) => api.get(`/repositories/${id}/operation`).then((r) => r.data),
+  cancel: (id: string) => api.post(`/repositories/${id}/operation/cancel`).then((r) => r.data),
+  deepen: (id: string, remote?: string) =>
+    api.post(`/repositories/${id}/history/deepen`, { remote }, gitTimeout).then((r) => r.data),
+  renameBranch: (id: string, name: string, newName: string) =>
+    api
+      .post(`/repositories/${id}/branch/rename`, { name, newName }, gitTimeout)
+      .then((r) => r.data),
+  stashShow: (id: string, index: number): Promise<{ diff: string }> =>
+    api.post(`/repositories/${id}/stash/show`, { index }).then((r) => r.data),
+  addRemote: (id: string, name: string, url: string) =>
+    api.post(`/repositories/${id}/remotes`, { name, url }).then((r) => r.data),
+  saveAuthor: (id: string, name: string, email: string) =>
+    api.post(`/repositories/${id}/author`, { name, email }).then((r) => r.data),
+  createWorktree: (id: string, path: string, branch: string): Promise<Repository> =>
+    api
+      .post(`/repositories/${id}/worktrees/create`, { path, branch }, gitTimeout)
+      .then((r) => r.data),
+  removeWorktree: (id: string, path: string): Promise<{ removedIds: string[] }> =>
+    api
+      .post(`/repositories/${id}/worktrees/remove`, { path, confirmed: true }, gitTimeout)
+      .then((r) => r.data),
   previewNewFileDeletion: (id: string, path: string): Promise<NewFileDeletionPreview> =>
-    api.post(`/repositories/${id}/delete-new-file/preview`, { path }, { timeout: 60000 }).then((r) => r.data),
+    api
+      .post(`/repositories/${id}/delete-new-file/preview`, { path }, { timeout: 60000 })
+      .then((r) => r.data),
   deleteNewFile: (id: string, path: string, token: string) =>
-    api.post(`/repositories/${id}/delete-new-file`, { path, token }, { timeout: 60000 }).then((r) => r.data),
+    api
+      .post(`/repositories/${id}/delete-new-file`, { path, token }, { timeout: 60000 })
+      .then((r) => r.data),
   stage: (id: string, files: string[]) =>
-    api.post(`/repositories/${id}/stage`, { files }).then((r) => r.data),
+    api.post(`/repositories/${id}/stage`, { files }, gitTimeout).then((r) => r.data),
   unstage: (id: string, files: string[]) =>
-    api.post(`/repositories/${id}/unstage`, { files }).then((r) => r.data),
+    api.post(`/repositories/${id}/unstage`, { files }, gitTimeout).then((r) => r.data),
   commit: (id: string, message: string, description?: string) =>
-    api.post(`/repositories/${id}/commit`, { message, description }).then((r) => r.data),
-  push: (id: string, remote?: string, branch?: string, force?: boolean) =>
-    api.post(`/repositories/${id}/push`, { remote, branch, force }).then((r) => r.data),
+    api
+      .post(`/repositories/${id}/commit`, { message, description }, gitTimeout)
+      .then((r) => r.data),
+  push: (
+    id: string,
+    remote?: string,
+    branch?: string,
+    force?: boolean,
+    setUpstream?: boolean,
+    tags?: boolean,
+  ) =>
+    api
+      .post(`/repositories/${id}/push`, { remote, branch, force, setUpstream, tags }, gitTimeout)
+      .then((r) => r.data),
   pull: (id: string, remote?: string, branch?: string) =>
-    api.post(`/repositories/${id}/pull`, { remote, branch }).then((r) => r.data),
+    api.post(`/repositories/${id}/pull`, { remote, branch }, gitTimeout).then((r) => r.data),
   fetch: (id: string, remote?: string) =>
-    api.post(`/repositories/${id}/fetch`, { remote }).then((r) => r.data),
+    api.post(`/repositories/${id}/fetch`, { remote }, gitTimeout).then((r) => r.data),
   createBranch: (id: string, name: string, checkout?: boolean) =>
-    api.post(`/repositories/${id}/branch`, { name, checkout }).then((r) => r.data),
+    api.post(`/repositories/${id}/branch`, { name, checkout }, gitTimeout).then((r) => r.data),
   switchBranch: (id: string, name: string) =>
-    api.post(`/repositories/${id}/switch`, { name }).then((r) => r.data),
+    api.post(`/repositories/${id}/switch`, { name }, gitTimeout).then((r) => r.data),
   deleteBranch: (id: string, name: string, force?: boolean) =>
-    api.post(`/repositories/${id}/branch/delete`, { name, force }).then((r) => r.data),
+    api.post(`/repositories/${id}/branch/delete`, { name, force }, gitTimeout).then((r) => r.data),
   merge: (id: string, branch: string) =>
-    api.post(`/repositories/${id}/merge`, { branch }).then((r) => r.data),
+    api.post(`/repositories/${id}/merge`, { branch }, gitTimeout).then((r) => r.data),
   rebase: (id: string, branch: string) =>
-    api.post(`/repositories/${id}/rebase`, { branch }).then((r) => r.data),
-  stash: (id: string, message?: string) =>
-    api.post(`/repositories/${id}/stash`, { message }).then((r) => r.data),
+    api.post(`/repositories/${id}/rebase`, { branch }, gitTimeout).then((r) => r.data),
+  stash: (id: string, message?: string, includeUntracked?: boolean) =>
+    api
+      .post(`/repositories/${id}/stash`, { message, includeUntracked }, gitTimeout)
+      .then((r) => r.data),
   stashPop: (id: string, index?: number) =>
-    api.post(`/repositories/${id}/stash/pop`, { index }).then((r) => r.data),
+    api.post(`/repositories/${id}/stash/pop`, { index }, gitTimeout).then((r) => r.data),
   stashApply: (id: string, index?: number) =>
-    api.post(`/repositories/${id}/stash/apply`, { index }).then((r) => r.data),
+    api.post(`/repositories/${id}/stash/apply`, { index }, gitTimeout).then((r) => r.data),
   stashDrop: (id: string, index?: number) =>
-    api.post(`/repositories/${id}/stash/drop`, { index }).then((r) => r.data),
+    api.post(`/repositories/${id}/stash/drop`, { index }, gitTimeout).then((r) => r.data),
   checkout: (id: string, files: string[]) =>
-    api.post(`/repositories/${id}/checkout`, { files }).then((r) => r.data),
+    api.post(`/repositories/${id}/checkout`, { files }, gitTimeout).then((r) => r.data),
   reset: (id: string, mode: string, commit?: string) =>
-    api.post(`/repositories/${id}/reset`, { mode, commit }).then((r) => r.data),
+    api.post(`/repositories/${id}/reset`, { mode, commit }, gitTimeout).then((r) => r.data),
   cherryPick: (id: string, commits: string[]) =>
-    api.post(`/repositories/${id}/cherry-pick`, { commits }).then((r) => r.data),
+    api.post(`/repositories/${id}/cherry-pick`, { commits }, gitTimeout).then((r) => r.data),
   revert: (id: string, commit: string) =>
-    api.post(`/repositories/${id}/revert`, { commit }).then((r) => r.data),
+    api.post(`/repositories/${id}/revert`, { commit }, gitTimeout).then((r) => r.data),
 };
 
 // File APIs

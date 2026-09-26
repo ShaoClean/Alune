@@ -1,8 +1,11 @@
+import type { RepositoryContext } from '@alune/shared';
+import { RepositoryContextNotice } from '../components/RepositoryContextNotice';
+import { GitOperationNotice } from '../components/GitOperationNotice';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Button, App } from 'antd';
+import { Alert, Button, App, Input, Modal, Select } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -39,7 +42,7 @@ export function RepositoryDetailPage() {
 }
 
 function RepositoryWorkspace({ id }: { id: string | undefined }) {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const { setRightPanelAvailable, repositoryToolbarSlot } = useOutletContext<{
     setRightPanelAvailable: (available: boolean) => void;
@@ -80,6 +83,16 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [syncing, setSyncing] = useState<SyncOperation | null>(null);
   const [syncingForce, setSyncingForce] = useState(false);
+  const [context, setContext] = useState<RepositoryContext | null>(null);
+  const [syncError, setSyncError] = useState('');
+  const [syncSelection, setSyncSelection] = useState<{
+    operation: SyncOperation;
+    force?: boolean;
+    tags?: boolean;
+  } | null>(null);
+  const [remote, setRemote] = useState('origin');
+  const [remoteBranch, setRemoteBranch] = useState('');
+  const [contextRevision, setContextRevision] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   // The files view keeps its own tree; a new token asks it to reload what is on screen.
   const [filesRefresh, setFilesRefresh] = useState(0);
@@ -197,6 +210,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   // Explicit refreshes update the preview too; opening uses fetchStatus directly.
   const handleRefresh = async (afterMutation = true) => {
     if (!id) return;
+    setContextRevision((value) => value + 1);
     if (activePanel === 'files') setFilesRefresh((token) => token + 1);
     await fetchStatus(id, afterMutation);
     if (activePanel === 'history') await fetchLog(id);
@@ -214,26 +228,102 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     }
   };
 
-  const runSync = async (operation: SyncOperation, options?: { force?: boolean }) => {
+  const runSync = async (
+    operation: SyncOperation,
+    options?: {
+      force?: boolean;
+      remote?: string;
+      branch?: string;
+      setUpstream?: boolean;
+      tags?: boolean;
+    },
+  ) => {
     if (!id || syncing) return;
     const force = Boolean(options?.force);
     const label =
       operation === 'fetch' ? '获取' : operation === 'pull' ? '拉取' : force ? '强制推送' : '推送';
+    setSyncError('');
     setSyncing(operation);
     setSyncingForce(force);
     startSync(id, operation, { force });
     try {
-      if (operation === 'push') await gitApi.push(id, undefined, undefined, force);
-      else await gitApi[operation](id);
+      if (operation === 'push')
+        await gitApi.push(
+          id,
+          options?.remote,
+          options?.branch,
+          force,
+          options?.setUpstream,
+          options?.tags,
+        );
+      else await gitApi[operation](id, options?.remote, options?.branch);
       message.success(`${label}完成`);
       await handleRefresh(true);
     } catch (err: any) {
-      message.error(err.message || `${label}失败`);
+      setSyncError(err.message || `${label}失败`);
+      await handleRefresh(true);
     } finally {
       setSyncing(null);
       setSyncingForce(false);
       finishSync(id);
     }
+  };
+
+  const requestSync = async (
+    operation: SyncOperation,
+    options?: { force?: boolean; tags?: boolean },
+  ) => {
+    if (!id || syncing) return;
+    let current = context;
+    try {
+      current = await repositoryApi.context(id);
+      setContext(current);
+    } catch (failure: any) {
+      setSyncError(failure.message);
+      return;
+    }
+    if (!current.remotes.length) {
+      selectPanel('remotes');
+      message.info('请先添加远程地址。');
+      return;
+    }
+    if (operation !== 'fetch' && current.unborn) {
+      message.info('请先创建首次提交。');
+      return;
+    }
+    const execute = () => {
+      if (operation !== 'fetch' && !options?.tags && !current.upstream) {
+        if (!status?.branch || status.branch === '(detached)') {
+          message.warning('请先创建或切换到一个本地分支。');
+          return;
+        }
+        setRemote(
+          current.remotes.find((item) => item.name === 'origin')?.name || current.remotes[0].name,
+        );
+        setRemoteBranch(status.branch);
+        setSyncSelection({ operation, ...options });
+      } else void runSync(operation, options);
+    };
+    if (options?.force)
+      modal.confirm({
+        title: '强制推送当前分支？',
+        content: (
+          <>
+            <p>
+              {currentRepo?.source === 'local' ? '本机' : 'SSH'} · {currentRepo?.name} ·{' '}
+              {status?.branch}
+            </p>
+            <p className="git-path-detail">{currentRepo?.path}</p>
+            <p>
+              将更新远程历史，覆盖上次获取后已知的远程提交。若远程又有变化，Git 会拒绝此次推送。
+            </p>
+          </>
+        ),
+        okText: '确认强制推送',
+        okButtonProps: { danger: true },
+        onOk: execute,
+      });
+    else execute();
   };
 
   const handleSelectFile = (file: any) => {
@@ -289,7 +379,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       return <BranchesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
     if (activePanel === 'stashes')
       return <StashesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
-    return <RemotesView repoId={id} />;
+    return <RemotesView repoId={id} onRefresh={() => void handleRefresh()} />;
   };
 
   return (
@@ -307,12 +397,74 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
             syncingForce={syncingForce}
             refreshing={refreshing}
             onSelect={selectPanel}
-            onSync={(operation, options) => void runSync(operation, options)}
+            onSync={(operation, options) => void requestSync(operation, options)}
             onRefresh={() => void refreshFromToolbar()}
             onBranchSwitched={() => void handleRefresh(true)}
           />,
           repositoryToolbarSlot,
         )}
+      <RepositoryContextNotice
+        repoId={id!}
+        revision={`${contextRevision}:${status?.branch || ''}:${worktreeDiffRevision}`}
+        onContext={setContext}
+        onRemotes={() => selectPanel('remotes')}
+        onRefresh={() => void handleRefresh()}
+      />
+      <GitOperationNotice repoId={id!} onFinished={() => void handleRefresh()} />
+      {syncError && (
+        <Alert
+          className="sync-error-notice"
+          type="error"
+          showIcon
+          title="Git 操作未完成"
+          description={syncError}
+          closable
+          onClose={() => setSyncError('')}
+          action={
+            <Button size="small" onClick={() => void handleRefresh()}>
+              刷新状态
+            </Button>
+          }
+        />
+      )}
+      <Modal
+        title={syncSelection?.operation === 'push' ? '设置上游并推送' : '选择拉取来源'}
+        open={!!syncSelection}
+        onCancel={() => setSyncSelection(null)}
+        okText={syncSelection?.operation === 'push' ? '设置并推送' : '拉取'}
+        okButtonProps={{ disabled: !remote || !remoteBranch.trim() }}
+        onOk={() => {
+          if (!syncSelection) return;
+          const selected = syncSelection;
+          setSyncSelection(null);
+          void runSync(selected.operation, {
+            ...selected,
+            remote,
+            branch: remoteBranch,
+            setUpstream: selected.operation === 'push',
+          });
+        }}
+      >
+        <p className="modal-description">当前分支尚未关联上游。确认远程和分支后执行。</p>
+        <label className="git-form-label" htmlFor="git-sync-remote">
+          远程
+        </label>
+        <Select
+          id="git-sync-remote"
+          style={{ width: '100%' }}
+          value={remote}
+          onChange={setRemote}
+          options={context?.remotes.map((item) => ({ value: item.name, label: item.name }))}
+        />
+        <label className="git-form-label" htmlFor="git-sync-branch">
+          远程分支
+        </label>
+        <Input
+          id="git-sync-branch"
+          value={remoteBranch}
+          onChange={(event) => setRemoteBranch(event.target.value)}
+        />
+      </Modal>
       <div
         className={
           'workspace-body' +

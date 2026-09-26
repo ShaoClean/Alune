@@ -44,3 +44,26 @@ jobs:
         run: npm run build -w @alune/ssh-client
       - name: 运行单元测试
         run: ${{ matrix.command }}
+
+  local-git:
+    name: 本地 Git (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @alune/shared
+      - run: npm run build -w @alune/ssh-client
+        id: build-local-git
+      - run: node --test packages/ssh-client/tests/local-connection.test.cjs
+      - run: npm test -w server -- --ci --runInBand local-git.spec.ts
+        if: ${{ !cancelled() && steps.build-local-git.outcome == 'success' }}
