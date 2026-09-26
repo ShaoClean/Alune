@@ -233,6 +233,19 @@ describe('local repositories with real Git and SQLite', () => {
       service.push(id, 'origin', 'detached', false, true),
     ).rejects.toThrow('本地分支');
     expect(gitAt(remotePath, 'branch', '--list', 'detached')).toBe('');
+    expect(
+      (await repos.getBranches(id)).some((item) => item.name.startsWith('(')),
+    ).toBe(false);
+    await service.switchBranch(id, 'main');
+    const remoteBranch = (await repos.getBranches(id)).find(
+      (item) => item.isRemote,
+    )!;
+    await service.switchBranch(id, remoteBranch.name);
+    expect((await repos.getStatus(id)).branch).toBe('(detached)');
+    await service.createBranch(id, 'origin/literal', true);
+    await service.switchBranch(id, 'main');
+    await service.switchBranch(id, 'origin/literal');
+    expect((await repos.getStatus(id)).branch).toBe('origin/literal');
   });
 
   it('adds a remote, sets upstream on push, fetches/pulls and deepens a shallow clone', async () => {

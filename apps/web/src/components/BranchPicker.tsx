@@ -58,16 +58,11 @@ export function BranchPicker({
     }
   };
 
-  const local = useMemo(
-    () => branches.filter((item: any) => !item.isRemote),
-    [branches],
-  );
+  const local = useMemo(() => branches.filter((item: any) => !item.isRemote), [branches]);
   const remote = useMemo(() => branches.filter((item: any) => item.isRemote), [branches]);
   const match = (list: any[]) =>
     query.trim()
-      ? list.filter((item: any) =>
-          item.name.toLowerCase().includes(query.trim().toLowerCase()),
-        )
+      ? list.filter((item: any) => item.name.toLowerCase().includes(query.trim().toLowerCase()))
       : list;
   const visibleLocal = match(local);
   const visibleRemote = match(remote);
@@ -82,7 +77,7 @@ export function BranchPicker({
     if (switching) return;
     setSwitching(name);
     try {
-      await gitApi.switchBranch(repoId, name.replace(/^origin\//, ''));
+      await gitApi.switchBranch(repoId, name);
       message.success(`已切换到“${name}”`);
       if (!mounted.current) return;
       setOpen(false);

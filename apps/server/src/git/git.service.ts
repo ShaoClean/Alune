@@ -325,13 +325,23 @@ export class GitService implements OnModuleDestroy {
     );
   }
   switchBranch(id: string, name: string) {
-    return this.write(id, 'switch-branch', (git, repo) =>
-      this.checked(git, repo.path, [
+    return this.write(id, 'switch-branch', async (git, repo) => {
+      this.value(name, '分支名称');
+      const local = await git.execute(repo.path, [
+        'show-ref',
+        '--verify',
+        '--quiet',
+        `refs/heads/${name}`,
+      ]);
+      return this.checked(git, repo.path, [
         'switch',
+        ...(local.exitCode !== 0 && /^(refs\/)?remotes\//.test(name)
+          ? ['--detach']
+          : []),
         '--',
-        this.value(name, '分支名称'),
-      ]),
-    );
+        name,
+      ]);
+    });
   }
   renameBranch(id: string, name: string, newName: string) {
     return this.write(id, 'rename-branch', async (git, repo) =>

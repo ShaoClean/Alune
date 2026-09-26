@@ -398,6 +398,7 @@ export class GitCommands {
     try {
       const isCurrent = line.startsWith('*');
       const cleaned = line.replace(/^[*+ ]\s*/, '');
+      if (cleaned.startsWith('(') || cleaned.includes(' -> ')) return null;
       const isRemote = cleaned.startsWith('remotes/');
 
       const parts = cleaned.split(/\s+/);
