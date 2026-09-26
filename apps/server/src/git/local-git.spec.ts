@@ -63,7 +63,7 @@ describe('local repositories with real Git and SQLite', () => {
     rmSync(configRoot, { recursive: true, force: true });
   });
   beforeEach(async () => {
-    root = realpathSync(mkdtempSync(join(tmpdir(), 'alune-local-git-')));
+    root = realpathSync.native(mkdtempSync(join(tmpdir(), 'alune-local-git-')));
     path = join(root, "本地 ' $repo");
     mkdirSync(path);
     git('init', '-q', '-b', 'main');

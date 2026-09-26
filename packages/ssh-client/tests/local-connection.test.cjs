@@ -8,7 +8,9 @@ const { LocalConnection, GitCommands, RepositoryFiles, runGit } = require('../di
 const { joinRepositoryPath, normalizeRepositoryPath } = require('../dist/repository-path');
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-local-transport-'));
+  const root = fs.realpathSync.native(
+    fs.mkdtempSync(path.join(os.tmpdir(), 'alune-local-transport-')),
+  );
   const repo = path.join(root, "repo ' $literal");
   fs.mkdirSync(repo);
   const config = path.join(root, 'empty.gitconfig');
@@ -92,7 +94,7 @@ test('local commands discard inherited repository selectors', async () => {
   try {
     process.env.GIT_DIR = path.join(other.repo, '.git');
     const result = await runGit(new LocalConnection(), f.repo, ['rev-parse', '--show-toplevel']);
-    assert.equal(fs.realpathSync(result.stdout.trim()), fs.realpathSync(f.repo));
+    assert.equal(fs.realpathSync.native(result.stdout.trim()), fs.realpathSync.native(f.repo));
   } finally {
     if (saved === undefined) delete process.env.GIT_DIR;
     else process.env.GIT_DIR = saved;
