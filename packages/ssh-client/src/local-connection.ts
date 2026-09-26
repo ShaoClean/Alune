@@ -35,6 +35,7 @@ function terminateWindowsTree(pid: number): Promise<void> {
   const script = `
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+$env:COLUMNS = '4096'
 $snapshot = @(Get-CimInstance Win32_Process)
 $root = $snapshot | Where-Object { $_.ProcessId -eq ${pid} } | Select-Object -First 1
 $msysPs = $null
@@ -57,7 +58,7 @@ for ($pass = 0; $pass -lt 3; $pass++) {
     $msysIds = @{}
     $msysProcesses = @()
     foreach ($row in $msysRows) {
-      if ($row -match '^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+') {
+      if ($row -match '^\\s*[SIO]?\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+') {
         $logicalId = [int]$Matches[1]
         $nativeId = [int]$Matches[4]
         $msysIds[$logicalId] = $nativeId

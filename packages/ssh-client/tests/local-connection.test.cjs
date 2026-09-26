@@ -58,55 +58,8 @@ test('local commands use literal argv and bounded, byte-preserving output', asyn
   }
 });
 
-test('cancellation stops a real commit hook and leaves staged data available', async (t) => {
+test('cancellation stops a real commit hook and leaves staged data available', async () => {
   const f = fixture();
-  const trace = [];
-  const traceStart = Date.now();
-  if (process.platform === 'win32') {
-    const childProcess = require('node:child_process');
-    const spawn = childProcess.spawn;
-    t.mock.method(childProcess, 'spawn', (program, args, options) => {
-      const helper = program === 'powershell.exe' || program === 'taskkill.exe';
-      if (program === 'powershell.exe') {
-        args = [...args];
-        const index = args.indexOf('-EncodedCommand') + 1;
-        const script = Buffer.from(args[index], 'base64')
-          .toString('utf16le')
-          .replace(
-            '$snapshot = @(Get-CimInstance Win32_Process)',
-            () => `$snapshot = @(Get-CimInstance Win32_Process)
-$snapshot | Where-Object { $_.Name -match '^(git|sh|bash|sleep)\\.exe$' } | Select-Object ProcessId, ParentProcessId, Name | ConvertTo-Json -Compress`,
-          )
-          .replace(
-            '[array]::Reverse($targets)',
-            () => `Write-Output ("targets: " + ($targets -join ','))
-[array]::Reverse($targets)`,
-          )
-          .replace(
-            '$msysRows = @(& $msysPs -W)',
-            () => `$msysRows = @(& $msysPs -W)
-Write-Output ($msysRows -join "\\n")`,
-          );
-        args[index] = Buffer.from(script, 'utf16le').toString('base64');
-      }
-      const child = spawn(
-        program,
-        args,
-        helper ? { ...options, stdio: ['ignore', 'pipe', 'pipe'] } : options,
-      );
-      const record = (event) =>
-        trace.push(`${Date.now() - traceStart}ms ${program} ${child.pid}: ${event}`);
-      record('spawn');
-      child.on('error', (error) => record(error.message));
-      child.on('exit', (code, signal) => record(`exit ${code} ${signal}`));
-      child.on('close', (code, signal) => record(`close ${code} ${signal}`));
-      if (helper) {
-        child.stdout.on('data', (chunk) => record(`stdout ${chunk}`));
-        child.stderr.on('data', (chunk) => record(`stderr ${chunk}`));
-      }
-      return child;
-    });
-  }
   try {
     fs.writeFileSync(path.join(f.repo, 'tracked.txt'), 'preserve\n');
     f.git('add', '--', 'tracked.txt');
@@ -130,7 +83,6 @@ Write-Output ($msysRows -join "\\n")`,
     assert.equal(fs.readFileSync(path.join(f.repo, 'tracked.txt'), 'utf8'), 'preserve\n');
     assert(!fs.existsSync(path.join(f.repo, '.git', 'index.lock')));
   } finally {
-    if (trace.length) t.diagnostic(trace.join('\n'));
     f.close();
   }
 });
