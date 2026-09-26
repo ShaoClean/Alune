@@ -95,6 +95,7 @@ test('工具条按导航 / 上下文 / 动作三段排列，改动数按路径�
       '分支',
       '储藏',
       '远程',
+      'PR/MR',
       '当前分支 feature/long-branch，切换分支',
       '查看关联 Worktrees',
       '刷新仓库',
@@ -158,7 +159,7 @@ test('推送是工具条上唯一的主色实心按钮', () => {
   );
   assert.equal(
     buttons(html).filter((item) => item.attributes.includes('toolbar-button--nav')).length,
-    6,
+    7,
   );
 });
 
@@ -170,6 +171,7 @@ test('全部视图平铺为标签，每个视图都有唯一选中态', () => {
     ['branches', '分支'],
     ['stashes', '储藏'],
     ['remotes', '远程'],
+    ['pull-requests', 'PR/MR'],
   ]) {
     const selected = buttons(render({ activePanel })).filter((item) =>
       item.attributes.includes('toolbar-button--active'),
@@ -210,7 +212,7 @@ test('推送菜单锚定按钮右下方，不受当前视图的文件列表位�
 });
 
 test('窄屏不隐藏也不折叠任何入口，每个视图和操作都只出现一次', () => {
-  const required = ['改动', '文件', '提交历史', '分支', '储藏', '远程', '查看关联 Worktrees', '刷新仓库', '拉取', '推送'];
+  const required = ['改动', '文件', '提交历史', '分支', '储藏', '远程', 'PR/MR', '查看关联 Worktrees', '刷新仓库', '拉取', '推送'];
   for (const tier of ['full', 'compact', 'condensed', 'minimal']) {
     const items = buttons(render({ status: status(), tier }));
     for (const label of required)
@@ -228,7 +230,7 @@ test('分支与分支管理合并为一个视图，刷新独立于视图标签',
   const nav = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'));
   assert.deepEqual(
     buttons(nav).map((item) => item.label.replace(/ · .*/, '')),
-    ['改动', '文件', '提交历史', '分支', '储藏', '远程'],
+    ['改动', '文件', '提交历史', '分支', '储藏', '远程', 'PR/MR'],
   );
   assert.doesNotMatch(nav, /刷新/);
   const refresh = buttons(html).find((item) => item.label === '刷新仓库');
@@ -251,10 +253,10 @@ test('视图标签放不下时先收成图标再横向滚动，不用 display: n
     if (!selector.includes('::-webkit-scrollbar'))
       assert.doesNotMatch(body, /display:\s*none/, selector.trim());
   const minimal = buttons(render({ status: status(), tier: 'minimal' }));
-  for (const label of ['文件', '储藏', '远程'])
+  for (const label of ['文件', '储藏', '远程', 'PR/MR'])
     assert.equal(minimal.find((item) => item.label === label).text, '');
   const full = buttons(render({ status: status(), tier: 'full' }));
-  for (const label of ['文件', '储藏', '远程'])
+  for (const label of ['文件', '储藏', '远程', 'PR/MR'])
     assert.equal(full.find((item) => item.label === label).text, label);
 });
 

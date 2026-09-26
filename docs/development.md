@@ -40,6 +40,8 @@ node apps/desktop/scripts/test-packaged.mjs
 
 Linux CI 的桌面测试使用 `xvfb-run -a`。测试中的模拟更新适配器只在 `--smoke-test` 且提供隔离数据目录时启用，测试不会连接 GitHub，也不会启动安装程序。
 
+PR/MR 查询可在构建后执行 `node --test apps/web/tests/pull-requests.integration.cjs`，通过临时 SQLite、Git 仓库与本地 SSH 验证生产 HTTP 接口，托管平台响应由 fixture 模拟。界面验收运行 `node apps/web/tests/pull-requests-fixture.cjs` 并打开输出的 URL；私有 GitLab 场景使用任意非空测试令牌，不需要真实账号，退出进程会清理临时数据。单元测试仍使用各工作区的 `npm test`。
+
 发布前还需使用两个递增版本做实际升级验收：Windows NSIS 和 Linux AppImage 验证下载、用户确认重启、版本提升及原有连接/仓库数据保留；macOS 在两种架构验证 DMG 下载、校验、重启安装、数据保留及安装失败恢复。自动测试不替代正式安装包的这些验收步骤。验收记录应列明版本、操作系统、架构、结果和未验证项；未验证的平台不得标记为已完成自动升级验收。
 
 若本机 npm 配置禁用了安装脚本，首次启动前执行 `node node_modules/electron/install.js` 下载 Electron。构建脚本会在隔离的暂存目录中为 Electron 重建 SQLite，保留网页开发所用的 Node.js 原生模块。
