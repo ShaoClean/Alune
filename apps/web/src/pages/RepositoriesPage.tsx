@@ -14,6 +14,8 @@ import { useRepositoryStore } from '../stores/repositoryStore';
 import { EmptyState, ErrorState, formatBranchName, LoadingState } from '../components/ui';
 
 import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicator';
+import { CollectionViewSwitch } from '../components/CollectionViewSwitch';
+import { useWorkspaceStore } from '../stores/workspaceStore';
 
 export function RepositoriesPage() {
   const { message } = App.useApp();
@@ -21,6 +23,7 @@ export function RepositoriesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const connectionId = searchParams.get('connectionId') || undefined;
   const { connections, fetchConnections } = useConnectionStore();
+  const view = useWorkspaceStore((state) => state.collectionViews.repositories);
   const { repositories, listLoading, listLoaded, listError, repositoryStatuses, refreshRepositoryStatuses, fetchRepositories, scanRepositories, addRepository, deleteRepository, openRepository } = useRepositoryStore();
   const [search, setSearch] = useState('');
   const [scanModalVisible, setScanModalVisible] = useState(false);
@@ -91,6 +94,31 @@ export function RepositoriesPage() {
     }
   };
 
+  const renderBranch = (repo: any) => {
+    const entry = repositoryStatuses[repo.id];
+    const branch = entry?.data ? (formatBranchName(entry.data.branch) === '—' ? '游离 HEAD' : formatBranchName(entry.data.branch)) : '分支未知';
+    return (
+      <div className="repository-card__metrics">
+        <span className="repository-card__metric" title={branch}><BranchesOutlined /><span className="collection-text">{branch}</span></span>
+        {(repo.ahead || 0) > 0 && <span className="repository-card__metric repository-card__metric--ahead">↑{repo.ahead}</span>}
+        {(repo.behind || 0) > 0 && <span className="repository-card__metric repository-card__metric--behind">↓{repo.behind}</span>}
+      </div>
+    );
+  };
+
+  const renderActions = (repo: any) => {
+    const entry = repositoryStatuses[repo.id];
+    return (
+      <div className="repository-card__actions">
+        <Button size="small" type="primary" onClick={() => { openRepository(repo); navigate(`/repositories/${repo.id}`); }}>打开工作区</Button>
+        <Button size="small" aria-label={`刷新 ${repo.name} 状态`} loading={entry?.phase === 'loading' || entry?.phase === 'queued'} onClick={() => void refreshRepositoryStatuses([repo.id])}>{entry?.phase === 'error' ? '重试状态' : '刷新状态'}</Button>
+        <Popconfirm title="移除此仓库？" onConfirm={() => void handleDelete(repo.id)}>
+          <Button size="small" danger icon={<DeleteOutlined />} aria-label={`删除 ${repo.name}`} />
+        </Popconfirm>
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="page-heading">
@@ -99,13 +127,14 @@ export function RepositoriesPage() {
           <p>{selectedConnection ? `${selectedConnection.name} 上可用的仓库。` : '浏览所有远程工作区中已登记的仓库。'}</p>
         </div>
         <div className="page-heading__actions">
+          <CollectionViewSwitch page="repositories" />
           <Button icon={<ReloadOutlined />} loading={listLoading} aria-label="刷新仓库" onClick={refresh}>刷新</Button>
           <Button type="primary" icon={<PlusOutlined />} disabled={!connectionId} onClick={() => setScanModalVisible(true)}>扫描并添加</Button>
         </div>
       </div>
 
       <div className="content-card">
-        <div className="content-card__header">
+        <div className="content-card__header collection-filter-bar">
           <Space wrap>
             <Select
               allowClear
@@ -122,32 +151,43 @@ export function RepositoriesPage() {
         {listError && <ErrorState title={listLoaded ? '仓库列表刷新失败，已保留原有列表' : '已登记仓库加载失败'} description={listError} onRetry={refresh} />}
         {!listLoaded && repositories.length === 0 ? (!listError && <LoadingState label="正在加载已登记仓库…" />) : visibleRepositories.length === 0 ? (
           listLoaded && !listError && <EmptyState title={search || connectionId ? '没有匹配的仓库' : '暂无已登记的仓库'} description={search ? '请尝试其他名称、路径或分支。' : connectionId ? '此连接下没有已登记仓库，可扫描远程目录添加。' : '选择一个连接来扫描仓库，或前往“连接”页添加连接。'} action={!search && connectionId ? <Button type="primary" icon={<SearchOutlined />} onClick={() => setScanModalVisible(true)}>扫描远程路径</Button> : undefined} />
+        ) : view === 'list' ? (
+          <div className="collection-table-scroll" role="region" aria-label="仓库列表，可横向滚动" tabIndex={0}>
+            <table className="collection-table repository-table" aria-label="仓库列表">
+              <colgroup><col /><col className="collection-table__connection-column" /><col className="collection-table__branch-column" /><col className="collection-table__status-column" /><col className="collection-table__actions-column" /></colgroup>
+              <thead><tr><th scope="col">仓库 / 路径</th><th scope="col">连接</th><th scope="col">分支</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
+              <tbody>
+                {visibleRepositories.map((repo: any) => {
+                  const connectionName = connections.find((connection: any) => connection.id === repo.connectionId)?.name || '未知连接';
+                  return (
+                    <tr key={repo.id}>
+                      <th scope="row">
+                        <div className="repository-card__title"><FolderOpenOutlined /><span className="collection-text" title={repo.name}>{repo.name}</span></div>
+                        <div className="collection-table__secondary collection-table__mono" title={repo.path}>{repo.path}</div>
+                      </th>
+                      <td><span className="collection-text" title={connectionName}>{connectionName}</span></td>
+                      <td>{renderBranch(repo)}</td>
+                      <td><RepositoryStatusIndicator id={repo.id} /></td>
+                      <td>{renderActions(repo)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="repository-grid">
-            {visibleRepositories.map((repo: any) => {
-              const entry = repositoryStatuses[repo.id];
-              return (
+            {visibleRepositories.map((repo: any) => (
                 <article className="repository-card" key={repo.id}>
                   <div className="repository-card__top">
-                    <div className="repository-card__title"><FolderOpenOutlined /><span>{repo.name}</span></div>
+                    <div className="repository-card__title"><FolderOpenOutlined /><span className="collection-text" title={repo.name}>{repo.name}</span></div>
                     <RepositoryStatusIndicator id={repo.id} />
                   </div>
                   <div className="repository-card__path" title={repo.path}>{repo.path}</div>
-                  <div className="repository-card__metrics">
-                    <span className="repository-card__metric"><BranchesOutlined /> {entry?.data ? (formatBranchName(entry.data.branch) === '—' ? '游离 HEAD' : formatBranchName(entry.data.branch)) : '分支未知'}</span>
-                    {(repo.ahead || 0) > 0 && <span className="repository-card__metric repository-card__metric--ahead">↑{repo.ahead}</span>}
-                    {(repo.behind || 0) > 0 && <span className="repository-card__metric repository-card__metric--behind">↓{repo.behind}</span>}
-                  </div>
-                  <div className="repository-card__actions">
-                    <Button size="small" type="primary" onClick={() => { openRepository(repo); navigate(`/repositories/${repo.id}`); }}>打开工作区</Button>
-                    <Button size="small" aria-label={`刷新 ${repo.name} 状态`} loading={entry?.phase === 'loading' || entry?.phase === 'queued'} onClick={() => void refreshRepositoryStatuses([repo.id])}>{entry?.phase === 'error' ? '重试状态' : '刷新状态'}</Button>
-                    <Popconfirm title="移除此仓库？" onConfirm={() => void handleDelete(repo.id)}>
-                      <Button size="small" danger icon={<DeleteOutlined />} aria-label={`删除 ${repo.name}`} />
-                    </Popconfirm>
-                  </div>
+                  {renderBranch(repo)}
+                  {renderActions(repo)}
                 </article>
-              );
-            })}
+            ))}
           </div>
         )}
       </div>
