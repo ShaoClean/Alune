@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } = require('node:fs');
 const { execFileSync } = require('node:child_process');
-const { tmpdir, devNull } = require('node:os');
+const { tmpdir } = require('node:os');
 const path = require('node:path');
 
 // Actual Electron/backend/Git integration. Native dialog result is stubbed so CI
@@ -10,10 +10,12 @@ module.exports = async ({ window, origin, token }) => {
   const root = mkdtempSync(path.join(tmpdir(), 'alune-native-local-'));
   const repo = path.join(root, "local ' 仓库");
   mkdirSync(repo);
+  const config = path.join(root, 'empty.gitconfig');
+  writeFileSync(config, '');
   const git = (...args) =>
     execFileSync('git', ['-C', repo, ...args], {
       encoding: 'utf8',
-      env: { ...process.env, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1' },
+      env: { ...process.env, GIT_CONFIG_GLOBAL: config, GIT_CONFIG_NOSYSTEM: '1' },
     });
   git('init', '-q', '-b', 'main');
   git('config', 'commit.gpgSign', 'false');

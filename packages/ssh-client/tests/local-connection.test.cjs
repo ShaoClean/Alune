@@ -11,7 +11,9 @@ function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-local-transport-'));
   const repo = path.join(root, "repo ' $literal");
   fs.mkdirSync(repo);
-  const env = { ...process.env, GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1' };
+  const config = path.join(root, 'empty.gitconfig');
+  fs.writeFileSync(config, '');
+  const env = { ...process.env, GIT_CONFIG_GLOBAL: config, GIT_CONFIG_NOSYSTEM: '1' };
   const git = (...args) => execFileSync('git', ['-C', repo, ...args], { env, encoding: 'utf8' });
   git('init', '-q', '-b', 'main');
   git('config', 'user.name', 'Fixture');

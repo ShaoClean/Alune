@@ -48,6 +48,8 @@ jobs:
   local-git:
     name: 本地 Git (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     strategy:
       fail-fast: false
       matrix:

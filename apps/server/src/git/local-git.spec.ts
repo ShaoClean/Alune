@@ -9,7 +9,7 @@ import {
   existsSync,
   realpathSync,
 } from 'node:fs';
-import { tmpdir, devNull } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Test } from '@nestjs/testing';
@@ -31,6 +31,7 @@ describe('local repositories with real Git and SQLite', () => {
   let ssh: jest.Mock;
   let app: any;
   let id: string;
+  let configRoot: string;
   const saved = {
     global: process.env.GIT_CONFIG_GLOBAL,
     system: process.env.GIT_CONFIG_NOSYSTEM,
@@ -49,7 +50,9 @@ describe('local repositories with real Git and SQLite', () => {
     await service.commit(id, 'first commit');
   };
   beforeAll(() => {
-    process.env.GIT_CONFIG_GLOBAL = devNull;
+    configRoot = mkdtempSync(join(tmpdir(), 'alune-git-config-'));
+    process.env.GIT_CONFIG_GLOBAL = join(configRoot, 'empty.gitconfig');
+    writeFileSync(process.env.GIT_CONFIG_GLOBAL, '');
     process.env.GIT_CONFIG_NOSYSTEM = '1';
   });
   afterAll(() => {
@@ -57,6 +60,7 @@ describe('local repositories with real Git and SQLite', () => {
     else process.env.GIT_CONFIG_GLOBAL = saved.global;
     if (saved.system === undefined) delete process.env.GIT_CONFIG_NOSYSTEM;
     else process.env.GIT_CONFIG_NOSYSTEM = saved.system;
+    rmSync(configRoot, { recursive: true, force: true });
   });
   beforeEach(async () => {
     root = realpathSync(mkdtempSync(join(tmpdir(), 'alune-local-git-')));
