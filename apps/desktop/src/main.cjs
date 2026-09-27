@@ -121,6 +121,13 @@ async function start() {
   if (installError) updates.setState({ status: 'error', error: { action: 'check', message: installError } });
   registerUpdateIPC({ ipcMain, service: updates, getWindow: () => window, getOrigin: () => origin });
   const preferences = createWorkspacePreferences(path.join(dataDir, 'workspace.json'));
+  ipcMain.handle('workspace:choose-directory', async (event) => {
+    if (!isTrustedWorkspaceSender(event, window?.webContents, origin)) throw new Error('Workspace access denied');
+    const result = await dialog.showOpenDialog(window, {
+      title: '打开本地 Git 仓库', buttonLabel: '选择仓库目录', properties: ['openDirectory'],
+    });
+    return result.canceled ? null : result.filePaths[0] || null;
+  });
   for (const operation of ['load', 'save', 'clear']) {
     ipcMain.handle(`workspace:${operation}`, (event, value) => {
       if (!isTrustedWorkspaceSender(event, window?.webContents, origin)) throw new Error('Workspace access denied');

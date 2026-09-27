@@ -1,8 +1,9 @@
-import { posix } from 'path';
+import { runGit } from './repository-transport';
+import type { RepositoryTransport } from './repository-transport';
+import { normalizeRepositoryPath } from './repository-path';
 import { promisify } from 'util';
 import type { WorktreeInfo } from '@alune/shared';
-import type { SSHConnection } from './connection-manager';
-import { gitFileCommand, isWindowsPath } from './git-shell';
+import { isWindowsPath } from './git-shell';
 
 // Do not trim: whitespace and newlines can be part of a worktree's path.
 export function worktreePathKey(path: string): string {
@@ -11,7 +12,7 @@ export function worktreePathKey(path: string): string {
         .replace(/\\/g, '/')
         .replace(/^\/?([a-z]):/i, (_, drive: string) => drive.toUpperCase() + ':')
     : path;
-  return posix.normalize(value).replace(/\/$/, '') || '/';
+  return normalizeRepositoryPath(value).replace(/\/$/, '') || '/';
 }
 
 export function parseWorktrees(output: string): WorktreeInfo[] {
@@ -49,16 +50,14 @@ export function parseWorktrees(output: string): WorktreeInfo[] {
 }
 
 export class GitWorktrees {
-  constructor(private connection: SSHConnection) {}
+  constructor(private connection: RepositoryTransport) {}
 
   private async read(path: string, args: string[], signal?: AbortSignal): Promise<string> {
     signal?.throwIfAborted();
-    const result = await this.connection.execCommand(
-      gitFileCommand(path, args),
-      undefined,
-      signal,
-      { maxOutputBytes: 1024 * 1024, strictUtf8: true },
-    );
+    const result = await runGit(this.connection, path, args, signal, {
+      maxOutputBytes: 1024 * 1024,
+      strictUtf8: true,
+    });
     signal?.throwIfAborted();
     if (result.exitCode !== 0)
       throw new Error(

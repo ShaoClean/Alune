@@ -36,7 +36,7 @@ for (const name of ['shared', 'ssh-client']) {
 await writeFile(path.join(target, 'package.json'), JSON.stringify({
   name: 'alune-desktop',
   version: rootPackage.version,
-  description: 'Alune 桌面远程 Git 工作区',
+  description: 'Alune 本地与 SSH Git 工作区',
   author: 'Alune',
   private: true,
   main: 'main.cjs',

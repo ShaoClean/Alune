@@ -1,7 +1,7 @@
+import { runGit } from './repository-transport';
+import type { RepositoryTransport } from './repository-transport';
 import { createHash } from 'node:crypto';
 import type { CommitReference, GraphCommit, LogOptions, LogPage } from '@alune/shared';
-import type { SSHConnection } from './connection-manager';
-import { gitFileCommand } from './git-shell';
 
 export class GitLogChangedError extends Error {
   constructor() {
@@ -21,7 +21,7 @@ function integer(value: unknown, fallback: number, min: number, max: number): nu
 }
 
 export async function readLog(
-  connection: SSHConnection,
+  connection: RepositoryTransport,
   repoPath: string,
   options: LogOptions = {},
 ): Promise<LogPage> {
@@ -39,7 +39,7 @@ export async function readLog(
   }
   if (skip && !options.revision) throw new GitLogOptionsError('加载下一页需要历史版本，请先刷新。');
 
-  const run = (args: string[]) => connection.execCommand(gitFileCommand(repoPath, args));
+  const run = (args: string[]) => runGit(connection, repoPath, args);
   const checked = async (args: string[]) => {
     const result = await run(args);
     if (result.exitCode !== 0) throw new Error('无法读取提交历史：' + result.stderr);

@@ -1113,3 +1113,94 @@ body,
 .repository-card__actions { flex-wrap: wrap; }
 .repository-status-notice { display: flex; gap: 12px; align-items: center; padding: 8px 16px; font-size: 12px; }
 .repository-status-notice .repository-status { flex-direction: row; gap: 12px; }
+
+/* Local Git uses the existing workspace palette and compact control rhythm. */
+.source-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.git-form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 16px 0 6px;
+}
+.local-inspect-button {
+  margin: 12px 0 16px;
+}
+.local-repository-preview {
+  margin-top: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.local-repository-preview__path,
+.git-path-detail {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  margin: 8px 0;
+}
+.repository-context-notices {
+  flex: none;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+}
+.repository-context-notices > div {
+  min-height: 30px;
+  padding: 3px 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.repository-context-notices:empty {
+  display: none;
+}
+.git-operation-notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 7px 14px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.git-operation-notice small {
+  opacity: 0.75;
+}
+.sync-error-notice {
+  flex: none;
+  max-height: 150px;
+  overflow: auto;
+}
+.stash-diff {
+  max-height: 60vh;
+  overflow: auto;
+  white-space: pre;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  tab-size: 4;
+}
+.worktree-entry {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 4px;
+}
+.worktree-entry .worktree-option {
+  width: 100%;
+  border-bottom: 0;
+}
+.branch-row__actions {
+  flex-wrap: wrap;
+}

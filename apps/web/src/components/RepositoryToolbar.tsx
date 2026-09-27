@@ -121,7 +121,7 @@ export function RepositoryToolbar({
   syncingForce?: boolean;
   refreshing?: boolean;
   onSelect: (panel: RepositoryPanel) => void;
-  onSync: (operation: SyncOperation, options?: { force?: boolean }) => void;
+  onSync: (operation: SyncOperation, options?: { force?: boolean; tags?: boolean }) => void;
   onRefresh: () => void;
   onBranchSwitched: () => void;
   tier?: 'full' | 'compact' | 'condensed' | 'minimal';
@@ -185,7 +185,8 @@ export function RepositoryToolbar({
   };
 
   const viewCount = (key: RepositoryPanel) => (key === 'changes' ? changes : undefined);
-  const overflow = edges.start && edges.end ? 'both' : edges.start ? 'start' : edges.end ? 'end' : undefined;
+  const overflow =
+    edges.start && edges.end ? 'both' : edges.start ? 'start' : edges.end ? 'end' : undefined;
 
   return (
     <div className="repository-toolbar" data-tier={tier}>
@@ -206,11 +207,7 @@ export function RepositoryToolbar({
             <ToolbarButton
               key={view.key}
               variant="nav"
-              label={
-                count === undefined
-                  ? view.label
-                  : `${view.label} · ${count} 个文件`
-              }
+              label={count === undefined ? view.label : `${view.label} · ${count} 个文件`}
               tooltip={
                 view.key === 'changes' && count === undefined
                   ? '改动 · 状态未知'
@@ -275,9 +272,7 @@ export function RepositoryToolbar({
         >
           {syncing === 'pull' ? <LoadingOutlined /> : <DownloadOutlined />}
           {!iconOnlyActions && (
-            <span className="toolbar-button__label">
-              {syncing === 'pull' ? '拉取中…' : '拉取'}
-            </span>
+            <span className="toolbar-button__label">{syncing === 'pull' ? '拉取中…' : '拉取'}</span>
           )}
           {!!behind && <span className="toolbar-count toolbar-count--behind">{behind}</span>}
         </ToolbarButton>
@@ -322,7 +317,7 @@ export function RepositoryToolbar({
               items: [
                 {
                   key: 'push',
-                  label: '推送到 origin',
+                  label: '推送到上游',
                   icon: <UploadOutlined />,
                   disabled: busy,
                   onClick: () => onSync('push'),
@@ -339,7 +334,7 @@ export function RepositoryToolbar({
                   label: '推送标签',
                   icon: <TagOutlined />,
                   disabled: busy,
-                  onClick: () => onSync('push'),
+                  onClick: () => onSync('push', { tags: true }),
                 },
                 { type: 'divider' as const },
                 {

@@ -35,8 +35,58 @@ export class RepositoryController {
   }
 
   @Post()
-  async add(@Body() body: { connectionId: string; path: string }) {
+  async add(
+    @Body()
+    body: {
+      source?: 'local' | 'ssh';
+      connectionId?: string;
+      path: string;
+    },
+  ) {
+    if (body?.source === 'local') {
+      try {
+        return await this.repoService.addLocal(body.path);
+      } catch (error) {
+        if (error instanceof HttpException) throw error;
+        throw new BadRequestException(
+          error instanceof Error ? error.message : '无法打开本地仓库。',
+        );
+      }
+    }
+    if (
+      !body ||
+      (body.source && body.source !== 'ssh') ||
+      typeof body.connectionId !== 'string' ||
+      !body.connectionId ||
+      typeof body.path !== 'string' ||
+      !body.path
+    )
+      throw new BadRequestException('请选择仓库来源、连接和路径。');
     return this.repoService.add(body.connectionId, body.path);
+  }
+
+  @Post('local/inspect')
+  async inspectLocal(@Body() body: { path: string }) {
+    try {
+      return await this.repoService.inspectLocal(body?.path);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法读取本地仓库。',
+      );
+    }
+  }
+
+  @Get(':id/context')
+  async context(@Param('id', ParseUUIDPipe) id: string) {
+    try {
+      return await this.repoService.getContext(id);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法读取仓库配置。',
+      );
+    }
   }
 
   @Get()
@@ -68,7 +118,9 @@ export class RepositoryController {
       return await this.repoService.getStatus(id);
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      throw new BadRequestException(error instanceof Error ? error.message : '无法读取仓库状态');
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法读取仓库状态',
+      );
     }
   }
 
@@ -78,7 +130,9 @@ export class RepositoryController {
       return await this.repoService.getWorktrees(id);
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      throw new BadRequestException(error instanceof Error ? error.message : '无法读取 Worktree 列表');
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法读取 Worktree 列表',
+      );
     }
   }
 
@@ -87,7 +141,11 @@ export class RepositoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { path?: unknown },
   ) {
-    if (typeof body?.path !== 'string' || !body.path || body.path.includes('\0'))
+    if (
+      typeof body?.path !== 'string' ||
+      !body.path ||
+      body.path.includes('\0')
+    )
       throw new BadRequestException('请选择有效的 Worktree 路径。');
     try {
       return await this.repoService.openWorktree(id, body.path);
@@ -95,7 +153,7 @@ export class RepositoryController {
       if (error instanceof HttpException) throw error;
       throw new BadRequestException(
         '无法打开 Worktree，请确认目录仍存在且可访问：' +
-        (error instanceof Error ? error.message : '远程读取失败'),
+          (error instanceof Error ? error.message : '远程读取失败'),
       );
     }
   }
@@ -153,7 +211,10 @@ export class RepositoryController {
   }
 
   @Get(':id/diff-image')
-  async getDiffImage(@Param('id', ParseUUIDPipe) id: string, @Query() query: any) {
+  async getDiffImage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: any,
+  ) {
     if (typeof query.file !== 'string' || !query.file)
       throw new BadRequestException('file is required');
     if (query.side !== 'before' && query.side !== 'after')
@@ -161,36 +222,59 @@ export class RepositoryController {
     const options: DiffImageOptions = {
       file: query.file,
       side: query.side,
-      staged: query.staged === true || query.staged === 'true' || query.staged === '1',
+      staged:
+        query.staged === true ||
+        query.staged === 'true' ||
+        query.staged === '1',
       commit: typeof query.commit === 'string' ? query.commit : undefined,
-      parentCommit: typeof query.parentCommit === 'string' ? query.parentCommit : undefined,
+      parentCommit:
+        typeof query.parentCommit === 'string' ? query.parentCommit : undefined,
     };
     try {
       return await this.repoService.getDiffImage(id, options);
     } catch (error) {
       if (error instanceof HttpException) throw error;
       // A missing side is a normal added/deleted case; the page must tell them apart.
-      if (error instanceof DiffImageAbsentError) throw new NotFoundException(error.message);
-      throw new BadRequestException(error instanceof Error ? error.message : '无法读取图片');
+      if (error instanceof DiffImageAbsentError)
+        throw new NotFoundException(error.message);
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法读取图片',
+      );
     }
   }
 
   // Read-only worktree browsing. Absent and unreadable paths keep their own
   // status so the tree can show them in place without failing the whole view.
   @Get(':id/tree')
-  async getTree(@Param('id', ParseUUIDPipe) id: string, @Query('path') path?: unknown) {
+  async getTree(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('path') path?: unknown,
+  ) {
     if (path !== undefined && typeof path !== 'string')
       throw new BadRequestException('path must be a string');
-    return this.readFiles(() => this.repoService.listTree(id, path ?? ''), '无法读取目录');
+    return this.readFiles(
+      () => this.repoService.listTree(id, path ?? ''),
+      '无法读取目录',
+    );
   }
 
   @Get(':id/file')
-  async getFile(@Param('id', ParseUUIDPipe) id: string, @Query('path') path?: unknown) {
-    if (typeof path !== 'string' || !path) throw new BadRequestException('path is required');
-    return this.readFiles(() => this.repoService.readFile(id, path), '无法读取文件');
+  async getFile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('path') path?: unknown,
+  ) {
+    if (typeof path !== 'string' || !path)
+      throw new BadRequestException('path is required');
+    return this.readFiles(
+      () => this.repoService.readFile(id, path),
+      '无法读取文件',
+    );
   }
 
-  private async readFiles<T>(operation: () => Promise<T>, fallback: string): Promise<T> {
+  private async readFiles<T>(
+    operation: () => Promise<T>,
+    fallback: string,
+  ): Promise<T> {
     try {
       return await operation();
     } catch (error) {
@@ -199,7 +283,9 @@ export class RepositoryController {
         throw new NotFoundException(error.message);
       if (error instanceof RepositoryFileError && error.statusCode === 403)
         throw new ForbiddenException(error.message);
-      throw new BadRequestException(error instanceof Error ? error.message : fallback);
+      throw new BadRequestException(
+        error instanceof Error ? error.message : fallback,
+      );
     }
   }
 

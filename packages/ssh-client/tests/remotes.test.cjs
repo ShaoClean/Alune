@@ -49,3 +49,35 @@ test('remote discovery forwards command cancellation, output limits and Windows 
   assert.equal(seen[2], controller.signal);
   assert.deepEqual(seen[3], { maxOutputBytes: 1024 * 1024 });
 });
+
+test('local remote discovery uses native Git with cancellation and bounded output', async () => {
+  const controller = new AbortController();
+  let seen;
+  const git = new GitCommands({
+    execGit: async (...args) => {
+      seen = args;
+      return {
+        stdout: 'origin\thttps://github.com/team/repo.git (fetch)\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    },
+    execCommand: async () => assert.fail('Local Git must use native arguments'),
+  });
+  assert.deepEqual(await git.remoteList('C:\\work %TEMP%\\repo', controller.signal), [
+    {
+      name: 'origin',
+      fetchUrl: 'https://github.com/team/repo.git',
+      pushUrl: '',
+    },
+  ]);
+  assert.deepEqual(seen, [
+    'C:\\work %TEMP%\\repo',
+    ['remote', '-v'],
+    controller.signal,
+    { maxOutputBytes: 1024 * 1024 },
+  ]);
+  const reason = new Error('cancelled remote discovery');
+  controller.abort(reason);
+  await assert.rejects(git.remoteList('C:\\work %TEMP%\\repo', controller.signal), reason);
+});

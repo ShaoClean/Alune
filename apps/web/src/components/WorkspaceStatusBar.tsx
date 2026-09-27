@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Popover } from 'antd';
-import { BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
+import { LaptopOutlined, BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
 import type { Repository } from '@alune/shared';
 import { useNavigate } from 'react-router-dom';
 import { useConnectionStore } from '../stores/connectionStore';
@@ -46,11 +46,14 @@ export function WorkspaceStatusBar({
   const notificationPanel = useRef<HTMLElement>(null);
   const info = connection ? statuses[connection.id] : undefined;
   const state = connectionStatus(info);
-  const connectionLabel = !connection
-    ? '未选择远程连接'
-    : [`SSH ${connectionStatusLabel(info)}`, connection.name, info?.error]
-        .filter(Boolean)
-        .join(' · ');
+  const local = repository?.source === 'local';
+  const connectionLabel = local
+    ? '本机执行'
+    : !connection
+      ? '未选择远程连接'
+      : [`SSH ${connectionStatusLabel(info)}`, connection.name, info?.error]
+          .filter(Boolean)
+          .join(' · ');
 
   return (
     <footer className="status-bar" aria-label="工作区状态栏" inert={inert}>
@@ -63,7 +66,7 @@ export function WorkspaceStatusBar({
           version={version}
           onSelect={(id) => navigate(`/repositories/${id}`)}
           onBrowse={() => navigate('/repositories')}
-          onConnections={() => navigate('/')}
+          onConnections={() => navigate('/connections')}
           onSettings={onSettings}
         />
         {repository && <span className="status-bar__divider" aria-hidden="true" />}
@@ -82,13 +85,15 @@ export function WorkspaceStatusBar({
       <div className="status-bar__right">
         <StatusButton
           label={connectionLabel}
-          tooltip={`${connectionLabel} · 管理连接`}
+          tooltip={local ? 'Git 命令在本机执行' : `${connectionLabel} · 管理连接`}
           className="status-button--connection"
-          onClick={() => navigate('/')}
+          onClick={() => navigate(local ? '/repositories' : '/connections')}
         >
-          <CloudServerOutlined />
-          <span className={`connection-dot connection-dot--${state}`} />
-          <span className="status-bar__connection-label">{connection?.name || '远程连接'}</span>
+          {local ? <LaptopOutlined /> : <CloudServerOutlined />}
+          {!local && <span className={`connection-dot connection-dot--${state}`} />}
+          <span className="status-bar__connection-label">
+            {local ? '本机执行' : connection?.name || '远程连接'}
+          </span>
         </StatusButton>
         <Popover
           trigger="click"

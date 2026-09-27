@@ -61,7 +61,7 @@ export async function startServer(options: ServerOptions = {}) {
       app.use(express.static(webRoot, { index: false }));
       const sendIndex = (res: Response) => {
         res.set('Cache-Control', 'no-cache');
-        res.sendFile(path.join(webRoot, 'index.html'));
+        res.sendFile('index.html', { root: webRoot });
       };
       app.use((req: Request, res: Response, next: NextFunction) => {
         if (

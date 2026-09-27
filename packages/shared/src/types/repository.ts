@@ -1,6 +1,7 @@
 export interface Repository {
   id: string;
-  connectionId: string;
+  source?: 'local' | 'ssh';
+  connectionId?: string;
   name: string;
   path: string;
   currentBranch?: string;
@@ -15,6 +16,18 @@ export interface RepositoryStatus {
   ahead: number;
   behind: number;
   files: FileStatus[];
+  unborn?: boolean;
+  upstream?: string;
+}
+
+export interface RepositoryContext {
+  path: string;
+  source: 'local' | 'ssh';
+  author: { name: string; email: string };
+  shallow: boolean;
+  unborn: boolean;
+  upstream: string;
+  remotes: RemoteInfo[];
 }
 
 export interface WorktreeInfo {
@@ -78,6 +91,7 @@ export interface FileStatus {
   oldPath?: string;
   status: 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'untracked' | 'ignored';
   staged: boolean;
+  conflicted?: boolean;
   additions?: number;
   deletions?: number;
 }
