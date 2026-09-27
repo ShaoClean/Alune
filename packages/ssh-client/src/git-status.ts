@@ -32,8 +32,10 @@ export function parseStatus(output: string): RepositoryStatus & {
   };
   for (let i = 0; i < tokens.length; i++) {
     const raw = tokens[i];
-    if (raw.startsWith('# branch.head ')) result.branch = raw.slice(14) === '(detached)' ? '' : raw.slice(14);
+    if (raw.startsWith('# branch.head '))
+      result.branch = raw.slice(14) === '(detached)' ? '' : raw.slice(14);
     else if (raw.startsWith('# branch.oid ')) result.head = raw.slice(13);
+    else if (raw.startsWith('# branch.upstream ')) result.upstream = raw.slice(18);
     else if (raw.startsWith('# branch.ab ')) {
       const match = raw.match(/\+(\d+) -(\d+)/);
       if (match) {
@@ -47,7 +49,8 @@ export function parseStatus(output: string): RepositoryStatus & {
       const path = fields.slice(kind === '1' ? 8 : kind === '2' ? 9 : 10).join(' ');
       const oldPath = kind === '2' ? tokens[++i] : undefined;
       result.records.push({ path, oldPath, raw, kind, xy });
-      if (kind === 'u') result.files.push({ path, status: 'modified', staged: false });
+      if (kind === 'u')
+        result.files.push({ path, status: 'modified', staged: false, conflicted: true });
       else {
         if (xy[0] !== '.')
           result.files.push({

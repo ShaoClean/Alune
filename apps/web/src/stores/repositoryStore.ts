@@ -75,6 +75,9 @@ interface RepositoryState {
   fetchRepositories: (connectionId?: string) => Promise<void>;
   scanRepositories: (connectionId: string, path: string) => Promise<string[]>;
   addRepository: (connectionId: string, path: string) => Promise<any>;
+  addLocalRepository: (path: string) => Promise<Repository>;
+  registerRepository: (repo: Repository) => void;
+  forgetRepositories: (ids: string[]) => void;
   addWorktree: (id: string, path: string) => Promise<Repository>;
   deleteRepository: (id: string) => Promise<void>;
   openRepository: (repo: any) => void;
@@ -359,6 +362,36 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       set((state) => ({ repositories: [...state.repositories, repo] }));
       useWorkspaceStore.getState().addRepository(repo);
       return repo;
+    },
+
+    registerRepository: (repo) => {
+      registryRevision++;
+      removed.delete(repo.id);
+      set((state) => ({
+        repositories: [...state.repositories.filter((item) => item.id !== repo.id), repo],
+      }));
+      useWorkspaceStore.getState().addRepository(repo);
+    },
+    addLocalRepository: async (path) => {
+      const repo = await repositoryApi.addLocal(path);
+      get().registerRepository(repo);
+      return repo;
+    },
+    forgetRepositories: (ids) => {
+      registryRevision++;
+      for (const id of ids) {
+        removed.add(id);
+        cancelStatus(id);
+        useWorkspaceStore.getState().removeRepository(id);
+      }
+      set((state) => ({
+        repositories: state.repositories.filter((repo) => !ids.includes(repo.id)),
+        openRepositories: state.openRepositories.filter((repo) => !ids.includes(repo.id)),
+        repositoryStatuses: Object.fromEntries(
+          Object.entries(state.repositoryStatuses).filter(([id]) => !ids.includes(id)),
+        ),
+        currentRepo: ids.includes(state.currentRepo?.id) ? null : state.currentRepo,
+      }));
     },
 
     addWorktree: async (id, path) => {

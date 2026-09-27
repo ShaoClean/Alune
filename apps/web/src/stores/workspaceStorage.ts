@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { StateStorage } from 'zustand/middleware';
 
 export interface WorkspaceBridge {
+  chooseDirectory?: () => Promise<string | null>;
   load: () => Promise<string | null>;
   save: (value: string) => Promise<void>;
   clear: () => Promise<void>;
