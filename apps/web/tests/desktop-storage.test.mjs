@@ -27,6 +27,7 @@ test('desktop hydration completes before either list can validate saved order', 
   release(JSON.stringify({ version: 1, state: {
     connectionOrder: ['b', 'a'], repositoryOrderByConnection: { a: ['r2', 'r1'] },
     collapsedConnectionIds: ['b'],
+    collectionViews: { repositories: 'list', connections: 'grid' },
   } }));
   await ready;
   await lists;
@@ -34,6 +35,9 @@ test('desktop hydration completes before either list can validate saved order', 
   assert.deepEqual(workspace.getState().connectionOrder, ['b', 'a']);
   assert.deepEqual(workspace.getState().repositoryOrderByConnection, { a: ['r2', 'r1'] });
   assert.deepEqual(workspace.getState().collapsedConnectionIds, ['b']);
+  assert.deepEqual(workspace.getState().collectionViews, { repositories: 'list', connections: 'grid' });
+  workspace.getState().setCollectionView('connections', 'list');
+  assert.deepEqual(JSON.parse(writes.at(-1)).state.collectionViews, { repositories: 'list', connections: 'list' });
   assert.deepEqual(repositories.getState().repositories.map((repo) => repo.id), ['r1', 'r2']);
 });
 

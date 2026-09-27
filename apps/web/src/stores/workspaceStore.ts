@@ -10,7 +10,10 @@ import { DEFAULT_LAYOUT, readLayoutPreferences } from './workspaceLayout';
 import type { LayoutPreferences } from './workspaceLayout';
 
 type RepositoryIdentity = { id: string; connectionId?: string; source?: 'local' | 'ssh' };
+export type CollectionView = 'grid' | 'list';
+export type CollectionPage = 'repositories' | 'connections';
 type Preferences = {
+  collectionViews: Record<CollectionPage, CollectionView>;
   appearance: AppearancePreferences;
   layout: LayoutPreferences;
   treeOpen: boolean;
@@ -19,6 +22,7 @@ type Preferences = {
   repositoryOrderByConnection: Record<string, string[]>;
 };
 interface WorkspaceState extends Preferences {
+  setCollectionView: (page: CollectionPage, view: CollectionView) => void;
   updateAppearance: (patch: Partial<AppearancePreferences>) => void;
   updateLayout: (patch: Partial<LayoutPreferences>) => void;
   resetLayout: () => void;
@@ -35,6 +39,7 @@ interface WorkspaceState extends Preferences {
 }
 
 const defaults: Preferences = {
+  collectionViews: { repositories: 'grid', connections: 'grid' },
   appearance: DEFAULT_APPEARANCE,
   layout: DEFAULT_LAYOUT,
   treeOpen: true,
@@ -55,7 +60,12 @@ const record = (value: unknown): Record<string, unknown> =>
 // Browser storage is untrusted and may belong to an older app version.
 function readPreferences(value: unknown): Preferences {
   const saved = record(value);
+  const views = record(saved.collectionViews);
   return {
+    collectionViews: {
+      repositories: views.repositories === 'list' ? 'list' : 'grid',
+      connections: views.connections === 'list' ? 'list' : 'grid',
+    },
     appearance: readAppearancePreferences(saved.appearance),
     layout: readLayoutPreferences(saved.layout),
     treeOpen: typeof saved.treeOpen === 'boolean' ? saved.treeOpen : true,
@@ -73,6 +83,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
     (set, get) => ({
       ...defaults,
+      setCollectionView: (page, view) =>
+        set((state) => ({ collectionViews: { ...state.collectionViews, [page]: view } })),
       updateAppearance: (patch) =>
         set((state) => ({
           appearance: readAppearancePreferences({ ...state.appearance, ...patch }),
@@ -199,6 +211,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         repositoryOrderByConnection,
         layout,
         appearance,
+        collectionViews,
       }) => ({
         treeOpen,
         collapsedConnectionIds,
@@ -206,6 +219,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         repositoryOrderByConnection,
         layout,
         appearance,
+        collectionViews,
       }),
       merge: (saved, current) => ({ ...current, ...readPreferences(saved) }),
     },

@@ -1,0 +1,153 @@
+.collection-view-switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.collection-view-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.collection-view-switch button:hover {
+  background: var(--surface-hover);
+}
+.collection-view-switch button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--blue);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+.collection-view-switch button:focus-visible,
+.collection-table-scroll:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.collection-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repository-card__metric {
+  min-width: 0;
+}
+.repository-card__title > .anticon,
+.connection-card__title > .anticon,
+.repository-card__metric > .anticon {
+  flex-shrink: 0;
+}
+.connection-card__meta,
+.connection-card__error {
+  overflow-wrap: anywhere;
+}
+.collection-filter-bar {
+  flex-wrap: wrap;
+}
+.collection-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 10px;
+}
+.collection-table {
+  width: 100%;
+  min-width: 940px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  color: var(--text);
+  font-size: 12px;
+}
+.collection-table th,
+.collection-table td {
+  padding: 13px 16px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+}
+.collection-table thead th {
+  padding-block: 11px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.collection-table tbody th {
+  font-weight: 400;
+}
+.collection-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.collection-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+.collection-table__connection-column {
+  width: 13%;
+}
+.collection-table__branch-column {
+  width: 18%;
+}
+.collection-table__status-column {
+  width: 138px;
+}
+.collection-table__actions-column {
+  width: 262px;
+}
+.collection-table__host-column {
+  width: 26%;
+}
+.collection-table__auth-column {
+  width: 98px;
+}
+.connection-table .collection-table__actions-column {
+  width: 294px;
+}
+.connection-table .collection-table__status-column {
+  width: 108px;
+}
+.collection-table__mono {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+}
+.collection-table__secondary {
+  margin-top: 5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collection-table .repository-card__title,
+.collection-table .connection-card__title {
+  font-size: 13px;
+}
+.collection-table .repository-card__metrics {
+  margin: 0;
+  gap: 8px;
+}
+.collection-table .repository-status {
+  align-items: flex-start;
+}
+.collection-table .repository-card__actions,
+.collection-table .connection-card__actions {
+  flex-wrap: nowrap;
+}
+.collection-table .connection-card__error {
+  margin-top: 5px;
+  line-height: 1.5;
+}
