@@ -16,6 +16,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { RepositoryService } from '../repository/repository.service';
 import { RepositoryController } from '../repository/repository.controller';
+import { PullRequestsService } from '../repository/pull-requests.service';
 import { ConnectionService } from '../connection/connection.service';
 import { GitService } from './git.service';
 import { GitController } from './git.controller';
@@ -121,6 +122,54 @@ describe('local repositories with real Git and SQLite', () => {
     await repos.delete(id);
     expect(existsSync(join(path, '.git'))).toBe(true);
     expect((await repos.get(remote.id)).source).toBe('ssh');
+  });
+
+  it('discovers and queries PRs for local repositories without opening an SSH connection', async () => {
+    git('remote', 'add', 'origin', 'https://github.com/fixture/local.git');
+    git(
+      'remote',
+      'set-url',
+      '--push',
+      'origin',
+      'git@gitlab.com:other/project.git',
+    );
+    const before = git('status', '--porcelain');
+    const pulls = new PullRequestsService(repos);
+    expect(await pulls.remotes(id)).toEqual([
+      {
+        name: 'origin',
+        host: 'github.com',
+        project: 'fixture/local',
+        provider: 'github',
+        webUrl: 'https://github.com/fixture/local',
+      },
+    ]);
+    const api = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('[]'));
+    try {
+      expect(
+        await pulls.list(id, {
+          remote: 'origin',
+          target: 'https://github.com/fixture/local',
+          provider: 'github',
+          state: 'open',
+          page: 1,
+        }),
+      ).toEqual({ items: [], page: 1, hasMore: false });
+      expect(String(api.mock.calls[0][0])).toContain(
+        'https://api.github.com/repos/fixture/local/pulls?',
+      );
+      const cancelled = new AbortController();
+      cancelled.abort(new Error('cancelled remote discovery'));
+      await expect(repos.getRemotes(id, cancelled.signal)).rejects.toThrow(
+        'cancelled remote discovery',
+      );
+      expect(ssh).not.toHaveBeenCalled();
+      expect(git('status', '--porcelain')).toBe(before);
+    } finally {
+      api.mockRestore();
+    }
   });
 
   it('handles unborn HEAD, literal Unicode paths, first commit and staged/unstaged content independently', async () => {

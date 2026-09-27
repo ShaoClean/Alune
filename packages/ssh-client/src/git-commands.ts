@@ -297,8 +297,10 @@ export class GitCommands {
       .filter((s): s is StashEntry => s !== null);
   }
 
-  async remoteList(repoPath: string): Promise<RemoteInfo[]> {
-    const result = await runGit(this.connection, repoPath, ['remote', '-v']);
+  async remoteList(repoPath: string, signal?: AbortSignal): Promise<RemoteInfo[]> {
+    const result = await runGit(this.connection, repoPath, ['remote', '-v'], signal, {
+      maxOutputBytes: 1024 * 1024,
+    });
     if (result.exitCode !== 0) {
       throw new Error(`git remote failed: ${result.stderr}`);
     }

@@ -10,6 +10,7 @@ import {
   GlobalOutlined,
   HistoryOutlined,
   InboxOutlined,
+  PullRequestOutlined,
   LoadingOutlined,
   ReloadOutlined,
   TagOutlined,
@@ -25,7 +26,7 @@ import { useToolbarTier } from '../hooks/useToolbarTier';
 import { syncLabel } from '../stores/syncStatusStore';
 import type { SyncOperation } from '../stores/syncStatusStore';
 
-export type RepositoryPanel = 'changes' | 'files' | 'history' | 'branches' | 'stashes' | 'remotes';
+export type RepositoryPanel = 'changes' | 'files' | 'history' | 'branches' | 'stashes' | 'remotes' | 'pull-requests';
 export type { SyncOperation };
 
 type ViewItem = { key: RepositoryPanel; label: string; icon: ReactElement };
@@ -38,6 +39,7 @@ export const repositoryViews: ViewItem[] = [
   { key: 'branches', label: '分支', icon: <BranchesOutlined /> },
   { key: 'stashes', label: '储藏', icon: <InboxOutlined /> },
   { key: 'remotes', label: '远程', icon: <GlobalOutlined /> },
+  { key: 'pull-requests', label: 'PR/MR', icon: <PullRequestOutlined /> },
 ];
 
 type Edges = { start: boolean; end: boolean };

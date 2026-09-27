@@ -13,6 +13,9 @@ import type {
   RepositoryFilePreview,
   RepositoryTreeListing,
   WorktreeInfo,
+  PullRequestRemote,
+  PullRequestQuery,
+  PullRequestPage,
 } from '@alune/shared';
 
 const api = axios.create({
@@ -42,6 +45,14 @@ export const connectionApi = {
 
 // Repository APIs
 export const repositoryApi = {
+  pullRequestRemotes: (id: string, signal?: AbortSignal): Promise<PullRequestRemote[]> =>
+    api.get(`/repositories/${id}/pull-requests/remotes`, { signal }).then((r) => r.data),
+  pullRequests: (
+    id: string,
+    query: PullRequestQuery,
+    signal?: AbortSignal,
+  ): Promise<PullRequestPage> =>
+    api.post(`/repositories/${id}/pull-requests/list`, query, { signal }).then((r) => r.data),
   inspectLocal: (
     path: string,
   ): Promise<RepositoryContext & { name: string; status: RepositoryStatus }> =>

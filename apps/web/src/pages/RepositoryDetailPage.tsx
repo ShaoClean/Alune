@@ -17,6 +17,7 @@ import { DiffViewer } from '../components/DiffViewer';
 import { FilesView } from '../components/FilesView';
 import { HistoryWorkspace } from '../components/HistoryWorkspace';
 import { RemotesView } from '../components/RemotesView';
+import { PullRequestsView } from '../components/PullRequestsView';
 import { StashesView } from '../components/StashesView';
 import { ErrorState, LoadingState, FileIcon } from '../components/ui';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
@@ -34,6 +35,7 @@ const panelLabels: Record<Panel, string> = {
   branches: '分支',
   stashes: '储藏',
   remotes: '远程',
+  'pull-requests': 'PR/MR',
 };
 
 export function RepositoryDetailPage() {
@@ -96,6 +98,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [refreshing, setRefreshing] = useState(false);
   // The files view keeps its own tree; a new token asks it to reload what is on screen.
   const [filesRefresh, setFilesRefresh] = useState(0);
+  const [pullRequestsRefresh, setPullRequestsRefresh] = useState(0);
   const startSync = useSyncStatusStore((state) => state.startSync);
   const finishSync = useSyncStatusStore((state) => state.finishSync);
 
@@ -212,6 +215,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     if (!id) return;
     setContextRevision((value) => value + 1);
     if (activePanel === 'files') setFilesRefresh((token) => token + 1);
+    if (activePanel === 'pull-requests') setPullRequestsRefresh((token) => token + 1);
     await fetchStatus(id, afterMutation);
     if (activePanel === 'history') await fetchLog(id);
     if (activePanel === 'branches') await fetchBranches(id);
@@ -374,6 +378,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       );
     if (activePanel === 'files')
       return <FilesView key={id} repoId={id} refreshToken={filesRefresh} />;
+    if (activePanel === 'pull-requests')
+      return <PullRequestsView key={id} repoId={id} refreshToken={pullRequestsRefresh} />;
     if (activePanel === 'history') return <HistoryWorkspace repoId={id} />;
     if (activePanel === 'branches')
       return <BranchesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
