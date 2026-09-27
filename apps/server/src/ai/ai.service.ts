@@ -5,7 +5,11 @@ import {
   GatewayTimeoutException,
   OnModuleDestroy,
 } from '@nestjs/common';
-import { StagedChanges, StagedChangesError } from '@alune/ssh-client';
+import {
+  StagedChanges,
+  StagedChangesError,
+  LocalConnection,
+} from '@alune/ssh-client';
 import { ConnectionService } from '../connection/connection.service';
 import { RepositoryService } from '../repository/repository.service';
 import { AiSettingsStore } from './ai-settings';
@@ -113,9 +117,10 @@ export class AiService implements OnModuleDestroy {
         '请先在提交生成设置中选择已启用的服务商和模型。',
       );
     const repo = await this.repositories.get(repoId);
-    const connection = await this.connections.ensureConnected(
-      repo.connectionId,
-    );
+    const connection =
+      repo.source === 'local'
+        ? new LocalConnection(signal)
+        : await this.connections.ensureConnected(repo.connectionId!);
     signal.throwIfAborted();
     const staged = new StagedChanges(connection, repo.path);
     const snapshot = await staged.read(signal);

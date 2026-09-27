@@ -1,6 +1,7 @@
+import { runGit } from './repository-transport';
+import type { RepositoryTransport } from './repository-transport';
 import { createHash } from 'node:crypto';
-import { SSHConnection, CommandOutputLimitError } from './connection-manager';
-import { gitFileCommand } from './git-shell';
+import { CommandOutputLimitError } from './connection-manager';
 
 export const AI_DIFF_MAX_BYTES = 96 * 1024;
 export class StagedChangesError extends Error {
@@ -14,14 +15,16 @@ export class StagedChangesError extends Error {
 
 export class StagedChanges {
   constructor(
-    private connection: SSHConnection,
+    private connection: RepositoryTransport,
     private repoPath: string,
   ) {}
 
   private async diff(args: string[], signal: AbortSignal, maxOutputBytes: number) {
     try {
-      const result = await this.connection.execCommand(
-        gitFileCommand(this.repoPath, [
+      const result = await runGit(
+        this.connection,
+        this.repoPath,
+        [
           'diff',
           '--cached',
           '--no-color',
@@ -30,8 +33,7 @@ export class StagedChanges {
           '--no-renames',
           '--ignore-submodules=none',
           ...args,
-        ]),
-        undefined,
+        ],
         signal,
         { maxOutputBytes },
       );

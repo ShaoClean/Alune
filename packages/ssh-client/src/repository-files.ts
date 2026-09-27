@@ -1,4 +1,6 @@
-import { posix } from 'path';
+import { joinRepositoryPath } from './repository-path';
+import { runGit } from './repository-transport';
+import type { RepositoryTransport } from './repository-transport';
 import { promisify } from 'util';
 import type { SFTPWrapper, Stats } from 'ssh2';
 import {
@@ -13,7 +15,6 @@ import type {
   RepositoryTreeEntryKind,
   RepositoryTreeListing,
 } from '@alune/shared';
-import { SSHConnection } from './connection-manager';
 import { isWindowsPath } from './git-shell';
 
 export class RepositoryFileError extends Error {
@@ -110,7 +111,7 @@ async function eachLimit<T>(items: T[], run: (item: T) => Promise<void>): Promis
 class PreviewLimitError extends Error {}
 
 export class RepositoryFiles {
-  constructor(private readonly connection: SSHConnection) {}
+  constructor(private readonly connection: RepositoryTransport) {}
 
   async list(repoPath: string, dir: string): Promise<RepositoryTreeListing> {
     validateRepositoryPath(repoPath, dir, true);
@@ -138,7 +139,7 @@ export class RepositoryFiles {
       }
       // Some servers omit attributes in directory listings.
       await eachLimit(unknown, async (entry) => {
-        const stat = await lstat(posix.join(target, entry.name)).catch(() => undefined);
+        const stat = await lstat(joinRepositoryPath(target, entry.name)).catch(() => undefined);
         entry.kind = kindOf(stat?.mode) ?? 'other';
         if (entry.kind === 'file' && typeof stat?.size === 'number') entry.size = stat.size;
       });
@@ -157,7 +158,7 @@ export class RepositoryFiles {
       await eachLimit(
         shown.filter((entry) => entry.kind === 'directory'),
         async (entry) => {
-          const nested = await lstat(posix.join(target, entry.name, '.git')).then(
+          const nested = await lstat(joinRepositoryPath(target, entry.name, '.git')).then(
             () => true,
             () => false,
           );
@@ -168,7 +169,7 @@ export class RepositoryFiles {
         shown.filter((entry) => entry.kind === 'symlink'),
         async (entry) => {
           entry.target = await promisify(sftp.readlink.bind(sftp))(
-            posix.join(target, entry.name),
+            joinRepositoryPath(target, entry.name),
           ).catch(() => undefined);
         },
       );
@@ -191,7 +192,7 @@ export class RepositoryFiles {
         slash < 0 ? '' : file.slice(0, slash),
         file,
       );
-      const target = posix.join(parent, file.slice(slash + 1));
+      const target = joinRepositoryPath(parent, file.slice(slash + 1));
       const stat: Stats = await promisify(sftp.lstat.bind(sftp))(target);
       if (stat.isSymbolicLink()) {
         const link = await promisify(sftp.readlink.bind(sftp))(target);
@@ -240,7 +241,7 @@ export class RepositoryFiles {
     // SFTP resolves Windows drive paths as well as POSIX paths without shell syntax.
     const root = await realpath(repoPath);
     if (!relative) return root;
-    const target = posix.join(root, relative);
+    const target = joinRepositoryPath(root, relative);
     const resolved = await realpath(target);
     const same = isWindowsPath(repoPath)
       ? resolved.replace(/\\/g, '/').toLowerCase() === target.toLowerCase()
@@ -271,7 +272,7 @@ export class RepositoryFiles {
       if (code === 3 || code === 'EACCES')
         throw new RepositoryFileError(`没有读取此${subject}的权限。`, 403);
       throw new RepositoryFileError(
-        `无法读取${subject}：${error instanceof Error && error.message ? error.message : '远端文件操作失败'}`,
+        `无法读取${subject}：${error instanceof Error && error.message ? error.message : '仓库文件操作失败'}`,
       );
     }
   }

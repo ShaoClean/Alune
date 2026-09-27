@@ -1,3 +1,4 @@
+import { LOCAL_GROUP_ID, repositoryGroupId } from './repositorySource';
 import { DEFAULT_APPEARANCE, readAppearancePreferences } from './appearance';
 import type { AppearancePreferences } from './appearance';
 import { create } from 'zustand';
@@ -8,7 +9,7 @@ import { createWorkspaceStorage } from './workspaceStorage';
 import { DEFAULT_LAYOUT, readLayoutPreferences } from './workspaceLayout';
 import type { LayoutPreferences } from './workspaceLayout';
 
-type RepositoryIdentity = { id: string; connectionId: string };
+type RepositoryIdentity = { id: string; connectionId?: string; source?: 'local' | 'ssh' };
 type Preferences = {
   appearance: AppearancePreferences;
   layout: LayoutPreferences;
@@ -73,7 +74,9 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     (set, get) => ({
       ...defaults,
       updateAppearance: (patch) =>
-        set((state) => ({ appearance: readAppearancePreferences({ ...state.appearance, ...patch }) })),
+        set((state) => ({
+          appearance: readAppearancePreferences({ ...state.appearance, ...patch }),
+        })),
       updateLayout: (patch) =>
         set((state) => ({ layout: readLayoutPreferences({ ...state.layout, ...patch }) })),
       resetLayout: () => set({ layout: { ...DEFAULT_LAYOUT } }),
@@ -85,12 +88,13 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           for (const repo of repositories) {
             if (
               state.validatedConnectionIds &&
-              !state.validatedConnectionIds.includes(repo.connectionId)
+              repo.source !== 'local' &&
+              !state.validatedConnectionIds.includes(repositoryGroupId(repo))
             )
               continue;
-            const ids = groups.get(repo.connectionId) || [];
+            const ids = groups.get(repositoryGroupId(repo)) || [];
             ids.push(repo.id);
-            groups.set(repo.connectionId, ids);
+            groups.set(repositoryGroupId(repo), ids);
           }
           return {
             repositoryOrderByConnection: Object.fromEntries(
@@ -104,10 +108,17 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       reconcileConnections: (ids) =>
         set((state) => ({
           validatedConnectionIds: ids,
-          connectionOrder: orderedIds(ids, state.connectionOrder),
-          collapsedConnectionIds: state.collapsedConnectionIds.filter((id) => ids.includes(id)),
+          connectionOrder: orderedIds(
+            [...(state.connectionOrder.includes(LOCAL_GROUP_ID) ? [LOCAL_GROUP_ID] : []), ...ids],
+            state.connectionOrder,
+          ),
+          collapsedConnectionIds: state.collapsedConnectionIds.filter(
+            (id) => id === LOCAL_GROUP_ID || ids.includes(id),
+          ),
           repositoryOrderByConnection: Object.fromEntries(
-            Object.entries(state.repositoryOrderByConnection).filter(([id]) => ids.includes(id)),
+            Object.entries(state.repositoryOrderByConnection).filter(
+              ([id]) => id === LOCAL_GROUP_ID || ids.includes(id),
+            ),
           ),
         })),
       addConnection: (id) =>
@@ -129,10 +140,13 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         })),
       addRepository: (repo) =>
         set((state) => ({
+          ...(repo.source === 'local'
+            ? { connectionOrder: orderedIds([...state.connectionOrder, LOCAL_GROUP_ID]) }
+            : {}),
           repositoryOrderByConnection: {
             ...state.repositoryOrderByConnection,
-            [repo.connectionId]: orderedIds([
-              ...(state.repositoryOrderByConnection[repo.connectionId] || []),
+            [repositoryGroupId(repo)]: orderedIds([
+              ...(state.repositoryOrderByConnection[repositoryGroupId(repo)] || []),
               repo.id,
             ]),
           },
