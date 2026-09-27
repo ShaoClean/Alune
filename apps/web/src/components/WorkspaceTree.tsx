@@ -1,7 +1,9 @@
+import { LOCAL_GROUP_ID, repositoryGroupId } from '../stores/repositorySource';
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import { Popconfirm } from 'antd';
 import {
+  LaptopOutlined,
   BranchesOutlined,
   DeleteOutlined,
   DownOutlined,
@@ -62,15 +64,17 @@ export function WorkspaceTree({
   const pointerY = useRef<number | null>(null);
 
   const search = query.trim().toLowerCase();
-  const groups = orderItems(connections, connectionOrder)
+  const groups = orderItems([{ id: LOCAL_GROUP_ID, name: '本机' }, ...connections], connectionOrder)
     .map((connection) => ({
       ...connection,
       repositories: orderItems(
         repositories.filter(
           (repo) =>
-            repo.connectionId === connection.id &&
+            repositoryGroupId(repo) === connection.id &&
             (!search ||
-              `${connection.name} ${repo.name} ${repo.path}`.toLowerCase().includes(search)),
+              `${connection.name} ${repo.name} ${repo.path} ${repo.currentBranch || ''}`
+                .toLowerCase()
+                .includes(search)),
         ),
         repositoryOrderByConnection[connection.id],
       ),
@@ -238,7 +242,7 @@ export function WorkspaceTree({
         }}
       >
         <FolderOpenOutlined className="sidebar-workspace__icon" />
-        <span>远程工作区</span>
+        <span>工作区</span>
         <span className="sidebar-workspace__chevron">
           {treeOpen ? <DownOutlined /> : <RightOutlined />}
         </span>
@@ -307,17 +311,21 @@ export function WorkspaceTree({
                     <span className="tree-node__chevron">
                       {open ? <DownOutlined /> : <RightOutlined />}
                     </span>
-                    <span
-                      role="img"
-                      aria-label={`连接状态：${connectionStatusLabel(statuses[connection.id])}`}
-                      title={[
-                        connectionStatusLabel(statuses[connection.id]),
-                        statuses[connection.id]?.error,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                      className={`connection-dot connection-dot--${connectionStatus(statuses[connection.id])}`}
-                    />
+                    {connection.id === LOCAL_GROUP_ID ? (
+                      <LaptopOutlined aria-label="本机" />
+                    ) : (
+                      <span
+                        role="img"
+                        aria-label={`连接状态：${connectionStatusLabel(statuses[connection.id])}`}
+                        title={[
+                          connectionStatusLabel(statuses[connection.id]),
+                          statuses[connection.id]?.error,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                        className={`connection-dot connection-dot--${connectionStatus(statuses[connection.id])}`}
+                      />
+                    )}
                     <span className="tree-node__label" title={connection.name}>
                       {connection.name}
                     </span>
@@ -356,9 +364,15 @@ export function WorkspaceTree({
                           title="确认移除仓库？"
                           description={
                             <div className="tree-delete-confirm">
-                              <div><strong>名称：</strong>{repo.name}</div>
-                              <div><strong>路径：</strong>{repo.path}</div>
-                              <small>仅移除应用内登记，不会删除远端仓库或仓库文件。</small>
+                              <div>
+                                <strong>名称：</strong>
+                                {repo.name}
+                              </div>
+                              <div>
+                                <strong>路径：</strong>
+                                {repo.path}
+                              </div>
+                              <small>仅移除应用内登记，不会删除仓库目录或文件。</small>
                             </div>
                           }
                           okText="确认移除"
