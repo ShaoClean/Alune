@@ -16,6 +16,7 @@ import type {
   RepositoryTreeListing,
 } from '@alune/shared';
 import { isWindowsPath } from './git-shell';
+import { readSftpChunks } from './sftp-file';
 
 export class RepositoryFileError extends Error {
   constructor(
@@ -253,10 +254,10 @@ export class RepositoryFiles {
   private async readCapped(sftp: SFTPWrapper, target: string, limit: number): Promise<Buffer> {
     const chunks: Buffer[] = [];
     let read = 0;
-    for await (const chunk of sftp.createReadStream(target)) {
-      read += (chunk as Buffer).length;
+    for await (const chunk of readSftpChunks(sftp, target)) {
+      read += chunk.length;
       if (read > limit) throw new PreviewLimitError();
-      chunks.push(chunk as Buffer);
+      chunks.push(chunk);
     }
     return Buffer.concat(chunks);
   }

@@ -8,6 +8,7 @@ import type { SFTPWrapper } from 'ssh2';
 import type { NewFileDeletionPreview } from '@alune/shared';
 import { parseStatus } from './git-status';
 import { isWindowsPath } from './git-shell';
+import { readSftpChunks } from './sftp-file';
 
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -92,8 +93,7 @@ export class NewFileDeletion {
     const hash = createHash('sha256');
     if (before.isSymbolicLink()) hash.update(await promisify(sftp.readlink.bind(sftp))(target));
     else {
-      const stream = sftp.createReadStream(target);
-      for await (const chunk of stream) hash.update(chunk);
+      for await (const chunk of readSftpChunks(sftp, target)) hash.update(chunk);
     }
     const after = await promisify(sftp.lstat.bind(sftp))(target);
     const attributes = (stat: typeof before) => [

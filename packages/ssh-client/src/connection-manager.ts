@@ -3,6 +3,8 @@ import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { SSHChannelQueue } from './channel-queue';
+import { readSftpChunks } from './sftp-file';
 
 export interface SSHConnectionOptions {
   host: string;
@@ -41,6 +43,7 @@ export class SSHConnection extends EventEmitter {
   private _connecting = false;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private options: SSHConnectionOptions;
+  private channelQueue = new SSHChannelQueue();
 
   constructor(options: SSHConnectionOptions) {
     super();
@@ -67,10 +70,12 @@ export class SSHConnection extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       const client = new Client();
+      const channelQueue = new SSHChannelQueue();
       const config = this._buildConnectConfig();
 
       client.on('ready', () => {
         this.client = client;
+        this.channelQueue = channelQueue;
         this._connected = true;
         this._connecting = false;
         this.emit('connect');
@@ -86,6 +91,7 @@ export class SSHConnection extends EventEmitter {
       });
 
       client.on('close', () => {
+        channelQueue.close(new Error('SSH connection closed'));
         const wasConnected = this._connected;
         this._connected = false;
         this._connecting = false;
@@ -97,6 +103,7 @@ export class SSHConnection extends EventEmitter {
       });
 
       client.on('end', () => {
+        channelQueue.close(new Error('SSH connection ended'));
         this._connected = false;
         this._connecting = false;
         this.client = null;
@@ -109,6 +116,7 @@ export class SSHConnection extends EventEmitter {
 
   disconnect(): void {
     this._cancelReconnect();
+    this.channelQueue.close(new Error('SSH connection closed'));
     if (this.client) {
       this.client.end();
       this.client = null;
@@ -124,7 +132,7 @@ export class SSHConnection extends EventEmitter {
     options?: { maxOutputBytes?: number; strictUtf8?: boolean; binary?: boolean },
   ): Promise<CommandResult> {
     signal?.throwIfAborted();
-    const client = this._ensureConnected();
+    this._ensureConnected();
     const fullCommand = cwd ? `cd "${cwd}" && ${command}` : command;
 
     return new Promise((resolve, reject) => {
@@ -137,63 +145,68 @@ export class SSHConnection extends EventEmitter {
         channel?.close();
       };
       signal?.addEventListener('abort', abort, { once: true });
-      client.exec(fullCommand, (err, stream) => {
-        if (err) {
-          cleanup();
-          reject(err);
-          return;
-        }
-        channel = stream;
-        stream.on('error', (error: Error) => {
-          cleanup();
-          reject(error);
-        });
-        if (signal?.aborted) {
-          stream.close();
-          return;
-        }
-
-        const stdout: Buffer[] = [];
-        const stderr: Buffer[] = [];
-        let bytes = 0;
-        let exceeded = false;
-        const collect = (chunks: Buffer[], data: Buffer) => {
-          if (exceeded) return;
-          bytes += data.length;
-          if (bytes > (options?.maxOutputBytes ?? Infinity)) {
-            exceeded = true;
+      this._exec(
+        fullCommand,
+        (err, stream) => {
+          if (err) {
             cleanup();
-            reject(new CommandOutputLimitError());
-            stream.close();
-          } else {
-            chunks.push(data);
+            reject(err);
+            return;
           }
-        };
-        stream.on('data', (data: Buffer) => collect(stdout, data));
-        stream.stderr.on('data', (data: Buffer) => collect(stderr, data));
-
-        stream.on('close', (exitCode: number | null) => {
-          cleanup();
-          if (exceeded) return;
-          try {
-            // Decode after joining chunks so SSH packet boundaries cannot split UTF-8 characters.
-            const output = Buffer.concat(stdout);
-            resolve({
-              exitCode,
-              // Binary payloads (image blobs) must never pass through a text decoder.
-              stdout: options?.binary
-                ? ''
-                : options?.strictUtf8
-                  ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(output)
-                  : output.toString('utf8'),
-              ...(options?.binary ? { stdoutBytes: output } : {}),
-              stderr: Buffer.concat(stderr).toString('utf8'),
-            });
-          } catch (error) {
+          channel = stream;
+          stream.on('error', (error: Error) => {
+            cleanup();
             reject(error);
+            stream.close();
+          });
+          if (signal?.aborted) {
+            stream.close();
+            return;
           }
-        });
-      });
+
+          const stdout: Buffer[] = [];
+          const stderr: Buffer[] = [];
+          let bytes = 0;
+          let exceeded = false;
+          const collect = (chunks: Buffer[], data: Buffer) => {
+            if (exceeded) return;
+            bytes += data.length;
+            if (bytes > (options?.maxOutputBytes ?? Infinity)) {
+              exceeded = true;
+              cleanup();
+              reject(new CommandOutputLimitError());
+              stream.close();
+            } else {
+              chunks.push(data);
+            }
+          };
+          stream.on('data', (data: Buffer) => collect(stdout, data));
+          stream.stderr.on('data', (data: Buffer) => collect(stderr, data));
+
+          stream.on('close', (exitCode: number | null) => {
+            cleanup();
+            if (exceeded) return;
+            try {
+              // Decode after joining chunks so SSH packet boundaries cannot split UTF-8 characters.
+              const output = Buffer.concat(stdout);
+              resolve({
+                exitCode,
+                // Binary payloads (image blobs) must never pass through a text decoder.
+                stdout: options?.binary
+                  ? ''
+                  : options?.strictUtf8
+                    ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(output)
+                    : output.toString('utf8'),
+                ...(options?.binary ? { stdoutBytes: output } : {}),
+                stderr: Buffer.concat(stderr).toString('utf8'),
+              });
+            } catch (error) {
+              reject(error);
+            }
+          });
+        },
+        signal,
+      );
     });
   }
 
@@ -202,11 +215,10 @@ export class SSHConnection extends EventEmitter {
     callbacks: StreamCallbacks,
     cwd?: string,
   ): Promise<ClientChannel> {
-    const client = this._ensureConnected();
     const fullCommand = cwd ? `cd "${cwd}" && ${command}` : command;
 
     return new Promise((resolve, reject) => {
-      client.exec(fullCommand, (err, stream) => {
+      this._exec(fullCommand, (err, stream) => {
         if (err) {
           reject(err);
           return;
@@ -230,41 +242,37 @@ export class SSHConnection extends EventEmitter {
   }
 
   async readDir(remotePath: string): Promise<any[]> {
-    const client = this._ensureConnected();
-
-    return new Promise((resolve, reject) => {
-      client.sftp((err, sftp) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        sftp.readdir(remotePath, (err, list) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve(list);
-        });
-      });
-    });
+    return this.withSftp(
+      (sftp) =>
+        new Promise((resolve, reject) => {
+          sftp.readdir(remotePath, (err, list) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            resolve(list);
+          });
+        }),
+    );
   }
 
   async withSftp<T>(operation: (sftp: SFTPWrapper) => Promise<T>): Promise<T> {
-    const client = this._ensureConnected();
+    this._ensureConnected();
     return new Promise<T>((resolve, reject) => {
+      const controller = new AbortController();
       let channel: SFTPWrapper | undefined;
       let settled = false;
       const finish = (error?: Error, value?: T) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        controller.abort(error);
         channel?.end();
         if (error) reject(error);
         else resolve(value as T);
       };
       const timer = setTimeout(() => finish(new Error('远端文件操作超时')), 15_000);
-      client.sftp((error, sftp) => {
+      this._sftp((error, sftp) => {
         if (settled) {
           sftp?.end();
           return;
@@ -276,74 +284,78 @@ export class SSHConnection extends EventEmitter {
         channel = sftp;
         sftp.on('error', (err: Error) => finish(err));
         sftp.on('close', () => finish(new Error('远端文件连接已中断')));
-        operation(sftp).then((value) => finish(undefined, value), finish);
-      });
+        Promise.resolve()
+          .then(() => operation(sftp))
+          .then((value) => finish(undefined, value), finish);
+      }, controller.signal);
     });
   }
 
   async readFile(remotePath: string): Promise<string> {
-    const client = this._ensureConnected();
-
-    return new Promise((resolve, reject) => {
-      client.sftp((err, sftp) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        const chunks: Buffer[] = [];
-        const stream = sftp.createReadStream(remotePath);
-
-        stream.on('data', (chunk: Buffer) => {
-          chunks.push(chunk);
-        });
-
-        stream.on('end', () => {
-          resolve(Buffer.concat(chunks).toString('utf-8'));
-        });
-
-        stream.on('error', reject);
-      });
+    return this.withSftp(async (sftp) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of readSftpChunks(sftp, remotePath)) chunks.push(chunk);
+      return Buffer.concat(chunks).toString('utf-8');
     });
   }
 
   async writeFile(remotePath: string, content: string): Promise<void> {
-    const client = this._ensureConnected();
-
-    return new Promise((resolve, reject) => {
-      client.sftp((err, sftp) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        const stream = sftp.createWriteStream(remotePath);
-        stream.on('close', resolve);
-        stream.on('error', reject);
-        stream.end(content);
-      });
-    });
+    return this.withSftp(
+      (sftp) =>
+        new Promise<void>((resolve, reject) => {
+          const stream = sftp.createWriteStream(remotePath);
+          stream.on('close', resolve);
+          stream.on('error', reject);
+          stream.end(content);
+        }),
+    );
   }
 
   async stat(remotePath: string): Promise<any> {
+    return this.withSftp(
+      (sftp) =>
+        new Promise((resolve, reject) => {
+          sftp.stat(remotePath, (err, stats) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            resolve(stats);
+          });
+        }),
+    );
+  }
+
+  private _exec(
+    command: string,
+    callback: (error: Error | undefined, channel: ClientChannel) => void,
+    signal?: AbortSignal,
+  ): void {
     const client = this._ensureConnected();
+    this.channelQueue.open<ClientChannel>(
+      (opened) => client.exec(command, opened),
+      (channel) => {
+        // ssh2 emits close after buffered output drains, even for cancelled opens.
+        channel.on('data', () => {});
+        channel.stderr.on('data', () => {});
+        channel.close();
+      },
+      (error, channel) => callback(error, channel!),
+      signal,
+    );
+  }
 
-    return new Promise((resolve, reject) => {
-      client.sftp((err, sftp) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        sftp.stat(remotePath, (err, stats) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve(stats);
-        });
-      });
-    });
+  private _sftp(
+    callback: (error: Error | undefined, sftp: SFTPWrapper) => void,
+    signal?: AbortSignal,
+  ): void {
+    const client = this._ensureConnected();
+    this.channelQueue.open<SFTPWrapper>(
+      (opened) => client.sftp(opened),
+      (sftp) => sftp.end(),
+      (error, sftp) => callback(error, sftp!),
+      signal,
+    );
   }
 
   private _buildConnectConfig(): ConnectConfig {

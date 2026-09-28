@@ -5,7 +5,7 @@ const { generateKeyPairSync } = require('node:crypto');
 const {
   Server,
   utils: {
-    sftp: { STATUS_CODE },
+    sftp: { STATUS_CODE, flagsToString },
   },
 } = require('ssh2');
 const { SSHConnection } = require('../../dist/connection-manager');
@@ -13,6 +13,7 @@ const { SSHConnection } = require('../../dist/connection-manager');
 function attachSftp(session) {
   session.on('sftp', (accept) => {
     const sftp = accept();
+    sftp.on('end', () => sftp.end());
     const handles = new Map();
     const directories = new Map();
     let nextHandle = 0;
@@ -63,8 +64,8 @@ function attachSftp(session) {
         error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
       ),
     );
-    sftp.on('OPEN', (id, filename) =>
-      fs.open(filename, 'r', (error, descriptor) => {
+    sftp.on('OPEN', (id, filename, flags) =>
+      fs.open(filename, flagsToString(flags), (error, descriptor) => {
         if (error) return failure(id, error);
         const handle = Buffer.alloc(4);
         handle.writeUInt32BE(nextHandle++);
@@ -79,17 +80,15 @@ function attachSftp(session) {
     );
     sftp.on('READ', (id, handle, offset, length) => {
       const buffer = Buffer.alloc(length);
-      fs.read(
-        handles.get(handle.readUInt32BE()),
-        buffer,
-        0,
-        length,
-        offset,
-        (error, bytes) => {
-          if (error) failure(id, error);
-          else if (!bytes) sftp.status(id, STATUS_CODE.EOF);
-          else sftp.data(id, buffer.subarray(0, bytes));
-        },
+      fs.read(handles.get(handle.readUInt32BE()), buffer, 0, length, offset, (error, bytes) => {
+        if (error) failure(id, error);
+        else if (!bytes) sftp.status(id, STATUS_CODE.EOF);
+        else sftp.data(id, buffer.subarray(0, bytes));
+      });
+    });
+    sftp.on('WRITE', (id, handle, offset, data) => {
+      fs.write(handles.get(handle.readUInt32BE()), data, 0, data.length, offset, (error) =>
+        error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
       );
     });
     sftp.on('OPENDIR', (id, dirname) =>
@@ -133,22 +132,32 @@ function attachSftp(session) {
   });
 }
 
-async function connectFixture(fixture) {
+async function connectFixture(fixture, { maxSessions = Infinity } = {}) {
   const hostKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({
     type: 'pkcs1',
     format: 'pem',
   });
   const clients = new Set();
+  const sessions = { active: 0, peak: 0, rejected: 0 };
   const server = new Server({ hostKeys: [hostKey] }, (client) => {
     clients.add(client);
     client.on('error', () => {});
     client.on('close', () => clients.delete(client));
     client.on('authentication', (ctx) => ctx.accept());
     client.on('ready', () =>
-      client.on('session', (accept) => {
+      client.on('session', (accept, reject) => {
+        if (sessions.active >= maxSessions) {
+          sessions.rejected++;
+          reject();
+          return;
+        }
+        sessions.active++;
+        sessions.peak = Math.max(sessions.peak, sessions.active);
         const session = accept();
+        session.once('close', () => sessions.active--);
         session.on('exec', (accept, reject, info) => {
           const channel = accept();
+          channel.resume();
           fixture.connection.execCommand(info.command).then(
             (result) => {
               channel.write(result.stdout);
@@ -177,6 +186,7 @@ async function connectFixture(fixture) {
   await connection.connect();
   return {
     connection,
+    sessions,
     close: async () => {
       connection.disconnect();
       for (const client of clients) client.end();
