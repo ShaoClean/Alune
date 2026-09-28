@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
-const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } = require('node:fs');
+const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync } = require('node:fs');
+const { rm } = require('node:fs/promises');
 const { execFileSync } = require('node:child_process');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
@@ -7,7 +8,7 @@ const path = require('node:path');
 // Actual Electron/backend/Git integration. Native dialog result is stubbed so CI
 // never opens an unattended OS picker; it still crosses the trusted preload IPC.
 module.exports = async ({ window, origin, token }) => {
-  const root = mkdtempSync(path.join(tmpdir(), 'alune-native-local-'));
+  const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'alune-native-local-')));
   const repo = path.join(root, "local ' 仓库");
   mkdirSync(repo);
   const config = path.join(root, 'empty.gitconfig');
@@ -89,8 +90,9 @@ module.exports = async ({ window, origin, token }) => {
     );
   } finally {
     dialog.showOpenDialog = originalPicker;
-    if (registered) await api('/repositories/' + registered.id, undefined, 'DELETE');
     await window.loadURL(origin + '/repositories');
-    rmSync(root, { recursive: true, force: true });
+    if (registered) await api('/repositories/' + registered.id, undefined, 'DELETE');
+    // Windows can briefly retain Git handles after the renderer leaves the repository.
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 };
