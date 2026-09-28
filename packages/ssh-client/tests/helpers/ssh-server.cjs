@@ -10,7 +10,7 @@ const {
 } = require('ssh2');
 const { SSHConnection } = require('../../dist/connection-manager');
 
-function attachSftp(session) {
+function attachSftp(session, onSftp) {
   session.on('sftp', (accept) => {
     const sftp = accept();
     sftp.on('end', () => sftp.end());
@@ -129,6 +129,7 @@ function attachSftp(session) {
     sftp.on('close', () => {
       for (const descriptor of handles.values()) fs.close(descriptor, () => {});
     });
+    onSftp?.(sftp);
   });
 }
 
@@ -196,7 +197,7 @@ async function connectFixture(fixture, { maxSessions = Infinity } = {}) {
 }
 
 // Loopback-only SSH server for disposable Git repositories; no real credentials or hosts.
-async function startSSHServer() {
+async function startSSHServer({ onSftp } = {}) {
   const { privateKey } = generateKeyPairSync('rsa', {
     modulusLength: 2048,
     privateKeyEncoding: { type: 'pkcs1', format: 'pem' },
@@ -215,7 +216,7 @@ async function startSSHServer() {
     client.on('ready', () =>
       client.on('session', (accept) => {
         const session = accept();
-        attachSftp(session);
+        attachSftp(session, (sftp) => onSftp?.(sftp, client));
         session.on('exec', (accept, _reject, info) => {
           const channel = accept();
           const child = spawn('/bin/sh', ['-c', info.command], {
