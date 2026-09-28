@@ -7,7 +7,7 @@ function createAiSecretStorage(safeStorage) {
   return {
     available,
     description: available
-      ? 'API Key 已使用此设备的系统密钥存储保护。'
+      ? '凭据已使用此设备的系统密钥存储保护。'
       : '系统密钥存储不可用，请解锁钥匙串或启用系统密钥服务后重启应用。',
     encrypt(value) {
       if (!available) throw new Error('System secret storage unavailable');

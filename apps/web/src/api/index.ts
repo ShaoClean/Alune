@@ -16,6 +16,9 @@ import type {
   PullRequestRemote,
   PullRequestQuery,
   PullRequestPage,
+  AccessTokenSettings,
+  SaveAccessToken,
+  ApplyAccessToken,
 } from '@alune/shared';
 
 const api = axios.create({
@@ -33,6 +36,19 @@ api.interceptors.response.use(
 );
 const gitTimeout = { timeout: 310_000 };
 
+export const accessTokenApi = {
+  list: (): Promise<AccessTokenSettings> => api.get('/access-tokens').then((r) => r.data),
+  save: (id: string | null, body: SaveAccessToken): Promise<AccessTokenSettings> =>
+    (id
+      ? api.put(`/access-tokens/${encodeURIComponent(id)}`, body)
+      : api.post('/access-tokens', body)
+    ).then((r) => r.data),
+  delete: (id: string, revision: string): Promise<AccessTokenSettings> =>
+    api
+      .delete(`/access-tokens/${encodeURIComponent(id)}`, { data: { revision } })
+      .then((r) => r.data),
+};
+
 // Connection APIs
 export const connectionApi = {
   list: () => api.get('/connections').then((r) => r.data),
@@ -45,6 +61,8 @@ export const connectionApi = {
 
 // Repository APIs
 export const repositoryApi = {
+  applyAccessToken: (id: string, body: ApplyAccessToken): Promise<AccessTokenSettings> =>
+    api.post(`/repositories/${id}/pull-requests/token`, body).then((r) => r.data),
   pullRequestRemotes: (id: string, signal?: AbortSignal): Promise<PullRequestRemote[]> =>
     api.get(`/repositories/${id}/pull-requests/remotes`, { signal }).then((r) => r.data),
   pullRequests: (

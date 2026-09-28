@@ -27,4 +27,11 @@ export class PullRequestsController {
   list(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.requests.list(id, body);
   }
+
+  @Post('token')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  applyToken(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.requests.applyToken(id, body);
+  }
 }

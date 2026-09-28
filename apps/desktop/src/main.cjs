@@ -1,6 +1,6 @@
 const { app, BrowserWindow, nativeTheme, Menu, dialog, session, ipcMain, shell, autoUpdater: nativeUpdater } = require('electron');
 const { randomBytes } = require('node:crypto');
-const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { createWorkspacePreferences, isTrustedWorkspaceSender, workspaceBackground } = require('./workspace-preferences.cjs');
@@ -80,13 +80,25 @@ async function start() {
   process.env.ALUNE_DATA_DIR = dataDir;
   const standaloneDatabase = path.join(os.homedir(), '.alune', 'alune.db');
   const databasePath = path.join(dataDir, 'alune.db');
+  const tokenImportMarker = path.join(dataDir, 'access-token-import-pending');
   if (!smokeTest && !existsSync(databasePath) && existsSync(standaloneDatabase)) {
     const Database = require('better-sqlite3');
     const source = new Database(standaloneDatabase, { readonly: true });
     try { await source.backup(databasePath); } finally { source.close(); }
+    writeFileSync(tokenImportMarker, '', { mode: 0o600 });
   }
   const { startServer } = require('./server/bootstrap.js');
   const aiSecretStorage = require('./ai-secret-storage.cjs').createAiSecretStorage(require('electron').safeStorage);
+  if (!smokeTest && existsSync(tokenImportMarker)) {
+    const Database = require('better-sqlite3');
+    const imported = new Database(databasePath);
+    try {
+      const { localSecretStorage } = require('./server/secrets/secret-storage');
+      const { migrateImportedAccessTokens } = require('./server/access-tokens/access-token-migration');
+      if (migrateImportedAccessTokens(imported, localSecretStorage(path.dirname(standaloneDatabase)), aiSecretStorage))
+        rmSync(tokenImportMarker);
+    } finally { imported.close(); }
+  }
   backend = await startServer({ port: 0, host: '127.0.0.1', token, webRoot: path.join(__dirname, 'web'), aiSecretStorage });
   origin = await backend.getUrl();
   const { UpdateService } = require('./update-service.cjs');

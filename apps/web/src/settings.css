@@ -657,5 +657,94 @@
     padding: 12px;
   }
 }
-.settings-page-content--layout { max-width: 736px; }
-.settings-brand .app-brand__mark { width: 26px; height: 26px; }
+.settings-page-content--layout {
+  max-width: 736px;
+}
+.settings-brand .app-brand__mark {
+  width: 26px;
+  height: 26px;
+}
+.access-token-settings {
+  max-width: 1200px;
+  width: 100%;
+}
+.token-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.token-page-heading .settings-lead {
+  margin-bottom: 0;
+}
+.token-search {
+  max-width: 360px;
+  margin-bottom: 18px;
+}
+.token-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.token-list > li {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 150px auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.token-identity,
+.token-mask {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.token-identity > span,
+.token-mask > small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.token-mask > span {
+  letter-spacing: 3px;
+}
+.token-actions,
+.token-saved-value {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.token-associations {
+  max-height: 280px;
+  overflow: auto;
+  padding-left: 20px;
+}
+.token-associations > li {
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.token-associations span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  .token-list > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+@media (max-width: 600px) {
+  .token-list > li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .token-list > li > .ant-btn {
+    justify-self: start;
+    padding-left: 0;
+  }
+}

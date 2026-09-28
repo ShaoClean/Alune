@@ -9,6 +9,7 @@ import { FileModule } from './file/file.module';
 import { EventsModule } from './events/events.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { SecretsModule } from './secrets/secrets.module';
 
 @Module({
   imports: [
@@ -24,6 +25,9 @@ import { AppService } from './app.service';
 })
 export class AppModule {
   static register(secrets?: AiSecretStorage): DynamicModule {
-    return { module: AppModule, imports: [AiModule.register(secrets)] };
+    return {
+      module: AppModule,
+      imports: [SecretsModule.register(secrets), AiModule.register()],
+    };
   }
 }

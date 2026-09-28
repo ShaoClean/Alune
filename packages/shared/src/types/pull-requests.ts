@@ -8,6 +8,7 @@ export interface PullRequestRemote {
   webUrl: string;
   provider: PullRequestProvider | null;
   unavailableReason?: string;
+  selection?: PullRequestSelection;
 }
 
 export interface PullRequestQuery {
@@ -17,6 +18,8 @@ export interface PullRequestQuery {
   provider: PullRequestProvider;
   state: PullRequestFilter;
   page: number;
+  // Omitted: resolve this remote's saved association; supplied: use only this temporary value.
+  // An empty value explicitly requests anonymous access without altering the saved association.
   token?: string;
 }
 
@@ -37,3 +40,4 @@ export interface PullRequestPage {
   page: number;
   hasMore: boolean;
 }
+import type { PullRequestSelection } from './access-tokens';

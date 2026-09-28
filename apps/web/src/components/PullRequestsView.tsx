@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert, Button, Empty, Input, Select, Spin, Tag } from 'antd';
 import { ExportOutlined, PullRequestOutlined, ReloadOutlined } from '@ant-design/icons';
 import type {
@@ -11,6 +12,7 @@ import type {
 import { repositoryApi } from '../api';
 import { errorMessage } from './files-tree';
 import { PanelHeader } from './ui';
+import { useAccessTokensStore } from '../stores/accessTokensStore';
 
 export function defaultPullRequestRemote(remotes: PullRequestRemote[]): string {
   return (
@@ -79,20 +81,91 @@ function RemotePullRequests({
   remote: PullRequestRemote;
   refreshToken: number;
 }) {
-  const [provider, setProvider] = useState<PullRequestProvider | null>(remote.provider);
+  const navigate = useNavigate();
+  const { settings, error: tokensError, load, accept, choice } = useAccessTokensStore();
+  const selection = remote.selection;
+  const [provider, setProvider] = useState<PullRequestProvider | null>(
+    remote.provider || selection?.provider || null,
+  );
   const [state, setState] = useState<PullRequestFilter>('open');
   const [page, setPage] = useState(1);
   const [tokenDraft, setTokenDraft] = useState('');
-  const [credential, setCredential] = useState({ token: '', revision: 0 });
+  const [credential, setCredential] = useState<{ token: string | null; revision: number }>({
+    token: null,
+    revision: 0,
+  });
+  const [tokenId, setTokenId] = useState<string | null>(selection?.tokenId || null);
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState('');
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ key: string; data: PullRequestPage } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const key = JSON.stringify([provider, state, page, credential.revision]);
+  const key = JSON.stringify([provider, state, page, credential.revision, selection?.version]);
   const data = result?.key === key ? result.data : null;
+  const invalidSelection =
+    selection?.status === 'target-changed' || selection?.status === 'token-deleted';
+  const selectedToken = settings?.tokens.find((t) => t.id === tokenId);
+  const dirty =
+    tokenId !== (selection?.tokenId || null) ||
+    provider !== selection?.provider ||
+    selection?.status !== 'applied' ||
+    credential.token !== null;
+  const manage = () =>
+    navigate('/settings/tokens', {
+      state: {
+        returnTo: `/repositories/${repoId}?${new URLSearchParams({ panel: 'pull-requests', remote: remote.name })}`,
+        tokenReturn: { repositoryId: repoId, remote: remote.name, target: remote.webUrl },
+      },
+    });
 
   useEffect(() => {
-    if (!provider) return;
+    setTokenId(selection?.tokenId || null);
+    setProvider(remote.provider || selection?.provider || null);
+    setCredential((current) => ({ token: null, revision: current.revision + 1 }));
+    setTokenDraft('');
+    setApplyError('');
+  }, [selection?.version, remote.provider]);
+
+  useEffect(() => {
+    if (
+      choice?.repositoryId === repoId &&
+      choice.remote === remote.name &&
+      choice.target === remote.webUrl
+    ) {
+      setTokenId(choice.tokenId);
+      useAccessTokensStore.setState({ choice: null });
+    }
+  }, [choice, repoId, remote.name, remote.webUrl]);
+
+  const applySaved = async () => {
+    if (!provider || !settings || applying) return;
+    setApplying(true);
+    setApplyError('');
+    try {
+      accept(
+        await repositoryApi.applyAccessToken(repoId, {
+          remote: remote.name,
+          target: remote.webUrl,
+          provider,
+          tokenId,
+          revision: settings.revision,
+        }),
+      );
+      setTokenDraft('');
+      setPage(1);
+    } catch (failure) {
+      setApplyError(errorMessage(failure, '无法保存仓库关联，请重试。'));
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!provider || (invalidSelection && credential.token === null)) {
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     setError('');
@@ -105,7 +178,7 @@ function RemotePullRequests({
           provider,
           state,
           page,
-          ...(credential.token ? { token: credential.token } : {}),
+          ...(credential.token !== null ? { token: credential.token } : {}),
         },
         controller.signal,
       )
@@ -130,6 +203,7 @@ function RemotePullRequests({
     key,
     refreshToken,
     retry,
+    invalidSelection,
   ]);
 
   const applyToken = (token: string) => {
@@ -176,6 +250,77 @@ function RemotePullRequests({
           ]}
         />
       </div>
+      <div className="pull-requests-token-bar">
+        <label htmlFor="saved-access-token">访问令牌</label>
+        <Select
+          id="saved-access-token"
+          aria-label="选择命名令牌"
+          showSearch
+          optionFilterProp="label"
+          value={tokenId || ''}
+          disabled={!provider || applying || !settings}
+          onChange={(id) => {
+            setTokenId(id || null);
+            setApplyError('');
+          }}
+          options={[
+            { value: '', label: '不使用令牌' },
+            ...(settings?.tokens.map((token) => {
+              const mismatch =
+                token.scope &&
+                (token.scope.provider !== provider ||
+                  token.scope.origin !== new URL(remote.webUrl).origin);
+              return {
+                value: token.id,
+                label: `${token.name}${mismatch ? ` · 仅适用 ${token.scope!.origin}` : ''}`,
+                disabled: !!mismatch,
+              };
+            }) || []),
+          ]}
+        />
+        <Button
+          type={dirty ? 'primary' : 'default'}
+          disabled={!provider || !settings || (!dirty && !applying)}
+          loading={applying}
+          onClick={() => void applySaved()}
+        >
+          {dirty ? '应用到此仓库' : '已记住选择'}
+        </Button>
+        <Button type="link" onClick={manage}>
+          {settings && !settings.tokens.length ? '去添加令牌' : '管理令牌'}
+        </Button>
+        {selectedToken && !selectedToken.scope && (
+          <p>
+            首次应用时，“{selectedToken.name}”将关联到 {remote.host}。
+          </p>
+        )}
+        {credential.token !== null && (
+          <p role="status">正在使用仅本次输入的令牌，已保存的仓库关联保持不变。</p>
+        )}
+      </div>
+      {invalidSelection && (
+        <Alert
+          type="warning"
+          showIcon
+          title={
+            selection?.status === 'token-deleted'
+              ? '原令牌已删除，请重新选择并应用。'
+              : '远端目标已变化，请确认上方主机与项目，重新选择并应用。'
+          }
+        />
+      )}
+      {(tokensError || applyError) && (
+        <Alert
+          type="error"
+          showIcon
+          title={applyError || tokensError}
+          action={
+            <Button size="small" onClick={() => void load()}>
+              重新加载令牌
+            </Button>
+          }
+        />
+      )}
       {!provider ? (
         <Alert
           type="info"
@@ -186,7 +331,7 @@ function RemotePullRequests({
       ) : (
         <>
           <details className="pull-requests-auth">
-            <summary>访问令牌（可选）{credential.token && <span> · 已应用</span>}</summary>
+            <summary>仅本次输入{credential.token && <span> · 已应用</span>}</summary>
             <p>
               公开仓库可直接读取。令牌仅用于 {remote.host}
               ，离开此视图或切换远端后清除，不保存到磁盘。
@@ -213,7 +358,16 @@ function RemotePullRequests({
               <Button htmlType="submit" disabled={!tokenDraft.trim()}>
                 应用令牌
               </Button>
-              {credential.token && <Button onClick={() => applyToken('')}>清除令牌</Button>}
+              {credential.token !== null && (
+                <Button
+                  onClick={() => {
+                    setCredential((current) => ({ token: null, revision: current.revision + 1 }));
+                    setTokenDraft('');
+                  }}
+                >
+                  恢复已保存的选择
+                </Button>
+              )}
             </form>
           </details>
           {error && (
@@ -276,12 +430,20 @@ export function PullRequestsView({
   refreshToken?: number;
 }) {
   const [remotes, setRemotes] = useState<PullRequestRemote[]>([]);
-  const [selected, setSelected] = useState('');
+  const location = useLocation();
+  const [selected, setSelected] = useState(
+    () => new URLSearchParams(location.search).get('remote') || '',
+  );
+  const { settings, load } = useAccessTokensStore();
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [listRefresh, setListRefresh] = useState(0);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -307,7 +469,7 @@ export function PullRequestsView({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [repoId, refresh, refreshToken]);
+  }, [repoId, refresh, refreshToken, settings?.revision]);
 
   const remote = remotes.find((item) => item.name === selected);
   return (
