@@ -101,6 +101,8 @@ async function start() {
   }
   backend = await startServer({ port: 0, host: '127.0.0.1', token, webRoot: path.join(__dirname, 'web'), aiSecretStorage });
   origin = await backend.getUrl();
+  const { ProxyService } = require('./server/proxy/proxy.service.js');
+  const networkProxy = backend.get(ProxyService);
   const { UpdateService } = require('./update-service.cjs');
   const { registerUpdateIPC } = require('./update-ipc.cjs');
   const adapter = smokeTest
@@ -108,9 +110,11 @@ async function start() {
     : process.platform === 'darwin'
       ? require('./mac-updater.cjs').createMacUpdater({
         version: app.getVersion(), arch: process.arch, cacheDir: path.join(dataDir, 'updates'), shell, app,
+        fetchImpl: networkProxy.fetch,
       })
       : require('./electron-updater-adapter.cjs').createElectronUpdater({
         updater: require('electron-updater').autoUpdater, nativeUpdater,
+        proxyBridge: () => networkProxy.updaterBridge(),
       });
   if (adapter.install) {
     const install = adapter.install.bind(adapter);

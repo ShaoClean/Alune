@@ -14,7 +14,7 @@ function connectionFixture() {
     sftp(callback) {
       opened.push({ command: 'sftp', callback });
     },
-    end() {},
+    destroy() {},
   };
   const accept = (index) => {
     const stream = new EventEmitter();
@@ -40,18 +40,21 @@ test('streaming, buffered commands and SFTP share slots until their channels clo
   const sftp = connection.withSftp(async () => 'file');
   const pending = connection.execCommand('later');
   assert.equal(opened.length, 4);
+  assert.equal(connection.activeTasks, 5);
   const channels = Array.from({ length: 4 }, (_, index) => accept(index));
   await streaming;
   channels[0].emit('data', Buffer.from('progress'));
   assert.deepEqual(stdout, ['progress']);
   assert.equal(await sftp, 'file');
   assert.equal(channels[3].closeRequested, true);
+  assert.equal(connection.activeTasks, 5);
   assert.equal(opened.length, 4);
   channels[3].complete();
   assert.equal(opened.length, 5);
   accept(4).complete();
   channels.slice(0, 3).forEach((channel) => channel.complete());
   assert.ok((await Promise.all([...commands, pending])).every((result) => result.exitCode === 0));
+  assert.equal(connection.activeTasks, 0);
 });
 
 test('cancelled queued commands never execute; cancelled opens retain their slot until close', async () => {
@@ -64,6 +67,7 @@ test('cancelled queued commands never execute; cancelled opens retain their slot
   );
   const cancelledQueue = connection.execCommand('cancel queued', undefined, queuedAbort.signal);
   const next = connection.execCommand('next');
+  assert.equal(connection.activeTasks, 6);
   const rejected = [
     assert.rejects(cancelledOpen, /cancel opening/),
     assert.rejects(cancelledQueue, /cancel queued/),
@@ -71,6 +75,7 @@ test('cancelled queued commands never execute; cancelled opens retain their slot
   openingAbort.abort(new Error('cancel opening'));
   queuedAbort.abort(new Error('cancel queued'));
   await Promise.all(rejected);
+  assert.equal(connection.activeTasks, 5);
   assert.equal(opened.length, 4);
   const cancelledChannel = accept(0);
   assert.equal(cancelledChannel.closeRequested, true);
@@ -84,6 +89,7 @@ test('cancelled queued commands never execute; cancelled opens retain their slot
   );
   for (let i = 1; i < 5; i++) accept(i).complete();
   await Promise.all([...running, next]);
+  assert.equal(connection.activeTasks, 0);
 });
 
 test('output limits close only the failing channel and unblock queued commands after close', async () => {

@@ -6,7 +6,7 @@ function releaseNotes(value) {
   return '';
 }
 
-function createElectronUpdater({ updater, nativeUpdater, logger = console, checkTimeout = 60000, idleTimeout = 60000 }) {
+function createElectronUpdater({ updater, nativeUpdater, proxyBridge, logger = console, checkTimeout = 60000, idleTimeout = 60000 }) {
   updater.autoDownload = false;
   updater.autoInstallOnAppQuit = false;
   updater.allowPrerelease = false;
@@ -18,10 +18,34 @@ function createElectronUpdater({ updater, nativeUpdater, logger = console, check
   // The library also emits errors for rejected operations. Always handle that event.
   updater.on('error', (error) => logger.error('[updater]', error.message));
 
+  let preparedPort;
+  let preparedRevision;
+  const prepareNetwork = async () => {
+    if (!proxyBridge) return;
+    try {
+      const { port, revision, enabled = true } = await proxyBridge();
+      const route = enabled ? port : 0;
+      // electron-updater uses its own Electron session for metadata, redirects,
+      // blockmaps and packages. Keep the authenticated renderer session separate.
+      if (preparedPort !== route) {
+        await updater.netSession.setProxy(enabled ? { mode: 'fixed_servers', proxyRules: `http://127.0.0.1:${port}`, proxyBypassRules: '<-loopback>' } : { mode: 'system' });
+      }
+      // UpdateService serializes operations. Drain Chromium's reusable tunnels
+      // before the next operation after a save, never during an active download.
+      if (preparedPort !== route || preparedRevision !== revision) await updater.netSession.closeAllConnections();
+      preparedPort = route;
+      preparedRevision = revision;
+    } catch {
+      preparedPort = undefined;
+      throw new Error('无法准备更新代理，已中止请求，请重试。');
+    }
+  };
+
   return {
     async check() {
       let timeout;
       try {
+        if (proxyBridge) await prepareNetwork();
         const result = await Promise.race([
           updater.checkForUpdates(),
           new Promise((_, reject) => {
@@ -46,6 +70,8 @@ function createElectronUpdater({ updater, nativeUpdater, logger = console, check
       signal.addEventListener('abort', cancel, { once: true });
       updater.on('download-progress', progress);
       try {
+        signal.throwIfAborted();
+        if (proxyBridge) await prepareNetwork();
         signal.throwIfAborted();
         resetTimeout();
         const files = await updater.downloadUpdate(token);

@@ -11,6 +11,11 @@ export class SSHChannelQueue {
   private opening = new Set<PendingChannel>();
   private closed?: Error;
 
+  // Include queued, opening and closing channels when deciding if reconnect is safe.
+  get size(): number {
+    return this.active + this.pending.length;
+  }
+
   open<T extends EventEmitter>(
     open: (callback: (error?: Error, channel?: T) => void) => void,
     dispose: (channel: T) => void,

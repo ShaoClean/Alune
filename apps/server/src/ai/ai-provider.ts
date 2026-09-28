@@ -10,6 +10,7 @@ async function request(
   path: string,
   signal: AbortSignal,
   body?: object,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<any> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body) headers['Content-Type'] = 'application/json';
@@ -20,7 +21,7 @@ async function request(
     if (key) headers['x-goog-api-key'] = key;
   } else if (key) headers.Authorization = `Bearer ${key}`;
   try {
-    const response = await fetch(`${provider.baseUrl}/${path}`, {
+    const response = await fetchImpl(`${provider.baseUrl}/${path}`, {
       method: body ? 'POST' : 'GET',
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -82,15 +83,23 @@ export async function complete(
   system: string,
   user: string,
   signal: AbortSignal,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
   let content: unknown;
   if (provider.protocol === 'anthropic') {
-    const result = await request(provider, key, 'messages', signal, {
-      model,
-      max_tokens: 2048,
-      system,
-      messages: [{ role: 'user', content: user }],
-    });
+    const result = await request(
+      provider,
+      key,
+      'messages',
+      signal,
+      {
+        model,
+        max_tokens: 2048,
+        system,
+        messages: [{ role: 'user', content: user }],
+      },
+      fetchImpl,
+    );
     if (result.stop_reason === 'max_tokens')
       throw new BadGatewayException('AI 输出被截断，请重试或缩小暂存范围。');
     content = result.content
@@ -108,6 +117,7 @@ export async function complete(
         contents: [{ role: 'user', parts: [{ text: user }] }],
         generationConfig: { maxOutputTokens: 4096 },
       },
+      fetchImpl,
     );
     if (result.candidates?.[0]?.finishReason === 'MAX_TOKENS')
       throw new BadGatewayException('AI 输出被截断，请重试或缩小暂存范围。');
@@ -117,14 +127,21 @@ export async function complete(
       .join('');
   } else {
     // Chat Completions also supports user-configured OpenAI-compatible services.
-    const result = await request(provider, key, 'chat/completions', signal, {
-      model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      stream: false,
-    });
+    const result = await request(
+      provider,
+      key,
+      'chat/completions',
+      signal,
+      {
+        model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        stream: false,
+      },
+      fetchImpl,
+    );
     if (result.choices?.[0]?.finish_reason === 'length')
       throw new BadGatewayException('AI 输出被截断，请重试或缩小暂存范围。');
     content = result.choices?.[0]?.message?.content;
@@ -140,6 +157,7 @@ export async function fetchModels(
   provider: AiProvider,
   key: string,
   signal: AbortSignal,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<AiModel[]> {
   const models = new Map<string, AiModel>();
   let cursor = '';
@@ -151,7 +169,14 @@ export async function fetchModels(
         : provider.protocol === 'anthropic'
           ? `?limit=100${cursor ? `&after_id=${encodeURIComponent(cursor)}` : ''}`
           : '';
-    const result = await request(provider, key, `models${suffix}`, signal);
+    const result = await request(
+      provider,
+      key,
+      `models${suffix}`,
+      signal,
+      undefined,
+      fetchImpl,
+    );
     const list = provider.protocol === 'gemini' ? result.models : result.data;
     if (!Array.isArray(list))
       throw new BadGatewayException(

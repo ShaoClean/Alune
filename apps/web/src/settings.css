@@ -854,3 +854,138 @@
     gap: 16px;
   }
 }
+.proxy-settings {
+  max-width: 1180px;
+  padding-bottom: 0;
+}
+.proxy-settings > .settings-section-heading {
+  margin-bottom: 0;
+}
+.proxy-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(240px, 1fr);
+  gap: 24px;
+}
+.proxy-primary,
+.proxy-secondary {
+  min-width: 0;
+}
+.proxy-panel {
+  margin: 0 0 22px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.proxy-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.proxy-panel .settings-field {
+  margin: 14px 0;
+  min-width: 0;
+}
+.proxy-panel .settings-field input,
+.proxy-panel .settings-field select {
+  width: 100%;
+  min-width: 0;
+}
+.proxy-panel .settings-form-row {
+  margin: 0;
+}
+.proxy-panel .proxy-address {
+  grid-template-columns: minmax(0, 1fr) 100px;
+  column-gap: 16px;
+}
+.proxy-auth-heading {
+  margin-top: 25px;
+  margin-bottom: 12px;
+}
+.proxy-credential-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.proxy-credential-state span {
+  flex-basis: 100%;
+  color: var(--text-muted);
+}
+.proxy-panel .proxy-test-target {
+  margin-top: 24px;
+}
+.proxy-test-result {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+.proxy-test-result.is-success {
+  color: var(--green);
+}
+.proxy-test-result.is-error {
+  color: var(--red, #cf3c46);
+}
+.proxy-notice {
+  margin-bottom: 18px;
+}
+.proxy-server {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.proxy-server:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.proxy-server > span:not(.ant-tag) {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.proxy-savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.proxy-savebar > div {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 1100px) {
+  .proxy-columns {
+    gap: 16px;
+    grid-template-columns: minmax(0, 1.5fr) minmax(210px, 1fr);
+  }
+  .proxy-panel {
+    padding: 18px;
+  }
+}
+@media (max-width: 900px) {
+  .proxy-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .proxy-savebar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .proxy-savebar > div {
+    justify-content: flex-end;
+  }
+  .proxy-panel {
+    padding: 16px;
+  }
+}

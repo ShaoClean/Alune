@@ -4,3 +4,4 @@ export * from './events';
 export * from './ai';
 export * from './pull-requests';
 export * from './access-tokens';
+export * from './proxy';

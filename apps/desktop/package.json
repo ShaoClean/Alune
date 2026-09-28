@@ -10,7 +10,8 @@
     "test": "npm run test:unit && node scripts/smoke.mjs",
     "test:unit": "node --test test/*.test.cjs tests/*.test.cjs",
     "test:worktrees": "node scripts/test-worktrees.mjs",
-    "test:code-appearance": "node scripts/test-code-appearance.mjs"
+    "test:code-appearance": "node scripts/test-code-appearance.mjs",
+    "test:proxy": "node scripts/test-proxy.mjs"
   },
   "devDependencies": {
     "server": "*",
