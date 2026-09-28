@@ -13,6 +13,14 @@ import { GitService } from './git.service';
 export class GitController {
   constructor(private readonly gitService: GitService) {}
 
+  @Post(':id/ignore-directory')
+  ignoreDirectory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { path: string },
+  ) {
+    return this.gitService.ignoreDirectory(id, body.path);
+  }
+
   @Post(':id/stage')
   async stage(
     @Param('id', ParseUUIDPipe) id: string,

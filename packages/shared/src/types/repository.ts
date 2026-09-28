@@ -88,12 +88,20 @@ export interface CommitFile {
 
 export interface FileStatus {
   path: string;
+  kind?: 'directory' | 'repository' | 'worktree' | 'submodule';
+  repositoryPath?: string;
+  submodule?: { commitChanged: boolean; trackedChanges: boolean; untrackedChanges: boolean };
   oldPath?: string;
   status: 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'untracked' | 'ignored';
   staged: boolean;
   conflicted?: boolean;
   additions?: number;
   deletions?: number;
+}
+
+export interface SkippedChange {
+  path: string;
+  reason: string;
 }
 
 export interface NewFileDeletionPreview {
@@ -112,6 +120,7 @@ export interface DiscardChangesPreview {
   tracked: number;
   untracked: number;
   token: string;
+  skipped?: SkippedChange[];
 }
 
 export interface DiscardChangesResult {

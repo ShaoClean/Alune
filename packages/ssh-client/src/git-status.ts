@@ -48,13 +48,31 @@ export function parseStatus(output: string): RepositoryStatus & {
       const xy = fields[1];
       const path = fields.slice(kind === '1' ? 8 : kind === '2' ? 9 : 10).join(' ');
       const oldPath = kind === '2' ? tokens[++i] : undefined;
+      const submodule =
+        fields[2].startsWith('S') || fields.slice(3, 6).includes('160000')
+          ? {
+              kind: 'submodule' as const,
+              submodule: {
+                commitChanged: fields[2][1] === 'C',
+                trackedChanges: fields[2][2] === 'M',
+                untrackedChanges: fields[2][3] === 'U',
+              },
+            }
+          : {};
       result.records.push({ path, oldPath, raw, kind, xy });
       if (kind === 'u')
-        result.files.push({ path, status: 'modified', staged: false, conflicted: true });
+        result.files.push({
+          path,
+          ...submodule,
+          status: 'modified',
+          staged: false,
+          conflicted: true,
+        });
       else {
         if (xy[0] !== '.')
           result.files.push({
             path,
+            ...submodule,
             ...(oldPath && (xy[0] === 'R' || xy[0] === 'C') ? { oldPath } : {}),
             status: statuses[xy[0]] || 'modified',
             staged: true,
@@ -62,6 +80,7 @@ export function parseStatus(output: string): RepositoryStatus & {
         if (xy[1] !== '.')
           result.files.push({
             path,
+            ...submodule,
             ...(oldPath && (xy[1] === 'R' || xy[1] === 'C') ? { oldPath } : {}),
             status: statuses[xy[1]] || 'modified',
             staged: false,
@@ -70,7 +89,12 @@ export function parseStatus(output: string): RepositoryStatus & {
     } else if (raw.startsWith('? ') || raw.startsWith('! ')) {
       const path = raw.slice(2);
       result.records.push({ path, raw, kind: raw[0], xy: raw[0].repeat(2) });
-      result.files.push({ path, status: raw[0] === '?' ? 'untracked' : 'ignored', staged: false });
+      result.files.push({
+        path,
+        ...(path.endsWith('/') ? { kind: 'directory' as const } : {}),
+        status: raw[0] === '?' ? 'untracked' : 'ignored',
+        staged: false,
+      });
     }
   }
   return result;

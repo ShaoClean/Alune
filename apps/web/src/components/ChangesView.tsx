@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
-import { Button, Checkbox, Input, Popconfirm, Tooltip, App } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Checkbox, Input, Modal, Popconfirm, Tooltip, App } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { changeActions, changeKindLabel, type FileStatus } from '@alune/shared';
 import {
   CheckOutlined,
   DeleteOutlined,
@@ -14,11 +16,13 @@ import {
   UndoOutlined,
   LoadingOutlined,
   SettingOutlined,
+  EyeInvisibleOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { gitApi } from '../api';
-import { EmptyState, ErrorState, FileIcon, LoadingState, PanelHeader } from './ui';
+import { EmptyState, ErrorState, FileIcon, FolderIcon, LoadingState, PanelHeader } from './ui';
 import { EMPTY_DRAFT, useCommitDraftStore } from '../stores/commitDraftStore';
 import { DeleteNewFileDialog } from './DeleteNewFileDialog';
 import { DiscardChangesDialog } from './DiscardChangesDialog';
@@ -66,7 +70,15 @@ export function ChangesView({
   selectedFile,
   onFileChanged,
 }: Props) {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
+  const navigate = useNavigate();
+  const origin = useRef<string | null>(repoId);
+  useEffect(() => {
+    origin.current = repoId;
+    return () => {
+      origin.current = null;
+    };
+  }, [repoId]);
   const { entry, stale } = useRepositoryStatus(repoId);
   const { status, fetchStatus } = useRepositoryStore();
   const draft = useCommitDraftStore((state) => state.drafts[repoId] || EMPTY_DRAFT);
@@ -77,6 +89,7 @@ export function ChangesView({
   const [loading, setLoading] = useState(false);
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const [discardAllOpen, setDiscardAllOpen] = useState(false);
+  const [directoryFile, setDirectoryFile] = useState<FileStatus | null>(null);
   const busy = loading || deletePath !== null || discardAllOpen;
 
   const files = status?.files || [];
@@ -104,13 +117,103 @@ export function ChangesView({
       await gitApi[action](repoId, paths);
       await fetchStatus(repoId, true);
       message.success(
-        action === 'stage' ? `${paths.length} 个文件已暂存` : `${paths.length} 个文件已取消暂存`,
+        action === 'stage' ? `${paths.length} 项改动已暂存` : `${paths.length} 项改动已取消暂存`,
       );
     } catch (err: any) {
       message.error(err.message || 'Git 操作失败');
     } finally {
       setLoading(false);
     }
+  };
+
+  const runGroupAction = (groupFiles: FileStatus[], staged: boolean) => {
+    const action = staged ? 'unstage' : 'stage';
+    const actionable = groupFiles.filter((file) => changeActions(file)[action]);
+    const skipped = groupFiles.filter((file) => !changeActions(file)[action]);
+    if (!actionable.length) return;
+    const run = () =>
+      runFileAction(
+        action,
+        actionable.map((file) => file.path),
+      );
+    if (!skipped.length) {
+      void run();
+      return;
+    }
+    modal.confirm({
+      title: `暂存 ${actionable.length} 项改动？`,
+      content: (
+        <>
+          <p>将跳过以下 {skipped.length} 项，请在对应仓库中处理：</p>
+          <ul>
+            {skipped.map((file) => (
+              <li className="git-path-detail" key={file.path}>
+                {file.path}
+              </li>
+            ))}
+          </ul>
+        </>
+      ),
+      okText: '暂存可处理的改动',
+      cancelText: '取消',
+      onOk: run,
+    });
+  };
+
+  const openChangeRepository = async (file: FileStatus) => {
+    if (loading || !file.repositoryPath) return;
+    const store = useRepositoryStore.getState();
+    const parent = store.repositories.find((repo) => repo.id === repoId) || store.currentRepo;
+    if (!parent || parent.id !== repoId) return;
+    setLoading(true);
+    try {
+      const repo =
+        file.kind === 'worktree'
+          ? await store.addWorktree(repoId, file.repositoryPath)
+          : parent.source === 'local'
+            ? await store.addLocalRepository(file.repositoryPath)
+            : await store.addRepository(parent.connectionId, file.repositoryPath);
+      if (origin.current !== repoId) return;
+      setDirectoryFile(null);
+      store.openRepository(repo);
+      navigate('/repositories/' + repo.id);
+    } catch (error: any) {
+      message.error(error.message || '无法打开仓库，请刷新状态后重试');
+    } finally {
+      if (origin.current === repoId) setLoading(false);
+    }
+  };
+
+  const ignoreChangeDirectory = (file: FileStatus) => {
+    if (loading) return;
+    modal.confirm({
+      title: '在本地忽略此目录？',
+      content: (
+        <>
+          <p className="git-path-detail">{file.path}</p>
+          <p>
+            目录及其内容会从当前仓库的未跟踪列表中隐藏，磁盘文件会保留。规则写入 Git
+            本地忽略文件，对同一仓库的 Worktree 生效，不会修改团队的 .gitignore。
+          </p>
+        </>
+      ),
+      okText: '本地忽略',
+      cancelText: '取消',
+      onOk: async () => {
+        setLoading(true);
+        try {
+          await gitApi.ignoreDirectory(repoId, file.path);
+          if (origin.current !== repoId) return;
+          setDirectoryFile(null);
+          await fetchStatus(repoId, true);
+          message.success('已添加本地忽略规则');
+        } catch (error: any) {
+          message.error(error.message || '无法忽略此目录');
+        } finally {
+          if (origin.current === repoId) setLoading(false);
+        }
+      },
+    });
   };
 
   const discardFile = async (path: string) => {
@@ -147,119 +250,168 @@ export function ChangesView({
     }
   };
 
-  const renderFileRow = (file: any) => (
-    <div
-      className={`file-row${selectedFile?.path === file.path && selectedFile?.staged === file.staged ? ' file-row--selected' : ''}`}
-      key={`${file.staged}-${file.path}`}
-    >
-      <button
-        type="button"
-        className="file-row__select"
-        aria-label={`查看差异 ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
-        aria-pressed={selectedFile?.path === file.path && selectedFile?.staged === file.staged}
-        onClick={() => onSelectFile?.(file)}
+  const renderFileRow = (file: FileStatus) => {
+    const actions = changeActions(file);
+    const kind = changeKindLabel(file);
+    const displayPath = file.path.replace(/\/$/, '');
+    return (
+      <div
+        className={`file-row${selectedFile?.path === file.path && selectedFile?.staged === file.staged ? ' file-row--selected' : ''}`}
+        key={`${file.staged}-${file.path}`}
       >
-        <span
-          className={`file-row__status file-row__status--${file.status}`}
-          title={
-            file.conflicted
-              ? '合并冲突：解决文件内容后暂存'
-              : statusWords[file.status] || file.status
-          }
+        <button
+          type="button"
+          className="file-row__select"
+          aria-label={`${actions.diff ? '查看差异' : `查看${kind}`} ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
+          aria-pressed={selectedFile?.path === file.path && selectedFile?.staged === file.staged}
+          onClick={() => (actions.diff ? onSelectFile?.(file) : setDirectoryFile(file))}
         >
-          {file.conflicted ? 'U' : statusLabels[file.status] || '?'}
-        </span>
-        <FileIcon path={file.path} />
-        <span
-          className="file-row__path"
-          title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
-        >
-          <strong>
-            {file.oldPath ? `${file.oldPath.split('/').pop()} → ` : ''}
-            {file.path.split('/').pop()}
-          </strong>
-          {file.path.includes('/') && (
-            <small>{file.path.slice(0, file.path.lastIndexOf('/'))}</small>
-          )}
-        </span>
-        <span className="file-row__stats">
-          {file.additions ? <span className="additions">+{file.additions}</span> : null}
-          {file.deletions ? <span className="deletions">−{file.deletions}</span> : null}
-        </span>
-      </button>
-      <div className="file-row__actions">
-        {file.staged ? (
-          <Button
-            type="text"
-            size="small"
-            icon={<MinusOutlined />}
-            aria-label={`取消暂存 ${file.path}`}
-            loading={loading}
-            disabled={busy}
-            onClick={() => void runFileAction('unstage', [file.path])}
-          />
-        ) : (
-          <Button
-            type="text"
-            size="small"
-            icon={<PlusOutlined />}
-            aria-label={`暂存 ${file.path}`}
-            loading={loading}
-            disabled={busy}
-            onClick={() => void runFileAction('stage', [file.path])}
-          />
-        )}
-        {!file.staged && file.status !== 'untracked' && file.status !== 'added' && (
-          <Popconfirm
-            title="丢弃此文件的未暂存改动？"
-            description={
-              <div>
-                <p className="git-path-detail">{file.path}</p>
-                <p>将恢复为暂存区的内容，保留已暂存改动。此操作不可撤销。</p>
-                <Checkbox
-                  checked={discardConfirmed}
-                  onChange={(event) => setDiscardConfirmed(event.target.checked)}
-                >
-                  我确认丢弃未暂存改动
-                </Checkbox>
-              </div>
+          <span
+            className={`file-row__status file-row__status--${file.status}`}
+            title={
+              file.conflicted
+                ? '合并冲突：解决文件内容后暂存'
+                : statusWords[file.status] || file.status
             }
-            onOpenChange={() => setDiscardConfirmed(false)}
-            okButtonProps={{ disabled: !discardConfirmed, danger: true }}
-            okText="丢弃改动"
-            disabled={busy}
-            onConfirm={() => discardFile(file.path)}
           >
+            {file.conflicted ? 'U' : statusLabels[file.status] || '?'}
+          </span>
+          {kind ? (
+            <FolderIcon variant={file.kind === 'directory' ? 'folder' : 'repository'} />
+          ) : (
+            <FileIcon path={file.path} />
+          )}
+          <span
+            className="file-row__path"
+            title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
+          >
+            <strong>
+              {file.oldPath ? `${file.oldPath.split('/').pop()} → ` : ''}
+              {displayPath.split('/').pop()}
+            </strong>
+            {displayPath.includes('/') && (
+              <small>{displayPath.slice(0, displayPath.lastIndexOf('/'))}</small>
+            )}
+          </span>
+          {kind && (
+            <span
+              className="file-row__kind"
+              title={
+                file.kind === 'submodule'
+                  ? [
+                      file.submodule?.commitChanged && '提交指针变化',
+                      file.submodule?.trackedChanges && '内部文件已修改',
+                      file.submodule?.untrackedChanges && '包含未跟踪文件',
+                    ]
+                      .filter(Boolean)
+                      .join('；') || kind
+                  : kind
+              }
+            >
+              {kind}
+            </span>
+          )}
+          <span className="file-row__stats">
+            {file.additions ? <span className="additions">+{file.additions}</span> : null}
+            {file.deletions ? <span className="deletions">−{file.deletions}</span> : null}
+          </span>
+        </button>
+        <div className="file-row__actions">
+          {file.staged ? (
+            <Button
+              type="text"
+              size="small"
+              icon={<MinusOutlined />}
+              aria-label={`取消暂存 ${file.path}`}
+              loading={loading}
+              disabled={busy}
+              onClick={() => void runFileAction('unstage', [file.path])}
+            />
+          ) : actions.stage ? (
+            <Button
+              type="text"
+              size="small"
+              icon={<PlusOutlined />}
+              aria-label={`暂存 ${file.path}`}
+              loading={loading}
+              disabled={busy}
+              onClick={() => void runFileAction('stage', [file.path])}
+            />
+          ) : null}
+          {actions.open && (
+            <Button
+              type="text"
+              size="small"
+              icon={<ExportOutlined />}
+              aria-label={`打开${file.kind === 'worktree' ? ' Worktree' : '仓库'} ${file.path}`}
+              title={file.kind === 'worktree' ? '打开 Worktree' : '打开仓库'}
+              disabled={busy}
+              onClick={() => void openChangeRepository(file)}
+            />
+          )}
+          {actions.ignore && (
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeInvisibleOutlined />}
+              aria-label={`本地忽略 ${file.path}`}
+              title="本地忽略此目录"
+              disabled={busy}
+              onClick={() => ignoreChangeDirectory(file)}
+            />
+          )}
+          {actions.discard && (
+            <Popconfirm
+              title="丢弃此文件的未暂存改动？"
+              description={
+                <div>
+                  <p className="git-path-detail">{file.path}</p>
+                  <p>将恢复为暂存区的内容，保留已暂存改动。此操作不可撤销。</p>
+                  <Checkbox
+                    checked={discardConfirmed}
+                    onChange={(event) => setDiscardConfirmed(event.target.checked)}
+                  >
+                    我确认丢弃未暂存改动
+                  </Checkbox>
+                </div>
+              }
+              onOpenChange={() => setDiscardConfirmed(false)}
+              okButtonProps={{ disabled: !discardConfirmed, danger: true }}
+              okText="丢弃改动"
+              disabled={busy}
+              onConfirm={() => discardFile(file.path)}
+            >
+              <Button
+                type="text"
+                danger
+                size="small"
+                icon={<UndoOutlined />}
+                aria-label={`丢弃 ${file.path}`}
+                title="丢弃未暂存改动"
+                loading={loading}
+                disabled={busy}
+              />
+            </Popconfirm>
+          )}
+          {!kind && (actions.delete || addedPaths.has(file.path)) && (
             <Button
               type="text"
               danger
               size="small"
-              icon={<UndoOutlined />}
-              aria-label={`丢弃 ${file.path}`}
-              title="丢弃未暂存改动"
-              loading={loading}
+              icon={<DeleteOutlined />}
+              aria-label={`删除整个新增文件 ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
+              title="删除整个新增文件"
               disabled={busy}
+              onClick={() => {
+                ai.cancel();
+                setDeletePath(file.path);
+              }}
             />
-          </Popconfirm>
-        )}
-        {(file.status === 'untracked' || addedPaths.has(file.path)) && (
-          <Button
-            type="text"
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
-            aria-label={`删除整个新增文件 ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
-            title="删除整个新增文件"
-            disabled={busy}
-            onClick={() => {
-              ai.cancel();
-              setDeletePath(file.path);
-            }}
-          />
-        )}
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderGroup = (title: string, groupFiles: any[], staged: boolean) =>
     groupFiles.length > 0 ? (
@@ -292,13 +444,11 @@ export function ChangesView({
             <Button
               type="text"
               size="small"
-              disabled={busy}
-              onClick={() =>
-                void runFileAction(
-                  staged ? 'unstage' : 'stage',
-                  groupFiles.map((file) => file.path),
-                )
+              disabled={
+                busy ||
+                !groupFiles.some((file) => changeActions(file)[staged ? 'unstage' : 'stage'])
               }
+              onClick={() => runGroupAction(groupFiles, staged)}
             >
               {staged ? '全部取消暂存' : '全部暂存'}
             </Button>
@@ -317,6 +467,42 @@ export function ChangesView({
 
   return (
     <section className="workspace-panel changes-panel">
+      {directoryFile && (
+        <Modal
+          open
+          title={`${changeKindLabel(directoryFile)}详情`}
+          onCancel={() => setDirectoryFile(null)}
+          footer={
+            <>
+              <Button onClick={() => setDirectoryFile(null)}>关闭</Button>
+              {changeActions(directoryFile).ignore && (
+                <Button disabled={loading} onClick={() => ignoreChangeDirectory(directoryFile)}>
+                  本地忽略
+                </Button>
+              )}
+              {changeActions(directoryFile).open && (
+                <Button
+                  type="primary"
+                  loading={loading}
+                  onClick={() => void openChangeRepository(directoryFile)}
+                >
+                  {directoryFile.kind === 'worktree' ? '打开 Worktree' : '打开仓库'}
+                </Button>
+              )}
+            </>
+          }
+        >
+          <p className="git-path-detail">{directoryFile.path}</p>
+          <p>
+            {directoryFile.kind === 'directory'
+              ? '此路径是目录，无法作为单个文件预览、暂存或删除。请在文件树中查看内容并单独处理。'
+              : '此目录有独立的 Git 状态。请打开对应仓库查看改动；当前仓库的批量操作会跳过此目录。'}
+          </p>
+          {directoryFile.kind === 'worktree' && (
+            <p>需要移除此工作目录时，请使用 Worktree 管理中的移除操作。</p>
+          )}
+        </Modal>
+      )}
       {discardAllOpen && (
         <DiscardChangesDialog
           key={repoId}

@@ -100,6 +100,47 @@ describe('local repositories with real Git and SQLite', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  it('rejects directory staging and checkout via HTTP while allowing local ignore and ordinary file batches', async () => {
+    await seed();
+    git('worktree', 'add', '-qb', 'nested-tree', '.claude/worktrees/demo');
+    write('tracked.txt', 'changed\n');
+    const before = git('ls-files', '--stage', '-z');
+    for (const operation of ['stage', 'checkout']) {
+      await request(app.getHttpServer())
+        .post(`/repositories/${id}/${operation}`)
+        .send({ files: ['tracked.txt', '.claude/worktrees/demo'] })
+        .expect(400);
+      expect(git('ls-files', '--stage', '-z')).toBe(before);
+      expect(readFileSync(join(path, 'tracked.txt'), 'utf8')).toBe('changed\n');
+    }
+    const { body: preview } = await request(app.getHttpServer())
+      .post(`/repositories/${id}/discard-changes/preview`)
+      .expect(201);
+    expect(preview.skipped).toEqual([
+      expect.objectContaining({ path: '.claude/worktrees/demo/' }),
+    ]);
+    await request(app.getHttpServer())
+      .post(`/repositories/${id}/discard-changes`)
+      .send({ token: preview.token, scope: 'all' })
+      .expect(201);
+    expect(readFileSync(join(path, 'tracked.txt'), 'utf8')).toBe('first\n');
+    expect(existsSync(join(path, '.claude/worktrees/demo/.git'))).toBe(true);
+    for (const invalid of ['tracked.txt', '../outside/', '.git/', null])
+      await request(app.getHttpServer())
+        .post(`/repositories/${id}/ignore-directory`)
+        .send({ path: invalid })
+        .expect(400);
+    await request(app.getHttpServer())
+      .post(`/repositories/${id}/ignore-directory`)
+      .send({ path: '.claude/worktrees/demo/' })
+      .expect(201);
+    expect(git('status', '--porcelain')).toBe('');
+    expect(existsSync(join(path, '.gitignore'))).toBe(false);
+    expect(readFileSync(join(path, '.git/info/exclude'), 'utf8')).toContain(
+      '/.claude/worktrees/demo/',
+    );
+  });
+
   it('opens subdirectories idempotently, isolates SSH identities, and validates invalid inputs through HTTP', async () => {
     mkdirSync(join(path, 'src'));
     expect((await repos.addLocal(join(path, 'src'))).id).toBe(id);

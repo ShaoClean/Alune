@@ -3,6 +3,7 @@ import { runGit } from './repository-transport';
 import type { RepositoryTransport } from './repository-transport';
 import { CommandOutputLimitError } from './connection-manager';
 import { parseStatus } from './git-status';
+import { assertFileChanges, classifyChanges } from './change-entries';
 import { readLog } from './git-log';
 import { isWindowsPath, quotePosixArgument } from './git-shell';
 import { promisify } from 'util';
@@ -60,6 +61,7 @@ export class GitCommands {
     }
 
     const { branch, ahead, behind, files, head, upstream } = parseStatus(result.stdout);
+    await classifyChanges(this.connection, repoPath, files, signal);
     return {
       branch,
       ahead,
@@ -224,6 +226,7 @@ export class GitCommands {
   private async _changeIndex(repoPath: string, files: string[], command: string): Promise<void> {
     if (!files.length) throw new Error('请选择文件。');
     files.forEach((file) => this._validateFilePath(file));
+    if (command === 'add') await assertFileChanges(this.connection, repoPath, files, true);
     const result = await runGit(this.connection, repoPath, [...command.split(' '), '--', ...files]);
     if (result.exitCode !== 0) throw new Error(result.stderr);
   }

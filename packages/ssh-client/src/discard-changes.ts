@@ -6,7 +6,9 @@ import type {
   DiscardChangesPreview,
   DiscardChangesResult,
   DiscardChangesScope,
+  SkippedChange,
 } from '@alune/shared';
+import { specialChangeReason } from './change-entries';
 import { parseStatus, type StatusRecord } from './git-status';
 import { isWindowsPath } from './git-shell';
 import { validateNewFilePath } from './new-file-deletion';
@@ -27,6 +29,21 @@ export class DiscardChangesError extends Error {
     super(message);
   }
 }
+
+class DirectoryTarget extends Error {
+  constructor(
+    public readonly path: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+const underSkipped = (path: string, skipped: SkippedChange[]) =>
+  skipped.some((item) => {
+    const root = item.path.replace(/\/$/, '');
+    return path === root || path === root + '/' || path.startsWith(root + '/');
+  });
 
 export function validateDiscardChangesRequest(token: unknown, scope: unknown) {
   if (
@@ -80,15 +97,6 @@ export class DiscardChanges {
   }
 
   private validateTarget(repoPath: string, record: StatusRecord) {
-    const fields = record.raw.split(' ');
-    if (
-      record.path.endsWith('/') ||
-      (record.kind !== '?' && (fields[2] !== 'N...' || fields.slice(3, 6).includes('160000')))
-    ) {
-      throw new DiscardChangesError(
-        `“${record.path}”是子模块或嵌套仓库，无法批量放弃；请在对应仓库中处理。`,
-      );
-    }
     if (record.xy === '.A') {
       throw new DiscardChangesError(
         `“${record.path}”仅标记为意向添加（git add -N），请先暂存或取消暂存后重试。`,
@@ -122,7 +130,10 @@ export class DiscardChanges {
       }
       try {
         await promisify(sftp.lstat.bind(sftp))(joinRepositoryPath(ancestor, '.git'));
-        throw new DiscardChangesError(`“${path}”位于其他仓库或 worktree 内，无法批量放弃。`);
+        throw new DirectoryTarget(
+          ancestor.slice(root.length + 1),
+          '嵌套仓库或 Worktree，请在对应仓库中处理',
+        );
       } catch (error) {
         if (!missing(error)) throw error;
       }
@@ -139,6 +150,7 @@ export class DiscardChanges {
       if (missing(error)) return { root, fingerprint: null };
       throw error;
     }
+    if (before.isDirectory()) throw new DirectoryTarget(path, '此路径已变为目录，请单独处理');
     if (!before.isFile() && !before.isSymbolicLink()) {
       throw new DiscardChangesError(`“${path}”是目录或特殊文件，无法批量放弃。`);
     }
@@ -171,14 +183,25 @@ export class DiscardChanges {
     }
     const state = await this.state(repoPath);
     const records = this.targets(state.status.records);
-    records.forEach((record) => this.validateTarget(repoPath, record));
-    const targets = await this.connection.withSftp(async (sftp) => {
+    const skipped: SkippedChange[] = records.flatMap((record) => {
+      const reason = specialChangeReason(record);
+      return reason ? [{ path: record.path, reason }] : [];
+    });
+    const inspected = await this.connection.withSftp(async (sftp) => {
       const targets: Target[] = [];
       for (const record of records) {
-        targets.push({ record, disk: await this.disk(sftp, repoPath, record.path) });
+        if (underSkipped(record.path, skipped)) continue;
+        this.validateTarget(repoPath, record);
+        try {
+          targets.push({ record, disk: await this.disk(sftp, repoPath, record.path) });
+        } catch (error) {
+          if (!(error instanceof DirectoryTarget)) throw error;
+          skipped.push({ path: error.path, reason: error.message });
+        }
       }
       return targets;
     });
+    const targets = inspected.filter(({ record }) => !underSkipped(record.path, skipped));
     const latest = await this.state(repoPath);
     if (latest.raw !== state.raw || latest.index !== state.index) {
       throw new DiscardChangesError('读取期间仓库状态已变化，请重新确认。');
@@ -187,7 +210,8 @@ export class DiscardChanges {
       repositoryPath: repoPath,
       tracked: targets.filter(({ record }) => record.kind !== '?').length,
       untracked: targets.filter(({ record }) => record.kind === '?').length,
-      token: digest([repoPath, state.raw, state.index, targets]),
+      token: digest([repoPath, state.raw, state.index, targets, skipped]),
+      ...(skipped.length ? { skipped } : {}),
     };
     return { state, targets, preview };
   }
@@ -212,7 +236,9 @@ export class DiscardChanges {
       for (let i = 0; i < targets.length; i++) {
         const current = await this.state(repoPath);
         const remaining = this.targets(current.status.records).filter(
-          (record) => scope === 'all' || record.kind !== '?',
+          (record) =>
+            !underSkipped(record.path, plan.preview.skipped || []) &&
+            (scope === 'all' || record.kind !== '?'),
         );
         if (
           current.index !== plan.state.index ||
