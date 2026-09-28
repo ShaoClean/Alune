@@ -10,6 +10,8 @@ import { EventsModule } from './events/events.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SecretsModule } from './secrets/secrets.module';
+import { ProxyModule } from './proxy/proxy.module';
+import { ProxyController } from './proxy/proxy.controller';
 
 @Module({
   imports: [
@@ -20,14 +22,18 @@ import { SecretsModule } from './secrets/secrets.module';
     FileModule,
     EventsModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, ProxyController],
   providers: [AppService],
 })
 export class AppModule {
   static register(secrets?: AiSecretStorage): DynamicModule {
     return {
       module: AppModule,
-      imports: [SecretsModule.register(secrets), AiModule.register()],
+      imports: [
+        SecretsModule.register(secrets),
+        ProxyModule.register(),
+        AiModule.register(),
+      ],
     };
   }
 }

@@ -1,4 +1,11 @@
-import { Injectable, Inject, NotFoundException, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  OnModuleDestroy,
+  Optional,
+  ConflictException,
+} from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { SSHConnectionPool, SSHConnection } from '@alune/ssh-client';
@@ -8,6 +15,8 @@ import type {
   ConnectionTestResult,
   SSHConnectionConfig,
 } from '@alune/shared';
+import { ProxyService } from '../proxy/proxy.service';
+import type { ProxyConnectionStatus } from '@alune/shared';
 import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
@@ -21,25 +30,36 @@ export class ConnectionService implements OnModuleDestroy {
   constructor(
     @Inject('DATABASE') private db: Database.Database,
     private events: EventsGateway,
+    @Optional() private proxy?: ProxyService,
   ) {
     this._initTable();
     // SSH activity is the single source of truth for the status shown in the UI.
-    this.pool.on('connection:connecting', (id: string) => this._setStatus(id, 'connecting'));
-    this.pool.on('connection:connected', (id: string) => this._setStatus(id, 'connected'));
+    this.pool.on('connection:connecting', (id: string) =>
+      this._setStatus(id, 'connecting'),
+    );
+    this.pool.on('connection:connected', (id: string) =>
+      this._setStatus(id, 'connected'),
+    );
     this.pool.on('connection:disconnected', (id: string) => {
       // ssh2 closes the socket right after reporting an error; keep the specific
       // failure instead of replacing it with a bare "disconnected".
-      if (this.statuses.get(id)?.status !== 'error') this._setStatus(id, 'disconnected');
+      if (this.statuses.get(id)?.status !== 'error')
+        this._setStatus(id, 'disconnected');
     });
     this.pool.on('connection:error', (id: string, error: Error) =>
       this._setStatus(id, 'error', error?.message),
     );
   }
 
-  private _setStatus(id: string, status: ConnectionActivityStatus, error?: string) {
+  private _setStatus(
+    id: string,
+    status: ConnectionActivityStatus,
+    error?: string,
+  ) {
     const current = this.statuses.get(id);
     // ensureConnected reports the attempt before ssh2 does; do not emit it twice.
-    if (current && current.status === status && current.error === error) return current;
+    if (current && current.status === status && current.error === error)
+      return current;
     const updatedAt = Math.max(Date.now(), this.lastStatusAt + 1);
     this.lastStatusAt = updatedAt;
     const info: ConnectionStatusInfo = { status, error, updatedAt };
@@ -49,7 +69,9 @@ export class ConnectionService implements OnModuleDestroy {
   }
 
   getStatus(id: string): ConnectionStatusInfo {
-    return this.statuses.get(id) ?? { status: 'unknown', updatedAt: this.startedAt };
+    return (
+      this.statuses.get(id) ?? { status: 'unknown', updatedAt: this.startedAt }
+    );
   }
 
   onModuleDestroy() {
@@ -74,18 +96,36 @@ export class ConnectionService implements OnModuleDestroy {
     `);
   }
 
-  async create(config: Omit<SSHConnectionConfig, 'id'>): Promise<SSHConnectionConfig & { id: string }> {
+  async create(
+    config: Omit<SSHConnectionConfig, 'id'>,
+  ): Promise<SSHConnectionConfig & { id: string }> {
     const id = uuidv4();
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO connections (id, name, host, port, username, auth_type, password, private_key_path, passphrase)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, config.name, config.host, config.port || 22, config.username, config.authType, config.password || null, config.privateKeyPath || null, config.passphrase || null);
+    `,
+      )
+      .run(
+        id,
+        config.name,
+        config.host,
+        config.port || 22,
+        config.username,
+        config.authType,
+        config.password || null,
+        config.privateKeyPath || null,
+        config.passphrase || null,
+      );
 
     return { id, ...config };
   }
 
   async list(): Promise<(SSHConnectionConfig & { id: string })[]> {
-    const rows = this.db.prepare('SELECT * FROM connections ORDER BY created_at').all() as any[];
+    const rows = this.db
+      .prepare('SELECT * FROM connections ORDER BY created_at')
+      .all() as any[];
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -100,7 +140,9 @@ export class ConnectionService implements OnModuleDestroy {
   }
 
   async get(id: string): Promise<SSHConnectionConfig & { id: string }> {
-    const row = this.db.prepare('SELECT * FROM connections WHERE id = ?').get(id) as any;
+    const row = this.db
+      .prepare('SELECT * FROM connections WHERE id = ?')
+      .get(id) as any;
     if (!row) throw new NotFoundException(`Connection ${id} not found`);
     return {
       id: row.id,
@@ -129,7 +171,11 @@ export class ConnectionService implements OnModuleDestroy {
       // report one status, and testing never drops a connection already in use.
       await this.ensureConnected(id);
       const status = this.getStatus(id);
-      return { success: true, status: status.status, updatedAt: status.updatedAt };
+      return {
+        success: true,
+        status: status.status,
+        updatedAt: status.updatedAt,
+      };
     } catch (err: any) {
       const status = this.getStatus(id);
       return {
@@ -138,6 +184,62 @@ export class ConnectionService implements OnModuleDestroy {
         error: status.error || err.message,
         updatedAt: status.updatedAt,
       };
+    }
+  }
+
+  async proxyStatuses(): Promise<ProxyConnectionStatus[]> {
+    const revision = this.proxy?.settings.read().revision;
+    return (await this.list()).map(({ id, name }) => {
+      const connection = this.pool.getConnection(id);
+      return {
+        id,
+        name,
+        connected: connection?.connected ?? false,
+        connecting: connection?.connecting ?? false,
+        revision: connection?.proxyRevision ?? null,
+        pendingReconnect: Boolean(
+          connection && revision && connection.proxyRevision !== revision,
+        ),
+        activeTasks: connection?.activeTasks ?? 0,
+        forwarding: connection?.forwarding ?? 'disconnected',
+        error: connection?.forwardingError,
+      };
+    });
+  }
+
+  async reconnectProxy(id: string, revision: string) {
+    this.proxy?.settings.assertRevision(revision);
+    await this.get(id);
+    const current = this.pool.getConnection(id);
+    if (this.connecting.has(id) || current?.connecting || current?.activeTasks)
+      throw new ConflictException(
+        '此服务器仍有运行中任务或正在连接，请结束任务后重试。',
+      );
+    this.pool.removeConnection(id);
+    await this.ensureConnected(id);
+    return this.proxyStatuses();
+  }
+
+  async testSavedProxy(id: string, signal?: AbortSignal) {
+    const config = await this.get(id);
+    const connection = new SSHConnection({
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password,
+      privateKeyPath: config.privateKeyPath,
+      passphrase: config.passphrase,
+      proxy: this.proxy?.settings.snapshot(),
+    });
+    connection.on('error', () => {});
+    const abort = () => connection.disconnect();
+    signal?.addEventListener('abort', abort, { once: true });
+    try {
+      signal?.throwIfAborted();
+      await connection.connect();
+    } finally {
+      signal?.removeEventListener('abort', abort);
+      connection.disconnect();
     }
   }
 
@@ -150,6 +252,10 @@ export class ConnectionService implements OnModuleDestroy {
     if (pending) return pending;
     const existing = this.pool.getConnection(id);
     if (existing?.connected) return existing;
+    if (existing) {
+      await existing.connect();
+      return existing;
+    }
     // Report the attempt immediately: reading the config or the key file happens
     // before ssh2 can emit anything of its own.
     this._setStatus(id, 'connecting');
@@ -162,6 +268,7 @@ export class ConnectionService implements OnModuleDestroy {
         password: config.password,
         privateKeyPath: config.privateKeyPath,
         passphrase: config.passphrase,
+        proxy: this.proxy?.settings.snapshot(),
       });
       await conn.connect();
       return conn;

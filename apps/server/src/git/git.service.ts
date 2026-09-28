@@ -74,6 +74,7 @@ export class GitService implements OnModuleDestroy {
     signal?.throwIfAborted();
     return {
       signal,
+      execGit: connection.execGit?.bind(connection),
       execCommand: (...args) => connection.execCommand(...args),
       withSftp: (operation) => connection.withSftp(operation),
     };
@@ -99,9 +100,14 @@ export class GitService implements OnModuleDestroy {
       5 * 60_000,
     );
     timer.unref();
+    let release: (() => void) | undefined;
     try {
       const repo = await this.repoService.get(id);
       const connection = await this.transport(repo, controller.signal);
+      if (repo.connectionId)
+        release = this.connectionService
+          .getConnection?.(repo.connectionId)
+          ?.holdTask?.();
       controller.signal.throwIfAborted();
       return await operation(new GitCommands(connection), repo, connection);
     } catch (error) {
@@ -118,6 +124,7 @@ export class GitService implements OnModuleDestroy {
       );
     } finally {
       clearTimeout(timer);
+      release?.();
       this.active.delete(id);
     }
   }

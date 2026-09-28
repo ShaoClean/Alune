@@ -5,6 +5,12 @@ import * as path from 'path';
 import * as os from 'os';
 import { SSHChannelQueue } from './channel-queue';
 import { readSftpChunks } from './sftp-file';
+import * as net from 'node:net';
+import type { GitProxyStatus } from '@alune/shared';
+import { connectProxySocket, createProxyBridge } from './proxy-transport';
+import type { ProxySnapshot } from './proxy-transport';
+import { gitFileCommand, quotePosixArgument } from './git-shell';
+import { GitProxyError, proxyGitArguments, verifyLoopbackForward } from './proxy-git';
 
 export interface SSHConnectionOptions {
   host: string;
@@ -15,6 +21,7 @@ export interface SSHConnectionOptions {
   privateKeyPath?: string;
   passphrase?: string;
   readyTimeout?: number;
+  proxy?: ProxySnapshot;
 }
 
 export interface CommandResult {
@@ -44,6 +51,38 @@ export class SSHConnection extends EventEmitter {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private options: SSHConnectionOptions;
   private channelQueue = new SSHChannelQueue();
+  private attempt?: Promise<void>;
+  private controller?: AbortController;
+  private manuallyDisconnected = false;
+  private hasConnected = false;
+  private tasks = 0;
+  private bridge?: Awaited<ReturnType<typeof createProxyBridge>>;
+  private forwardPort?: number;
+  private forwardAttempt?: Promise<void>;
+  private forwardListener?: (...args: any[]) => void;
+  private forwardSockets = new Set<net.Socket>();
+  forwarding: GitProxyStatus = 'disconnected';
+  forwardingError?: string;
+
+  get activeTasks() {
+    return this.tasks + this.channelQueue.size;
+  }
+  get proxyRevision() {
+    return this.options.proxy?.revision ?? null;
+  }
+  get proxyEnabled() {
+    return this.options.proxy?.enabled ?? false;
+  }
+  holdTask(): () => void {
+    this.tasks++;
+    let released = false;
+    return () => {
+      if (!released) {
+        released = true;
+        this.tasks--;
+      }
+    };
+  }
 
   constructor(options: SSHConnectionOptions) {
     super();
@@ -63,66 +102,240 @@ export class SSHConnection extends EventEmitter {
   }
 
   async connect(): Promise<void> {
-    if (this._connected || this._connecting) return;
-
+    if (this._connected) return;
+    if (this.attempt) return this.attempt;
+    this.manuallyDisconnected = false;
+    this._cancelReconnect();
     this._connecting = true;
     this.emit('connecting');
-
-    return new Promise((resolve, reject) => {
+    const controller = new AbortController();
+    this.controller = controller;
+    const work = async () => {
+      const config = this._buildConnectConfig();
+      if (this.options.proxy?.enabled) {
+        config.sock = await connectProxySocket(
+          this.options.proxy,
+          this.options.host,
+          this.options.port!,
+          controller.signal,
+        );
+      }
+      if (controller.signal.aborted) {
+        config.sock?.destroy();
+        controller.signal.throwIfAborted();
+      }
       const client = new Client();
       const channelQueue = new SSHChannelQueue();
-      const config = this._buildConnectConfig();
-
-      client.on('ready', () => {
-        this.client = client;
-        this.channelQueue = channelQueue;
-        this._connected = true;
-        this._connecting = false;
-        this.emit('connect');
-        resolve();
-      });
-
-      client.on('error', (err) => {
-        this._connecting = false;
-        this.emit('error', err);
-        if (!this._connected) {
-          reject(err);
+      this.client = client;
+      await new Promise<void>((resolve, reject) => {
+        const cancelled = () => {
+          client.destroy();
+          reject(new Error('SSH 连接已取消。'));
+        };
+        controller.signal.addEventListener('abort', cancelled, { once: true });
+        client.once('ready', () => {
+          if (this.client !== client || controller.signal.aborted) return client.destroy();
+          this.channelQueue = channelQueue;
+          this._connected = true;
+          this._connecting = false;
+          this.hasConnected = true;
+          this.forwarding = this.proxyEnabled ? 'preparing' : 'disabled';
+          this.emit('connect');
+          resolve();
+          if (this.proxyEnabled) void this.prepareGitProxy().catch(() => {});
+        });
+        client.on('error', (error) => {
+          if (this.client === client) this.emit('error', error);
+          reject(error);
+        });
+        client.once('end', () => channelQueue.close(new Error('SSH connection ended')));
+        client.once('close', () => {
+          channelQueue.close(new Error('SSH connection closed'));
+          controller.signal.removeEventListener('abort', cancelled);
+          if (this.client !== client) return;
+          this.client = null;
+          this._connected = false;
+          this._connecting = false;
+          this.clearForwarding();
+          this.forwarding = this.proxyEnabled ? 'interrupted' : 'disconnected';
+          this.emit('disconnect');
+          reject(new Error('SSH 连接已中断。'));
+          if (!this.manuallyDisconnected && this.hasConnected) this._scheduleReconnect();
+        });
+        try {
+          client.connect(config);
+        } catch (error) {
+          client.destroy();
+          reject(error);
         }
       });
-
-      client.on('close', () => {
-        channelQueue.close(new Error('SSH connection closed'));
-        const wasConnected = this._connected;
-        this._connected = false;
+    };
+    this.attempt = work()
+      .catch((error) => {
         this._connecting = false;
-        this.client = null;
-        this.emit('disconnect');
-        if (wasConnected) {
-          this._scheduleReconnect();
-        }
+        if (!this.client) this.emit('error', error);
+        if (!this.manuallyDisconnected && this.hasConnected) this._scheduleReconnect();
+        throw error;
+      })
+      .finally(() => {
+        this.attempt = undefined;
       });
-
-      client.on('end', () => {
-        channelQueue.close(new Error('SSH connection ended'));
-        this._connected = false;
-        this._connecting = false;
-        this.client = null;
-        this.emit('disconnect');
-      });
-
-      client.connect(config);
-    });
+    return this.attempt;
   }
 
   disconnect(): void {
+    this.manuallyDisconnected = true;
     this._cancelReconnect();
     this.channelQueue.close(new Error('SSH connection closed'));
-    if (this.client) {
-      this.client.end();
-      this.client = null;
-    }
+    this.clearForwarding();
+    this.controller?.abort();
+    this.client?.destroy();
+    this.client = null;
     this._connected = false;
     this._connecting = false;
+    this.forwarding = 'disconnected';
+  }
+
+  private clearForwarding() {
+    if (this.forwardListener) this.client?.removeListener('tcp connection', this.forwardListener);
+    this.forwardListener = undefined;
+    if (this.forwardPort && this.connected) {
+      try {
+        this.client?.unforwardIn('127.0.0.1', this.forwardPort, () => {});
+      } catch {
+        /* A closing SSH session releases its listeners. */
+      }
+    }
+    this.bridge?.close();
+    this.bridge = undefined;
+    this.forwardPort = undefined;
+    this.forwardAttempt = undefined;
+    for (const socket of this.forwardSockets) socket.destroy();
+    this.forwardSockets.clear();
+  }
+
+  async prepareGitProxy(): Promise<void> {
+    if (!this.proxyEnabled) {
+      this.forwarding = 'disabled';
+      return;
+    }
+    if (this.forwardPort) return;
+    if (this.forwardAttempt) return this.forwardAttempt;
+    const client = this._ensureConnected();
+    this.forwarding = 'preparing';
+    this.forwardingError = undefined;
+    const attempt = (async () => {
+      const bridge = await createProxyBridge(() => this.options.proxy!);
+      if (this.client !== client || !this.connected) {
+        bridge.close();
+        throw new Error('SSH 连接已中断。');
+      }
+      this.bridge = bridge;
+      const port = await new Promise<number>((resolve, reject) => {
+        let finished = false;
+        const signal = this.controller!.signal;
+        const abort = () => {
+          finished = true;
+          clearTimeout(timer);
+          reject(new Error('远端转发已取消。'));
+        };
+        const timer = setTimeout(() => {
+          finished = true;
+          signal.removeEventListener('abort', abort);
+          // A server that never acknowledges an allocated port cannot be safely
+          // cancelled by port number. Closing the SSH session removes its listeners.
+          client.destroy();
+          reject(new Error('远端转发请求超时。'));
+        }, 15_000);
+        signal.addEventListener('abort', abort, { once: true });
+        client.forwardIn('127.0.0.1', 0, (error, allocated) => {
+          clearTimeout(timer);
+          signal.removeEventListener('abort', abort);
+          if (finished) {
+            if (!error) {
+              try {
+                client.unforwardIn('127.0.0.1', allocated, () => {});
+              } catch {}
+            }
+            return;
+          }
+          finished = true;
+          if (error) reject(error);
+          else resolve(allocated);
+        });
+      });
+      if (this.client !== client || !this.connected) {
+        bridge.close();
+        throw new Error('SSH 连接已中断。');
+      }
+      this.forwardPort = port;
+      this.forwardListener = (info, accept, reject) => {
+        if (
+          this.client !== client ||
+          info.destIP !== '127.0.0.1' ||
+          info.destPort !== this.forwardPort
+        )
+          return reject();
+        const channel = accept();
+        const socket = net.connect(bridge.port, '127.0.0.1');
+        this.forwardSockets.add(socket);
+        const close = () => {
+          socket.destroy();
+          channel.destroy();
+          this.forwardSockets.delete(socket);
+        };
+        socket.once('error', close);
+        channel.once('error', close);
+        socket.once('close', close);
+        channel.once('close', close);
+        channel.pipe(socket).pipe(channel);
+      };
+      client.on('tcp connection', this.forwardListener);
+      await verifyLoopbackForward(this, port);
+      if (this.client !== client || !this.connected) throw new Error();
+      this.forwarding = 'ready';
+    })()
+      .catch((error) => {
+        if (this.client === client) {
+          this.clearForwarding();
+          this.forwarding = this.connected
+            ? error instanceof GitProxyError
+              ? 'error'
+              : 'denied'
+            : 'interrupted';
+          this.forwardingError =
+            error instanceof GitProxyError
+              ? error.message
+              : this.connected
+                ? '服务器未允许回环 TCP 转发，请检查 AllowTcpForwarding、GatewayPorts 和转发权限。'
+                : 'SSH 连接中断，远端 Git 代理不可用。';
+        }
+        throw new GitProxyError(this.forwardingError || '远端 Git 代理不可用，请重新连接。');
+      })
+      .finally(() => {
+        if (this.forwardAttempt === attempt) this.forwardAttempt = undefined;
+      });
+    this.forwardAttempt = attempt;
+    return attempt;
+  }
+
+  async execGit(
+    repoPath: string,
+    args: string[],
+    signal?: AbortSignal,
+    options?: { maxOutputBytes?: number; strictUtf8?: boolean; binary?: boolean },
+  ): Promise<CommandResult> {
+    if (!this.proxyEnabled || !['fetch', 'pull', 'push', 'ls-remote'].includes(args[0]))
+      return this.execCommand(gitFileCommand(repoPath, args), undefined, signal, options);
+    const release = this.holdTask();
+    try {
+      await this.prepareGitProxy();
+      signal?.throwIfAborted();
+      const adapted = await proxyGitArguments(this, repoPath, args, this.forwardPort!, signal);
+      return await this.execCommand(adapted, undefined, signal, options);
+    } finally {
+      release();
+    }
   }
 
   async execCommand(
@@ -133,7 +346,7 @@ export class SSHConnection extends EventEmitter {
   ): Promise<CommandResult> {
     signal?.throwIfAborted();
     this._ensureConnected();
-    const fullCommand = cwd ? `cd "${cwd}" && ${command}` : command;
+    const fullCommand = cwd ? `cd ${quotePosixArgument(cwd)} && ${command}` : command;
 
     return new Promise((resolve, reject) => {
       let channel: ClientChannel | undefined;
@@ -215,7 +428,7 @@ export class SSHConnection extends EventEmitter {
     callbacks: StreamCallbacks,
     cwd?: string,
   ): Promise<ClientChannel> {
-    const fullCommand = cwd ? `cd "${cwd}" && ${command}` : command;
+    const fullCommand = cwd ? `cd ${quotePosixArgument(cwd)} && ${command}` : command;
 
     return new Promise((resolve, reject) => {
       this._exec(fullCommand, (err, stream) => {
@@ -224,6 +437,7 @@ export class SSHConnection extends EventEmitter {
           return;
         }
 
+        stream.on('error', () => {});
         stream.on('data', (data: Buffer) => {
           callbacks.onStdout?.(data.toString());
         });

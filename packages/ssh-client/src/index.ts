@@ -22,3 +22,11 @@ export {
 export { LocalConnection } from './local-connection';
 export { runGit } from './repository-transport';
 export type { RepositoryTransport, CommandOptions } from './repository-transport';
+export {
+  connectProxySocket,
+  createProxyDispatcher,
+  createProxyBridge,
+  ProxyTransportError,
+} from './proxy-transport';
+export type { ProxySnapshot } from './proxy-transport';
+export { GitProxyError } from './proxy-git';

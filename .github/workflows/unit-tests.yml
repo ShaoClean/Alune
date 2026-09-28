@@ -67,3 +67,28 @@ jobs:
       - run: node --test packages/ssh-client/tests/local-connection.test.cjs packages/ssh-client/tests/discard-changes.test.cjs
       - run: npm test -w server -- --ci --runInBand local-git.spec.ts
         if: ${{ !cancelled() && steps.build-local-git.outcome == 'success' }}
+
+  network-proxy:
+    name: 网络代理 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @alune/shared
+      - run: npm run build -w @alune/ssh-client
+      - run: npm run build -w server
+      - run: node --test packages/ssh-client/tests/proxy-transport.test.cjs apps/server/test/proxy.integration.cjs
+      - name: 验证 Electron 更新网络栈
+        if: runner.os != 'Linux'
+        run: npm run test:proxy -w desktop
+      - name: 验证 Electron 更新网络栈 (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:proxy -w desktop

@@ -3,7 +3,13 @@ export const quotePosixArgument = (value: string) => `'${value.replace(/'/g, `'"
 
 // Windows OpenSSH commonly starts cmd.exe; encoded PowerShell avoids both cmd
 // expansion and PowerShell interpolation of repository paths and file names.
-export function gitFileCommand(repoPath: string, args: string[]): string {
+export function gitFileCommand(
+  repoPath: string,
+  args: string[],
+  environment: Record<string, string> = {},
+): string {
+  if (Object.keys(environment).some((name) => !/^[A-Z_][A-Z0-9_]*$/i.test(name)))
+    throw new Error('Invalid command environment name');
   const argv = ['--literal-pathspecs', '-C', repoPath, ...args];
   if (isWindowsPath(repoPath)) {
     const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
@@ -18,6 +24,10 @@ export function gitFileCommand(repoPath: string, args: string[]): string {
       "$gitProcess.StartInfo.FileName = 'git'",
       `$gitProcess.StartInfo.Arguments = ${literal(argv.map(nativeArg).join(' '))}`,
       '$gitProcess.StartInfo.UseShellExecute = $false',
+      ...Object.entries(environment).map(
+        ([name, value]) =>
+          `$gitProcess.StartInfo.EnvironmentVariables[${literal(name)}] = ${literal(value)}`,
+      ),
       '$gitProcess.StartInfo.RedirectStandardOutput = $true',
       '$gitProcess.StartInfo.RedirectStandardError = $true',
       '$null = $gitProcess.Start()',
@@ -32,5 +42,8 @@ export function gitFileCommand(repoPath: string, args: string[]): string {
     ].join('; ');
     return `powershell -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(script, 'utf16le').toString('base64')}`;
   }
-  return `git ${argv.map(quotePosixArgument).join(' ')}`;
+  const prefix = Object.entries(environment)
+    .map(([name, value]) => `${name}=${quotePosixArgument(value)}`)
+    .join(' ');
+  return `${prefix ? `env ${prefix} ` : ''}git ${argv.map(quotePosixArgument).join(' ')}`;
 }

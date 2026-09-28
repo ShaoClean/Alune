@@ -6,6 +6,7 @@
 - [工作区使用说明](workspace.md)：布局、快捷键、Diff、提交历史与 Worktree
 - [桌面端说明](desktop.md)：安装条件、版本更新、数据目录与迁移
 - [AI 设置说明](ai-settings.md)：服务商、模型、密钥和提交生成
+- [网络代理](network-proxy.md)：代理配置、生效时机、远端 Git 转发与连接测试
 - [开发与打包](development.md)：从源码运行、桌面构建、测试与发布验收要求
 - [贡献指南](../.github/CONTRIBUTING.md)与[贡献与发布指南](../CONTRIBUTE.md)：Issue、PR、Git hooks、提交规范与发布流程
 

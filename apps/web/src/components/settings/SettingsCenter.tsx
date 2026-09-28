@@ -10,6 +10,7 @@ import {
   SettingOutlined,
   SkinOutlined,
   KeyOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
@@ -21,6 +22,7 @@ import { UpdatePanelContent } from '../UpdatePanel';
 import { Sparkles } from '../Sparkles';
 import { BrandIcon } from '../BrandIcon';
 import { AccessTokenSettings } from './AccessTokenSettings';
+import { ProxySettings } from './ProxySettings';
 import '../../settings.css';
 
 const categories = [
@@ -29,6 +31,7 @@ const categories = [
   { id: 'tokens', name: '访问令牌', icon: <KeyOutlined /> },
   { id: 'layout', name: '布局', icon: <LayoutOutlined /> },
   { id: 'appearance', name: '外观', icon: <SkinOutlined /> },
+  { id: 'proxy', name: '网络代理', icon: <GlobalOutlined /> },
   { id: 'updates', name: '版本更新', icon: <ReloadOutlined /> },
 ];
 
@@ -117,6 +120,8 @@ export function SettingsCenter({
         <main className="settings-main" aria-label={`${category.name}设置`}>
           {category.id === 'tokens' ? (
             <AccessTokenSettings returnTo={returnTo} />
+          ) : category.id === 'proxy' ? (
+            <ProxySettings />
           ) : category.id === 'appearance' ? (
             <AppearanceSettings />
           ) : category.id === 'layout' ? (
