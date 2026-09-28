@@ -6,6 +6,7 @@ import { DIFF_IMAGE_MAX_BYTES, diffImageMediaType } from '@alune/shared';
 import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/shared';
 import { CommandOutputLimitError } from './connection-manager';
 import { isWindowsPath } from './git-shell';
+import { readSftpChunks } from './sftp-file';
 
 export class DiffImageError extends Error {
   constructor(
@@ -122,10 +123,10 @@ export class DiffImages {
         if (stat.size > DIFF_IMAGE_MAX_BYTES) throw new DiffImageError(limitMessage);
         const chunks: Buffer[] = [];
         let read = 0;
-        for await (const chunk of sftp.createReadStream(target)) {
-          read += (chunk as Buffer).length;
+        for await (const chunk of readSftpChunks(sftp, target)) {
+          read += chunk.length;
           if (read > DIFF_IMAGE_MAX_BYTES) throw new DiffImageError(limitMessage);
-          chunks.push(chunk as Buffer);
+          chunks.push(chunk);
         }
         return Buffer.concat(chunks);
       });
