@@ -5,6 +5,9 @@ import type {
   DiffImageContent,
   DiffImageOptions,
   NewFileDeletionPreview,
+  DiscardChangesPreview,
+  DiscardChangesResult,
+  DiscardChangesScope,
   LogOptions,
   LogPage,
   Repository,
@@ -218,6 +221,18 @@ export const gitApi = {
     api.post(`/repositories/${id}/stash/drop`, { index }, gitTimeout).then((r) => r.data),
   checkout: (id: string, files: string[]) =>
     api.post(`/repositories/${id}/checkout`, { files }, gitTimeout).then((r) => r.data),
+  previewDiscardChanges: (id: string): Promise<DiscardChangesPreview> =>
+    api
+      .post(`/repositories/${id}/discard-changes/preview`, {}, { timeout: 65_000 })
+      .then((r) => r.data),
+  discardChanges: (
+    id: string,
+    token: string,
+    scope: DiscardChangesScope,
+  ): Promise<DiscardChangesResult> =>
+    api
+      .post(`/repositories/${id}/discard-changes`, { token, scope }, gitTimeout)
+      .then((r) => r.data),
   reset: (id: string, mode: string, commit?: string) =>
     api.post(`/repositories/${id}/reset`, { mode, commit }, gitTimeout).then((r) => r.data),
   cherryPick: (id: string, commits: string[]) =>

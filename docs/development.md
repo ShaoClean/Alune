@@ -57,10 +57,13 @@ npm run build -w @alune/shared
 npm run build -w @alune/ssh-client
 npm test -w server -- --runInBand local-git.spec.ts
 node --test packages/ssh-client/tests/local-connection.test.cjs
+node --test packages/ssh-client/tests/discard-changes.test.cjs
 ```
 
 CI 对本地 Git 集成测试使用 macOS、Windows、Linux 三个平台。测试仓库、SQLite 数据库与远程 bare 仓库均为临时数据，不访问用户仓库。测试覆盖首次提交、部分暂存、字面路径、分支/合并、Stash、Worktree 保护、同步/上游、浅克隆、二进制和图片读取、旧数据库迁移、输出上限和真实 Git hook 取消。
 
 构建 server 和 web 后，运行 `node apps/server/test/local-ui-fixture.cjs` 可在 `http://127.0.0.1:59482` 验证真实本地仓库界面。控制台输出示例仓库、无首次提交仓库和本地 bare 远程的路径；退出时清理临时目录。平台 UI、目录选择器与真实凭据的实际验收结果见 Wiki 的 Issue-82-Validation。
+
+批量放弃更改使用 Git 2.23+ 的 `restore --worktree` 保留暂存区；未跟踪文件仅在确认包含它们时直接删除，不进入回收站。构建上述工作区后，运行 `node apps/web/tests/discard-changes-fixture.cjs` 可验证确认范围、筛选、取消、部分失败及 Diff 刷新。fixture 输出界面 URL 和独立的本机测试控制地址，所有文件和数据库均位于临时目录，退出时清理；设计与验收记录见 [Issue-109](https://github.com/ShaoClean/Alune/wiki/Issue-109)。
 
 [返回项目首页](../README.md) · [文档索引](README.md)

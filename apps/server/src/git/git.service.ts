@@ -22,13 +22,16 @@ import {
   NewFileDeletion,
   NewFileDeletionError,
   validateNewFilePath,
+  DiscardChanges,
+  DiscardChangesError,
+  validateDiscardChangesRequest,
   validateRepositoryPath,
   GitWorktrees,
   worktreePathKey,
   runGit,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
-import type { Repository } from '@alune/shared';
+import type { DiscardChangesScope, Repository } from '@alune/shared';
 
 type Operation = {
   controller: AbortController;
@@ -446,6 +449,54 @@ export class GitService implements OnModuleDestroy {
         ...this.files(repo, files),
       ]),
     );
+  }
+  async previewDiscardChanges(id: string) {
+    try {
+      const repo = await this.repoService.get(id);
+      const connection = await this.transport(
+        repo,
+        AbortSignal.timeout(60_000),
+      );
+      return {
+        ...(await new DiscardChanges(connection).preview(repo.path)),
+        repositoryName: repo.name,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error instanceof Error ? error.message : '无法核验放弃范围。',
+        error instanceof DiscardChangesError ? error.statusCode : 502,
+      );
+    }
+  }
+  async discardChanges(id: string, token: string, scope: DiscardChangesScope) {
+    try {
+      validateDiscardChangesRequest(token, scope);
+      return await this.write(
+        id,
+        'discard-all',
+        async (_git, repo, connection) => {
+          try {
+            return await new DiscardChanges(connection).discard(
+              repo.path,
+              token,
+              scope,
+            );
+          } catch (error) {
+            throw new HttpException(
+              error instanceof Error
+                ? error.message
+                : '放弃操作失败，请刷新仓库状态。',
+              error instanceof DiscardChangesError ? error.statusCode : 502,
+            );
+          }
+        },
+      );
+    } catch (error) {
+      if (error instanceof DiscardChangesError)
+        throw new HttpException(error.message, error.statusCode);
+      throw error;
+    }
   }
   reset(id: string, mode: 'soft' | 'mixed' | 'hard', commit?: string) {
     return this.write(id, 'reset', (git, repo) => {
