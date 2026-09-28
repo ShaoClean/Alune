@@ -748,3 +748,109 @@
     padding-left: 0;
   }
 }
+
+.code-appearance-settings {
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid var(--settings-line);
+}
+.code-appearance-settings .settings-section-heading {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.code-font-row {
+  grid-template-columns: minmax(0, 1fr) 120px;
+}
+.code-font-row .settings-field {
+  margin-top: 0;
+}
+.code-font-row .ant-input-number {
+  width: 100%;
+}
+.code-appearance-preview {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.code-appearance-preview__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  font-size: 11px;
+}
+.code-appearance-preview__header label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.code-appearance-preview__header select {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 3px;
+}
+.code-appearance-preview .files-code {
+  flex: none;
+  max-height: 300px;
+}
+.code-theme-install-heading {
+  margin-top: 28px;
+}
+.code-theme-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.code-theme-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--settings-line);
+}
+.code-theme-swatch {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: 600 14px monospace;
+}
+.code-theme-list__copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.code-theme-list__copy span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.code-theme-compatibility {
+  margin-top: 18px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.code-theme-compatibility summary {
+  cursor: pointer;
+}
+.code-theme-compatibility p {
+  margin-bottom: 0;
+}
+@media (max-width: 400px) {
+  .code-font-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}

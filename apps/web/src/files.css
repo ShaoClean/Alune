@@ -270,6 +270,8 @@
   padding: 16px;
 }
 .files-code {
+  color: var(--code-foreground);
+  background: var(--code-background);
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -289,10 +291,10 @@
 .files-code__content {
   margin: 0;
   padding: 8px 0 16px;
-  font:
-    13px/1.65 'SFMono-Regular',
-    Consolas,
-    monospace;
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size);
+  line-height: 1.65;
+  font-variant-ligatures: none;
   tab-size: 4;
   white-space: pre;
 }
@@ -303,8 +305,8 @@
   flex-shrink: 0;
   min-width: 48px;
   padding-inline: 12px 10px;
-  color: var(--text-faint);
-  background: var(--code);
+  color: var(--code-lineNumber);
+  background: var(--code-gutter);
   border-right: 1px solid var(--line);
   text-align: right;
   user-select: none;
@@ -312,56 +314,15 @@
 .files-code__content {
   flex: 1;
   padding-inline: 14px 24px;
-  color: var(--text);
+  color: var(--code-foreground);
 }
 .files-code__content code {
   font: inherit;
   background: none;
 }
-.files-code__content .token.comment,
-.files-code__content .token.prolog,
-.files-code__content .token.doctype,
-.files-code__content .token.cdata {
-  color: var(--text-muted);
-  font-style: italic;
-}
-.files-code__content .token.keyword,
-.files-code__content .token.atrule,
-.files-code__content .token.important {
-  color: var(--purple);
-}
-.files-code__content .token.string,
-.files-code__content .token.char,
-.files-code__content .token.attr-value,
-.files-code__content .token.inserted {
-  color: var(--green);
-}
-.files-code__content .token.number,
-.files-code__content .token.boolean,
-.files-code__content .token.constant,
-.files-code__content .token.symbol,
-.files-code__content .token.attr-name {
-  color: var(--orange);
-}
-.files-code__content .token.function,
-.files-code__content .token.class-name,
-.files-code__content .token.builtin,
-.files-code__content .token.selector,
-.files-code__content .token.title {
-  color: var(--blue);
-}
-.files-code__content .token.tag,
-.files-code__content .token.deleted {
-  color: var(--red);
-}
-.files-code__content .token.property,
-.files-code__content .token.regex,
-.files-code__content .token.variable {
-  color: var(--graph-6);
-}
-.files-code__content .token.punctuation,
-.files-code__content .token.operator {
-  color: var(--text-muted);
+.files-code__content ::selection,
+.files-code__content::selection {
+  background: var(--code-selection);
 }
 .files-code__content .token.bold {
   font-weight: 600;

@@ -192,10 +192,10 @@ test('语法高亮生成 React 元素而不是 HTML 字符串，未知语法返�
   const tokens = highlight('const answer = 42; // <b>not html</b>', 'typescript');
   assert.ok(Array.isArray(tokens));
   const markup = renderToStaticMarkup(createElement('code', null, tokens));
-  assert.match(markup, /<span class="token keyword">const<\/span>/);
-  assert.match(markup, /<span class="token number">42<\/span>/);
+  assert.match(markup, /<span class="token keyword"[^>]*>const<\/span>/);
+  assert.match(markup, /<span class="token number"[^>]*>42<\/span>/);
   // Content inside a comment is escaped text, never parsed markup.
-  assert.match(markup, /<span class="token comment">\/\/ &lt;b&gt;not html&lt;\/b&gt;<\/span>/);
+  assert.match(markup, /<span class="token comment"[^>]*>\/\/ &lt;b&gt;not html&lt;\/b&gt;<\/span>/);
   assert.ok(tokens.some((token) => isValidElement(token)));
   assert.equal(highlight('anything', 'brainfuck'), null);
 });

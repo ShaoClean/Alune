@@ -22,6 +22,8 @@ import { ImagePreview, formatBytes } from './ImageDiffView';
 import { CommandButton, FileIcon, FolderIcon } from './ui';
 import { fileLanguage } from './file-language';
 import type { FileLanguage } from './file-language';
+import { CodeView } from './CodeView';
+export { CodeView, HIGHLIGHT_MAX_CHARS } from './CodeView';
 import {
   ROOT,
   errorMessage,
@@ -49,12 +51,7 @@ type Snapshot = {
 const sessions = new Map<string, Snapshot>();
 const SESSION_LIMIT = 12;
 
-// Prism turns every token into an element; beyond this the preview stays plain text.
-export const HIGHLIGHT_MAX_CHARS = 256 * 1024;
 const PREVIEW_MIN = 320;
-
-let highlighterModule: Promise<typeof import('./syntax-highlight')> | undefined;
-const loadHighlighter = () => (highlighterModule ??= import('./syntax-highlight'));
 
 const encodingLabels = { 'utf-8': 'UTF-8', 'utf-16le': 'UTF-16 LE', 'utf-16be': 'UTF-16 BE' };
 
@@ -431,6 +428,7 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
         />
       )}
       <FilePreviewPane
+        repositoryId={repoId}
         entry={selected}
         file={file && selected?.path === file.path ? file : null}
         onRetry={() => selected && loadFile(selected.path)}
@@ -588,10 +586,12 @@ function FilesNotice({
 }
 
 export function FilePreviewPane({
+  repositoryId,
   entry,
   file,
   onRetry,
 }: {
+  repositoryId?: string;
   entry: RepositoryTreeEntry | null;
   file: FileState | null;
   onRetry: () => void;
@@ -647,6 +647,7 @@ export function FilePreviewPane({
       </div>
       <div className="files-preview__body">
         <PreviewBody
+          repositoryId={repositoryId}
           entry={entry}
           file={file}
           preview={preview}
@@ -660,6 +661,7 @@ export function FilePreviewPane({
 }
 
 function PreviewBody({
+  repositoryId,
   entry,
   file,
   preview,
@@ -667,6 +669,7 @@ function PreviewBody({
   language,
   onRetry,
 }: {
+  repositoryId?: string;
   entry: RepositoryTreeEntry;
   file: FileState | null;
   preview?: RepositoryFilePreview;
@@ -721,7 +724,13 @@ function PreviewBody({
           此文件没有内容。
         </FilesNotice>
       ) : (
-        <CodeView path={entry.path} text={text!.text} lines={text!.lines} language={language} />
+        <CodeView
+          path={entry.path}
+          text={text!.text}
+          lines={text!.lines}
+          language={language}
+          scrollKey={repositoryId ? JSON.stringify([repositoryId, entry.path]) : undefined}
+        />
       );
     case 'image':
       return (
@@ -760,68 +769,4 @@ function PreviewBody({
         </FilesNotice>
       );
   }
-}
-
-function useHighlighter(enabled: boolean) {
-  const [module, setModule] = useState<Awaited<ReturnType<typeof loadHighlighter>> | null>(null);
-  useEffect(() => {
-    if (!enabled || module) return;
-    let active = true;
-    loadHighlighter().then(
-      (loaded) => active && setModule(loaded),
-      () => undefined,
-    );
-    return () => {
-      active = false;
-    };
-  }, [enabled, module]);
-  return module;
-}
-
-export function CodeView({
-  path,
-  text,
-  lines,
-  language,
-}: {
-  path: string;
-  text: string;
-  lines: number;
-  language: FileLanguage | null;
-}) {
-  const highlightable = Boolean(language) && text.length <= HIGHLIGHT_MAX_CHARS;
-  const highlighter = useHighlighter(highlightable);
-  const tokens = useMemo(
-    () =>
-      highlightable && highlighter && language ? highlighter.highlight(text, language.id) : null,
-    [highlightable, highlighter, language, text],
-  );
-  const gutter = useMemo(
-    () => Array.from({ length: lines }, (_, index) => index + 1).join('\n'),
-    [lines],
-  );
-  return (
-    <>
-      {language && !highlightable && (
-        <p className="files-preview__hint" role="status">
-          文件超过 {formatBytes(HIGHLIGHT_MAX_CHARS)}，已关闭语法高亮以保持流畅。
-        </p>
-      )}
-      <div
-        className="files-code"
-        role="region"
-        aria-label={`${fileName(path)} 的内容`}
-        tabIndex={0}
-      >
-        <div className="files-code__lines">
-          <pre className="files-code__gutter" aria-hidden="true">
-            {gutter}
-          </pre>
-          <pre className="files-code__content" data-language={language?.id}>
-            <code>{tokens ?? text}</code>
-          </pre>
-        </div>
-      </div>
-    </>
-  );
 }
