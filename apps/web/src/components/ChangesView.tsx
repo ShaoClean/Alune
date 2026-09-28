@@ -21,6 +21,7 @@ import { gitApi } from '../api';
 import { EmptyState, ErrorState, FileIcon, LoadingState, PanelHeader } from './ui';
 import { EMPTY_DRAFT, useCommitDraftStore } from '../stores/commitDraftStore';
 import { DeleteNewFileDialog } from './DeleteNewFileDialog';
+import { DiscardChangesDialog } from './DiscardChangesDialog';
 import { Sparkles } from './Sparkles';
 import { useCommitGeneration } from '../hooks/useCommitGeneration';
 
@@ -75,7 +76,8 @@ export function ChangesView({
   const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [deletePath, setDeletePath] = useState<string | null>(null);
-  const busy = loading || deletePath !== null;
+  const [discardAllOpen, setDiscardAllOpen] = useState(false);
+  const busy = loading || deletePath !== null || discardAllOpen;
 
   const files = status?.files || [];
   const stagedFiles = useMemo(() => files.filter((file: any) => file.staged), [files]);
@@ -274,6 +276,19 @@ export function ChangesView({
             <span className="count-badge">{groupFiles.length}</span>
           </button>
           <div className="change-group__actions">
+            {!staged && (
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<UndoOutlined />}
+                aria-label="放弃所有更改"
+                disabled={busy}
+                onClick={() => setDiscardAllOpen(true)}
+              >
+                放弃所有更改
+              </Button>
+            )}
             <Button
               type="text"
               size="small"
@@ -302,6 +317,13 @@ export function ChangesView({
 
   return (
     <section className="workspace-panel changes-panel">
+      {discardAllOpen && (
+        <DiscardChangesDialog
+          key={repoId}
+          repoId={repoId}
+          onClose={() => setDiscardAllOpen(false)}
+        />
+      )}
       {deletePath !== null && (
         <DeleteNewFileDialog
           key={`${repoId}-${deletePath}`}

@@ -104,6 +104,25 @@ export interface NewFileDeletionPreview {
   diskPresent: boolean;
 }
 
+export type DiscardChangesScope = 'tracked' | 'all';
+
+export interface DiscardChangesPreview {
+  repositoryPath: string;
+  repositoryName?: string;
+  tracked: number;
+  untracked: number;
+  token: string;
+}
+
+export interface DiscardChangesResult {
+  success: boolean;
+  restored: number;
+  deleted: number;
+  remaining: number;
+  unknown: number;
+  error?: string;
+}
+
 export interface BranchInfo {
   name: string;
   isHead: boolean;

@@ -167,6 +167,19 @@ export class GitController {
     return this.gitService.deleteNewFile(id, body?.path, undefined, true);
   }
 
+  @Post(':id/discard-changes/preview')
+  previewDiscardChanges(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gitService.previewDiscardChanges(id);
+  }
+
+  @Post(':id/discard-changes')
+  discardChanges(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { token: string; scope: 'tracked' | 'all' },
+  ) {
+    return this.gitService.discardChanges(id, body?.token, body?.scope);
+  }
+
   @Post(':id/delete-new-file')
   async deleteNewFile(
     @Param('id', ParseUUIDPipe) id: string,

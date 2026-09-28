@@ -4,6 +4,11 @@ export { GitCommands } from './git-commands';
 export { GitWorktrees, worktreePathKey } from './worktrees';
 export { StagedChanges, StagedChangesError, AI_DIFF_MAX_BYTES } from './staged-changes';
 export { NewFileDeletion, NewFileDeletionError, validateNewFilePath } from './new-file-deletion';
+export {
+  DiscardChanges,
+  DiscardChangesError,
+  validateDiscardChangesRequest,
+} from './discard-changes';
 export { DiffImages, DiffImageError, DiffImageAbsentError } from './diff-images';
 
 export { GitLogChangedError, GitLogOptionsError } from './git-log';
