@@ -165,14 +165,21 @@ export function ChangesView({
     const store = useRepositoryStore.getState();
     const parent = store.repositories.find((repo) => repo.id === repoId) || store.currentRepo;
     if (!parent || parent.id !== repoId) return;
+    const registered = store.repositories.find(
+      (repo) =>
+        repo.source === parent.source &&
+        repo.connectionId === parent.connectionId &&
+        repo.path === file.repositoryPath,
+    );
     setLoading(true);
     try {
       const repo =
         file.kind === 'worktree'
           ? await store.addWorktree(repoId, file.repositoryPath)
-          : parent.source === 'local'
-            ? await store.addLocalRepository(file.repositoryPath)
-            : await store.addRepository(parent.connectionId, file.repositoryPath);
+          : registered ||
+            (parent.source === 'local'
+              ? await store.addLocalRepository(file.repositoryPath)
+              : await store.addRepository(parent.connectionId, file.repositoryPath));
       if (origin.current !== repoId) return;
       setDirectoryFile(null);
       store.openRepository(repo);
