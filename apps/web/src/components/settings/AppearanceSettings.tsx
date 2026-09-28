@@ -2,6 +2,7 @@ import { Alert, Radio, Switch } from 'antd';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { useWorkspaceStorageStatus } from '../../stores/workspaceStorage';
 import { useAppearance } from '../../appearance';
+import { CodeAppearanceSettings } from './CodeAppearanceSettings';
 
 export function AppearanceSettings() {
   const { appearance, updateAppearance } = useWorkspaceStore();
@@ -39,6 +40,7 @@ export function AppearanceSettings() {
           {reduceMotion && ' 当前已减少动态效果。'}
         </p>
       </fieldset>
+      <CodeAppearanceSettings />
       {error && <Alert type="error" showIcon title={error} />}
     </div>
   );

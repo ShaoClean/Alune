@@ -25,6 +25,7 @@ const connections = [
 ];
 const repositories = [
   { id: 'repo-a', name: 'alune', connectionId: 'dev', path: '/workspace/alune' },
+  { id: 'repo-local', name: 'alune-local', source: 'local', path: '/workspace/alune-local' },
   { id: 'repo-b', name: 'design-system', connectionId: 'dev', path: '/workspace/design-system' },
   { id: 'empty', name: 'empty-repo', connectionId: 'test', path: '/workspace/empty' },
 ];
@@ -83,6 +84,10 @@ const fixtureTree = {
     entry('locked', 'directory'),
     entry('vendor', 'submodule'),
     entry('README.md', 'file', { size: 64 }),
+    entry('example.py', 'file'),
+    entry('example.json', 'file'),
+    entry('unknown.custom', 'file'),
+    entry('large.ts', 'file'),
     entry('logo.png', 'file', { size: 70 }),
     entry('build.bin', 'file', { size: 4 }),
     entry('huge.log', 'file', { size: 2_000_000 }),
@@ -95,6 +100,10 @@ const fixtureTree = {
   'apps/empty': [],
 };
 const fixtureFiles = {
+  'example.py': { kind: 'text', encoding: 'utf-8', content: '# Fixture\nprint("alune", 42)\n' },
+  'example.json': { kind: 'text', encoding: 'utf-8', content: '{ "name": "alune", "count": 42 }\n' },
+  'unknown.custom': { kind: 'text', encoding: 'utf-8', content: 'Plain text <content>\n' },
+  'large.ts': { kind: 'text', encoding: 'utf-8', content: 'const value = "large fixture";\n'.repeat(10_000) },
   'README.md': { kind: 'text', encoding: 'utf-8', content: '# Alune\n\n只读浏览仓库文件。\n' },
   'apps/web/Workspace.tsx': {
     kind: 'text',
@@ -165,6 +174,8 @@ const server = createServer(async (request, response) => {
     if (!repo) return json(response, { message: '测试仓库不存在' }, 404);
     if (request.method === 'GET') {
       if (!operation) return json(response, repo);
+      if (operation === 'operation') return json(response, null);
+      if (operation === 'context') return json(response, { source: repo.source || 'ssh', path: repo.path, unborn: false, shallow: false, remotes: [], author: { name: 'Fixture', email: 'fixture@example.invalid' } });
       if (operation === 'status') return json(response, state);
       if (operation === 'worktrees') return json(response, [
         { path: repo.path, branch: state.branch, head: 'abc1234', isCurrent: true, bare: false, detached: false, locked: false, prunable: false },

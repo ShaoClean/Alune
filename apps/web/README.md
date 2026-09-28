@@ -4,7 +4,7 @@
 
 The sidebar remembers each connection's fold state, connection order and repository order within each connection. Drag a handle or focus it and press Alt+Up/Down to reorder. New items append to their group; successful full registry responses and confirmed deletions remove stale IDs. Sidebar ordering is independent of open repository tabs.
 
-Web preferences use localStorage. Desktop builds use a restricted preload bridge to atomically save sidebar preferences to `workspace.json` in the application data directory, independent of the per-launch HTTP port. Hydration finishes before the UI mounts or registry validation starts. Only sidebar settings are persisted; open tabs, panels, drafts and live Git responses retain their existing session behavior.
+Web preferences use localStorage. Desktop builds use a restricted preload bridge to atomically save sidebar preferences to `workspace.json` in the application data directory, independent of the per-launch HTTP port. Hydration finishes before the UI mounts or registry validation starts. Sidebar, layout, appearance, code themes/fonts and collection view preferences are persisted; open tabs, panels, drafts and live Git responses retain their existing session behavior.
 
 Run `npm run test -w web` (Node 22.18+) and `npm run build -w web`. After `npm run desktop:build`, run `npm run desktop:test` for persistence/IPC unit checks and two Electron launches using the same isolated data directory. For browser acceptance with synthetic, read-only data, run `node apps/web/tests/fixture-server.mjs` after a web build and open its printed URL.
 

@@ -1,5 +1,6 @@
 import { createElement } from 'react';
 import type { ReactNode } from 'react';
+import { prismTokenStyle } from '../code-themes';
 import './prism-manual';
 import Prism from 'prismjs/components/prism-core.js';
 import type { PrismToken } from 'prismjs/components/prism-core.js';
@@ -50,7 +51,11 @@ function render(stream: Stream): ReactNode[] {
     // Tokens become React elements, so file content never passes through innerHTML.
     return createElement(
       'span',
-      { key: index, className: ['token', token.type, ...aliases].join(' ') },
+      {
+        key: index,
+        className: ['token', token.type, ...aliases].join(' '),
+        style: prismTokenStyle(token.type, aliases),
+      },
       content,
     );
   });

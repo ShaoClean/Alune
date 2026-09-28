@@ -18,6 +18,7 @@ module.exports = async ({ window, origin, restore }) => {
     const saved = JSON.parse(await execute('window.aluneWorkspace.load()')).state;
     assert.deepEqual(saved.appearance, { theme: 'dark', reduceMotion: true });
     assert.equal(window.getBackgroundColor().toLowerCase(), '#151e30');
+    await require('./code-appearance-smoke.cjs')({ window, origin, restore: true });
     console.log(
       'Desktop appearance survived process restart and changed HTTP origin; native background matches.',
     );
@@ -42,6 +43,7 @@ module.exports = async ({ window, origin, restore }) => {
   ]) {
     assert.deepEqual(saved[key], previous[key]);
   }
+  await require('./code-appearance-smoke.cjs')({ window, origin, restore: false });
   await window.loadURL(`${origin}/repositories`);
   await wait("document.querySelector('.app-sidebar') !== null");
   assert.equal(await execute('document.documentElement.dataset.theme'), 'dark');

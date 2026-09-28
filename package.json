@@ -23,7 +23,8 @@
     "desktop:test": "npm run test -w desktop",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "desktop:test:unit": "npm run test:unit -w desktop",
-    "desktop:test:worktrees": "npm run desktop:build && npm run test:worktrees -w desktop"
+    "desktop:test:worktrees": "npm run desktop:build && npm run test:worktrees -w desktop",
+    "desktop:test:code-appearance": "npm run desktop:build && npm run test:code-appearance -w desktop"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.2",

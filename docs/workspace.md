@@ -122,6 +122,20 @@ AI 仅分析已暂存改动，默认使用简体中文 Conventional Commits，�
 
 外观修改立即生效并保存于此设备。桌面端与布局偏好一起存储在稳定的数据目录中，重启和动态 HTTP 端口变化不会丢失。切换主题不会重置面板宽度、折叠状态、仓库排序、Diff 模式或正在编辑的提交草稿。颜色规范及验收范围见 [Issue #86 Wiki](https://github.com/ShaoClean/Alune/wiki/Issue-86)。
 
+### 代码主题与字体（开发中，Issue #114）
+
+“设置 → 外观 → 代码阅读”可调整文件预览的代码主题、字体和字号，并用 TypeScript、Python、JSON 示例即时预览。本地与 SSH 仓库共用这些设置；Diff 保留原有配色和字体。
+
+内置 Catppuccin Latte（浅色）、Frappé、Macchiato、Mocha（深色）。浅色默认 Latte，深色默认 Mocha。主题列表禁用与当前 Alune 外观不匹配的项；浅深色分别记住选择，跟随系统时按系统实际外观切换。选择或安装代码主题不会改变 Alune 外观。
+
+代码字体填写一个本机安装的字体名称（如 `JetBrains Mono`），字号为 10–32px。不可用字体自动回退到系统等宽字体；默认 `SFMono-Regular`、13px。“恢复代码默认设置”重置两种外观的主题与字体，保留已导入主题。
+
+“导入主题 JSON”支持最多 1 MB 的独立 VS Code Color Theme JSON / JSONC，允许注释和尾随逗号。文件需包含 `type: "light"` 或 `type: "dark"` 及可映射的 `tokenColors` 语法颜色；主题名称使用 `name`，缺省取文件名。安装后显示名称、文件来源、类型；不会自动启用，可在对应外观下选择或随时卸载。本设备最多保存 32 个自定义主题。当前主题被卸载、损坏、缺失或类型不匹配时，回退到对应 Catppuccin 默认值并显示提示。
+
+兼容范围：读取 `editor.background`、`editor.foreground`、`editorGutter.background`、`editorLineNumber.foreground`、`editor.selectionBackground`，颜色支持 `#RGB`、`#RGBA`、`#RRGGBB`、`#RRGGBBAA`。`tokenColors` 的字符串、逗号分隔或数组 scope 按最长已知前缀映射到 Prism 的注释、关键字、字符串、数字、常量、函数、类型、标签、属性、正则、变量、标点、运算符、增删类别，并支持粗体、斜体、下划线和删除线。类别内后出现的同优先级规则覆盖前者，语言后缀合并到通用类别；缺失颜色沿用默认主题。不会执行 TextMate 上下文选择器或语义高亮规则，预览可能与 VS Code 有差异。暂不支持 `.vsix`、主题市场和 `include` 外部依赖。
+
+Web 使用 localStorage；桌面与其他设备偏好一起写入稳定的 `workspace.json`，跨启动端口恢复。未知语言保持纯文本，超过 256 Ki 字符的内容关闭高亮，原有文件读取大小上限仍然有效。高亮模块加载失败时保留可选择复制的文本，并显示提示。
+
 ## 本地 Git 工作区
 
 “仓库 → 打开本地仓库”支持系统目录选择器（桌面端）或完整路径输入。可选择仓库子目录，Alune 会定位实际根目录；重复打开会复用登记。仓库按“本机”和 SSH 连接分别分组，标签和状态栏显示来源，底栏保留完整路径。关闭标签只关闭视图；移除仓库登记保留磁盘文件。
