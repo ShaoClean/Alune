@@ -9,6 +9,7 @@ import {
   ReloadOutlined,
   SettingOutlined,
   SkinOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
@@ -19,11 +20,13 @@ import { LayoutSettingsContent } from '../LayoutSettings';
 import { UpdatePanelContent } from '../UpdatePanel';
 import { Sparkles } from '../Sparkles';
 import { BrandIcon } from '../BrandIcon';
+import { AccessTokenSettings } from './AccessTokenSettings';
 import '../../settings.css';
 
 const categories = [
   { id: 'providers', name: 'AI 服务商', icon: <ApartmentOutlined /> },
   { id: 'commit', name: '提交生成', icon: <Sparkles /> },
+  { id: 'tokens', name: '访问令牌', icon: <KeyOutlined /> },
   { id: 'layout', name: '布局', icon: <LayoutOutlined /> },
   { id: 'appearance', name: '外观', icon: <SkinOutlined /> },
   { id: 'updates', name: '版本更新', icon: <ReloadOutlined /> },
@@ -43,7 +46,7 @@ export function SettingsCenter({
   const { settings, error, loading, load } = useAiSettingsStore();
   const back = useRef<HTMLButtonElement>(null);
   const select = (id: string) =>
-    navigate(`/settings/${id}`, { replace: true, state: { returnTo } });
+    navigate(`/settings/${id}`, { replace: true, state: { ...location.state, returnTo } });
   useEffect(() => {
     void load();
     back.current?.focus();
@@ -112,7 +115,9 @@ export function SettingsCenter({
           </div>
         </aside>
         <main className="settings-main" aria-label={`${category.name}设置`}>
-          {category.id === 'appearance' ? (
+          {category.id === 'tokens' ? (
+            <AccessTokenSettings returnTo={returnTo} />
+          ) : category.id === 'appearance' ? (
             <AppearanceSettings />
           ) : category.id === 'layout' ? (
             <div className="settings-page-content settings-page-content--layout">
@@ -170,7 +175,8 @@ export function SettingsCenter({
       </div>
       <footer className="settings-footer">
         <span>
-          <DesktopOutlined /> 设置应用于此设备的所有仓库
+          <DesktopOutlined />{' '}
+          {category.id === 'tokens' ? '令牌仅用于明确关联的仓库远端' : '设置应用于此设备的所有仓库'}
         </span>
         <span>Alune · v{updates.state?.currentVersion || __APP_VERSION__}</span>
       </footer>

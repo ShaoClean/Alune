@@ -3,7 +3,7 @@ import { RepositoryContextNotice } from '../components/RepositoryContextNotice';
 import { GitOperationNotice } from '../components/GitOperationNotice';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Alert, Button, App, Input, Modal, Select } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
@@ -46,6 +46,7 @@ export function RepositoryDetailPage() {
 function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const { setRightPanelAvailable, repositoryToolbarSlot } = useOutletContext<{
     setRightPanelAvailable: (available: boolean) => void;
     repositoryToolbarSlot: HTMLDivElement | null;
@@ -79,7 +80,11 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   useEffect(() => {
     if (id && statusStale && !statusFailed) return observeRepository(id);
   }, [id, statusStale, statusFailed, observeRepository]);
-  const [activePanel, setActivePanel] = useState<Panel>('changes');
+  const [activePanel, setActivePanel] = useState<Panel>(() =>
+    new URLSearchParams(location.search).get('panel') === 'pull-requests'
+      ? 'pull-requests'
+      : 'changes',
+  );
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);

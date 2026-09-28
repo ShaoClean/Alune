@@ -12,9 +12,11 @@ import type {
   PullRequestPage,
   PullRequestQuery,
   PullRequestRemote,
+  ApplyAccessToken,
 } from '@alune/shared';
 import { RepositoryService } from './repository.service';
 import { pullRequestRemote } from './pull-request-remote';
+import { AccessTokensService } from '../access-tokens/access-tokens.service';
 
 const PAGE_SIZE = 30;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
@@ -145,7 +147,10 @@ function normalizeItem(
 
 @Injectable()
 export class PullRequestsService {
-  constructor(private readonly repositories: RepositoryService) {}
+  constructor(
+    private readonly repositories: RepositoryService,
+    private readonly tokens: AccessTokensService,
+  ) {}
 
   private async withDeadline<T>(
     work: (signal: AbortSignal) => Promise<T>,
@@ -177,48 +182,81 @@ export class PullRequestsService {
   private async readRemotes(id: string, signal: AbortSignal) {
     const remotes = await this.repositories.getRemotes(id, signal);
     signal.throwIfAborted();
-    return remotes.map(pullRequestRemote);
+    const parsed = remotes.map(pullRequestRemote);
+    this.tokens.reconcile(id, parsed);
+    return parsed.map((remote) => ({
+      ...remote,
+      selection: this.tokens.selection(id, remote),
+    }));
   }
 
   remotes(id: string): Promise<PullRequestRemote[]> {
     return this.withDeadline((signal) => this.readRemotes(id, signal));
   }
 
+  private async target(
+    id: string,
+    query: PullRequestQuery,
+    signal: AbortSignal,
+  ) {
+    const remote = (await this.readRemotes(id, signal)).find(
+      (item) => item.name === query.remote,
+    );
+    if (!remote)
+      throw new NotFoundException('所选远端已不存在，请刷新远端列表。');
+    if (remote.unavailableReason)
+      throw new BadRequestException(remote.unavailableReason);
+    if (remote.webUrl !== query.target)
+      throw new ConflictException('远端地址已变化，请刷新列表并重新配置认证。');
+    if (
+      (remote.provider && remote.provider !== query.provider) ||
+      (query.provider === 'github' && remote.host !== 'github.com')
+    ) {
+      throw new BadRequestException(
+        '平台与远端不匹配；GitHub 目前仅支持 github.com。',
+      );
+    }
+    return remote;
+  }
+
+  applyToken(id: string, input: unknown) {
+    const body = input as ApplyAccessToken;
+    const query = validatePullRequestQuery({ ...body, state: 'open', page: 1 });
+    return this.withDeadline(async (signal) => {
+      const remote = await this.target(id, query, signal);
+      return this.tokens.apply(id, remote, body);
+    });
+  }
+
   list(id: string, input: unknown): Promise<PullRequestPage> {
     const query = validatePullRequestQuery(input);
     return this.withDeadline(async (signal) => {
-      const remote = (await this.readRemotes(id, signal)).find(
-        (item) => item.name === query.remote,
-      );
-      if (!remote)
-        throw new NotFoundException('所选远端已不存在，请刷新远端列表。');
-      if (remote.unavailableReason)
-        throw new BadRequestException(remote.unavailableReason);
-      if (remote.webUrl !== query.target)
-        throw new ConflictException(
-          '远端地址已变化，请刷新列表并重新配置认证。',
-        );
-      if (
-        (remote.provider && remote.provider !== query.provider) ||
-        (query.provider === 'github' && remote.host !== 'github.com')
-      ) {
-        throw new BadRequestException(
-          '平台与远端不匹配；GitHub 目前仅支持 github.com。',
-        );
-      }
+      const remote = await this.target(id, query, signal);
+      // An explicitly supplied temporary value (including empty = anonymous) overrides the saved choice for this request only.
+      const credential =
+        query.token !== undefined
+          ? { token: query.token, assertCurrent() {} }
+          : this.tokens.credential(id, remote, query.provider);
       const headers: Record<string, string> = {
         Accept: 'application/json',
         'User-Agent': 'Alune',
       };
       if (query.provider === 'github') {
         headers['X-GitHub-Api-Version'] = '2022-11-28';
-        if (query.token) headers.Authorization = `Bearer ${query.token}`;
-      } else if (query.token) headers['PRIVATE-TOKEN'] = query.token;
+        if (credential.token)
+          headers.Authorization = `Bearer ${credential.token}`;
+      } else if (credential.token) headers['PRIVATE-TOKEN'] = credential.token;
       const response = await fetch(apiUrl(remote, query), {
         headers,
         signal,
         redirect: 'error',
       });
+      try {
+        credential.assertCurrent();
+      } catch (error) {
+        await response.body?.cancel();
+        throw error;
+      }
       if (!response.ok) {
         await response.body?.cancel();
         const limited =
@@ -247,6 +285,7 @@ export class PullRequestsService {
         );
       }
       const data = await readJson(response);
+      credential.assertCurrent();
       if (!Array.isArray(data) || data.length > PAGE_SIZE)
         throw new BadGatewayException('托管平台返回的数据格式不正确，请重试。');
       return {

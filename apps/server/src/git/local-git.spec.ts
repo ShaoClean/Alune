@@ -17,6 +17,9 @@ import request from 'supertest';
 import { RepositoryService } from '../repository/repository.service';
 import { RepositoryController } from '../repository/repository.controller';
 import { PullRequestsService } from '../repository/pull-requests.service';
+import { AccessTokensService } from '../access-tokens/access-tokens.service';
+import { localSecretStorage } from '../secrets/secret-storage';
+import { EventsGateway } from '../events/events.gateway';
 import { ConnectionService } from '../connection/connection.service';
 import { GitService } from './git.service';
 import { GitController } from './git.controller';
@@ -134,7 +137,14 @@ describe('local repositories with real Git and SQLite', () => {
       'git@gitlab.com:other/project.git',
     );
     const before = git('status', '--porcelain');
-    const pulls = new PullRequestsService(repos);
+    const pulls = new PullRequestsService(
+      repos,
+      new AccessTokensService(
+        db,
+        localSecretStorage(root),
+        {} as EventsGateway,
+      ),
+    );
     expect(await pulls.remotes(id)).toEqual([
       {
         name: 'origin',
@@ -142,6 +152,12 @@ describe('local repositories with real Git and SQLite', () => {
         project: 'fixture/local',
         provider: 'github',
         webUrl: 'https://github.com/fixture/local',
+        selection: {
+          status: 'none',
+          tokenId: null,
+          provider: null,
+          version: '',
+        },
       },
     ]);
     const api = jest

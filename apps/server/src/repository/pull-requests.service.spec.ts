@@ -5,6 +5,7 @@ import {
 } from './pull-requests.service';
 import { pullRequestRemote } from './pull-request-remote';
 import { RepositoryService } from './repository.service';
+import { AccessTokensService } from '../access-tokens/access-tokens.service';
 
 const remote = (
   fetchUrl = 'git@github.com:owner/repo.git',
@@ -100,9 +101,16 @@ describe('PullRequestsService', () => {
   let request: jest.SpiedFunction<typeof fetch>;
   beforeEach(() => {
     remotes = jest.fn().mockResolvedValue([remote()]);
-    service = new PullRequestsService({
-      getRemotes: remotes,
-    } as unknown as RepositoryService);
+    service = new PullRequestsService(
+      {
+        getRemotes: remotes,
+      } as unknown as RepositoryService,
+      {
+        reconcile() {},
+        selection: () => undefined,
+        credential: () => ({ token: '', assertCurrent() {} }),
+      } as unknown as AccessTokensService,
+    );
     request = jest
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(reply([github()]));

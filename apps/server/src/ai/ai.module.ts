@@ -6,12 +6,12 @@ import { RepositoryModule } from '../repository/repository.module';
 import { AiSettingsStore } from './ai-settings';
 import { AiService } from './ai.service';
 import { AiController } from './ai.controller';
-import { localSecretStorage } from './secret-storage';
 import type { AiSecretStorage } from './secret-storage';
+import { SECRET_STORAGE } from '../secrets/secrets.module';
 
 @Module({})
 export class AiModule {
-  static register(secrets?: AiSecretStorage): DynamicModule {
+  static register(): DynamicModule {
     return {
       module: AiModule,
       imports: [ConnectionModule, RepositoryModule],
@@ -20,12 +20,13 @@ export class AiModule {
         AiService,
         {
           provide: AiSettingsStore,
-          useFactory: () => {
+          inject: [SECRET_STORAGE],
+          useFactory: (secrets: AiSecretStorage) => {
             const dataDir =
               process.env.ALUNE_DATA_DIR || join(homedir(), '.alune');
             return new AiSettingsStore(
               join(dataDir, 'ai-settings.json'),
-              secrets || localSecretStorage(dataDir),
+              secrets,
             );
           },
         },
