@@ -57,8 +57,8 @@ for (const transport of ['local', 'ssh']) {
       );
       assert.equal(repo.kind, 'repository');
       assert.equal(
-        fs.realpathSync(tree.repositoryPath),
-        fs.realpathSync(path.join(f.repo, tree.path)),
+        fs.realpathSync.native(tree.repositoryPath),
+        fs.realpathSync.native(path.join(f.repo, tree.path)),
       );
       assert.equal(changeActions(tree).stage, false);
       assert.equal(changeActions(repo).delete, false);
@@ -138,8 +138,8 @@ for (const transport of ['local', 'ssh']) {
       assert.equal(tree.kind, 'worktree');
       assert.equal(tree.repositoryPath, registeredPath);
       assert.equal(
-        fs.realpathSync(tree.repositoryPath),
-        fs.realpathSync(path.join(f.repo, tree.path)),
+        fs.realpathSync.native(tree.repositoryPath),
+        fs.realpathSync.native(path.join(f.repo, tree.path)),
       );
       assert.equal(files.find((file) => file.path === 'nested repo/').kind, 'repository');
     },

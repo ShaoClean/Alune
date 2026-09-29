@@ -10,7 +10,9 @@ import type { CommandOptions, RepositoryTransport } from './repository-transport
 const localFiles = {
   ...fs,
   realpath(path: string, callback: (error: NodeJS.ErrnoException | null, value?: string) => void) {
-    fs.realpath(path, (error, value) =>
+    // The native resolver expands Windows 8.3 names like Git does; the JS
+    // resolver only follows links and can retain a different path spelling.
+    fs.realpath.native(path, (error, value) =>
       callback(error, process.platform === 'win32' ? value?.replace(/\\/g, '/') : value),
     );
   },

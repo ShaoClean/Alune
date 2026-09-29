@@ -25,6 +25,24 @@ function fixture() {
   return { root, repo, git, close: () => fs.rmSync(root, { recursive: true, force: true }) };
 }
 
+test('local file and Git transports agree on paths containing native directory aliases', async (t) => {
+  // Keep the original temporary path: Windows runners can use an 8.3 name
+  // such as RUNNER~1, which Git expands when reporting the repository root.
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-local-path-'));
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+  execFileSync('git', ['init', '-q', repo]);
+  const connection = new LocalConnection();
+  const gitRoot = await connection.execGit(repo, ['rev-parse', '--show-toplevel']);
+  assert.equal(gitRoot.exitCode, 0);
+  const fileRoot = await connection.withSftp(
+    (files) =>
+      new Promise((resolve, reject) =>
+        files.realpath(repo, (error, result) => (error ? reject(error) : resolve(result))),
+      ),
+  );
+  assert.equal(fileRoot, gitRoot.stdout.replace(/\r?\n$/, ''));
+});
+
 test('local commands use literal argv and bounded, byte-preserving output', async () => {
   const f = fixture();
   try {
