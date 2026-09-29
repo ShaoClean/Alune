@@ -24,6 +24,8 @@ import { CommandButton, FileIcon, FolderIcon } from './ui';
 import { fileLanguage } from './file-language';
 import type { FileLanguage } from './file-language';
 import { CodeView } from './CodeView';
+import { MarkdownPreview } from './MarkdownPreview';
+import { isMarkdownFile } from './markdown-resources';
 export { CodeView, HIGHLIGHT_MAX_CHARS } from './CodeView';
 import {
   ROOT,
@@ -46,7 +48,10 @@ type Snapshot = {
   expanded: string[];
   selected: RepositoryTreeEntry | null;
   focused: string | null;
+  markdownMode: MarkdownMode;
 };
+
+type MarkdownMode = 'source' | 'preview';
 
 // Returning to the view restores the tree and selection, then revalidates them.
 const sessions = new Map<string, Snapshot>();
@@ -80,6 +85,12 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
     () => snapshot?.selected || null,
   );
   const [file, setFile] = useState<FileState | null>(null);
+  const [markdownMode, setMarkdownMode] = useState<MarkdownMode>(
+    snapshot?.markdownMode ?? 'preview',
+  );
+  const [documentAnchor, setDocumentAnchor] = useState<{ path: string; fragment: string } | null>(
+    null,
+  );
   const [focused, setFocused] = useState<string | null>(() => snapshot?.focused || null);
   const [width, setWidth] = useState<number | null>(null);
   const container = useRef<HTMLElement>(null);
@@ -211,9 +222,15 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
     for (const [path, state] of Object.entries(directories))
       if (state.listing) ready[path] = { phase: 'ready', listing: state.listing };
     sessions.delete(repoId);
-    sessions.set(repoId, { directories: ready, expanded: [...expanded], selected, focused });
+    sessions.set(repoId, {
+      directories: ready,
+      expanded: [...expanded],
+      selected,
+      focused,
+      markdownMode,
+    });
     if (sessions.size > SESSION_LIMIT) sessions.delete(sessions.keys().next().value!);
-  }, [repoId, directories, expanded, selected, focused]);
+  }, [repoId, directories, expanded, selected, focused, markdownMode]);
 
   useEffect(() => {
     const element = container.current;
@@ -260,6 +277,7 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
       return;
     }
     if (selected?.path === entry.path && file?.phase !== 'error') return;
+    setDocumentAnchor(null);
     setSelected(entry);
     if (entry.kind === 'file') loadFile(entry.path);
     else {
@@ -268,6 +286,21 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
       setFile(null);
     }
   };
+
+  const openMarkdownFile = useCallback(
+    (path: string, fragment: string) => {
+      setSelected({ path, name: fileName(path), kind: 'file' });
+      setFocused(path);
+      setDocumentAnchor({ path, fragment });
+      setExpanded((previous) => {
+        const next = new Set(previous);
+        for (let parent = parentOf(path); parent; parent = parentOf(parent)) next.add(parent);
+        return next;
+      });
+      loadFile(path);
+    },
+    [loadFile],
+  );
 
   const onTreeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -432,6 +465,11 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
         repositoryId={repoId}
         entry={selected}
         file={file && selected?.path === file.path ? file : null}
+        markdownMode={markdownMode}
+        onMarkdownModeChange={setMarkdownMode}
+        onOpenFile={openMarkdownFile}
+        fragment={documentAnchor?.path === selected?.path ? documentAnchor?.fragment : undefined}
+        refreshToken={refreshToken}
         onRetry={() => selected && loadFile(selected.path)}
       />
     </section>
@@ -591,11 +629,21 @@ export function FilePreviewPane({
   entry,
   file,
   onRetry,
+  markdownMode = 'preview',
+  onMarkdownModeChange,
+  onOpenFile,
+  fragment,
+  refreshToken,
 }: {
   repositoryId?: string;
   entry: RepositoryTreeEntry | null;
   file: FileState | null;
   onRetry: () => void;
+  markdownMode?: MarkdownMode;
+  onMarkdownModeChange?: (mode: MarkdownMode) => void;
+  onOpenFile?: (path: string, fragment: string) => void;
+  fragment?: string;
+  refreshToken?: number;
 }) {
   if (!entry)
     return (
@@ -638,6 +686,20 @@ export function FilePreviewPane({
           {meta.map((item) => (
             <span key={item}>{item}</span>
           ))}
+          {entry.kind === 'file' && isMarkdownFile(entry.path) && preview?.kind === 'text' && (
+            <div className="files-preview__modes" role="group" aria-label="Markdown 显示模式">
+              {(['source', 'preview'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={markdownMode === mode}
+                  onClick={() => onMarkdownModeChange?.(mode)}
+                >
+                  {mode === 'source' ? '源码' : 'Preview'}
+                </button>
+              ))}
+            </div>
+          )}
           <CommandButton
             label="复制文件路径"
             onClick={() => void navigator.clipboard?.writeText(entry.path)}
@@ -654,6 +716,10 @@ export function FilePreviewPane({
           preview={preview}
           text={text}
           language={language}
+          markdownMode={markdownMode}
+          onOpenFile={onOpenFile}
+          fragment={fragment}
+          refreshToken={refreshToken}
           onRetry={onRetry}
         />
       </div>
@@ -669,6 +735,10 @@ function PreviewBody({
   text,
   language,
   onRetry,
+  markdownMode,
+  onOpenFile,
+  fragment,
+  refreshToken,
 }: {
   repositoryId?: string;
   entry: RepositoryTreeEntry;
@@ -677,6 +747,10 @@ function PreviewBody({
   text: ReturnType<typeof displayText> | null;
   language: FileLanguage | null;
   onRetry: () => void;
+  markdownMode: MarkdownMode;
+  onOpenFile?: (path: string, fragment: string) => void;
+  fragment?: string;
+  refreshToken?: number;
 }) {
   if (entry.kind === 'submodule')
     return (
@@ -724,6 +798,16 @@ function PreviewBody({
         <FilesNotice icon={<FileSearchOutlined />} title="空文件">
           此文件没有内容。
         </FilesNotice>
+      ) : isMarkdownFile(entry.path) && markdownMode === 'preview' ? (
+        <MarkdownPreview
+          key={JSON.stringify([repositoryId, entry.path])}
+          repositoryId={repositoryId}
+          path={entry.path}
+          content={preview.content}
+          onOpenFile={onOpenFile}
+          fragment={fragment}
+          refreshToken={refreshToken}
+        />
       ) : (
         <CodeView
           path={entry.path}
