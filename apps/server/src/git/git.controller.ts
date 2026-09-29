@@ -96,9 +96,9 @@ export class GitController {
   @Post(':id/switch')
   async switchBranch(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { name: string },
+    @Body() body: { name: string; localName?: string },
   ) {
-    return this.gitService.switchBranch(id, body.name);
+    return this.gitService.switchBranch(id, body.name, body.localName);
   }
 
   @Post(':id/branch/delete')

@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
+import { useBranchSwitch } from '../hooks/useBranchSwitch';
 import { ErrorState, EmptyState, PanelHeader, StatusBadge } from './ui';
 
 interface Props {
@@ -23,7 +24,9 @@ export function BranchesView({ repoId, onRefresh }: Props) {
   const { branches, fetchBranches, error, errorPanel } = useRepositoryStore();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [mutating, setLoading] = useState(false);
+  const { switching, switchBranch: handleSwitchBranch } = useBranchSwitch(repoId, onRefresh);
+  const loading = mutating || switching !== null;
   const [renaming, setRenaming] = useState<string | null>(null);
   const [rename, setRename] = useState('');
   const localBranches = useMemo(
@@ -55,19 +58,6 @@ export function BranchesView({ repoId, onRefresh }: Props) {
       await refresh();
     } catch (err: any) {
       message.error(err.message || '无法创建分支');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSwitchBranch = async (name: string) => {
-    setLoading(true);
-    try {
-      await gitApi.switchBranch(repoId, name);
-      message.success(`已切换到“${name}”`);
-      await refresh();
-    } catch (err: any) {
-      message.error(err.message || '无法切换分支');
     } finally {
       setLoading(false);
     }
@@ -149,11 +139,12 @@ export function BranchesView({ repoId, onRefresh }: Props) {
             重命名
           </Button>
         )}
-        {!branch.isCurrent && !branch.isRemote && (
+        {!branch.isCurrent && (
           <Button
             size="small"
             icon={<SwapOutlined />}
-            loading={loading}
+            loading={switching === branch.name}
+            disabled={loading}
             onClick={() => void handleSwitchBranch(branch.name)}
           >
             切换

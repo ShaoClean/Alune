@@ -336,7 +336,7 @@ export class GitService implements OnModuleDestroy {
       ]),
     );
   }
-  switchBranch(id: string, name: string) {
+  switchBranch(id: string, name: string, localName?: string) {
     return this.write(id, 'switch-branch', async (git, repo) => {
       this.value(name, '分支名称');
       const local = await git.execute(repo.path, [
@@ -345,14 +345,57 @@ export class GitService implements OnModuleDestroy {
         '--quiet',
         `refs/heads/${name}`,
       ]);
-      return this.checked(git, repo.path, [
-        'switch',
-        ...(local.exitCode !== 0 && /^(refs\/)?remotes\//.test(name)
-          ? ['--detach']
-          : []),
-        '--',
-        name,
-      ]);
+      let target = name;
+      let args = ['switch', '--', name];
+      if (local.exitCode !== 0 && /^(refs\/)?remotes\//.test(name)) {
+        const ref = name.startsWith('refs/') ? name : `refs/${name}`;
+        await this.checked(git, repo.path, ['show-ref', '--verify', ref]);
+        const branches = await this.checked(git, repo.path, [
+          'for-each-ref',
+          '--format=%(refname:strip=2)%00%(upstream)',
+          'refs/heads/',
+        ]);
+        const tracking = branches.stdout
+          .split('\n')
+          .map((line) => line.split('\0'))
+          .find(([, upstream]) => upstream === ref);
+        if (tracking && localName === undefined) {
+          target = tracking[0];
+          args = ['switch', '--', target];
+        } else {
+          const remotes = await this.checked(git, repo.path, ['remote']);
+          const remoteRef = ref.slice('refs/remotes/'.length);
+          const remote = remotes.stdout
+            .trim()
+            .split('\n')
+            .filter((item) => item && remoteRef.startsWith(`${item}/`))
+            .sort((a, b) => b.length - a.length)[0];
+          if (!remote)
+            throw new BadRequestException('远程引用已失效，请获取后重试。');
+          target = await this.branch(
+            git,
+            repo.path,
+            localName ?? remoteRef.slice(remote.length + 1),
+          );
+          const existing = await git.execute(repo.path, [
+            'show-ref',
+            '--verify',
+            '--quiet',
+            `refs/heads/${target}`,
+          ]);
+          if (existing.exitCode === 0)
+            throw new ConflictException({
+              code: 'LOCAL_BRANCH_EXISTS',
+              localName: target,
+              message: `本地分支“${target}”已存在，但未跟踪所选远程分支。请选择切换到现有分支、换名创建或取消。`,
+            });
+          args = ['switch', '--track=direct', '-c', target, '--', ref];
+        }
+      } else if (localName !== undefined) {
+        throw new BadRequestException('仅远程分支支持指定新的本地名称。');
+      }
+      const result = await this.checked(git, repo.path, args);
+      return { ...result, branch: target };
     });
   }
   renameBranch(id: string, name: string, newName: string) {

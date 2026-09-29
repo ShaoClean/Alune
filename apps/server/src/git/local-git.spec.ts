@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { LocalConnection } from '@alune/ssh-client';
 import { execFileSync } from 'node:child_process';
 import {
   mkdtempSync,
@@ -347,12 +348,131 @@ describe('local repositories with real Git and SQLite', () => {
       (item) => item.isRemote,
     )!;
     await service.switchBranch(id, remoteBranch.name);
-    expect((await repos.getStatus(id)).branch).toBe('');
-    expect(git('rev-parse', '--abbrev-ref', 'HEAD').trim()).toBe('HEAD');
+    expect((await repos.getStatus(id)).branch).toBe('main');
+    expect(git('rev-parse', '--abbrev-ref', 'HEAD').trim()).toBe('main');
     await service.createBranch(id, 'origin/literal', true);
     await service.switchBranch(id, 'main');
     await service.switchBranch(id, 'origin/literal');
     expect((await repos.getStatus(id)).branch).toBe('origin/literal');
+  });
+
+  const remoteFixture = async () => {
+    await seed();
+    const remotePath = join(root, 'remote.git');
+    mkdirSync(remotePath);
+    gitAt(remotePath, 'init', '--bare', '-q', '-b', 'main');
+    git('remote', 'add', 'origin', remotePath);
+    git('remote', 'add', 'other', remotePath);
+    git('push', 'origin', 'HEAD:refs/heads/feature/demo');
+    git('fetch', 'origin');
+    git('fetch', 'other');
+  };
+
+  it('creates a local tracking branch from the selected remote and reuses it', async () => {
+    await remoteFixture();
+    const result = await request(app.getHttpServer())
+      .post(`/repositories/${id}/switch`)
+      .send({ name: 'remotes/other/feature/demo' })
+      .expect(201);
+    expect(result.body.branch).toBe('feature/demo');
+    expect(git('symbolic-ref', '--short', 'HEAD').trim()).toBe('feature/demo');
+    expect(git('rev-parse', '--abbrev-ref', '@{u}').trim()).toBe(
+      'other/feature/demo',
+    );
+    git('branch', '-m', 'custom-tracking');
+    await service.switchBranch(id, 'main');
+    expect(
+      (await service.switchBranch(id, 'refs/remotes/other/feature/demo'))
+        .branch,
+    ).toBe('custom-tracking');
+    expect(
+      (await service.switchBranch(id, 'remotes/other/feature/demo')).branch,
+    ).toBe('custom-tracking');
+    expect(git('branch', '--list', 'feature/demo')).toBe('');
+    expect(
+      (await service.switchBranch(id, 'remotes/origin/feature/demo')).branch,
+    ).toBe('feature/demo');
+    expect(git('rev-parse', '--abbrev-ref', '@{u}').trim()).toBe(
+      'origin/feature/demo',
+    );
+  });
+
+  it.each([false, true])(
+    'preserves conflicting local branches (other upstream: %s), and permits a new name',
+    async (tracking) => {
+      await remoteFixture();
+      git('branch', 'feature/demo');
+      if (tracking)
+        git('branch', '--set-upstream-to=other/feature/demo', 'feature/demo');
+      const before = git('config', '--local', '--list');
+      const response = await request(app.getHttpServer())
+        .post(`/repositories/${id}/switch`)
+        .send({ name: 'remotes/origin/feature/demo' })
+        .expect(409);
+      expect(response.body).toMatchObject({
+        code: 'LOCAL_BRANCH_EXISTS',
+        localName: 'feature/demo',
+      });
+      expect(git('branch', '--show-current').trim()).toBe('main');
+      expect(git('config', '--local', '--list')).toBe(before);
+      await request(app.getHttpServer())
+        .post(`/repositories/${id}/switch`)
+        .send({
+          name: 'remotes/origin/feature/demo',
+          localName: 'renamed/demo',
+        })
+        .expect(201);
+      expect(
+        git('rev-parse', '--abbrev-ref', 'HEAD', '@{u}').trim().split('\n'),
+      ).toEqual(['renamed/demo', 'origin/feature/demo']);
+      await service.switchBranch(id, 'feature/demo');
+      expect(git('branch', '--show-current').trim()).toBe('feature/demo');
+    },
+  );
+
+  it('preserves dirty files and creates no branch when remote switching fails', async () => {
+    await remoteFixture();
+    git('switch', '-c', 'temporary');
+    write('tracked.txt', 'remote change\n');
+    git('commit', '-am', 'remote change');
+    git('push', 'origin', 'HEAD:refs/heads/feature/demo');
+    git('switch', 'main');
+    write('tracked.txt', 'keep local work\n');
+    await expect(
+      service.switchBranch(id, 'remotes/origin/feature/demo'),
+    ).rejects.toThrow();
+    expect(git('branch', '--list', 'feature/demo')).toBe('');
+    await expect(
+      service.switchBranch(id, 'remotes/origin/missing'),
+    ).rejects.toThrow();
+    expect(git('branch', '--show-current').trim()).toBe('main');
+    expect(readFileSync(join(path, 'tracked.txt'), 'utf8')).toBe(
+      'keep local work\n',
+    );
+  });
+
+  it('uses the same tracking flow through the SSH transport and surfaces connection failures', async () => {
+    await remoteFixture();
+    ssh.mockResolvedValue(new LocalConnection());
+    db.prepare(
+      "UPDATE repositories SET source = 'ssh', connection_id = 'remote-host' WHERE id = ?",
+    ).run(id);
+    expect(
+      (await service.switchBranch(id, 'remotes/origin/feature/demo')).branch,
+    ).toBe('feature/demo');
+    expect(ssh).toHaveBeenCalledWith('remote-host');
+    expect(git('rev-parse', '--abbrev-ref', '@{u}').trim()).toBe(
+      'origin/feature/demo',
+    );
+    ssh.mockRejectedValue(new Error('SSH connection unavailable'));
+    write('tracked.txt', 'keep local work\n');
+    await expect(service.switchBranch(id, 'main')).rejects.toThrow(
+      'SSH connection unavailable',
+    );
+    expect(git('branch', '--show-current').trim()).toBe('feature/demo');
+    expect(readFileSync(join(path, 'tracked.txt'), 'utf8')).toBe(
+      'keep local work\n',
+    );
   });
 
   it('adds a remote, sets upstream on push, fetches/pulls and deepens a shallow clone', async () => {
