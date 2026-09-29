@@ -14,6 +14,7 @@ import { repositoryApi } from '../api';
 import { errorMessage } from './files-tree';
 import { ErrorState, PanelHeader } from './ui';
 import { useAccessTokensStore } from '../stores/accessTokensStore';
+import { PullRequestDetails } from './PullRequestDetails';
 
 export function defaultPullRequestRemote(remotes: PullRequestRemote[]): string {
   return (
@@ -29,9 +30,11 @@ export function defaultPullRequestRemote(remotes: PullRequestRemote[]): string {
 export function PullRequestRow({
   item,
   provider,
+  onOpen,
 }: {
   item: PullRequestItem;
   provider: PullRequestProvider;
+  onOpen: (number: number) => void;
 }) {
   const labels = { open: '开放中', closed: '已关闭', merged: '已合并' };
   return (
@@ -42,8 +45,21 @@ export function PullRequestRow({
       />
       <div className="pull-request-row__body">
         <div className="pull-request-row__title">
-          <a href={item.url} target="_blank" rel="noopener noreferrer" title="在浏览器中查看详情">
-            {item.title} <ExportOutlined aria-label="在浏览器中打开" />
+          <button
+            type="button"
+            className="pull-request-row__open"
+            onClick={() => onOpen(item.number)}
+          >
+            {item.title}
+          </button>
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="在浏览器中打开"
+            title="在浏览器中打开"
+          >
+            <ExportOutlined aria-hidden />
           </a>
           <Tag
             color={item.state === 'merged' ? 'purple' : item.state === 'open' ? 'green' : 'default'}
@@ -97,6 +113,7 @@ function RemotePullRequests({
   );
   const [state, setState] = useState<PullRequestFilter>('open');
   const [page, setPage] = useState(1);
+  const [opened, setOpened] = useState<number | null>(null);
   const [tokenDraft, setTokenDraft] = useState('');
   const [credential, setCredential] = useState<{ token: string | null; revision: number }>({
     token: null,
@@ -219,6 +236,31 @@ function RemotePullRequests({
     setTokenDraft('');
     setPage(1);
   };
+
+  if (opened !== null && provider && (!invalidSelection || credential.token !== null)) {
+    return (
+      <PullRequestDetails
+        key={JSON.stringify([
+          repoId,
+          remote.name,
+          remote.webUrl,
+          provider,
+          opened,
+          credential.revision,
+          selection?.version,
+        ])}
+        repoId={repoId}
+        remote={remote}
+        provider={provider}
+        number={opened}
+        token={credential.token}
+        items={data?.items || []}
+        refreshToken={refreshToken}
+        onOpen={setOpened}
+        onBack={() => setOpened(null)}
+      />
+    );
+  }
 
   return (
     <div className="pull-requests-content">
@@ -417,7 +459,12 @@ function RemotePullRequests({
             {data?.items.length ? (
               <ul className="pull-request-list" aria-label="PR/MR 列表">
                 {data.items.map((item) => (
-                  <PullRequestRow key={item.number} item={item} provider={provider} />
+                  <PullRequestRow
+                    key={item.number}
+                    item={item}
+                    provider={provider}
+                    onOpen={setOpened}
+                  />
                 ))}
               </ul>
             ) : data && !loading && !error ? (

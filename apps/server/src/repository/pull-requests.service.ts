@@ -13,10 +13,23 @@ import type {
   PullRequestQuery,
   PullRequestRemote,
   ApplyAccessToken,
+  PullRequestDetail,
+  PullRequestDetailQuery,
+  PullRequestResourceQuery,
+  PullRequestDiscussionQuery,
+  PullRequestDiscussion,
+  PullRequestFile,
+  PullRequestResourcePage,
 } from '@alune/shared';
 import { RepositoryService } from './repository.service';
 import { pullRequestRemote } from './pull-request-remote';
 import { AccessTokensService } from '../access-tokens/access-tokens.service';
+import {
+  count,
+  normalizeDiscussion,
+  normalizeFile,
+  text,
+} from './pull-request-content';
 
 const PAGE_SIZE = 30;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
@@ -49,6 +62,48 @@ export function validatePullRequestQuery(value: unknown): PullRequestQuery {
     );
   }
   return query;
+}
+
+export function validatePullRequestDetailQuery(
+  value: unknown,
+): PullRequestDetailQuery {
+  const input = value as PullRequestDetailQuery;
+  validatePullRequestQuery({ ...input, state: 'open', page: 1 });
+  if (!Number.isSafeInteger(input.number) || input.number < 1)
+    throw new BadRequestException('请选择有效的 PR/MR 编号。');
+  return input;
+}
+
+function validateResourceQuery(value: unknown): PullRequestResourceQuery {
+  const input = value as PullRequestResourceQuery;
+  validatePullRequestDetailQuery(input);
+  validatePullRequestQuery({ ...input, state: 'open' });
+  return input;
+}
+
+function resourceUrl(
+  remote: PullRequestRemote,
+  query: PullRequestDetailQuery,
+  suffix = '',
+  issues = false,
+): URL {
+  return new URL(
+    query.provider === 'github'
+      ? `https://api.github.com/repos/${remote.project.split('/').map(encodeURIComponent).join('/')}/${issues ? 'issues' : 'pulls'}/${query.number}${suffix}`
+      : `https://${remote.host}/api/v4/projects/${encodeURIComponent(remote.project)}/merge_requests/${query.number}${suffix}`,
+  );
+}
+
+function paged(url: URL, page: number): URL {
+  url.searchParams.set('per_page', String(PAGE_SIZE));
+  url.searchParams.set('page', String(page));
+  return url;
+}
+
+function array(data: unknown): any[] {
+  if (!Array.isArray(data) || data.length > PAGE_SIZE)
+    throw new BadGatewayException('托管平台返回的数据格式不正确，请重试。');
+  return data;
 }
 
 function apiUrl(remote: PullRequestRemote, query: PullRequestQuery): URL {
@@ -196,7 +251,7 @@ export class PullRequestsService {
 
   private async target(
     id: string,
-    query: PullRequestQuery,
+    query: Pick<PullRequestQuery, 'remote' | 'target' | 'provider'>,
     signal: AbortSignal,
   ) {
     const remote = (await this.readRemotes(id, signal)).find(
@@ -228,8 +283,14 @@ export class PullRequestsService {
     });
   }
 
-  list(id: string, input: unknown): Promise<PullRequestPage> {
-    const query = validatePullRequestQuery(input);
+  private withRequest<T>(
+    id: string,
+    query: Pick<PullRequestQuery, 'remote' | 'target' | 'provider' | 'token'>,
+    work: (
+      remote: PullRequestRemote,
+      request: (url: URL) => Promise<{ data: unknown; hasMore: boolean }>,
+    ) => Promise<T>,
+  ): Promise<T> {
     return this.withDeadline(async (signal) => {
       const remote = await this.target(id, query, signal);
       // An explicitly supplied temporary value (including empty = anonymous) overrides the saved choice for this request only.
@@ -246,54 +307,206 @@ export class PullRequestsService {
         if (credential.token)
           headers.Authorization = `Bearer ${credential.token}`;
       } else if (credential.token) headers['PRIVATE-TOKEN'] = credential.token;
-      const response = await fetch(apiUrl(remote, query), {
-        headers,
-        signal,
-        redirect: 'error',
-      });
-      try {
+      const request = async (url: URL) => {
+        signal.throwIfAborted();
         credential.assertCurrent();
-      } catch (error) {
-        await response.body?.cancel();
-        throw error;
-      }
-      if (!response.ok) {
-        await response.body?.cancel();
-        const limited =
-          response.status === 429 ||
-          (response.status === 403 &&
-            (response.headers.get('x-ratelimit-remaining') === '0' ||
-              response.headers.has('retry-after')));
-        const message = limited
-          ? '托管平台请求次数已达上限，请稍后重试，或为公开仓库配置令牌。'
-          : response.status === 401
-            ? '认证失败，请检查访问令牌是否有效或已过期。'
-            : response.status === 403
-              ? '没有访问权限，请检查令牌的仓库权限及组织授权。'
-              : response.status === 404
-                ? '仓库不存在或没有访问权限；私有仓库需要有读取权限的令牌。'
-                : query.provider === 'github'
-                  ? 'GitHub 暂时不可用，请稍后重试。'
-                  : '托管平台暂时不可用，或所选主机并非支持的 GitLab 实例，请稍后重试。';
-        throw new HttpException(
-          message,
-          limited
-            ? 429
-            : [401, 403, 404].includes(response.status)
-              ? response.status
-              : 502,
-        );
-      }
-      const data = await readJson(response);
+        const response = await fetch(url, {
+          headers,
+          signal,
+          redirect: 'error',
+        });
+        try {
+          credential.assertCurrent();
+        } catch (error) {
+          await response.body?.cancel();
+          throw error;
+        }
+        if (!response.ok) {
+          await response.body?.cancel();
+          const limited =
+            response.status === 429 ||
+            (response.status === 403 &&
+              (response.headers.get('x-ratelimit-remaining') === '0' ||
+                response.headers.has('retry-after')));
+          const message = limited
+            ? '托管平台请求次数已达上限，请稍后重试，或为公开仓库配置令牌。'
+            : response.status === 401
+              ? '认证失败，请检查访问令牌是否有效或已过期。'
+              : response.status === 403
+                ? '没有访问权限，请检查令牌的仓库权限及组织授权。'
+                : response.status === 404
+                  ? '仓库不存在、PR/MR 不存在或没有访问权限；私有仓库需要有读取权限的令牌。'
+                  : query.provider === 'github'
+                    ? 'GitHub 暂时不可用，请稍后重试。'
+                    : '托管平台暂时不可用，或所选主机并非支持的 GitLab 实例，请稍后重试。';
+          throw new HttpException(
+            message,
+            limited
+              ? 429
+              : [401, 403, 404].includes(response.status)
+                ? response.status
+                : 502,
+          );
+        }
+        const data = await readJson(response);
+        credential.assertCurrent();
+        return {
+          data,
+          hasMore:
+            /<[^>]+>;\s*rel="next"/.test(response.headers.get('link') || '') ||
+            Boolean(response.headers.get('x-next-page')),
+        };
+      };
+      const result = await work(remote, request);
       credential.assertCurrent();
-      if (!Array.isArray(data) || data.length > PAGE_SIZE)
-        throw new BadGatewayException('托管平台返回的数据格式不正确，请重试。');
+      return result;
+    });
+  }
+
+  list(id: string, input: unknown): Promise<PullRequestPage> {
+    const query = validatePullRequestQuery(input);
+    return this.withRequest(id, query, async (remote, request) => {
+      const { data, hasMore } = await request(apiUrl(remote, query));
       return {
-        items: data.map((value) => normalizeItem(value, remote, query)),
+        items: array(data).map((value) => normalizeItem(value, remote, query)),
         page: query.page,
-        hasMore:
-          /<[^>]+>;\s*rel="next"/.test(response.headers.get('link') || '') ||
-          Boolean(response.headers.get('x-next-page')),
+        hasMore,
+      };
+    });
+  }
+
+  detail(id: string, input: unknown): Promise<PullRequestDetail> {
+    const query = validatePullRequestDetailQuery(input);
+    return this.withRequest(id, query, async (remote, request) => {
+      const { data } = await request(resourceUrl(remote, query));
+      const value = data as any;
+      const item = normalizeItem(value, remote, {
+        ...query,
+        state: 'open',
+        page: 1,
+      });
+      if (item.number !== query.number)
+        throw new BadGatewayException(
+          '托管平台返回了不同的 PR/MR，请刷新后重试。',
+        );
+      const github = query.provider === 'github';
+      const changed = value.changes_count;
+      const fileCount = github
+        ? count(value.changed_files)
+        : /^\d+$/.test(String(changed))
+          ? count(Number(changed))
+          : null;
+      return {
+        ...item,
+        description: text(github ? value.body : value.description),
+        fileCount,
+        filesNotice:
+          github && fileCount !== null && fileCount > 3000
+            ? 'GitHub API 最多返回 3000 个变动文件；其余文件请在浏览器中查看。'
+            : !github && typeof changed === 'string' && changed.endsWith('+')
+              ? '文件数量超过 GitLab 的统计限制，平台可能省略部分文件或 Diff；请在浏览器中核对完整变动。'
+              : undefined,
+      };
+    });
+  }
+
+  files(
+    id: string,
+    input: unknown,
+  ): Promise<PullRequestResourcePage<PullRequestFile>> {
+    const query = validateResourceQuery(input);
+    return this.withRequest(id, query, async (remote, request) => {
+      const github = query.provider === 'github';
+      if (github && query.page > 100)
+        return {
+          items: [],
+          page: query.page,
+          hasMore: false,
+          notice:
+            '已达到 GitHub API 的 3000 个文件上限，请在浏览器中查看其余文件。',
+        };
+      let response: { data: unknown; hasMore: boolean };
+      try {
+        response = await request(
+          paged(
+            resourceUrl(remote, query, github ? '/files' : '/diffs'),
+            query.page,
+          ),
+        );
+      } catch (error) {
+        // Older self-hosted GitLab versions expose changes but not the paged diffs API.
+        if (
+          github ||
+          !(error instanceof HttpException) ||
+          error.getStatus() !== 404
+        )
+          throw error;
+        const { data } = await request(resourceUrl(remote, query, '/changes'));
+        const legacy = data as any;
+        if (!Array.isArray(legacy?.changes))
+          throw new BadGatewayException(
+            '此 GitLab 版本未提供可展示的 Diff，请在浏览器中查看。',
+          );
+        const offset = (query.page - 1) * PAGE_SIZE;
+        return {
+          items: legacy.changes
+            .slice(offset, offset + PAGE_SIZE)
+            .map((file: any) => normalizeFile(file, query.provider)),
+          page: query.page,
+          hasMore: offset + PAGE_SIZE < legacy.changes.length,
+          notice: legacy.overflow
+            ? 'GitLab 已截断变动文件或 Diff；以下仅为可用内容，请在浏览器中查看完整变动。'
+            : undefined,
+        };
+      }
+      return {
+        items: array(response.data).map((file) =>
+          normalizeFile(file, query.provider),
+        ),
+        page: query.page,
+        hasMore: response.hasMore && (!github || query.page < 100),
+        notice:
+          github && query.page === 100
+            ? '已达到 GitHub API 的 3000 个文件上限，请在浏览器中核对完整变动。'
+            : undefined,
+      };
+    });
+  }
+
+  discussions(
+    id: string,
+    input: unknown,
+  ): Promise<PullRequestResourcePage<PullRequestDiscussion>> {
+    const query = validateResourceQuery(input) as PullRequestDiscussionQuery;
+    if (
+      !['comments', 'reviews', 'code'].includes(query.kind) ||
+      (query.provider === 'gitlab' && query.kind !== 'comments')
+    )
+      throw new BadRequestException('请选择有效的讨论类型。');
+    return this.withRequest(id, query, async (remote, request) => {
+      const github = query.provider === 'github';
+      const suffix = github
+        ? query.kind === 'reviews'
+          ? '/reviews'
+          : '/comments'
+        : '/discussions';
+      const { data, hasMore } = await request(
+        paged(
+          resourceUrl(
+            remote,
+            query,
+            suffix,
+            github && query.kind === 'comments',
+          ),
+          query.page,
+        ),
+      );
+      return {
+        items: array(data).map((value) =>
+          normalizeDiscussion(value, query.provider, query.kind),
+        ),
+        page: query.page,
+        hasMore,
       };
     });
   }

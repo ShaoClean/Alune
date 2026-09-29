@@ -23,16 +23,24 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
   const previousDir = process.env.ALUNE_DATA_DIR;
   process.env.ALUNE_DATA_DIR = path.join(fixture.root, 'app-data');
   const originalFetch = globalThis.fetch;
-  const control = { status: 200, delay: 0, calls: [] };
+  const control = { status: 200, delay: 0, delayNumber: null, failPath: '', calls: [] };
   globalThis.fetch = async (input, options) => {
     const url = new URL(String(input));
     if (!['api.github.com', 'gitlab.example.com', 'gitlab.com'].includes(url.hostname))
       return originalFetch(input, options);
     const github = url.hostname === 'api.github.com';
     const token = options.headers[github ? 'Authorization' : 'PRIVATE-TOKEN'];
-    const current = { status: control.status, delay: control.delay };
+    const resource = url.pathname.match(
+      /\/(?:pulls|issues|merge_requests)\/(\d+)(?:\/(files|diffs|changes|discussions|reviews|comments))?$/,
+    );
+    const number = resource ? Number(resource[1]) : null;
+    const current = {
+      status: !control.failPath || url.pathname.endsWith(control.failPath) ? control.status : 200,
+      delay: !control.delayNumber || number === control.delayNumber ? control.delay : 0,
+    };
     control.calls.push({
       host: url.host,
+      path: url.pathname,
       page: url.searchParams.get('page'),
       state: url.searchParams.get('state'),
       authenticated: Boolean(token),
@@ -51,6 +59,156 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
       });
     if (current.status !== 200) return new Response('{}', { status: current.status });
     if (!github && !token) return new Response('{}', { status: 401 });
+    if (resource) {
+      const page = Number(url.searchParams.get('page') || 1);
+      const kind = resource[2];
+      const date = '2026-09-29T08:00:00Z';
+      const patch =
+        '@@ -10,2 +10,3 @@\n export function open() {\n-  return external();\n+  // Keep review context inside Alune.\n+  return details();';
+      const comment = (id, body) => ({
+        id,
+        body,
+        user: { login: 'reviewer' },
+        author: { username: 'reviewer' },
+        created_at: date,
+      });
+      let payload,
+        more = false;
+      if (!kind) {
+        const common = {
+          title: `在应用内查看变动与讨论 · ${number}`,
+          draft: number === 94,
+          updated_at: date,
+        };
+        payload = github
+          ? {
+              ...common,
+              number,
+              state: [89, 81].includes(number) ? 'closed' : 'open',
+              merged_at: number === 89 ? date : null,
+              user: { login: 'alune-contributor' },
+              head: { label: `contributor:feature/${number}` },
+              base: { ref: 'development' },
+              body:
+                number === 94
+                  ? ''
+                  : '## Review context\n\n在 Alune 内阅读 **代码变动与评论**。\n\n- [x] 保留远端与分页\n- [x] 展示行号与回复\n\n`feature` → `development`',
+              changed_files: number === 94 ? 0 : 31,
+            }
+          : {
+              ...common,
+              iid: number,
+              state: number === 89 ? 'merged' : number === 81 ? 'closed' : 'opened',
+              author: { username: 'alune-contributor' },
+              source_branch: `feature/${number}`,
+              target_branch: 'main',
+              description:
+                number === 94
+                  ? ''
+                  : '## GitLab review\n\n支持自建 GitLab 的文件变动与**讨论回复**。',
+              changes_count: number === 94 ? '0' : '31',
+            };
+      } else if (kind === 'files' || kind === 'diffs') {
+        const files = Array.from({ length: number === 94 ? 0 : 31 }, (_, index) => {
+          const name =
+            index === 0
+              ? 'src/review.ts'
+              : index === 1
+                ? 'assets/binary.png'
+                : index === 2
+                  ? 'large/generated.ts'
+                  : index === 3
+                    ? 'src/renamed.ts'
+                    : index === 4
+                      ? 'src/deleted.ts'
+                      : index === 5
+                        ? 'src/added.ts'
+                        : `src/modules/very-long-review-context-path/file-${index}.ts`;
+          const filePatch =
+            index === 4 ? '@@ -1 +0,0 @@\n-old' : index === 5 ? '@@ -0,0 +1 @@\n+new' : patch;
+          return github
+            ? {
+                filename: name,
+                previous_filename: index === 3 ? 'src/old.ts' : undefined,
+                status:
+                  index === 3
+                    ? 'renamed'
+                    : index === 4
+                      ? 'removed'
+                      : index === 5
+                        ? 'added'
+                        : 'modified',
+                additions: index === 4 ? 0 : index === 5 ? 1 : 2,
+                deletions: index === 5 ? 0 : 1,
+                patch:
+                  index === 1 ? undefined : index === 2 ? '@@ -1,99 +1,99 @@\n-partial' : filePatch,
+              }
+            : {
+                new_path: name,
+                old_path: index === 3 ? 'src/old.ts' : name,
+                renamed_file: index === 3,
+                deleted_file: index === 4,
+                new_file: index === 5,
+                too_large: index === 2,
+                diff: index === 1 ? 'Binary files a and b differ' : index === 2 ? '' : filePatch,
+              };
+        });
+        payload = files.slice((page - 1) * 30, page * 30);
+        more = page * 30 < files.length;
+      } else if (number === 94) payload = [];
+      else if (kind === 'reviews')
+        payload = [{ ...comment(21, ''), state: 'APPROVED', submitted_at: date }];
+      else if (kind === 'discussions') {
+        const first = {
+          ...comment(31, '请确认这里的旧版本兼容性。'),
+          resolvable: true,
+          resolved: true,
+          position: {
+            old_path: 'src/review.ts',
+            new_path: 'src/review.ts',
+            old_line: null,
+            new_line: 12,
+          },
+        };
+        payload =
+          page === 1
+            ? [
+                {
+                  id: 'gitlab-thread',
+                  notes: [
+                    first,
+                    { ...comment(32, '已补充兼容处理。'), resolvable: true, resolved: true },
+                  ],
+                },
+                { id: 'general', notes: [comment(33, '普通评论：验证完成。')] },
+              ]
+            : [{ id: 'next-thread', notes: [comment(34, '下一页讨论。')] }];
+        more = page === 1;
+      } else if (url.pathname.includes('/issues/')) {
+        payload =
+          page === 1
+            ? [comment(11, '普通评论：请验证 **浅色和深色主题**。')]
+            : [comment(12, '下一页评论。')];
+        more = page === 1;
+      } else {
+        const first = {
+          ...comment(41, '这行是否保留了当前仓库的上下文？'),
+          path: 'src/review.ts',
+          side: 'RIGHT',
+          line: null,
+          original_line: 12,
+          diff_hunk: patch,
+        };
+        payload =
+          page === 1
+            ? [first]
+            : [{ ...first, id: 42, in_reply_to_id: 41, body: '已确认，并补充回归测试。' }];
+        more = page === 1;
+      }
+      return new Response(JSON.stringify(payload), {
+        headers: more ? { link: '<https://fixture.invalid/next>; rel="next"' } : {},
+      });
+    }
     const page = Number(url.searchParams.get('page'));
     const all = url.searchParams.get('state') === 'all';
     const items =
@@ -110,6 +268,8 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
     const body = JSON.parse(text || '{}');
     if (Number.isInteger(body.status)) control.status = body.status;
     if (Number.isInteger(body.delay)) control.delay = body.delay;
+    if ('delayNumber' in body) control.delayNumber = body.delayNumber;
+    if (typeof body.failPath === 'string') control.failPath = body.failPath;
     if (body.resetCalls) control.calls.length = 0;
     res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(control));
   });

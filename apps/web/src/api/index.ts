@@ -19,6 +19,13 @@ import type {
   PullRequestRemote,
   PullRequestQuery,
   PullRequestPage,
+  PullRequestDetail,
+  PullRequestDetailQuery,
+  PullRequestResourceQuery,
+  PullRequestDiscussionQuery,
+  PullRequestDiscussion,
+  PullRequestFile,
+  PullRequestResourcePage,
   AccessTokenSettings,
   SaveAccessToken,
   ApplyAccessToken,
@@ -74,6 +81,26 @@ export const repositoryApi = {
     signal?: AbortSignal,
   ): Promise<PullRequestPage> =>
     api.post(`/repositories/${id}/pull-requests/list`, query, { signal }).then((r) => r.data),
+  pullRequestDetail: (
+    id: string,
+    query: PullRequestDetailQuery,
+    signal?: AbortSignal,
+  ): Promise<PullRequestDetail> =>
+    api.post(`/repositories/${id}/pull-requests/detail`, query, { signal }).then((r) => r.data),
+  pullRequestFiles: (
+    id: string,
+    query: PullRequestResourceQuery,
+    signal?: AbortSignal,
+  ): Promise<PullRequestResourcePage<PullRequestFile>> =>
+    api.post(`/repositories/${id}/pull-requests/files`, query, { signal }).then((r) => r.data),
+  pullRequestDiscussions: (
+    id: string,
+    query: PullRequestDiscussionQuery,
+    signal?: AbortSignal,
+  ): Promise<PullRequestResourcePage<PullRequestDiscussion>> =>
+    api
+      .post(`/repositories/${id}/pull-requests/discussions`, query, { signal })
+      .then((r) => r.data),
   inspectLocal: (
     path: string,
   ): Promise<RepositoryContext & { name: string; status: RepositoryStatus }> =>
