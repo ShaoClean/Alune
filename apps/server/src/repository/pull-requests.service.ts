@@ -763,7 +763,9 @@ export class PullRequestsService {
         this.operations.delete(query.operationId);
       if (dispatched && status >= 500)
         throw new BadGatewayException(
-          '提交结果尚未确认，请先刷新并在托管平台核对；为避免重复提交，同一操作不会再次发送，草稿已保留。',
+          query.action === 'comment'
+            ? '提交结果尚未确认，请先刷新并在托管平台核对；同一操作不会再次发送，草稿已保留。确认未发布后，编辑草稿再提交。'
+            : '提交结果尚未确认，请先刷新并在托管平台核对；同一操作不会再次发送。确认未执行后，重新打开确认窗口再试。',
         );
       throw error;
     });

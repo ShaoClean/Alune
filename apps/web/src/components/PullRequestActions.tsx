@@ -149,6 +149,9 @@ export function useReviewActions(
     load,
     submit,
     draft,
+    beginConfirmation: () => {
+      attempt.current = null;
+    },
     updateBody: (body: string) => save({ ...draft, body, operationId: crypto.randomUUID() }),
     select: (position: PullRequestCommentPosition | undefined, revision: string) =>
       save({ ...draft, position, revision, operationId: crypto.randomUUID() }),
@@ -183,6 +186,9 @@ export function ReviewActionBar({
     const snapshot = await review.load();
     opening.current = false;
     if (snapshot && mounted.current) {
+      // A newly opened confirmation follows a fresh platform read. Retries
+      // within the same dialog continue to reuse their original operation ID.
+      review.beginConfirmation();
       setMethod(snapshot.mergeMethods[0]?.value);
       setConfirm({ action, snapshot });
     }
