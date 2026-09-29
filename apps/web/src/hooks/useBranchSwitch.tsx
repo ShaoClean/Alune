@@ -9,16 +9,17 @@ export function useBranchSwitch(repoId: string, onSwitched: () => void) {
   const pending = useRef(false);
   const [switching, setSwitching] = useState<string | null>(null);
 
-  const switchBranch = async (name: string) => {
+  const switchBranch = async (name: string, isRemote?: boolean) => {
     if (pending.current) return;
     pending.current = true;
     setSwitching(name);
     let target = name;
+    let targetRemote = isRemote;
     let localName: string | undefined;
     try {
       while (true) {
         try {
-          const result = await gitApi.switchBranch(repoId, target, localName);
+          const result = await gitApi.switchBranch(repoId, target, localName, targetRemote);
           message.success(`已切换到“${result.branch}”`);
           const store = useRepositoryStore.getState();
           await Promise.all([store.fetchBranches(repoId), store.fetchLog(repoId)]);
@@ -73,6 +74,7 @@ export function useBranchSwitch(repoId: string, onSwitched: () => void) {
           );
           if (!choice) return;
           target = choice.existing ? choice.name : name;
+          targetRemote = choice.existing ? false : isRemote;
           localName = choice.existing ? undefined : choice.name;
         }
       }

@@ -8,6 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { GitService } from './git.service';
+import type { SwitchBranchOptions } from '@alune/shared';
 
 @Controller('repositories')
 export class GitController {
@@ -96,9 +97,14 @@ export class GitController {
   @Post(':id/switch')
   async switchBranch(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { name: string; localName?: string },
+    @Body() body: { name: string } & SwitchBranchOptions,
   ) {
-    return this.gitService.switchBranch(id, body.name, body.localName);
+    return this.gitService.switchBranch(
+      id,
+      body.name,
+      body.localName,
+      body.isRemote,
+    );
   }
 
   @Post(':id/branch/delete')

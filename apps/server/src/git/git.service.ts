@@ -33,7 +33,12 @@ import {
   ignoreDirectory,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
-import type { DiscardChangesScope, Repository } from '@alune/shared';
+import type {
+  DiscardChangesScope,
+  Repository,
+  SwitchBranchResult,
+  BranchNameConflict,
+} from '@alune/shared';
 
 type Operation = {
   controller: AbortController;
@@ -336,66 +341,121 @@ export class GitService implements OnModuleDestroy {
       ]),
     );
   }
-  switchBranch(id: string, name: string, localName?: string) {
+  switchBranch(
+    id: string,
+    name: string,
+    localName?: string,
+    isRemote?: boolean,
+  ): Promise<SwitchBranchResult> {
     return this.write(id, 'switch-branch', async (git, repo) => {
+      const options = { localName, isRemote };
       this.value(name, '分支名称');
-      const local = await git.execute(repo.path, [
-        'show-ref',
-        '--verify',
-        '--quiet',
-        `refs/heads/${name}`,
+      if (
+        options.isRemote !== undefined &&
+        typeof options.isRemote !== 'boolean'
+      )
+        throw new BadRequestException('无效的分支类型。');
+      // Full refs avoid ambiguous short names and preserve literal local names.
+      const { stdout } = await this.checked(git, repo.path, [
+        'for-each-ref',
+        '--format=%(refname)%00%(upstream)%00%(HEAD)',
+        'refs/heads/',
       ]);
-      let target = name;
-      let args = ['switch', '--', name];
-      if (local.exitCode !== 0 && /^(refs\/)?remotes\//.test(name)) {
-        const ref = name.startsWith('refs/') ? name : `refs/${name}`;
-        await this.checked(git, repo.path, ['show-ref', '--verify', ref]);
-        const branches = await this.checked(git, repo.path, [
-          'for-each-ref',
-          '--format=%(refname:strip=2)%00%(upstream)',
-          'refs/heads/',
+      const locals = stdout
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const [ref, upstream, head] = line.split('\0');
+          return {
+            name: ref.slice('refs/heads/'.length),
+            upstream,
+            current: head === '*',
+          };
+        });
+      const local = locals.find((branch) => branch.name === name);
+      const remoteSelected =
+        options.isRemote ?? (!local && /^(refs\/)?remotes\//.test(name));
+      const switchLocal = async (
+        branch: string,
+      ): Promise<SwitchBranchResult> => {
+        const result = await this.checked(git, repo.path, [
+          'switch',
+          '--no-guess',
+          '--',
+          branch,
         ]);
-        const tracking = branches.stdout
-          .split('\n')
-          .map((line) => line.split('\0'))
-          .find(([, upstream]) => upstream === ref);
-        if (tracking && localName === undefined) {
-          target = tracking[0];
-          args = ['switch', '--', target];
-        } else {
-          const remotes = await this.checked(git, repo.path, ['remote']);
-          const remoteRef = ref.slice('refs/remotes/'.length);
-          const remote = remotes.stdout
-            .trim()
-            .split('\n')
-            .filter((item) => item && remoteRef.startsWith(`${item}/`))
-            .sort((a, b) => b.length - a.length)[0];
-          if (!remote)
-            throw new BadRequestException('远程引用已失效，请获取后重试。');
-          target = await this.branch(
-            git,
-            repo.path,
-            localName ?? remoteRef.slice(remote.length + 1),
+        return { success: true, branch, stdout: result.stdout };
+      };
+      if (!remoteSelected) {
+        if (options.localName !== undefined)
+          throw new BadRequestException('只有远程分支可指定新的本地分支名称。');
+        if (!local)
+          throw new BadRequestException(
+            `本地分支“${name}”已不存在，请刷新分支列表。`,
           );
-          const existing = await git.execute(repo.path, [
-            'show-ref',
-            '--verify',
-            '--quiet',
-            `refs/heads/${target}`,
-          ]);
-          if (existing.exitCode === 0)
-            throw new ConflictException({
-              code: 'LOCAL_BRANCH_EXISTS',
-              localName: target,
-              message: `本地分支“${target}”已存在，但未跟踪所选远程分支。请选择切换到现有分支、换名创建或取消。`,
-            });
-          args = ['switch', '--track=direct', '-c', target, '--', ref];
-        }
-      } else if (localName !== undefined) {
-        throw new BadRequestException('仅远程分支支持指定新的本地名称。');
+        return switchLocal(name);
       }
-      const result = await this.checked(git, repo.path, args);
-      return { ...result, branch: target };
+      if (!/^(refs\/)?remotes\//.test(name))
+        throw new BadRequestException('请选择完整的远程分支引用。');
+      const remoteRef = name.startsWith('refs/') ? name : `refs/${name}`;
+      await this.checked(git, repo.path, ['check-ref-format', remoteRef]);
+      const refs = await this.checked(git, repo.path, [
+        'for-each-ref',
+        '--format=%(refname)%00%(symref)',
+        remoteRef,
+      ]);
+      if (!refs.stdout.split('\n').includes(`${remoteRef}\0`))
+        throw new BadRequestException(
+          `远程分支“${name}”已失效或不是分支，请先获取并刷新列表。`,
+        );
+      // A remote name may itself contain slashes; use the configured names.
+      const remotes = await this.checked(git, repo.path, ['remote']);
+      const remote = remotes.stdout
+        .split('\n')
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length)
+        .find((candidate) =>
+          remoteRef.startsWith(`refs/remotes/${candidate}/`),
+        );
+      if (!remote)
+        throw new BadRequestException(
+          `远程分支“${name}”没有对应的远程配置，请刷新列表。`,
+        );
+      const tracking = locals.filter((branch) => branch.upstream === remoteRef);
+      if (options.localName === undefined && tracking.length) {
+        const target = tracking.find((branch) => branch.current) || tracking[0];
+        return switchLocal(target.name);
+      }
+      const targetName =
+        options.localName === undefined
+          ? remoteRef.slice(`refs/remotes/${remote}/`.length)
+          : this.value(options.localName, '本地分支名称');
+      this.value(targetName, '本地分支名称');
+      await this.checked(git, repo.path, [
+        'check-ref-format',
+        `refs/heads/${targetName}`,
+      ]);
+      const conflict = locals.find((branch) => branch.name === targetName);
+      if (conflict) {
+        if (conflict.upstream === remoteRef) return switchLocal(conflict.name);
+        throw new ConflictException({
+          code: 'LOCAL_BRANCH_EXISTS',
+          message: `本地分支“${targetName}”已存在，但未跟踪所选远程分支。请选择切换到现有分支或换个名称创建。`,
+          remoteRef,
+          localName: targetName,
+          upstream: conflict.upstream || undefined,
+        } satisfies BranchNameConflict);
+      }
+      // switch -c is transactional: checkout conflicts leave no branch or upstream behind.
+      const result = await this.checked(git, repo.path, [
+        'switch',
+        '--track',
+        '-c',
+        targetName,
+        '--',
+        remoteRef,
+      ]);
+      return { success: true, branch: targetName, stdout: result.stdout };
     });
   }
   renameBranch(id: string, name: string, newName: string) {

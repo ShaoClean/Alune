@@ -41,13 +41,14 @@ function find(element, type) {
 test('remote success reports actual local name, refreshes data, and ignores duplicate clicks', async (t) => {
   let complete;
   let calls = 0;
-  const { hook, events } = setup(t, () => {
+  const { hook, events } = setup(t, (...args) => {
+    assert.deepEqual(args, ['repo', 'remotes/origin/demo', undefined, true]);
     calls++;
     return new Promise((resolve) => {
       complete = resolve;
     });
   });
-  const operation = hook.switchBranch('remotes/origin/demo');
+  const operation = hook.switchBranch('remotes/origin/demo', true);
   await hook.switchBranch('remotes/other/demo');
   assert.equal(calls, 1);
   complete({ branch: 'tracking-name' });
@@ -74,17 +75,18 @@ for (const choice of ['existing', 'create', 'cancel']) {
         options.onOk();
       },
     );
-    await hook.switchBranch('remotes/origin/demo');
+    await hook.switchBranch('remotes/origin/demo', true);
     assert.deepEqual(
       calls,
       choice === 'cancel'
-        ? [['repo', 'remotes/origin/demo', undefined]]
+        ? [['repo', 'remotes/origin/demo', undefined, true]]
         : [
-            ['repo', 'remotes/origin/demo', undefined],
+            ['repo', 'remotes/origin/demo', undefined, true],
             [
               'repo',
               choice === 'existing' ? 'demo' : 'remotes/origin/demo',
               choice === 'existing' ? undefined : 'new/demo',
+              choice === 'existing' ? false : true,
             ],
           ],
     );
@@ -96,7 +98,7 @@ test('Git or connection errors are shown and release the pending guard', async (
   const { hook, events } = setup(t, async () => {
     throw new Error('SSH unavailable');
   });
-  await hook.switchBranch('remotes/origin/demo');
+  await hook.switchBranch('remotes/origin/demo', true);
   await hook.switchBranch('main');
   assert.deepEqual(events, ['SSH unavailable', 'SSH unavailable']);
 });

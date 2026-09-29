@@ -275,7 +275,12 @@ export class GitCommands {
   }
 
   async branchList(repoPath: string): Promise<BranchInfo[]> {
-    const result = await runGit(this.connection, repoPath, ['branch', '-a', '-v', '--no-color']);
+    const result = await runGit(this.connection, repoPath, [
+      'for-each-ref',
+      '--format=%(refname)%00%(HEAD)%00%(upstream)%00%(symref)',
+      'refs/heads/',
+      'refs/remotes/',
+    ]);
     if (result.exitCode !== 0) {
       throw new Error(`git branch failed: ${result.stderr}`);
     }
@@ -400,25 +405,17 @@ export class GitCommands {
   }
 
   private _parseBranchLine(line: string): BranchInfo | null {
-    try {
-      const isCurrent = line.startsWith('*');
-      const cleaned = line.replace(/^[*+ ]\s*/, '');
-      if (cleaned.startsWith('(') || cleaned.includes(' -> ')) return null;
-      const isRemote = cleaned.startsWith('remotes/');
-
-      const parts = cleaned.split(/\s+/);
-      const name = parts[0];
-      const lastCommit = parts.slice(1).join(' ');
-
-      return {
-        name,
-        isHead: isCurrent,
-        isRemote,
-        isCurrent,
-      };
-    } catch {
-      return null;
-    }
+    const [ref, head, upstream, symref] = line.split('\0');
+    if (symref || !/^refs\/(heads|remotes)\//.test(ref)) return null;
+    const isRemote = ref.startsWith('refs/remotes/');
+    const isCurrent = head === '*';
+    return {
+      name: ref.slice(isRemote ? 'refs/'.length : 'refs/heads/'.length),
+      isHead: isCurrent,
+      isRemote,
+      isCurrent,
+      ...(upstream ? { upstream: upstream.replace(/^refs\/(remotes|heads)\//, '') } : {}),
+    };
   }
 
   private _parseStashLine(line: string, index: number): StashEntry | null {

@@ -145,7 +145,8 @@ export function BranchesView({ repoId, onRefresh }: Props) {
             icon={<SwapOutlined />}
             loading={switching === branch.name}
             disabled={loading}
-            onClick={() => void handleSwitchBranch(branch.name)}
+            aria-label={`切换到 ${branch.name}`}
+            onClick={() => void handleSwitchBranch(branch.name, branch.isRemote)}
           >
             切换
           </Button>
