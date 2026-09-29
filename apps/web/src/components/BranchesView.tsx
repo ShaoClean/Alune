@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
-import { EmptyState, PanelHeader, StatusBadge } from './ui';
+import { ErrorState, EmptyState, PanelHeader, StatusBadge } from './ui';
 
 interface Props {
   repoId: string;
@@ -20,7 +20,7 @@ interface Props {
 
 export function BranchesView({ repoId, onRefresh }: Props) {
   const { message } = App.useApp();
-  const { branches, fetchBranches } = useRepositoryStore();
+  const { branches, fetchBranches, error, errorPanel } = useRepositoryStore();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -205,7 +205,13 @@ export function BranchesView({ repoId, onRefresh }: Props) {
           </>
         }
       />
-      {branches.length === 0 ? (
+      {error && errorPanel === 'branches' && !branches.length ? (
+        <ErrorState
+          title="无法读取分支"
+          description={error}
+          onRetry={() => void fetchBranches(repoId)}
+        />
+      ) : branches.length === 0 ? (
         <EmptyState
           title="未找到分支"
           description="首次提交后会显示当前分支，也可以刷新仓库引用。"

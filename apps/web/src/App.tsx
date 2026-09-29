@@ -6,6 +6,7 @@ import type { ThemeConfig } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { router } from './router';
 import { useAppearance } from './appearance';
+import { FeedbackProvider } from './components/Feedback';
 
 const queryClient = new QueryClient();
 
@@ -67,7 +68,9 @@ function App() {
     <ConfigProvider locale={zhCN} theme={config}>
       <AntApp component={false}>
         <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
+          <FeedbackProvider>
+            <RouterProvider router={router} />
+          </FeedbackProvider>
         </QueryClientProvider>
       </AntApp>
     </ConfigProvider>

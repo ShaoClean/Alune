@@ -85,6 +85,7 @@ module.exports = async ({ window, origin, token }) => {
       'document.querySelector(".branch-pill__name")?.textContent.includes("native-feature")',
     );
     assert.equal((await api('/repositories/' + registered.id + '/context')).source, 'local');
+    await require('./feedback-smoke.cjs')({ window, git, repo });
     console.log(
       'Desktop local Git passed: local source/path, real first commit, branch switch, preload directory selection and cancel (dialog stub).',
     );

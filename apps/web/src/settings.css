@@ -337,9 +337,6 @@
   align-items: center;
   gap: 8px;
 }
-.settings-notice {
-  margin: 18px 0;
-}
 .provider-models {
   margin-top: 26px;
   padding-top: 24px;
@@ -434,9 +431,6 @@
   color: var(--settings-muted);
   font-size: 12px;
   margin-bottom: 0;
-}
-.settings-load-alert {
-  margin: 16px;
 }
 .commit-ai-generate {
   display: inline-flex;
@@ -927,9 +921,6 @@
 .proxy-test-result.is-error {
   color: var(--red, #cf3c46);
 }
-.proxy-notice {
-  margin-bottom: 18px;
-}
 .proxy-server {
   display: flex;
   flex-direction: column;
@@ -988,4 +979,8 @@
   .proxy-panel {
     padding: 16px;
   }
+}
+
+.settings-notice {
+  margin: 18px 0;
 }

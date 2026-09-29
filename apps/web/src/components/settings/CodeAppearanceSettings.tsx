@@ -1,5 +1,6 @@
+import { FeedbackNotice } from '../Feedback';
 import { useRef, useState } from 'react';
-import { Alert, Button, Input, InputNumber } from 'antd';
+import { Button, Input, InputNumber } from 'antd';
 import { useAppearance } from '../../appearance';
 import { BUILTIN_CODE_THEMES, MAX_THEME_BYTES } from '../../code-themes';
 import {
@@ -88,15 +89,15 @@ export function CodeAppearanceSettings() {
       <p className="settings-field-hint">
         应用于本地与 SSH 仓库的文件阅读，修改即时生效并保存在本设备。
       </p>
-      {codeAppearanceNotice && (
-        <Alert
-          className="settings-notice"
-          type="warning"
-          showIcon
-          title={codeAppearanceNotice}
-          closable={{ onClose: dismissCodeAppearanceNotice }}
-        />
-      )}
+      <FeedbackNotice
+        source="code-appearance-recovery"
+        title={codeAppearanceNotice ? '代码外观配置已恢复' : null}
+        description={codeAppearanceNotice || undefined}
+        type="warning"
+        mode="notification"
+        actionLabel="知道了"
+        onAction={dismissCodeAppearanceNotice}
+      />
       <label className="settings-field">
         代码主题
         <select
@@ -222,7 +223,13 @@ export function CodeAppearanceSettings() {
         MB），需要声明浅色或深色类型。安装后可在上方选择主题。
       </p>
       {feedback && (
-        <Alert className="settings-notice" type={feedback.type} showIcon title={feedback.text} />
+        <FeedbackNotice
+          source="code-theme-import"
+          type={feedback.type}
+          title={feedback.type === 'error' ? '主题导入失败' : feedback.text}
+          description={feedback.text}
+          eventKey={feedback}
+        />
       )}
       {preferences.customThemes.length ? (
         <ul className="code-theme-list">

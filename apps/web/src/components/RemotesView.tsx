@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { App, Button, Empty, Input, Modal, Space, Typography } from 'antd';
 import { PlusOutlined, CopyOutlined, LinkOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { PanelHeader } from './ui';
+import { ErrorState, PanelHeader } from './ui';
 
 interface Props {
   repoId: string;
@@ -32,7 +32,13 @@ export function RemotesView({ repoId, onRefresh }: Props) {
       setSaving(false);
     }
   };
-  const { remotes, remotesLoading: loading, fetchRemotes } = useRepositoryStore();
+  const {
+    remotes,
+    remotesLoading: loading,
+    fetchRemotes,
+    error,
+    errorPanel,
+  } = useRepositoryStore();
 
   useEffect(() => {
     void fetchRemotes(repoId);
@@ -66,7 +72,13 @@ export function RemotesView({ repoId, onRefresh }: Props) {
           </>
         }
       />
-      {remotes.length === 0 && !loading ? (
+      {error && errorPanel === 'remotes' && !remotes.length ? (
+        <ErrorState
+          title="无法读取远程"
+          description={error}
+          onRetry={() => void fetchRemotes(repoId)}
+        />
+      ) : remotes.length === 0 && !loading ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无配置远程仓库" />
       ) : (
         <div className="remote-list">

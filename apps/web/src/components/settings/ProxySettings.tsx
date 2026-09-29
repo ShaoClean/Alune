@@ -1,3 +1,4 @@
+import { FeedbackNotice } from '../Feedback';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Input, Modal, Switch, Tag } from 'antd';
 import {
@@ -232,27 +233,30 @@ export function ProxySettings() {
         )}
       </div>
       <p className="settings-lead">统一配置 AI、应用更新、SSH 与远端 Git 的网络代理。</p>
-      {notice && (
-        <Alert
-          showIcon
+      {notice && blocker.state !== 'blocked' && (
+        <FeedbackNotice
+          source="proxy-result"
           type={notice.error ? 'error' : 'success'}
-          title={notice.text}
-          className="proxy-notice"
-        />
-      )}
-      {outdated && (
-        <Alert
-          type="warning"
-          showIcon
-          title="其他窗口已修改代理配置"
-          description="当前草稿仍保留。重新加载会丢弃草稿并读取最新配置。"
-          action={
-            <Button onClick={() => void load()} disabled={busy}>
-              重新加载
-            </Button>
+          title={notice.error ? '代理配置操作未完成' : notice.text}
+          description={
+            notice.error ? `${notice.text}\n重新加载会丢弃当前草稿并读取最新配置。` : notice.text
           }
+          eventKey={notice}
+          actionLabel={notice.error ? '重新加载（丢弃草稿）' : undefined}
+          onAction={load}
+          busy={busy}
         />
       )}
+      <FeedbackNotice
+        source="proxy-outdated"
+        title={outdated ? '其他窗口已修改代理配置' : null}
+        type="warning"
+        mode="notification"
+        description="当前草稿仍保留。重新加载会丢弃草稿并读取最新配置。"
+        actionLabel="重新加载（丢弃草稿）"
+        onAction={load}
+        busy={busy}
+      />
       {!saved || !draft ? (
         <div role="status">
           {busy ? '正在读取代理配置…' : <Button onClick={() => void load()}>重新加载</Button>}
@@ -535,13 +539,13 @@ export function ProxySettings() {
                 </p>
               </section>
               <section className="proxy-panel" aria-label="服务器代理状态">
-                {statusError && (
-                  <Alert
-                    type="warning"
-                    showIcon
-                    title="暂时无法刷新服务器状态，显示的是上次结果。"
-                  />
-                )}
+                <FeedbackNotice
+                  source="proxy-server-status"
+                  title={statusError ? '暂时无法刷新服务器状态' : null}
+                  type="warning"
+                  mode="notification"
+                  description="显示的是上次结果。后台会继续刷新，当前代理草稿仍保留。"
+                />
                 <h2>
                   <CloudServerOutlined /> 远端 Git 状态
                 </h2>

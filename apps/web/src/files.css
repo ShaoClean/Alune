@@ -72,16 +72,6 @@
   color: var(--text-muted);
   font-size: 12px;
 }
-.files-tree__banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 14px;
-  color: var(--red);
-  background: var(--red-soft);
-  font-size: 11px;
-}
 .files-tree {
   flex: 1;
   min-height: 0;

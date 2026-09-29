@@ -1,3 +1,4 @@
+import { FeedbackNotice } from './Feedback';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { Spin } from 'antd';
@@ -370,14 +371,14 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
           )
         ) : (
           <>
-            {root.phase === 'error' && (
-              <div className="files-tree__banner" role="alert">
-                <span>刷新目录失败：{root.message}</span>
-                <button type="button" className="text-button" onClick={() => loadDirectory(ROOT)}>
-                  重试
-                </button>
-              </div>
-            )}
+            <FeedbackNotice
+              source="files-refresh"
+              title={root.phase === 'error' ? '刷新目录失败' : null}
+              description={root.phase === 'error' ? root.message : undefined}
+              actionLabel="重试"
+              busy={root.phase === 'loading'}
+              onAction={() => loadDirectory(ROOT)}
+            />
             {root.listing.entries.length === 0 ? (
               <p className="files-tree__empty">此仓库工作区没有可显示的文件。</p>
             ) : (

@@ -3,7 +3,7 @@ import { Button, Checkbox, Input, Modal, Popconfirm, App } from 'antd';
 import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
-import { EmptyState, formatRelativeDate, PanelHeader } from './ui';
+import { ErrorState, EmptyState, formatRelativeDate, PanelHeader } from './ui';
 
 interface Props {
   repoId: string;
@@ -12,7 +12,7 @@ interface Props {
 
 export function StashesView({ repoId, onRefresh }: Props) {
   const { message } = App.useApp();
-  const { stashes, fetchStashes } = useRepositoryStore();
+  const { stashes, fetchStashes, error, errorPanel } = useRepositoryStore();
   const [loading, setLoading] = useState(false);
   const [stashModalVisible, setStashModalVisible] = useState(false);
   const [stashMessage, setStashMessage] = useState('');
@@ -102,7 +102,13 @@ export function StashesView({ repoId, onRefresh }: Props) {
           </>
         }
       />
-      {stashes.length === 0 ? (
+      {error && errorPanel === 'stashes' && !stashes.length ? (
+        <ErrorState
+          title="无法读取储藏"
+          description={error}
+          onRetry={() => void fetchStashes(repoId)}
+        />
+      ) : stashes.length === 0 ? (
         <EmptyState
           title="暂无储藏"
           description="切换工作上下文时，可以使用储藏安全保存进行中的改动。"

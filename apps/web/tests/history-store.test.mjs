@@ -139,3 +139,12 @@ test('switching repositories aborts and discards stale reads and clears every pa
   );
   assert.equal(store.getState().logHasMore, false);
 });
+
+test('commit-file failures belong only to the selected commit and cannot duplicate a global notice', async () => {
+  repositoryApi.commitFiles = async () => {
+    throw new Error('commit files unavailable');
+  };
+  await store.getState().fetchCommitFiles('a', 'commit-a');
+  assert.equal(store.getState().commitFilesError, 'commit files unavailable');
+  assert.equal(store.getState().error, null);
+});

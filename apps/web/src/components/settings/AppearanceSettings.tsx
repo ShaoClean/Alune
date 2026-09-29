@@ -1,13 +1,11 @@
-import { Alert, Radio, Switch } from 'antd';
+import { Radio, Switch } from 'antd';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
-import { useWorkspaceStorageStatus } from '../../stores/workspaceStorage';
 import { useAppearance } from '../../appearance';
 import { CodeAppearanceSettings } from './CodeAppearanceSettings';
 
 export function AppearanceSettings() {
   const { appearance, updateAppearance } = useWorkspaceStore();
   const { theme, reduceMotion } = useAppearance();
-  const error = useWorkspaceStorageStatus((state) => state.error);
   return (
     <div className="settings-page-content">
       <h1>外观</h1>
@@ -41,7 +39,6 @@ export function AppearanceSettings() {
         </p>
       </fieldset>
       <CodeAppearanceSettings />
-      {error && <Alert type="error" showIcon title={error} />}
     </div>
   );
 }

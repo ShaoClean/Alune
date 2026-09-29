@@ -1,3 +1,4 @@
+import { FeedbackNotice } from '../Feedback';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Empty, Input, Modal, Spin } from 'antd';
 import {
@@ -154,13 +155,18 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
           新增令牌
         </Button>
       </div>
-      {error && (
-        <Alert
-          type="error"
-          showIcon
-          title={error}
-          action={<Button onClick={() => void load()}>重新加载</Button>}
-        />
+      <FeedbackNotice
+        source="access-tokens"
+        title={error ? '访问令牌加载失败' : null}
+        description={error}
+        actionLabel="重新加载"
+        busy={loading}
+        onAction={load}
+      />
+      {!settings && error && !loading && (
+        <div role="status">
+          无法读取访问令牌。<Button onClick={() => void load()}>重新加载</Button>
+        </div>
       )}
       {settings && !settings.secretStorage.available && (
         <Alert

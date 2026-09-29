@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, App, Button, Input, Modal } from 'antd';
+import { Alert, App, Input, Modal } from 'antd';
+import { FeedbackNotice } from './Feedback';
 import type { RepositoryContext } from '@alune/shared';
 import { gitApi, repositoryApi } from '../api';
 
@@ -19,6 +20,9 @@ export function RepositoryContextNotice({
   const { message } = App.useApp();
   const [context, setContext] = useState<RepositoryContext | null>(null);
   const [error, setError] = useState('');
+  const [authorError, setAuthorError] = useState('');
+  const [deepenError, setDeepenError] = useState('');
+  const [contextLoading, setContextLoading] = useState(false);
   const [retry, setRetry] = useState(0);
   const [authorOpen, setAuthorOpen] = useState(false);
   const [name, setName] = useState('');
@@ -26,6 +30,8 @@ export function RepositoryContextNotice({
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
+    setError('');
+    setContextLoading(true);
     void repositoryApi
       .context(repoId, controller.signal)
       .then((value) => {
@@ -36,11 +42,15 @@ export function RepositoryContextNotice({
       })
       .catch((failure) => {
         if (!controller.signal.aborted) setError(failure.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setContextLoading(false);
       });
     return () => controller.abort();
   }, [repoId, revision, retry, onContext]);
   const save = async () => {
     setBusy(true);
+    setAuthorError('');
     try {
       await gitApi.saveAuthor(repoId, name.trim(), email.trim());
       setAuthorOpen(false);
@@ -48,79 +58,83 @@ export function RepositoryContextNotice({
       onRefresh();
       message.success('此仓库的提交作者已保存');
     } catch (failure: any) {
-      message.error(failure.message);
+      setAuthorError(failure.message);
     } finally {
       setBusy(false);
     }
   };
   const deepen = async () => {
     setBusy(true);
+    setDeepenError('');
     try {
       await gitApi.deepen(repoId, context?.remotes[0]?.name);
       setRetry((value) => value + 1);
       onRefresh();
     } catch (failure: any) {
-      message.error(failure.message);
+      setDeepenError(failure.message);
     } finally {
       setBusy(false);
     }
   };
   return (
     <>
-      {error && (
-        <Alert
-          type="warning"
-          title="无法读取仓库配置"
-          description={error}
-          action={
-            <Button size="small" onClick={() => setRetry((value) => value + 1)}>
-              重试
-            </Button>
-          }
-        />
-      )}
-      {context && (
-        <div className="repository-context-notices">
-          {context.unborn && <div role="status">尚无提交。先暂存文件，再创建首次提交。</div>}
-          {!context.remotes.length && (
-            <div>
-              未配置远程。可以继续提交。
-              <Button type="link" size="small" onClick={onRemotes}>
-                添加远程
-              </Button>
-            </div>
-          )}
-          {(!context.author.name || !context.author.email) && (
-            <div>
-              提交前需要设置作者。
-              <Button
-                type="link"
-                size="small"
-                onClick={() => {
-                  setName(context.author.name);
-                  setEmail(context.author.email);
-                  setAuthorOpen(true);
-                }}
-              >
-                设置作者
-              </Button>
-            </div>
-          )}
-          {context.shallow && (
-            <div>
-              浅克隆仅显示已获取的历史。
-              <Button
-                type="link"
-                size="small"
-                disabled={!context.remotes.length || busy}
-                onClick={() => void deepen()}
-              >
-                获取完整历史
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
+      <FeedbackNotice
+        source="repository-context"
+        title={error ? '无法读取仓库配置' : null}
+        description={error}
+        busy={contextLoading}
+        mode="notification"
+        actionLabel="重试"
+        onAction={() => setRetry((value) => value + 1)}
+      />
+      <FeedbackNotice
+        source="unborn"
+        title={context?.unborn ? '尚无提交' : null}
+        type="info"
+        mode="manual"
+        description="先暂存文件，再创建首次提交。"
+      />
+      <FeedbackNotice
+        source="no-remote"
+        title={context && !context.remotes.length ? '未配置远程' : null}
+        type="info"
+        mode="manual"
+        description="可以继续本地提交。配置远程后可获取、拉取和推送。"
+        actionLabel="添加远程"
+        onAction={onRemotes}
+      />
+      <FeedbackNotice
+        source="no-author"
+        title={
+          context && (!context.author.name || !context.author.email) ? '提交前需要设置作者' : null
+        }
+        type="warning"
+        mode="manual"
+        actionLabel="设置作者"
+        onAction={() => {
+          setName(context!.author.name);
+          setEmail(context!.author.email);
+          setAuthorError('');
+          setAuthorOpen(true);
+        }}
+      />
+      <FeedbackNotice
+        source="shallow"
+        title={context?.shallow ? '浅克隆仅显示已获取的历史' : null}
+        type="info"
+        mode="manual"
+        actionLabel={context?.remotes.length ? '获取完整历史' : undefined}
+        busy={busy}
+        onAction={deepen}
+      />
+      <FeedbackNotice
+        source="deepen-error"
+        title={deepenError ? '获取完整历史未完成' : null}
+        description={deepenError}
+        busy={busy}
+        actionLabel="重试"
+        onAction={deepen}
+      />
       <Modal
         title="设置提交作者"
         open={authorOpen}
@@ -130,6 +144,7 @@ export function RepositoryContextNotice({
         okButtonProps={{ disabled: !name.trim() || !email.trim() }}
         okText="保存到此仓库"
       >
+        {authorError && <Alert type="error" title={authorError} />}
         <p className="modal-description">仅写入此仓库的 Git 配置，不修改系统全局配置。</p>
         <label className="git-form-label" htmlFor="git-author-name">
           姓名

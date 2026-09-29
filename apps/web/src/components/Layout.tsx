@@ -21,6 +21,7 @@ import { SettingsCenter } from './settings/SettingsCenter';
 import { PanelToggle } from './PanelToggle';
 import { SIDEBAR_MIN } from '../stores/workspaceLayout';
 import { WorkspaceStatusBar } from './WorkspaceStatusBar';
+import { FeedbackNotice, FeedbackScope } from './Feedback';
 
 const navItems = [
   { key: '/connections', label: '连接', icon: <ApartmentOutlined /> },
@@ -113,10 +114,6 @@ export function Layout() {
     void fetchConnections();
     void fetchRepositories();
   }, [fetchConnections, fetchRepositories]);
-
-  useEffect(() => {
-    if (storageError) void message.error({ key: 'workspace-storage', content: storageError });
-  }, [storageError]);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -261,7 +258,16 @@ export function Layout() {
   return (
     <>
       {notificationContext}
-      {isSettings && <SettingsCenter returnTo={workspacePath} updates={updates} />}
+      {isSettings && (
+        <FeedbackScope id={location.pathname} label="设置">
+          <SettingsCenter returnTo={workspacePath} updates={updates} />
+        </FeedbackScope>
+      )}
+      <FeedbackNotice
+        source="workspace-storage"
+        title={storageError ? '无法保存外观与工作区设置' : null}
+        description={storageError || undefined}
+      />
       <div
         className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}${mobileNavOpen ? ' app-shell--mobile-open' : ''}`}
         style={
@@ -422,7 +428,13 @@ export function Layout() {
 
         <main className="app-main" inert={compact && mobileNavOpen}>
           <div className={`app-content${activeRepositoryId ? ' app-content--workspace' : ''}`}>
-            {workspaceOutlet.current}
+            <FeedbackScope
+              id={workspacePath}
+              label={activeRepository?.name || currentRepo?.name || '仓库'}
+              active={!isSettings}
+            >
+              {workspaceOutlet.current}
+            </FeedbackScope>
           </div>
         </main>
         <WorkspaceStatusBar

@@ -1,3 +1,4 @@
+import { FeedbackNotice } from '../Feedback';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Input, Modal, Switch, Tag } from 'antd';
 import {
@@ -451,23 +452,19 @@ function ProviderForm({
         </fieldset>
       </form>
       {notice && (
-        <Alert
-          role={notice.error ? 'alert' : 'status'}
-          className="settings-notice"
+        <FeedbackNotice
+          source="provider-result"
           type={notice.error ? 'error' : 'success'}
-          showIcon
-          title={notice.message}
-          action={
-            notice.error && (
-              <Button
-                size="small"
-                title="重新加载并放弃尚未保存的配置修改"
-                onClick={() => void useAiSettingsStore.getState().load()}
-              >
-                重新加载配置
-              </Button>
-            )
+          title={notice.error ? '服务商保存或测试失败' : notice.message}
+          description={
+            notice.error ? `${notice.message}\n重新加载会放弃尚未保存的配置修改。` : undefined
           }
+          eventKey={notice}
+          actionLabel={notice.error ? '重新加载配置' : undefined}
+          onAction={async () => {
+            await useAiSettingsStore.getState().load();
+            if (!useAiSettingsStore.getState().error) setNotice(null);
+          }}
         />
       )}
       {active.current && (
