@@ -10,6 +10,7 @@ import { FeedbackNotice } from '../components/Feedback';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { useWorkspaceStore } from '../stores/workspaceStore';
 import { BranchesView } from '../components/BranchesView';
 import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicator';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
@@ -123,7 +124,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     // Opening a workspace needs only its registration. Remote panels load on demand.
     void (cached ? Promise.resolve(cached) : repositoryApi.get(id))
       .then((repo) => {
-        if (!cancelled) {
+        if (!cancelled && useWorkspaceStore.getState().repositorySession.activeId === id) {
           setCurrentRepo(repo);
           void fetchStatus(id);
         }

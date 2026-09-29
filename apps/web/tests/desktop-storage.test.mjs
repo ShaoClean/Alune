@@ -27,6 +27,7 @@ test('desktop hydration completes before either list can validate saved order', 
   release(JSON.stringify({ version: 1, state: {
     connectionOrder: ['b', 'a'], repositoryOrderByConnection: { a: ['r2', 'r1'] },
     collapsedConnectionIds: ['b'],
+    repositorySession: { ids: ['r2', 'r1'], activeId: 'r2' },
     collectionViews: { repositories: 'list', connections: 'grid' },
   } }));
   await ready;
@@ -39,6 +40,8 @@ test('desktop hydration completes before either list can validate saved order', 
   workspace.getState().setCollectionView('connections', 'list');
   assert.deepEqual(JSON.parse(writes.at(-1)).state.collectionViews, { repositories: 'list', connections: 'list' });
   assert.deepEqual(repositories.getState().repositories.map((repo) => repo.id), ['r1', 'r2']);
+  assert.deepEqual(repositories.getState().openRepositories.map((repo) => repo.id), ['r2', 'r1']);
+  assert.deepEqual(JSON.parse(writes.at(-1)).state.repositorySession, { ids: ['r2', 'r1'], activeId: 'r2' });
 });
 
 test('storage failures are reported without rejecting UI updates, and later writes recover', async () => {

@@ -19,6 +19,7 @@ npm run desktop:dist  # 生成当前系统安装包
 npm run desktop:test  # 构建后执行桌面集成测试
 npm run desktop:test:code-appearance # 构建并验证本地/SSH 代码主题、选区与滚动保留
 npm run desktop:test:worktrees # 构建并在隔离 SSH 环境验证 worktree 标签与操作
+npm run test:repository-session -w desktop # 构建后验证标签跨进程/端口恢复、强杀、删除、断线和列表失败重试
 ```
 
 产物位于 `apps/desktop/release/`。macOS 生成 `.app`、DMG 和 ZIP；Windows 配置 NSIS 安装程序；Linux 配置 AppImage。请在对应系统构建和验证，原生 SQLite 模块需要匹配目标系统和架构。默认生成当前机器架构。
