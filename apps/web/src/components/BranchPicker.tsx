@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { useBranchSwitch } from '../hooks/useBranchSwitch';
 import { ToolbarButton } from './ToolbarButton';
 
 // The pill is a context selector, so clicking it opens the switch list instead of
@@ -35,7 +36,14 @@ export function BranchPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [switching, setSwitching] = useState<string | null>(null);
+  const [creatingBranch, setCreatingBranch] = useState<string | null>(null);
+  const { switching: switchingBranch, switchBranch: switchTo } = useBranchSwitch(repoId, () => {
+    if (!mounted.current) return;
+    setOpen(false);
+    setQuery('');
+    onSwitched();
+  });
+  const switching = switchingBranch ?? creatingBranch;
   const [creating, setCreating] = useState(false);
   const [newBranch, setNewBranch] = useState('');
   const trigger = useRef<HTMLButtonElement>(null);
@@ -73,27 +81,10 @@ export function BranchPicker({
     trigger.current?.focus();
   };
 
-  const switchTo = async (name: string) => {
-    if (switching) return;
-    setSwitching(name);
-    try {
-      await gitApi.switchBranch(repoId, name);
-      message.success(`已切换到“${name}”`);
-      if (!mounted.current) return;
-      setOpen(false);
-      setQuery('');
-      onSwitched();
-    } catch (err: any) {
-      message.error(err.message || '无法切换分支');
-    } finally {
-      if (mounted.current) setSwitching(null);
-    }
-  };
-
   const create = async () => {
     const name = newBranch.trim();
     if (!name) return;
-    setSwitching(name);
+    setCreatingBranch(name);
     try {
       await gitApi.createBranch(repoId, name, true);
       message.success(`分支“${name}”已创建并切换`);
@@ -105,7 +96,7 @@ export function BranchPicker({
     } catch (err: any) {
       message.error(err.message || '无法创建分支');
     } finally {
-      if (mounted.current) setSwitching(null);
+      if (mounted.current) setCreatingBranch(null);
     }
   };
 
