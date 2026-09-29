@@ -250,3 +250,94 @@ test('detail HTTP endpoints cover all providers, paginated content, replies and 
     await fixture.close();
   }
 });
+
+test('review write endpoints bind GitHub/GitLab locations, deduplicate retries and synchronize status', async () => {
+  const fixture = await startPullRequestsFixture();
+  try {
+    const api = `${fixture.url}/api/repositories/${fixture.main.id}/pull-requests`;
+    const post = async (endpoint, body) => {
+      const response = await fetch(`${api}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      return { status: response.status, data: await response.json() };
+    };
+    for (const provider of ['github', 'gitlab']) {
+      const query = {
+        remote: provider === 'github' ? 'origin' : 'upstream',
+        target:
+          provider === 'github'
+            ? 'https://github.com/fixture/alune'
+            : 'https://gitlab.example.com/team/sub/alune',
+        provider,
+        number: 98,
+        token: 'fixture-only-token',
+      };
+      const actions = await post('actions', query);
+      assert.equal(actions.status, 200);
+      assert.equal(actions.data.merge.allowed, true);
+      const body = {
+        ...query,
+        action: 'comment',
+        operationId: crypto.randomUUID(),
+        revision: actions.data.revision,
+        body: `Overview ${provider}`,
+      };
+      const first = await post('mutate', body);
+      assert.equal(first.status, 200);
+      assert.equal(first.data.discussion.comments[0].body, body.body);
+      const before = fixture.control.calls.filter((call) => call.method !== 'GET').length;
+      assert.deepEqual((await post('mutate', body)).data, first.data);
+      assert.equal(fixture.control.calls.filter((call) => call.method !== 'GET').length, before);
+      for (const [path, side, startLine, endLine] of [
+        ['src/review.ts', 'RIGHT', 11, 12],
+        ['src/deleted.ts', 'LEFT', 1, 1],
+        ['src/added.ts', 'RIGHT', 1, 1],
+      ]) {
+        const result = await post('mutate', {
+          ...body,
+          operationId: crypto.randomUUID(),
+          position: { path, side, startLine, endLine, filePage: 1 },
+        });
+        assert.equal(result.status, 200, JSON.stringify(result.data));
+        assert.equal(result.data.discussion.comments[0].context.path, path);
+      }
+      fixture.control.writeStatus = 403;
+      const retry = { ...body, operationId: crypto.randomUUID() };
+      assert.equal((await post('mutate', retry)).status, 403);
+      fixture.control.writeStatus = 200;
+      assert.equal((await post('mutate', retry)).status, 200);
+      const merge = await post('mutate', {
+        ...query,
+        revision: actions.data.revision,
+        action: 'merge',
+        method: 'squash',
+        operationId: crypto.randomUUID(),
+      });
+      assert.equal(merge.status, 200);
+      assert.equal((await post('detail', query)).data.state, 'merged');
+      assert.equal((await post('actions', query)).data.close.allowed, false);
+      const list = await post('list', { ...query, state: 'open', page: 1 });
+      assert.ok(!list.data.items.some((item) => item.number === 98));
+      const closingQuery = { ...query, number: 94 };
+      const closing = (await post('actions', closingQuery)).data;
+      assert.equal(closing.merge.allowed, false);
+      assert.equal(
+        (
+          await post('mutate', {
+            ...closingQuery,
+            action: 'close',
+            operationId: crypto.randomUUID(),
+            revision: closing.revision,
+          })
+        ).status,
+        200,
+      );
+      assert.equal((await post('detail', closingQuery)).data.state, 'closed');
+    }
+  } finally {
+    await fixture.close();
+  }
+});

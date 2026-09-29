@@ -110,3 +110,18 @@ test('unified patches preserve real line numbers across hunks and escape code', 
   assert.match(html, /pull-request-patch__remove/);
   assert.match(html, /&lt;script&gt;new&lt;\/script&gt;/);
 });
+
+test('review line buttons expose the selected side/range and disable writes while pending', () => {
+  const html = renderToStaticMarkup(
+    createElement(PullRequestPatch, {
+      patch: '@@ -3,2 +3,3 @@\n context\n-old\n+new\n+next',
+      selection: { path: 'a.ts', side: 'RIGHT', startLine: 4, endLine: 5, filePage: 1 },
+      onSelect() {},
+      disabled: true,
+    }),
+  );
+  assert.match(html, /aria-label="旧行 4，点击评论，Shift 点击选择多行" aria-pressed="false"/);
+  assert.match(html, /aria-label="新行 4，点击评论，Shift 点击选择多行" aria-pressed="true"/);
+  assert.match(html, /aria-label="新行 5，点击评论，Shift 点击选择多行" aria-pressed="true"/);
+  assert.equal((html.match(/<button[^>]*disabled=""/g) || []).length, 5);
+});

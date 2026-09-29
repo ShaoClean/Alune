@@ -49,6 +49,20 @@ export class PullRequestsController {
     return this.requests.discussions(id, body);
   }
 
+  @Post('actions')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  actions(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.requests.actions(id, body);
+  }
+
+  @Post('mutate')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  mutate(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.requests.mutate(id, body);
+  }
+
   @Post('token')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')

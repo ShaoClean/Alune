@@ -23,7 +23,16 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
   const previousDir = process.env.ALUNE_DATA_DIR;
   process.env.ALUNE_DATA_DIR = path.join(fixture.root, 'app-data');
   const originalFetch = globalThis.fetch;
-  const control = { status: 200, delay: 0, delayNumber: null, failPath: '', calls: [] };
+  const control = {
+    status: 200,
+    writeStatus: 200,
+    delay: 0,
+    delayNumber: null,
+    failPath: '',
+    calls: [],
+    states: {},
+    notes: {},
+  };
   globalThis.fetch = async (input, options) => {
     const url = new URL(String(input));
     if (!['api.github.com', 'gitlab.example.com', 'gitlab.com'].includes(url.hostname))
@@ -31,7 +40,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
     const github = url.hostname === 'api.github.com';
     const token = options.headers[github ? 'Authorization' : 'PRIVATE-TOKEN'];
     const resource = url.pathname.match(
-      /\/(?:pulls|issues|merge_requests)\/(\d+)(?:\/(files|diffs|changes|discussions|reviews|comments))?$/,
+      /\/(?:pulls|issues|merge_requests)\/(\d+)(?:\/(files|diffs|changes|discussions|reviews|comments|notes|merge))?$/,
     );
     const number = resource ? Number(resource[1]) : null;
     const current = {
@@ -44,6 +53,8 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
       page: url.searchParams.get('page'),
       state: url.searchParams.get('state'),
       authenticated: Boolean(token),
+      method: options.method || 'GET',
+      ...(options.body ? { body: JSON.parse(options.body) } : {}),
     });
     if (current.delay)
       await new Promise((resolve, reject) => {
@@ -59,6 +70,62 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
       });
     if (current.status !== 200) return new Response('{}', { status: current.status });
     if (!github && !token) return new Response('{}', { status: 401 });
+    if (url.pathname.endsWith('/user'))
+      return new Response(JSON.stringify({ login: 'alune-contributor', id: 7 }));
+    if (!resource && !url.pathname.endsWith('/pulls') && !url.pathname.endsWith('/merge_requests'))
+      return new Response(
+        JSON.stringify(
+          github
+            ? {
+                permissions: { push: true },
+                allow_merge_commit: true,
+                allow_squash_merge: true,
+                allow_rebase_merge: true,
+              }
+            : {
+                permissions: { project_access: { access_level: 40 } },
+                merge_method: 'merge',
+                squash_option: 'default_off',
+              },
+        ),
+      );
+    const identity = `${url.host}:${number}`;
+    if (options.method) {
+      if (control.writeStatus !== 200) return new Response('{}', { status: control.writeStatus });
+      const body = JSON.parse(options.body);
+      if (url.pathname.endsWith('/merge')) {
+        control.states[identity] = 'merged';
+        return new Response(JSON.stringify(github ? { merged: true } : { state: 'merged' }));
+      }
+      if (body.state === 'closed' || body.state_event === 'close') {
+        control.states[identity] = 'closed';
+        return new Response(JSON.stringify({ state: 'closed' }));
+      }
+      const id = 1000 + control.calls.length;
+      const note = {
+        id,
+        body: body.body,
+        created_at: new Date().toISOString(),
+        user: { login: 'alune-contributor' },
+        author: { username: 'alune-contributor' },
+        ...(github && body.path
+          ? {
+              path: body.path,
+              side: body.side,
+              line: body.line,
+              start_line: body.start_line,
+              start_side: body.start_side,
+              diff_hunk:
+                '@@ -10,2 +10,3 @@\n export function open() {\n-  return external();\n+  // Keep review context inside Alune.\n+  return details();',
+            }
+          : {}),
+        ...(!github && body.position ? { position: body.position } : {}),
+      };
+      const kind = github ? (body.path ? 'code' : 'comments') : 'comments';
+      const discussion = github ? note : { id: String(id), notes: [note] };
+      (control.notes[`${identity}:${kind}`] ||= []).push(discussion);
+      return new Response(JSON.stringify(!github && !body.position ? note : discussion));
+    }
     if (resource) {
       const page = Number(url.searchParams.get('page') || 1);
       const kind = resource[2];
@@ -87,8 +154,14 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               state: [89, 81].includes(number) ? 'closed' : 'open',
               merged_at: number === 89 ? date : null,
               user: { login: 'alune-contributor' },
-              head: { label: `contributor:feature/${number}` },
-              base: { ref: 'development' },
+              head: {
+                label: `contributor:feature/${number}`,
+                ref: `feature/${number}`,
+                sha: 'a'.repeat(40),
+              },
+              base: { ref: 'development', sha: 'b'.repeat(40) },
+              mergeable: true,
+              mergeable_state: 'clean',
               body:
                 number === 94
                   ? ''
@@ -99,7 +172,14 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               ...common,
               iid: number,
               state: number === 89 ? 'merged' : number === 81 ? 'closed' : 'opened',
-              author: { username: 'alune-contributor' },
+              author: { username: 'alune-contributor', id: 7 },
+              user: { can_merge: true },
+              detailed_merge_status: 'mergeable',
+              diff_refs: {
+                head_sha: 'a'.repeat(40),
+                base_sha: 'b'.repeat(40),
+                start_sha: 'c'.repeat(40),
+              },
               source_branch: `feature/${number}`,
               target_branch: 'main',
               description:
@@ -205,6 +285,15 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
             : [{ ...first, id: 42, in_reply_to_id: 41, body: '已确认，并补充回归测试。' }];
         more = page === 1;
       }
+      if (!kind && control.states[identity]) {
+        payload.state =
+          control.states[identity] === 'merged' && github ? 'closed' : control.states[identity];
+        if (control.states[identity] === 'merged') payload.merged_at = date;
+      }
+      if (Array.isArray(payload) && ['comments', 'discussions'].includes(kind)) {
+        const noteKind = !github || url.pathname.includes('/issues/') ? 'comments' : 'code';
+        payload.push(...(control.notes[`${identity}:${noteKind}`] || []));
+      }
       return new Response(JSON.stringify(payload), {
         headers: more ? { link: '<https://fixture.invalid/next>; rel="next"' } : {},
       });
@@ -224,27 +313,33 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               : []),
           ]
         : [{ number: 76, title: '分页加载更多协作记录', state: 'open', draft: false }];
-    const data = items.map((item) =>
-      github
-        ? {
-            ...item,
-            state: item.state === 'merged' ? 'closed' : item.state,
-            merged_at: item.state === 'merged' ? '2026-09-26T08:00:00Z' : null,
-            user: { login: 'alune-contributor' },
-            head: { label: `contributor:feature/${item.number}` },
-            base: { ref: 'development' },
-            updated_at: '2026-09-26T08:00:00Z',
-          }
-        : {
-            ...item,
-            iid: item.number,
-            state: item.state === 'open' ? 'opened' : item.state,
-            author: { username: 'alune-contributor' },
-            source_branch: `feature/${item.number}`,
-            target_branch: 'main',
-            updated_at: '2026-09-26T08:00:00Z',
-          },
-    );
+    for (const item of items)
+      item.state = control.states[`${url.host}:${item.number}`] || item.state;
+    const data = items
+      .filter((item) => all || item.state === 'open')
+      .map((item) =>
+        github
+          ? {
+              ...item,
+              state: item.state === 'merged' ? 'closed' : item.state,
+              merged_at: item.state === 'merged' ? '2026-09-26T08:00:00Z' : null,
+              user: { login: 'alune-contributor' },
+              head: { label: `contributor:feature/${item.number}` },
+              base: { ref: 'development', sha: 'b'.repeat(40) },
+              mergeable: true,
+              mergeable_state: 'clean',
+              updated_at: '2026-09-26T08:00:00Z',
+            }
+          : {
+              ...item,
+              iid: item.number,
+              state: item.state === 'open' ? 'opened' : item.state,
+              author: { username: 'alune-contributor' },
+              source_branch: `feature/${item.number}`,
+              target_branch: 'main',
+              updated_at: '2026-09-26T08:00:00Z',
+            },
+      );
     return new Response(JSON.stringify(data), {
       headers: page === 1 ? { link: '<https://fixture.invalid/next>; rel="next"' } : {},
     });
@@ -267,6 +362,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
     for await (const chunk of req) text += chunk;
     const body = JSON.parse(text || '{}');
     if (Number.isInteger(body.status)) control.status = body.status;
+    if (Number.isInteger(body.writeStatus)) control.writeStatus = body.writeStatus;
     if (Number.isInteger(body.delay)) control.delay = body.delay;
     if ('delayNumber' in body) control.delayNumber = body.delayNumber;
     if (typeof body.failPath === 'string') control.failPath = body.failPath;

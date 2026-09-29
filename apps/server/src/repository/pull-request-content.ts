@@ -129,6 +129,7 @@ function context(
       oldLine: value.side === 'LEFT' ? position : undefined,
       newLine: value.side !== 'LEFT' ? position : undefined,
       startLine: line(value.start_line ?? value.original_start_line),
+      startSide: value.start_side === 'LEFT' ? 'LEFT' : 'RIGHT',
       outdated: original,
       patch: patch.length <= MAX_PATCH_LENGTH ? patch || undefined : undefined,
       notice:
@@ -146,10 +147,13 @@ function context(
     oldLine: line(position.old_line),
     newLine: line(position.new_line),
     startLine: line(
-      position.line_range?.start?.new_line ??
-        position.line_range?.start?.old_line,
+      position.line_range?.start?.type === 'old'
+        ? position.line_range.start.old_line
+        : (position.line_range?.start?.new_line ??
+            position.line_range?.start?.old_line),
     ),
-    outdated: false,
+    startSide: position.line_range?.start?.type === 'old' ? 'LEFT' : 'RIGHT',
+    outdated: value.active === false,
   };
 }
 
