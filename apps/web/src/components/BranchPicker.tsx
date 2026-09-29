@@ -108,7 +108,7 @@ export function BranchPicker({
       aria-current={item.isCurrent ? 'true' : undefined}
       disabled={item.isCurrent || switching !== null}
       aria-label={item.isCurrent ? `当前分支 ${item.name}` : `切换到 ${item.name}`}
-      onClick={() => void switchTo(item.name)}
+      onClick={() => void switchTo(item.name, item.isRemote)}
     >
       <span className="branch-picker__check">
         {item.isCurrent ? <CheckOutlined /> : switching === item.name ? <LoadingOutlined /> : null}

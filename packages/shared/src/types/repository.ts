@@ -143,6 +143,25 @@ export interface BranchInfo {
   lastCommit?: CommitInfo;
 }
 
+export interface SwitchBranchOptions {
+  isRemote?: boolean;
+  localName?: string;
+}
+
+export interface SwitchBranchResult {
+  success: true;
+  branch: string;
+  stdout: string;
+}
+
+export interface BranchNameConflict {
+  code: 'LOCAL_BRANCH_EXISTS';
+  message: string;
+  remoteRef: string;
+  localName: string;
+  upstream?: string;
+}
+
 export interface StashEntry {
   index: number;
   message: string;

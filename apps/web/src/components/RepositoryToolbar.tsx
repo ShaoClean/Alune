@@ -123,7 +123,7 @@ export function RepositoryToolbar({
   onSelect: (panel: RepositoryPanel) => void;
   onSync: (operation: SyncOperation, options?: { force?: boolean; tags?: boolean }) => void;
   onRefresh: () => void;
-  onBranchSwitched: () => void;
+  onBranchSwitched: () => void | Promise<void>;
   tier?: 'full' | 'compact' | 'condensed' | 'minimal';
 }) {
   const detectedTier = useToolbarTier();
@@ -229,6 +229,7 @@ export function RepositoryToolbar({
 
       <div className="repository-toolbar__context">
         <BranchPicker
+          key={repoId}
           repoId={repoId}
           branch={branch}
           behind={behind}

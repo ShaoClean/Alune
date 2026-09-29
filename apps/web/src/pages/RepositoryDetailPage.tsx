@@ -392,7 +392,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       return <PullRequestsView key={id} repoId={id} refreshToken={pullRequestsRefresh} />;
     if (activePanel === 'history') return <HistoryWorkspace repoId={id} />;
     if (activePanel === 'branches')
-      return <BranchesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
+      return <BranchesView key={id} repoId={id} onRefresh={() => void handleRefresh(true)} />;
     if (activePanel === 'stashes')
       return <StashesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
     return <RemotesView repoId={id} onRefresh={() => void handleRefresh()} />;

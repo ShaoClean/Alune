@@ -29,6 +29,7 @@ import type {
   AccessTokenSettings,
   SaveAccessToken,
   ApplyAccessToken,
+  SwitchBranchResult,
 } from '@alune/shared';
 
 const api = axios.create({
@@ -230,8 +231,15 @@ export const gitApi = {
     api.post(`/repositories/${id}/fetch`, { remote }, gitTimeout).then((r) => r.data),
   createBranch: (id: string, name: string, checkout?: boolean) =>
     api.post(`/repositories/${id}/branch`, { name, checkout }, gitTimeout).then((r) => r.data),
-  switchBranch: (id: string, name: string, localName?: string): Promise<{ branch: string }> =>
-    api.post(`/repositories/${id}/switch`, { name, localName }, gitTimeout).then((r) => r.data),
+  switchBranch: (
+    id: string,
+    name: string,
+    localName?: string,
+    isRemote?: boolean,
+  ): Promise<SwitchBranchResult> =>
+    api
+      .post(`/repositories/${id}/switch`, { name, localName, isRemote }, gitTimeout)
+      .then((r) => r.data),
   deleteBranch: (id: string, name: string, force?: boolean) =>
     api.post(`/repositories/${id}/branch/delete`, { name, force }, gitTimeout).then((r) => r.data),
   merge: (id: string, branch: string) =>
