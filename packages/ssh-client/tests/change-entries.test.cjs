@@ -99,6 +99,38 @@ for (const transport of ['local', 'ssh']) {
       assert.equal((await commands.status(f.repo)).files[0].staged, true);
     },
   );
+
+  test(
+    `${transport}: identifies worktrees registered through a path alias with missing siblings`,
+    { skip: transport === 'ssh' && process.platform === 'win32' },
+    async (t) => {
+      const f = createRepository();
+      t.after(f.close);
+      const remote = transport === 'ssh' ? await connectFixture(f) : null;
+      if (remote) t.after(remote.close);
+      const connection = remote?.connection || new LocalConnection();
+      nested(f, 'nested repo');
+      f.git('worktree', 'add', '-qb', 'missing', '../missing');
+      fs.rmSync(path.join(f.root, 'missing'), { recursive: true });
+      f.git('worktree', 'add', '-qb', 'demo', '.claude/worktrees/demo');
+      const alias = path.join(f.root, 'repo alias');
+      fs.symlinkSync(f.repo, alias, process.platform === 'win32' ? 'junction' : 'dir');
+      const registeredPath = path.join(alias, '.claude/worktrees/demo').split(path.sep).join('/');
+      // Git can retain a different spelling of the same directory, such as a
+      // Windows 8.3 path. Keep its registration valid while using that alias.
+      f.write('.git/worktrees/demo/gitdir', registeredPath + '/.git\n');
+
+      const { files } = await new GitCommands(connection).status(f.repo);
+      const tree = files.find((file) => file.path === '.claude/worktrees/demo/');
+      assert.equal(tree.kind, 'worktree');
+      assert.equal(tree.repositoryPath, registeredPath);
+      assert.equal(
+        fs.realpathSync(tree.repositoryPath),
+        fs.realpathSync(path.join(f.repo, tree.path)),
+      );
+      assert.equal(files.find((file) => file.path === 'nested repo/').kind, 'repository');
+    },
+  );
 }
 
 test('tracked submodules retain pointer previews/staging and are excluded from file discard/deletion', async (t) => {

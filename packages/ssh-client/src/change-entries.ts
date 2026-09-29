@@ -6,7 +6,7 @@ import { runGit, type RepositoryTransport } from './repository-transport';
 import { joinRepositoryPath } from './repository-path';
 import { validateRepositoryPath } from './repository-files';
 import { parseStatus, type StatusRecord } from './git-status';
-import { parseWorktrees, worktreePathKey } from './worktrees';
+import { GitWorktrees, parseWorktrees, worktreePathKey } from './worktrees';
 import { isWindowsPath } from './git-shell';
 
 const missing = (error: any) =>
@@ -62,9 +62,24 @@ export async function classifyChanges(
   if (listed.exitCode !== 0) throw new Error(`无法识别 Worktree：${listed.stderr}`);
   const key = (path: string) =>
     isWindowsPath(repoPath) ? worktreePathKey(path).toLowerCase() : worktreePathKey(path);
-  const worktrees = new Map(
-    parseWorktrees(listed.stdout).map((item) => [key(item.path), item.path]),
-  );
+  const items = parseWorktrees(listed.stdout);
+  const worktrees = new Map(items.map((item) => [key(item.path), item.path]));
+  if (directories.some((file) => !worktrees.has(key(file.repositoryPath!)))) {
+    // Git may retain an alias (including Windows 8.3 paths) while the file
+    // transport resolves the root to its canonical path.
+    const reader = new GitWorktrees(connection);
+    for (const item of items) {
+      if (item.bare || item.prunable) continue;
+      try {
+        const canonical = await reader.canonicalPath(item.path, signal);
+        worktrees.set(key(canonical), item.path);
+      } catch {
+        signal?.throwIfAborted();
+        connection.signal?.throwIfAborted();
+        // Missing or inaccessible siblings must not block the current status.
+      }
+    }
+  }
   for (const file of directories) {
     const worktree = worktrees.get(key(file.repositoryPath!));
     if (worktree) {
