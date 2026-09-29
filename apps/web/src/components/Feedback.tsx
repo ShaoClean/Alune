@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { App, Button } from 'antd';
 import { BellOutlined, CloseOutlined, CopyOutlined } from '@ant-design/icons';
 import { useStore } from 'zustand';
@@ -188,15 +189,18 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
   };
   return (
     <>
-      <div ref={tray} popover="manual" className="feedback-tray">
-        <Button
-          icon={<BellOutlined />}
-          onClick={() => setInbox(true)}
-          aria-label={`查看提示（${entries.length} 条）`}
-        >
-          提示 · {entries.length}
-        </Button>
-      </div>
+      {createPortal(
+        <div ref={tray} popover="manual" className="feedback-tray">
+          <Button
+            icon={<BellOutlined />}
+            onClick={() => setInbox(true)}
+            aria-label={`查看提示（${entries.length} 条）`}
+          >
+            提示 · {entries.length}
+          </Button>
+        </div>,
+        fullscreenLayer || document.body,
+      )}
       <dialog
         ref={dialog}
         className="feedback-dialog"
@@ -247,7 +251,12 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
                   type="primary"
                   loading={current.busy}
                   onClick={() => {
-                    if (current.mode === 'manual') close();
+                    if (current.mode === 'manual') {
+                      // Configuration actions continue outside the Diff. Release
+                      // its native inert boundary before opening a form or view.
+                      if (fullscreenLayer instanceof HTMLDialogElement) fullscreenLayer.close();
+                      close();
+                    }
                     void store.getState().run(current.id);
                   }}
                 >

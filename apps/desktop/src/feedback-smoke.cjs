@@ -19,6 +19,7 @@ module.exports = async ({ window, git, repo }) => {
     execute(`document.querySelector(${JSON.stringify(selector)}).click()`);
   const originalSize = window.getSize();
   const oldClipboard = await clipboard.readText();
+  const originalAuthor = git('config', 'user.name').trim();
   try {
     git('remote', 'add', 'origin', '/demo/unavailable-alune.git');
     git('config', 'branch.native-feature.remote', 'origin');
@@ -66,7 +67,9 @@ module.exports = async ({ window, git, repo }) => {
       "document.querySelector('[aria-label=刷新仓库]').getAttribute('aria-busy') !== 'true'",
     );
     assert.equal(await execute("document.querySelector('.feedback-dialog').open"), false);
-    await wait("document.querySelector('[aria-label=拉取]').getAttribute('aria-disabled') !== 'true'");
+    await wait(
+      "document.querySelector('[aria-label=拉取]').getAttribute('aria-disabled') !== 'true'",
+    );
     // A delayed failure can arrive while the Diff occupies the native top layer.
     await execute(
       "document.querySelector('[aria-label=拉取]').click(); document.querySelector('[aria-label=全屏查看差异]').click()",
@@ -84,9 +87,56 @@ module.exports = async ({ window, git, repo }) => {
     );
     await wait("!document.querySelector('.feedback-dialog').open");
     assert.equal(await execute("document.querySelectorAll('dialog:modal').length"), 1);
+    await wait("document.querySelector('.diff-shell--fullscreen .feedback-tray:popover-open')");
+    assert.equal(
+      await execute(`(() => {
+      const tray = document.querySelector('.feedback-tray'); const rect = tray.getBoundingClientRect();
+      return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('.feedback-tray') === tray;
+    })()`),
+      true,
+    );
+    await click('.feedback-tray button');
+    await wait(
+      "document.querySelector('.feedback-dialog[open]')?.textContent.includes('通知与仓库说明')",
+    );
+    await execute(
+      "document.querySelector('.feedback-dialog').dispatchEvent(new Event('cancel', { cancelable: true }))",
+    );
+    await wait("!document.querySelector('.feedback-dialog').open");
     await click('[aria-label="退出全屏查看"]');
+    git('config', 'user.name', '');
+    await click('[aria-label="刷新仓库"]');
+    await wait(
+      "document.querySelector('.feedback-list')?.textContent.includes('提交前需要设置作者')",
+    );
+    await click('[aria-label="全屏查看差异"]');
+    await wait("document.querySelector('.diff-shell--fullscreen .feedback-tray:popover-open')");
+    await click('.feedback-tray button');
+    await execute(
+      "Array.from(document.querySelectorAll('.feedback-list button')).find(button => button.textContent.includes('提交前需要设置作者')).click()",
+    );
+    await click('.feedback-actions .ant-btn-primary');
+    await wait(
+      "!document.querySelector('.diff-shell--fullscreen') && document.querySelector('#git-author-name')",
+    );
+    assert.equal(
+      await execute(`(() => {
+        const input = document.querySelector('#git-author-name'); const rect = input.getBoundingClientRect();
+        return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === input;
+      })()`),
+      true,
+    );
+    assert.equal(await execute("document.querySelector('.feedback-dialog').open"), false);
+    await click('.ant-modal-close');
+    await wait(
+      "!document.querySelector('.ant-modal-wrap') || getComputedStyle(document.querySelector('.ant-modal-wrap')).display === 'none'",
+    );
+    git('config', 'user.name', originalAuthor);
+    await click('[aria-label="刷新仓库"]');
     window.setSize(390, 760);
-    await wait("document.querySelector('[aria-label=拉取]').getAttribute('aria-disabled') !== 'true'");
+    await wait(
+      "document.querySelector('[aria-label=拉取]').getAttribute('aria-disabled') !== 'true'",
+    );
     await click('[aria-label="拉取"]');
     await wait("document.querySelector('.feedback-dialog[open]')");
     assert.equal(
@@ -98,10 +148,11 @@ module.exports = async ({ window, git, repo }) => {
     await click('.feedback-actions button:last-child');
     await wait("!document.querySelector('.feedback-dialog').open");
     console.log(
-      'Desktop feedback passed: real Git failure, layout/draft stability, copy, focus return, acknowledgement/retry, fullscreen top layer and 390px window.',
+      'Desktop feedback passed: real Git failure, layout/draft stability, copy, focus return, acknowledgement/retry, fullscreen notices and author action, and 390px window.',
     );
   } finally {
     await clipboard.writeText(oldClipboard);
+    git('config', 'user.name', originalAuthor);
     window.setSize(...originalSize);
   }
 };
