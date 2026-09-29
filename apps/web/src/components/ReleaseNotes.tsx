@@ -33,19 +33,20 @@ const components: Components = {
 };
 const remarkPlugins = [remarkGfm];
 
+export function MarkdownContent({ text }: { text: string }) {
+  return (
+    <Markdown skipHtml remarkPlugins={remarkPlugins} urlTransform={webUrl} components={components}>
+      {text}
+    </Markdown>
+  );
+}
+
 // Download progress changes frequently; unchanged notes do not need reparsing.
 export const ReleaseNotes = memo(function ReleaseNotes({ notes }: { notes: string }) {
   return (
     <div className="release-notes" role="region" aria-label="更新说明内容" tabIndex={0}>
       {notes.trim() ? (
-        <Markdown
-          skipHtml
-          remarkPlugins={remarkPlugins}
-          urlTransform={webUrl}
-          components={components}
-        >
-          {notes}
-        </Markdown>
+        <MarkdownContent text={notes} />
       ) : (
         <p className="release-notes__empty">此版本未提供更新说明。</p>
       )}

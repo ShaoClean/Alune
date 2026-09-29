@@ -101,14 +101,279 @@
   gap: 8px;
   flex-wrap: wrap;
 }
-.pull-request-row__title a {
+.pull-request-row__title a,
+.pull-request-row__open {
   color: var(--text);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-.pull-request-row__title a:hover {
+.pull-request-row__title a:hover,
+.pull-request-row__open:hover {
   color: var(--blue);
   text-decoration: underline;
+}
+.pull-request-row__open {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.pull-request-row__open:focus-visible,
+.pull-request-files button:focus-visible,
+.pull-request-patch:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.pull-request-detail {
+  min-width: 0;
+  padding: 16px 20px 24px;
+}
+.pull-request-detail__toolbar,
+.pull-request-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+.pull-request-detail__toolbar > .ant-select {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 420px;
+}
+.pull-request-detail__toolbar > a {
+  margin-left: auto;
+  color: var(--blue);
+}
+.pull-request-detail__header {
+  margin-block: 24px 16px;
+}
+.pull-request-detail__header h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.pull-request-detail__header h2 > span {
+  color: var(--text-muted);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.pull-request-detail__meta,
+.pull-request-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.pull-request-detail__branches {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.pull-request-detail .ant-tabs,
+.pull-request-detail .ant-tabs-content-holder {
+  min-width: 0;
+}
+.pull-request-markdown {
+  max-height: none;
+  overflow: visible;
+  margin: 0;
+}
+.pull-request-description {
+  padding: 8px 0 16px;
+}
+.pull-request-files > .ant-alert {
+  margin-bottom: 12px;
+}
+.pull-request-files__layout {
+  display: grid;
+  grid-template-columns: minmax(160px, 26%) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.pull-request-files__list {
+  max-height: 65vh;
+  overflow: auto;
+  min-width: 0;
+  padding: 2px;
+}
+.pull-request-files__list > p {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+.pull-request-files__list > button:not(.ant-btn) {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 10px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.pull-request-files__list > button:hover {
+  background: var(--surface-hover);
+}
+.pull-request-files__list > button[aria-pressed='true'] {
+  background: var(--blue-soft);
+  border-color: var(--blue);
+}
+.pull-request-file-stats {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pull-request-file-stats__add {
+  color: var(--green);
+}
+.pull-request-file-stats__remove {
+  color: var(--red);
+}
+.pull-request-files__diff {
+  min-width: 0;
+}
+.pull-request-files__diff > header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.pull-request-files__diff > .ant-alert {
+  margin-bottom: 12px;
+}
+.pull-request-patch {
+  max-width: 100%;
+  max-height: 65vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--code);
+}
+.pull-request-patch table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.pull-request-patch th {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: left;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.pull-request-patch td {
+  padding: 0 8px;
+  vertical-align: top;
+}
+.pull-request-patch code {
+  white-space: pre;
+  font: inherit;
+  tab-size: 4;
+}
+.pull-request-patch__number {
+  width: 1%;
+  min-width: 36px;
+  text-align: right;
+  color: var(--text-muted);
+  user-select: none;
+  border-right: 1px solid var(--line);
+}
+.pull-request-patch__add {
+  background: var(--diff-add);
+}
+.pull-request-patch__remove {
+  background: var(--diff-remove);
+}
+.pull-request-patch__meta {
+  background: var(--diff-meta);
+  color: var(--text-muted);
+}
+.pull-request-discussions {
+  margin-bottom: 28px;
+}
+.pull-request-discussions h3 {
+  font-size: 14px;
+  margin: 8px 0 12px;
+}
+.pull-request-thread {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  background: var(--surface);
+  min-width: 0;
+}
+.pull-request-comment + .pull-request-comment {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+.pull-request-comment > header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+.pull-request-comment > header strong {
+  color: var(--text);
+}
+.pull-request-comment__context {
+  padding: 8px 12px;
+  background: var(--surface-muted);
+  margin-bottom: 12px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.pull-request-comment__context p {
+  margin: 0;
+  line-height: 1.8;
+}
+.pull-request-comment__context details {
+  margin-top: 8px;
+}
+.pull-request-comment__context summary {
+  cursor: pointer;
+  color: var(--blue);
+  padding-block: 4px;
+}
+.pull-request-more {
+  margin-block: 12px;
+}
+@media (max-width: 760px) {
+  .pull-request-detail {
+    padding-inline: 12px;
+  }
+  .pull-request-files__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pull-request-files__list {
+    max-height: 220px;
+  }
+  .pull-request-thread {
+    padding: 12px;
+  }
 }
 .pull-request-row__title .anticon-export {
   font-size: 11px;

@@ -28,6 +28,27 @@ export class PullRequestsController {
     return this.requests.list(id, body);
   }
 
+  @Post('detail')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  detail(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.requests.detail(id, body);
+  }
+
+  @Post('files')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  files(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.requests.files(id, body);
+  }
+
+  @Post('discussions')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  discussions(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.requests.discussions(id, body);
+  }
+
   @Post('token')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
