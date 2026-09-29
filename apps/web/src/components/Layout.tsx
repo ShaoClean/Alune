@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Input, App, notification } from 'antd';
@@ -22,6 +22,7 @@ import { PanelToggle } from './PanelToggle';
 import { SIDEBAR_MIN } from '../stores/workspaceLayout';
 import { WorkspaceStatusBar } from './WorkspaceStatusBar';
 import { FeedbackNotice, FeedbackScope } from './Feedback';
+import { useWorkspaceStore } from '../stores/workspaceStore';
 
 const navItems = [
   { key: '/connections', label: '连接', icon: <ApartmentOutlined /> },
@@ -108,6 +109,8 @@ export function Layout() {
     closeRepository,
     closeRepositories,
     deleteRepository,
+    activateRepositoryTab,
+    listLoaded,
   } = useRepositoryStore();
 
   useEffect(() => {
@@ -212,6 +215,18 @@ export function Layout() {
   }, [location.pathname]);
 
   const activeRepositoryId = location.pathname.match(/^\/repositories\/([^/]+)/)?.[1];
+  useLayoutEffect(() => {
+    // Only address changes select a tab. A background status update may render the
+    // old route between openRepository() and navigation; it must not undo that selection.
+    if (activeRepositoryId) activateRepositoryTab(activeRepositoryId);
+  }, [activeRepositoryId, activateRepositoryTab]);
+  useLayoutEffect(() => {
+    if (!activeRepositoryId) return;
+    if (listLoaded && !repositories.some((repo) => repo.id === activeRepositoryId)) {
+      const { activeId } = useWorkspaceStore.getState().repositorySession;
+      navigate(activeId ? `/repositories/${activeId}` : '/repositories', { replace: true });
+    }
+  }, [activeRepositoryId, listLoaded, repositories, navigate]);
   const activeRepository =
     openRepositories.find((repo: any) => repo.id === activeRepositoryId) ||
     (currentRepo?.id === activeRepositoryId ? currentRepo : null);
@@ -232,7 +247,7 @@ export function Layout() {
 
   // Batch closes keep a surviving active tab; otherwise the menu's target takes over.
   const handleCloseRepositories = (ids: string[], targetId: string) => {
-    closeRepositories(ids);
+    closeRepositories(ids, targetId);
     if (activeRepositoryId && ids.includes(activeRepositoryId))
       navigate(`/repositories/${targetId}`);
   };
@@ -301,7 +316,10 @@ export function Layout() {
             <RepositoryTabs
               repositories={openRepositories}
               activeId={activeRepository?.id}
-              onSelect={(id) => navigate(`/repositories/${id}`)}
+              onSelect={(id) => {
+                activateRepositoryTab(id);
+                navigate(`/repositories/${id}`);
+              }}
               onMove={moveOpenRepository}
               onClose={handleCloseRepository}
               onCloseMany={handleCloseRepositories}

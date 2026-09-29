@@ -3,7 +3,7 @@ const { randomBytes } = require('node:crypto');
 const { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { createWorkspacePreferences, isTrustedWorkspaceSender, workspaceBackground } = require('./workspace-preferences.cjs');
+const { createWorkspacePreferences, isTrustedWorkspaceSender, workspaceBackground, saveWorkspacePreferences } = require('./workspace-preferences.cjs');
 const { createExternalLinkHandler } = require('./external-links.cjs');
 
 const smokeTest = process.argv.includes('--smoke-test');
@@ -150,6 +150,9 @@ async function start() {
       return preferences[operation](value);
     });
   }
+  ipcMain.on('workspace:save-sync', (event, value) => {
+    event.returnValue = saveWorkspacePreferences(event, window?.webContents, origin, preferences, value);
+  });
   const desktopSession = session.fromPartition('alune-desktop');
   const { canWriteClipboard } = require('./clipboard-permissions.cjs');
   desktopSession.setPermissionRequestHandler((contents, permission, callback, details) =>
@@ -173,7 +176,7 @@ async function start() {
   });
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
-    { label: '文件', submenu: [{ label: '连接', accelerator: 'CmdOrCtrl+1', click: () => window?.loadURL(origin) },
+    { label: '文件', submenu: [{ label: '连接', accelerator: 'CmdOrCtrl+1', click: () => window?.loadURL(`${origin}/connections`) },
       { label: '仓库', accelerator: 'CmdOrCtrl+2', click: () => window?.loadURL(`${origin}/repositories`) },
       { type: 'separator' }, { role: process.platform === 'darwin' ? 'close' : 'quit' }] },
     { label: '编辑', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },

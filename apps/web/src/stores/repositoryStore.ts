@@ -84,7 +84,8 @@ interface RepositoryState {
   openRepository: (repo: any) => void;
   moveOpenRepository: (sourceId: string, targetId: string, placement: Placement) => boolean;
   closeRepository: (id: string) => void;
-  closeRepositories: (ids: string[]) => void;
+  closeRepositories: (ids: string[], preferredId?: string) => void;
+  activateRepositoryTab: (id: string) => void;
   setCurrentRepo: (repo: any) => void;
   resetWorkspace: (id?: string) => void;
   fetchStatus: (id: string, afterMutation?: boolean) => Promise<void>;
@@ -317,11 +318,15 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             revision = registryRevision;
             repositories = await repositoryApi.list();
           } while (revision !== registryRevision);
+          const savedIds = useWorkspaceStore.getState().repositorySession.ids;
           useWorkspaceStore.getState().reconcileRepositories(repositories);
           const ids = new Set(repositories.map((repo) => repo.id));
+          const byId = new Map(repositories.map((repo) => [repo.id, repo]));
           // Only this successful, complete registry may prune cache and preferences.
           for (const id of new Set([
             ...get().repositories.map((repo) => repo.id),
+            ...savedIds,
+            ...get().openRepositories.map((repo) => repo.id),
             ...jobs.keys(),
             ...Object.keys(get().repositoryStatuses),
           ])) {
@@ -332,6 +337,15 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           }
           for (const id of ids) removed.delete(id);
           set((state) => ({
+            // Restore registration metadata only; workspace requests belong to the active page.
+            openRepositories: useWorkspaceStore.getState().repositorySession.ids.map((id) => ({
+              ...byId.get(id),
+              ...statusSummary(state.repositoryStatuses[id]?.data),
+            })),
+            currentRepo:
+              state.currentRepo && ids.has(state.currentRepo.id)
+                ? { ...state.currentRepo, ...byId.get(state.currentRepo.id) }
+                : null,
             repositories: repositories.map((repo) => ({
               ...repo,
               ...statusSummary(state.repositoryStatuses[repo.id]?.data),
@@ -382,6 +396,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     },
     forgetRepositories: (ids) => {
       registryRevision++;
+      useWorkspaceStore.getState().closeRepositoryTabs(ids);
       for (const id of ids) {
         removed.add(id);
         cancelStatus(id);
@@ -417,6 +432,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       removed.add(id);
       cancelStatus(id);
       if (workspaceId === id) get().resetWorkspace();
+      useWorkspaceStore.getState().closeRepositoryTabs([id]);
       set((state) => ({
         repositoryStatuses: Object.fromEntries(
           Object.entries(state.repositoryStatuses).filter(([key]) => key !== id),
@@ -430,6 +446,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
 
     openRepository: (repo) => {
       if (removed.has(repo.id)) return;
+      useWorkspaceStore.getState().activateRepositoryTab(repo.id);
       repo = { ...repo, ...statusSummary(get().repositoryStatuses[repo.id]?.data) };
       set((state) => {
         const existing = state.openRepositories.find((item) => item.id === repo.id);
@@ -449,13 +466,15 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       if (reordered === ids) return false;
       const byId = new Map(openRepositories.map((repo) => [repo.id, repo]));
       set({ openRepositories: reordered.map((id) => byId.get(id)!) });
+      useWorkspaceStore.getState().moveRepositoryTab(sourceId, targetId, placement);
       return true;
     },
 
     closeRepository: (id) => get().closeRepositories([id]),
 
     // Only closes tabs; registrations, statuses and commit drafts stay intact.
-    closeRepositories: (ids) => {
+    closeRepositories: (ids, preferredId) => {
+      useWorkspaceStore.getState().closeRepositoryTabs(ids, preferredId);
       const closing = new Set(ids);
       set((state) => ({
         openRepositories: state.openRepositories.filter((repo) => !closing.has(repo.id)),
@@ -466,6 +485,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
 
     setCurrentRepo: (repo) => {
       if (removed.has(repo.id)) return;
+      useWorkspaceStore.getState().activateRepositoryTab(repo.id);
       repo = { ...repo, ...statusSummary(get().repositoryStatuses[repo.id]?.data) };
       set((state) => {
         const existing = state.openRepositories.find((item) => item.id === repo.id);
@@ -476,6 +496,15 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           : [...state.openRepositories, repo];
         return { currentRepo: existing ? { ...existing, ...repo } : repo, openRepositories };
       });
+    },
+
+    activateRepositoryTab: (id) => {
+      if (
+        removed.has(id) ||
+        (get().listLoaded && !get().repositories.some((repo) => repo.id === id))
+      )
+        return;
+      useWorkspaceStore.getState().activateRepositoryTab(id);
     },
 
     resetWorkspace: (id) => {

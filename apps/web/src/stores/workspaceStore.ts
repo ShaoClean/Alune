@@ -22,11 +22,14 @@ import type { Placement, TreeItem } from './sidebarOrder';
 import { createWorkspaceStorage } from './workspaceStorage';
 import { DEFAULT_LAYOUT, readLayoutPreferences } from './workspaceLayout';
 import type { LayoutPreferences } from './workspaceLayout';
+import { readRepositorySession, removeSessionRepositories } from './repositorySession';
+import type { RepositorySession } from './repositorySession';
 
 type RepositoryIdentity = { id: string; connectionId?: string; source?: 'local' | 'ssh' };
 export type CollectionView = 'grid' | 'list';
 export type CollectionPage = 'repositories' | 'connections';
 type Preferences = {
+  repositorySession: RepositorySession;
   collectionViews: Record<CollectionPage, CollectionView>;
   appearance: AppearancePreferences;
   codeAppearance: CodeAppearancePreferences;
@@ -37,6 +40,9 @@ type Preferences = {
   repositoryOrderByConnection: Record<string, string[]>;
 };
 interface WorkspaceState extends Preferences {
+  activateRepositoryTab: (id: string) => void;
+  moveRepositoryTab: (sourceId: string, targetId: string, placement: Placement) => void;
+  closeRepositoryTabs: (ids: string[], preferredId?: string) => void;
   codeAppearanceNotice: string | null;
   dismissCodeAppearanceNotice: () => void;
   selectCodeTheme: (mode: CodeThemeMode, id: string) => boolean;
@@ -66,6 +72,7 @@ interface WorkspaceState extends Preferences {
 }
 
 const defaults: Preferences = {
+  repositorySession: { ids: [], activeId: null },
   collectionViews: { repositories: 'grid', connections: 'grid' },
   appearance: DEFAULT_APPEARANCE,
   codeAppearance: DEFAULT_CODE_APPEARANCE,
@@ -91,6 +98,7 @@ function readPreferences(value: unknown): Preferences & { codeAppearanceNotice: 
   const views = record(saved.collectionViews);
   const code = readCodeAppearance(saved.codeAppearance);
   return {
+    repositorySession: readRepositorySession(saved.repositorySession),
     collectionViews: {
       repositories: views.repositories === 'list' ? 'list' : 'grid',
       connections: views.connections === 'list' ? 'list' : 'grid',
@@ -114,6 +122,27 @@ export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
     (set, get) => ({
       ...defaults,
+      activateRepositoryTab: (id) => {
+        const session = get().repositorySession;
+        if (session.activeId === id && session.ids.includes(id)) return;
+        set({
+          repositorySession: {
+            ids: session.ids.includes(id) ? session.ids : [...session.ids, id],
+            activeId: id,
+          },
+        });
+      },
+      moveRepositoryTab: (sourceId, targetId, placement) =>
+        set((state) => ({
+          repositorySession: {
+            ...state.repositorySession,
+            ids: moveBeforeOrAfter(state.repositorySession.ids, sourceId, targetId, placement),
+          },
+        })),
+      closeRepositoryTabs: (ids, preferredId) =>
+        set((state) => ({
+          repositorySession: removeSessionRepositories(state.repositorySession, ids, preferredId),
+        })),
       codeAppearanceNotice: null,
       dismissCodeAppearanceNotice: () => set({ codeAppearanceNotice: null }),
       selectCodeTheme: (mode, id) => {
@@ -206,6 +235,12 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             groups.set(repositoryGroupId(repo), ids);
           }
           return {
+            repositorySession: removeSessionRepositories(
+              state.repositorySession,
+              state.repositorySession.ids.filter(
+                (id) => !repositories.some((repo) => repo.id === id),
+              ),
+            ),
             repositoryOrderByConnection: Object.fromEntries(
               [...groups].map(([id, ids]) => [
                 id,
@@ -302,6 +337,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       skipHydration: true,
       storage: createJSONStorage(() => createWorkspaceStorage()),
       partialize: ({
+        repositorySession,
         treeOpen,
         collapsedConnectionIds,
         connectionOrder,
@@ -311,6 +347,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         codeAppearance,
         collectionViews,
       }) => ({
+        repositorySession,
         treeOpen,
         collapsedConnectionIds,
         connectionOrder,

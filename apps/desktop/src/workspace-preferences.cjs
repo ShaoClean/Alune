@@ -38,10 +38,22 @@ function createWorkspacePreferences(filePath) {
   };
 }
 
+// A completed renderer action must already be on disk when the process is killed.
+// Always reply, including errors, so sendSync cannot leave the renderer blocked.
+function saveWorkspacePreferences(event, contents, origin, preferences, value) {
+  try {
+    if (!isTrustedWorkspaceSender(event, contents, origin)) throw new Error('Workspace access denied');
+    preferences.save(value);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Workspace save failed';
+  }
+}
+
 function workspaceBackground(value, systemDark) {
   let theme;
   try { theme = JSON.parse(value).state.appearance.theme; } catch {}
   return (theme === 'dark' || (theme !== 'light' && systemDark)) ? '#151e30' : '#f5f7fb';
 }
 
-module.exports = { workspaceBackground, createWorkspacePreferences, isTrustedWorkspaceSender };
+module.exports = { workspaceBackground, createWorkspacePreferences, isTrustedWorkspaceSender, saveWorkspacePreferences };

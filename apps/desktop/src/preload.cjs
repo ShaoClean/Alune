@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('desktopUpdates', {
 contextBridge.exposeInMainWorld('aluneWorkspace', {
   chooseDirectory: () => ipcRenderer.invoke('workspace:choose-directory'),
   load: () => ipcRenderer.invoke('workspace:load'),
-  save: (value) => ipcRenderer.invoke('workspace:save', value),
+  save: async (value) => {
+    const error = ipcRenderer.sendSync('workspace:save-sync', value);
+    if (error) throw new Error(error);
+  },
   clear: () => ipcRenderer.invoke('workspace:clear'),
 });

@@ -1,8 +1,9 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { ConnectionsPage } from '../pages/ConnectionsPage';
 import { RepositoriesPage } from '../pages/RepositoriesPage';
 import { RepositoryDetailPage } from '../pages/RepositoryDetailPage';
+import { RepositoryStartPage } from '../pages/RepositoryStartPage';
 
 export const router = createBrowserRouter([
   {
@@ -15,7 +16,7 @@ export const router = createBrowserRouter([
       },
       {
         index: true,
-        element: <Navigate to="/repositories" replace />,
+        element: <RepositoryStartPage />,
       },
       {
         path: 'connections',

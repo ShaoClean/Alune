@@ -6,6 +6,7 @@ const path = require('node:path');
 const {
   createWorkspacePreferences,
   isTrustedWorkspaceSender,
+  saveWorkspacePreferences,
 } = require('../src/workspace-preferences.cjs');
 
 test('workspace preferences survive a new reader; invalid writes preserve the last complete file', () => {
@@ -32,6 +33,33 @@ test('workspace preferences survive a new reader; invalid writes preserve the la
     assert.equal(preferences.load(), null);
     preferences.clear();
     assert.equal(preferences.load(), null);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('synchronous saves are readable before reply and reject untrusted senders without changing disk', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'workspace-session-'));
+  try {
+    const file = path.join(directory, 'workspace.json');
+    const preferences = createWorkspacePreferences(file);
+    const origin = 'http://127.0.0.1:41000';
+    const mainFrame = { url: origin + '/' };
+    const contents = { mainFrame };
+    const event = { sender: contents, senderFrame: mainFrame };
+    const value = JSON.stringify({ version: 1, state: {
+      repositorySession: { ids: ['ssh', 'local'], activeId: 'local' },
+      appearance: { theme: 'dark', reduceMotion: true },
+    } });
+    assert.equal(saveWorkspacePreferences(event, contents, origin, preferences, value), null);
+    assert.equal(createWorkspacePreferences(file).load(), value);
+    for (const invalid of [{ ...event, sender: {} }, { ...event, senderFrame: { ...mainFrame } }])
+      assert.match(saveWorkspacePreferences(invalid, contents, origin, preferences, '{}'), /denied/);
+    assert.match(saveWorkspacePreferences(event, contents, origin, preferences, '{}'), /Invalid/);
+    assert.equal(preferences.load(), value);
+    assert.equal(saveWorkspacePreferences(event, contents, origin, {
+      save() { throw new Error('disk full'); },
+    }, value), 'disk full');
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
