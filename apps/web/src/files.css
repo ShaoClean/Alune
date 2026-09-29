@@ -247,6 +247,186 @@
   min-height: 0;
   overflow: auto;
 }
+.files-preview__modes {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+.files-preview__modes button {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.files-preview__modes button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.files-preview__modes button[aria-pressed='true'] {
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-weight: 600;
+}
+.files-preview__modes button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+.markdown-preview {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(16px, 3%, 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.75;
+}
+.markdown-preview > :first-child {
+  margin-top: 0;
+}
+.markdown-preview > :last-child {
+  margin-bottom: 0;
+}
+.markdown-preview :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.5em 0 0.6em;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.35;
+  scroll-margin-top: 16px;
+}
+.markdown-preview h1 {
+  font-size: 2em;
+}
+.markdown-preview h2 {
+  font-size: 1.5em;
+}
+.markdown-preview h3 {
+  font-size: 1.25em;
+}
+.markdown-preview :is(h4, h5, h6) {
+  font-size: 1em;
+}
+.markdown-preview :is(h1, h2) {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--line);
+}
+.markdown-preview :is(p, ul, ol, blockquote, pre, .markdown-preview__table) {
+  margin: 1em 0;
+}
+.markdown-preview :is(ul, ol) {
+  padding-left: 1.8em;
+}
+.markdown-preview li + li {
+  margin-top: 0.25em;
+}
+.markdown-preview li :is(ul, ol) {
+  margin: 0.25em 0;
+}
+.markdown-preview a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.markdown-preview:focus-visible,
+.markdown-preview :is(a, pre, button, .markdown-preview__table):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+.markdown-preview blockquote {
+  margin-left: 0;
+  padding: 0 16px;
+  border-left: 3px solid var(--line-strong);
+  color: var(--text-muted);
+}
+.markdown-preview code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--surface-muted);
+  font-family: var(--code-font-family);
+  font-size: 0.9em;
+}
+.markdown-preview pre {
+  max-width: 100%;
+  padding: 14px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--code-foreground);
+  background: var(--code-background);
+  white-space: pre;
+  overflow-wrap: normal;
+  tab-size: 4;
+}
+.markdown-preview pre code {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--code-font-size);
+}
+.markdown-preview__table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.markdown-preview table {
+  width: max-content;
+  max-width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.markdown-preview :is(th, td) {
+  min-width: 96px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  text-align: left;
+}
+.markdown-preview th,
+.markdown-preview tbody tr:nth-child(even) {
+  background: var(--surface-muted);
+}
+.markdown-preview hr {
+  margin: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+}
+.markdown-preview .task-list-item {
+  list-style: none;
+}
+.markdown-preview .task-list-item input {
+  margin-right: 8px;
+}
+.markdown-preview img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+.markdown-preview__image-fallback {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.markdown-preview__unavailable {
+  color: var(--text-muted);
+}
+.markdown-preview__notice {
+  padding: 8px 12px;
+  color: var(--orange);
+  background: var(--orange-soft);
+}
 .files-preview__hint {
   flex-shrink: 0;
   margin: 0;
