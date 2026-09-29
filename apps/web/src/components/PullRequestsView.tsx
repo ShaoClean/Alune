@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Alert, Button, Empty, Input, Select, Spin, Tag } from 'antd';
+import { Button, Empty, Input, Select, Spin, Tag } from 'antd';
+import { FeedbackNotice } from './Feedback';
 import { ExportOutlined, PullRequestOutlined, ReloadOutlined } from '@ant-design/icons';
 import type {
   PullRequestFilter,
@@ -11,7 +12,7 @@ import type {
 } from '@alune/shared';
 import { repositoryApi } from '../api';
 import { errorMessage } from './files-tree';
-import { PanelHeader } from './ui';
+import { ErrorState, PanelHeader } from './ui';
 import { useAccessTokensStore } from '../stores/accessTokensStore';
 
 export function defaultPullRequestRemote(remotes: PullRequestRemote[]): string {
@@ -82,7 +83,14 @@ function RemotePullRequests({
   refreshToken: number;
 }) {
   const navigate = useNavigate();
-  const { settings, error: tokensError, load, accept, choice } = useAccessTokensStore();
+  const {
+    settings,
+    loading: tokensLoading,
+    error: tokensError,
+    load,
+    accept,
+    choice,
+  } = useAccessTokensStore();
   const selection = remote.selection;
   const [provider, setProvider] = useState<PullRequestProvider | null>(
     remote.provider || selection?.provider || null,
@@ -298,33 +306,45 @@ function RemotePullRequests({
           <p role="status">正在使用仅本次输入的令牌，已保存的仓库关联保持不变。</p>
         )}
       </div>
-      {invalidSelection && (
-        <Alert
-          type="warning"
-          showIcon
-          title={
-            selection?.status === 'token-deleted'
-              ? '原令牌已删除，请重新选择并应用。'
-              : '远端目标已变化，请确认上方主机与项目，重新选择并应用。'
-          }
-        />
-      )}
-      {(tokensError || applyError) && (
-        <Alert
-          type="error"
-          showIcon
-          title={applyError || tokensError}
-          action={
-            <Button size="small" onClick={() => void load()}>
-              重新加载令牌
-            </Button>
-          }
-        />
-      )}
+      <FeedbackNotice
+        source="pr-selection"
+        context={`${remote.name} · ${remote.host}/${remote.project}`}
+        type="warning"
+        mode="notification"
+        eventKey={selection?.version}
+        title={invalidSelection ? '访问令牌关联已失效' : null}
+        description={
+          selection?.status === 'token-deleted'
+            ? '原令牌已删除，请重新选择并应用。'
+            : '远端目标已变化，请确认上方主机与项目，重新选择并应用。'
+        }
+        actionLabel="管理令牌"
+        onAction={manage}
+      />
+      <FeedbackNotice
+        source="pr-tokens"
+        context={remote.name}
+        title={tokensError ? '无法读取访问令牌' : null}
+        description={tokensError}
+        actionLabel="重新加载令牌"
+        busy={tokensLoading}
+        onAction={load}
+      />
+      <FeedbackNotice
+        source="pr-token-apply"
+        context={remote.name}
+        title={applyError ? '无法关联访问令牌' : null}
+        description={applyError}
+        actionLabel="重新应用"
+        busy={applying}
+        onAction={applySaved}
+      />
       {!provider ? (
-        <Alert
+        <FeedbackNotice
+          source="pr-platform"
+          context={remote.name}
           type="info"
-          showIcon
+          mode="manual"
           title="无法自动识别此主机的平台"
           description="如果这是使用 HTTPS 的自建 GitLab，请在上方选择平台后读取 MR。暂不支持其他自建托管平台或 SSH 主机别名。"
         />
@@ -370,24 +390,29 @@ function RemotePullRequests({
               )}
             </form>
           </details>
-          {error && (
-            <Alert
-              type="error"
-              showIcon
-              title={error}
-              description={data ? '当前仍显示上次读取的结果。' : undefined}
-              action={
-                <Button size="small" onClick={() => setRetry((value) => value + 1)}>
-                  重试
-                </Button>
-              }
-            />
-          )}
+          <FeedbackNotice
+            source="pull-requests"
+            context={`${remote.name} · ${remote.host}/${remote.project}`}
+            title={error ? 'PR/MR 读取失败' : null}
+            description={[error, data ? '当前仍显示上次读取的结果。' : '']
+              .filter(Boolean)
+              .join('\n')}
+            actionLabel="重试"
+            busy={loading}
+            onAction={() => setRetry((value) => value + 1)}
+          />
           <div className="pull-requests-results" aria-busy={loading}>
             {loading && (
               <div className="pull-requests-loading" role="status">
                 <Spin size="small" /> 正在读取 PR/MR…
               </div>
+            )}
+            {!data && error && !loading && (
+              <ErrorState
+                title="无法读取 PR/MR"
+                description="可重试，或检查此远端的访问令牌。"
+                onRetry={() => setRetry((value) => value + 1)}
+              />
             )}
             {data?.items.length ? (
               <ul className="pull-request-list" aria-label="PR/MR 列表">
@@ -490,16 +515,19 @@ export function PullRequestsView({
           </Button>
         }
       />
-      {error && (
-        <Alert
-          type="error"
-          showIcon
-          title={error}
-          action={
-            <Button size="small" onClick={() => setRefresh((value) => value + 1)}>
-              重试远端
-            </Button>
-          }
+      <FeedbackNotice
+        source="pr-remotes"
+        title={error ? '远端列表读取失败' : null}
+        description={error}
+        actionLabel="重试远端"
+        busy={loading}
+        onAction={() => setRefresh((value) => value + 1)}
+      />
+      {!loaded && error && !loading && (
+        <ErrorState
+          title="无法读取远端列表"
+          description={error}
+          onRetry={() => setRefresh((value) => value + 1)}
         />
       )}
       {loading && !loaded && (
@@ -523,7 +551,14 @@ export function PullRequestsView({
         </div>
       )}
       {remote?.unavailableReason ? (
-        <Alert type="info" showIcon title={remote.unavailableReason} />
+        <FeedbackNotice
+          source="pr-unavailable"
+          context={remote.name}
+          type="info"
+          mode="manual"
+          title="远端不可用"
+          description={remote.unavailableReason}
+        />
       ) : remote ? (
         <RemotePullRequests
           key={`${repoId}:${remote.name}:${remote.webUrl}`}

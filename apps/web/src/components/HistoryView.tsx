@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { GraphCommit, CommitReference } from '@alune/shared';
-import { Button } from 'antd';
+import { FeedbackNotice } from './Feedback';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { EmptyState, formatRelativeDate } from './ui';
+import { EmptyState, ErrorState, formatRelativeDate } from './ui';
 import { appendGraph, emptyGraph, GRAPH_LANE_WIDTH, GRAPH_ROW_HEIGHT } from './commit-graph';
 import type { GraphLayout, GraphRow } from './commit-graph';
 import '../history.css';
@@ -14,7 +14,14 @@ interface Props {
   selectedHash?: string | null;
   visible?: boolean;
 }
-const colors = ['var(--graph-1)', 'var(--graph-2)', 'var(--graph-3)', 'var(--graph-4)', 'var(--graph-5)', 'var(--graph-6)'];
+const colors = [
+  'var(--graph-1)',
+  'var(--graph-2)',
+  'var(--graph-3)',
+  'var(--graph-4)',
+  'var(--graph-5)',
+  'var(--graph-6)',
+];
 const color = (index: number) => colors[index % colors.length];
 const x = (lane: number) => 20 + lane * GRAPH_LANE_WIDTH;
 
@@ -126,7 +133,8 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
     setFocused(0);
   }, [logGeneration]);
   useLayoutEffect(() => {
-    if (!visible || !viewport.current || viewport.current.scrollTop === scrollTopRef.current) return;
+    if (!visible || !viewport.current || viewport.current.scrollTop === scrollTopRef.current)
+      return;
     viewport.current.scrollTop = scrollTopRef.current;
   }, [visible, height, logGeneration]);
 
@@ -184,29 +192,34 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
 
   return (
     <section className="workspace-panel history-panel" aria-label="所有分支提交历史">
-      {logError && (
-        <div className="history-notice history-notice--error" role="alert">
-          <span>{logError}</span>
-          <Button
-            size="small"
-            onClick={() => void fetchLog(repoId, logChanged ? 'refresh' : logErrorMode)}
-          >
-            {logChanged ? '刷新历史' : '重试'}
-          </Button>
-        </div>
-      )}
-      {logShallow && (
-        <div className="history-notice" role="status">
-          浅克隆仓库：仅显示本地已获取的历史。
-        </div>
-      )}
+      <FeedbackNotice
+        source="history"
+        title={logError ? '提交历史读取失败' : null}
+        description={logError || undefined}
+        actionLabel={logChanged ? '刷新历史' : '重试'}
+        busy={logLoading || logLoadingMore}
+        onAction={() => fetchLog(repoId, logChanged ? 'refresh' : logErrorMode)}
+      />
+      <FeedbackNotice
+        source="history-shallow"
+        title={logShallow ? '浅克隆仓库' : null}
+        type="info"
+        mode="manual"
+        description="仅显示本地已获取的历史。可从仓库说明中获取完整历史。"
+      />
       {!log.length ? (
         logLoading ? (
           <div className="history-empty" role="status">
             正在读取所有分支的提交…
           </div>
+        ) : logError ? (
+          <ErrorState
+            title="无法读取提交历史"
+            description={logError}
+            onRetry={() => void fetchLog(repoId)}
+          />
         ) : (
-          !logError && <EmptyState title="暂无提交" description="此仓库没有可显示的历史记录。" />
+          <EmptyState title="暂无提交" description="此仓库没有可显示的历史记录。" />
         )
       ) : (
         <div

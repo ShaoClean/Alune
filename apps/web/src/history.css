@@ -129,21 +129,6 @@
   background: var(--purple-soft);
   color: var(--purple);
 }
-.history-notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-  gap: 8px;
-  margin: 0;
-  padding: 8px 14px;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-.history-notice--error {
-  color: var(--red);
-  background: var(--diff-remove);
-}
 .history-empty {
   display: grid;
   flex: 1;

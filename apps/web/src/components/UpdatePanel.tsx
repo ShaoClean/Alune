@@ -1,3 +1,4 @@
+import { FeedbackNotice } from './Feedback';
 import { Alert, Button, Modal, Progress, Space, Spin, Typography } from 'antd';
 import { CloudDownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { DesktopUpdates, UpdateState } from '../types/desktop-updates';
@@ -37,16 +38,18 @@ export function UpdatePanel({
       width={560}
       centered
     >
-      <UpdatePanelContent state={state} error={error} invoke={invoke} />
+      <UpdatePanelContent state={state} error={error} invoke={invoke} inDialog />
     </Modal>
   );
 }
 
 export function UpdatePanelContent({
+  inDialog = false,
   state,
   error,
   invoke,
 }: {
+  inDialog?: boolean;
   state: UpdateState | null;
   error: string | null;
   invoke: (action: Exclude<keyof DesktopUpdates, 'subscribe'>) => Promise<void>;
@@ -61,7 +64,17 @@ export function UpdatePanelContent({
       (state.status === 'error' && state.error?.action === 'download'));
   return (
     <div className="update-panel" data-testid="update-panel">
-      {error && <Alert type="error" showIcon title={error} />}
+      {inDialog ? (
+        error && <Alert type="error" showIcon title={error} />
+      ) : (
+        <FeedbackNotice
+          source="update-bridge"
+          title={error ? '无法连接桌面更新服务' : null}
+          description={error || undefined}
+          actionLabel="重新连接"
+          onAction={() => invoke('getState')}
+        />
+      )}
       {!state ? (
         <Spin tip="正在读取版本信息">
           <div style={{ minHeight: 80 }} />
@@ -91,7 +104,26 @@ export function UpdatePanelContent({
               description="请使用已安装的正式桌面应用。Linux 需要运行 AppImage；开发环境不连接更新源。"
             />
           )}
-          {state.error && <Alert type="error" showIcon title={state.error.message} />}
+          {inDialog ? (
+            state.error && <Alert type="error" showIcon title={state.error.message} />
+          ) : (
+            <FeedbackNotice
+              source="update-result"
+              title={state.error ? '版本更新未完成' : null}
+              description={state.error?.message}
+              mode={state.background ? 'notification' : 'modal'}
+              eventKey={state.revision}
+              actionLabel={
+                ready ? '重启安装' : state.error?.action === 'download' ? '重新下载' : '检查更新'
+              }
+              onAction={() =>
+                invoke(
+                  ready ? 'install' : state.error?.action === 'download' ? 'download' : 'check',
+                )
+              }
+              busy={Boolean(busy)}
+            />
+          )}
           {state.progress && (
             <div>
               <Progress percent={Math.floor(state.progress.percent)} />

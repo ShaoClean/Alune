@@ -5,7 +5,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Alert, Button, App, Input, Modal, Select } from 'antd';
+import { Button, App, Input, Modal, Select } from 'antd';
+import { FeedbackNotice } from '../components/Feedback';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -73,6 +74,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     fetchDiff,
     clearDiff,
     error,
+    errorPanel,
   } = useRepositoryStore();
   const { entry: statusEntry, stale: statusStale } = useRepositoryStatus(id || '');
   const statusFailed = statusEntry?.phase === 'error';
@@ -92,6 +94,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [syncingForce, setSyncingForce] = useState(false);
   const [context, setContext] = useState<RepositoryContext | null>(null);
   const [syncError, setSyncError] = useState('');
+  const [syncAttempt, setSyncAttempt] = useState(0);
   const [syncSelection, setSyncSelection] = useState<{
     operation: SyncOperation;
     force?: boolean;
@@ -283,6 +286,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     options?: { force?: boolean; tags?: boolean },
   ) => {
     if (!id || syncing) return;
+    setSyncError('');
+    setSyncAttempt((value) => value + 1);
     let current = context;
     try {
       current = await repositoryApi.context(id);
@@ -422,22 +427,34 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         onRefresh={() => void handleRefresh()}
       />
       <GitOperationNotice repoId={id!} onFinished={() => void handleRefresh()} />
-      {syncError && (
-        <Alert
-          className="sync-error-notice"
-          type="error"
-          showIcon
-          title="Git 操作未完成"
-          description={syncError}
-          closable
-          onClose={() => setSyncError('')}
-          action={
-            <Button size="small" onClick={() => void handleRefresh()}>
-              刷新状态
-            </Button>
-          }
-        />
-      )}
+      <FeedbackNotice
+        source="git-sync"
+        title={syncError ? 'Git 操作未完成' : null}
+        description={syncError}
+        eventKey={syncAttempt}
+        actionLabel="刷新状态"
+        onAction={async () => {
+          await handleRefresh();
+          setSyncError('');
+        }}
+      />
+      <FeedbackNotice
+        source="repository-status"
+        title={statusFailed ? '无法读取仓库状态' : null}
+        description={statusEntry?.error}
+        mode="notification"
+        resetOnClear={statusEntry?.phase === 'success'}
+        actionLabel="重试状态"
+        busy={statusEntry?.phase === 'loading' || statusEntry?.phase === 'queued'}
+        onAction={() => fetchStatus(id!)}
+      />
+      <FeedbackNotice
+        source={`repository-panel:${activePanel}`}
+        title={error && errorPanel === activePanel ? `${activeLabel}读取失败` : null}
+        description={error || undefined}
+        actionLabel="重试"
+        onAction={() => handleRefresh(false)}
+      />
       <Modal
         title={syncSelection?.operation === 'push' ? '设置上游并推送' : '选择拉取来源'}
         open={!!syncSelection}
@@ -484,7 +501,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         }
       >
         <div className="workspace-center">
-          {(statusFailed || !status) && (
+          {!status && (
             <div className="repository-status-notice" role="status">
               <RepositoryStatusIndicator id={id!} />
               {statusEntry?.error && <span>{statusEntry.error}</span>}
@@ -493,11 +510,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                   重试状态
                 </button>
               )}
-            </div>
-          )}
-          {error && (
-            <div className="workspace-error" role="alert">
-              {error}
             </div>
           )}
           {hasInspector ? (

@@ -23,7 +23,9 @@ module.exports = async ({ window, origin, token, backend }) => {
     execute(
       'new Promise((resolve, reject) => { const start = Date.now(); const check = () => { if (' +
         expression +
-        ') return resolve(true); if (Date.now() - start > 10000) return reject(new Error(' + JSON.stringify('历史冒烟等待超时，条件：' + expression) + ' + "；行数：" + document.querySelector(".history-table")?.getAttribute("aria-rowcount") + "；滚动：" + document.querySelector(".history-viewport")?.scrollTop)); setTimeout(check, 30); }; check(); })',
+        ') return resolve(true); if (Date.now() - start > 10000) return reject(new Error(' +
+        JSON.stringify('历史冒烟等待超时，条件：' + expression) +
+        ' + "；行数：" + document.querySelector(".history-table")?.getAttribute("aria-rowcount") + "；滚动：" + document.querySelector(".history-viewport")?.scrollTop)); setTimeout(check, 30); }; check(); })',
     );
   const click = (selector) =>
     execute('document.querySelector(' + JSON.stringify(selector) + ').click()');
@@ -82,7 +84,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     });
     repo = await create('repositories', { connectionId: connection.id, path: '/fixture/history' });
     await window.loadURL(origin + '/repositories/' + repo.id);
-    await wait("document.querySelector('[aria-label=\"提交历史\"]')");
+    await wait('document.querySelector(\'[aria-label="提交历史"]\')');
     await click('[aria-label="提交历史"]');
     await wait("document.querySelectorAll('.history-row').length > 0");
     assert.equal(
@@ -120,7 +122,9 @@ module.exports = async ({ window, origin, token, backend }) => {
       assert.equal(await execute("document.querySelector('.history-detail') !== null"), true);
     }
     assert.ok((await execute("document.querySelectorAll('.history-row').length")) < 100);
-    await execute("(() => { const viewport = document.querySelector('.history-viewport'); viewport.scrollTop = 0; viewport.dispatchEvent(new Event('scroll', { bubbles: true })); })()");
+    await execute(
+      "(() => { const viewport = document.querySelector('.history-viewport'); viewport.scrollTop = 0; viewport.dispatchEvent(new Event('scroll', { bubbles: true })); })()",
+    );
     await wait("document.querySelector('.history-viewport').scrollTop === 0");
     await click('[aria-label="刷新仓库"]');
     await wait(
@@ -132,11 +136,16 @@ module.exports = async ({ window, origin, token, backend }) => {
       "(() => { const el = document.querySelector('.history-viewport'); el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll', { bubbles: true })); })()",
     );
     await wait(
-      "document.querySelector('.history-notice--error')?.textContent.includes('历史已变化')",
+      "document.querySelector('.feedback-dialog[open]')?.textContent.includes('历史已变化')",
     );
-    assert.equal(await execute("document.querySelector('.history-detail__header code')?.getAttribute('title')"), hash(1));
-    await click('.history-notice--error button');
-    await wait("!document.querySelector('.history-notice--error')");
+    assert.equal(
+      await execute(
+        "document.querySelector('.history-detail__header code')?.getAttribute('title')",
+      ),
+      hash(1),
+    );
+    await click('.feedback-actions button:last-child');
+    await wait("!document.querySelector('.feedback-dialog[open]')");
     await execute(
       "(() => { const viewport = document.querySelector('.history-viewport'); viewport.scrollTop = 180; viewport.dispatchEvent(new Event('scroll', { bubbles: true })); })()",
     );

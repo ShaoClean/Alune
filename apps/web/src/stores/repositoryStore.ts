@@ -72,6 +72,7 @@ interface RepositoryState {
   observeRepository: (id: string) => () => void;
   refreshRepositoryStatuses: (ids?: string[]) => Promise<void>;
   error: string | null;
+  errorPanel: 'branches' | 'stashes' | 'remotes' | null;
   fetchRepositories: (connectionId?: string) => Promise<void>;
   scanRepositories: (connectionId: string, path: string) => Promise<string[]>;
   addRepository: (connectionId: string, path: string) => Promise<any>;
@@ -271,6 +272,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     listError: null,
     repositoryStatuses: {},
     error: null,
+    errorPanel: null,
 
     observeRepository: (id) => {
       visible.set(id, (visible.get(id) || 0) + 1);
@@ -524,6 +526,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         worktreeDiffRevision: 0,
         diffError: null,
         error: null,
+        errorPanel: null,
       });
     },
 
@@ -605,14 +608,13 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       try {
         const commitFiles = await repositoryApi.commitFiles(id, commit, parentCommit);
         if (request === commitFilesRequest)
-          set({ commitFiles, commitFilesLoading: false, commitFilesError: null, error: null });
+          set({ commitFiles, commitFilesLoading: false, commitFilesError: null });
       } catch (err: any) {
         if (request === commitFilesRequest)
           set({
             commitFiles: [],
             commitFilesLoading: false,
             commitFilesError: err.message,
-            error: err.message,
           });
       }
     },
@@ -644,7 +646,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       try {
         const diff = await repositoryApi.diff(id, params);
         if (request === diffRequest)
-          set({ diff, diffLoading: false, diffRefreshing: false, diffError: null, error: null });
+          set({ diff, diffLoading: false, diffRefreshing: false, diffError: null });
       } catch (err: any) {
         if (request === diffRequest)
           set({
@@ -659,34 +661,37 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     fetchBranches: async (id) => {
       if (workspaceId !== null && workspaceId !== id) return;
       const request = ++branchRequest;
+      set({ error: null });
       try {
         const branches = await repositoryApi.branches(id);
         if (request === branchRequest) set({ branches, error: null });
       } catch (err: any) {
-        if (request === branchRequest) set({ error: err.message });
+        if (request === branchRequest) set({ error: err.message, errorPanel: 'branches' });
       }
     },
 
     fetchStashes: async (id) => {
       if (workspaceId !== null && workspaceId !== id) return;
       const request = ++stashRequest;
+      set({ error: null });
       try {
         const stashes = await repositoryApi.stashes(id);
         if (request === stashRequest) set({ stashes, error: null });
       } catch (err: any) {
-        if (request === stashRequest) set({ error: err.message });
+        if (request === stashRequest) set({ error: err.message, errorPanel: 'stashes' });
       }
     },
 
     fetchRemotes: async (id) => {
       if (workspaceId !== null && workspaceId !== id) return;
       const request = ++remoteRequest;
-      set({ remotesLoading: true });
+      set({ remotesLoading: true, error: null });
       try {
         const remotes = await repositoryApi.remotes(id);
         if (request === remoteRequest) set({ remotes, remotesLoading: false, error: null });
       } catch (err: any) {
-        if (request === remoteRequest) set({ error: err.message, remotesLoading: false });
+        if (request === remoteRequest)
+          set({ error: err.message, errorPanel: 'remotes', remotesLoading: false });
       }
     },
   };

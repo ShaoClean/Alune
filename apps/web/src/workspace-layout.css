@@ -361,16 +361,6 @@
 .worktrees-menu__error .ant-btn {
   align-self: flex-start;
 }
-.workspace-error {
-  flex-shrink: 0;
-  max-height: 60px;
-  padding: 6px 14px;
-  overflow: auto;
-  color: var(--red);
-  background: var(--diff-remove);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
 .workspace-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 4px var(--changes-width, 320px);

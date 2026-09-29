@@ -1,3 +1,4 @@
+import { FeedbackNotice } from '../Feedback';
 import { AppearanceSettings } from './AppearanceSettings';
 import { useEffect, useRef } from 'react';
 import { Alert, Button } from 'antd';
@@ -151,21 +152,23 @@ export function SettingsCenter({
             </div>
           ) : (
             <>
-              {error && (
-                <Alert
-                  className="settings-load-alert"
-                  type="error"
-                  title={error}
-                  action={
-                    <Button size="small" onClick={() => void load()}>
-                      重新加载
-                    </Button>
-                  }
-                />
-              )}
+              <FeedbackNotice
+                source="ai-settings"
+                title={error ? 'AI 设置读取失败' : null}
+                description={error || undefined}
+                actionLabel="重新加载"
+                busy={loading}
+                onAction={load}
+              />
               {!settings && (
                 <div className="settings-page-content" role="status">
-                  {loading ? '正在读取 AI 设置…' : '无法读取 AI 设置，请重新加载。'}
+                  {loading ? (
+                    '正在读取 AI 设置…'
+                  ) : (
+                    <>
+                      无法读取 AI 设置。<Button onClick={() => void load()}>重新加载</Button>
+                    </>
+                  )}
                 </div>
               )}
               {settings &&

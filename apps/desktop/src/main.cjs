@@ -151,8 +151,13 @@ async function start() {
     });
   }
   const desktopSession = session.fromPartition('alune-desktop');
-  desktopSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
-  desktopSession.setPermissionCheckHandler(() => false);
+  const { canWriteClipboard } = require('./clipboard-permissions.cjs');
+  desktopSession.setPermissionRequestHandler((contents, permission, callback, details) =>
+    callback(canWriteClipboard(contents, permission, details.requestingUrl, window?.webContents, origin)),
+  );
+  desktopSession.setPermissionCheckHandler((contents, permission, requestingOrigin) =>
+    canWriteClipboard(contents, permission, requestingOrigin, window?.webContents, origin),
+  );
   // Keep the per-launch credential in the main process, including WebSocket upgrades.
   desktopSession.webRequest.onBeforeSendHeaders(
     { urls: [`${origin}/*`, `${origin.replace('http:', 'ws:')}/*`] },

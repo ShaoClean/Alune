@@ -5,7 +5,8 @@ import { Button } from 'antd';
 import { ArrowLeftOutlined, CloseOutlined } from '@ant-design/icons';
 import { HistoryReference, HistoryView } from './HistoryView';
 import { DiffViewer } from './DiffViewer';
-import { FileIcon } from './ui';
+import { FileIcon, ErrorState } from './ui';
+import { FeedbackNotice } from './Feedback';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 
@@ -188,20 +189,21 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
                     </Button>
                   )}
                 </div>
+                <FeedbackNotice
+                  source="commit-files"
+                  context={selected.shortHash}
+                  title={commitFilesError ? '提交文件读取失败' : null}
+                  description={commitFilesError || undefined}
+                  actionLabel="重试"
+                  busy={commitFilesLoading}
+                  onAction={() => fetchCommitFiles(repoId, selected.hash)}
+                />
                 {commitFilesError ? (
-                  <div className="history-notice history-notice--error" role="alert">
-                    {commitFilesError}
-                    <Button
-                      size="small"
-                      onClick={() => void fetchCommitFiles(repoId, selected.hash)}
-                    >
-                      重试
-                    </Button>
-                  </div>
-                ) : commitFilesLoading ? (
-                  <p className="history-notice">正在读取文件变更…</p>
-                ) : !commitFiles.length ? (
-                  <p className="history-notice">此次提交没有文件变更。</p>
+                  <ErrorState
+                    title="无法读取提交文件"
+                    description="请重试读取此提交的文件变更。"
+                    onRetry={() => void fetchCommitFiles(repoId, selected.hash)}
+                  />
                 ) : (
                   commitFiles.map((item: CommitFile) => (
                     <button
