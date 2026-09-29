@@ -41,7 +41,20 @@ for (const transport of ['local', 'ssh']) {
       const { files } = await commands.status(f.repo);
       const tree = files.find((file) => file.path === '.claude/worktrees/demo/');
       const repo = files.find((file) => file.path === 'nested repo/');
-      assert.equal(tree.kind, 'worktree');
+      assert.equal(
+        tree.kind,
+        'worktree',
+        JSON.stringify(
+          {
+            repositoryPath: f.repo,
+            entry: tree,
+            worktrees: f.git('worktree', 'list', '--porcelain', '-z'),
+            gitdir: fs.readFileSync(path.join(f.repo, '.git/worktrees/demo/gitdir'), 'utf8'),
+          },
+          null,
+          2,
+        ),
+      );
       assert.equal(repo.kind, 'repository');
       assert.equal(
         fs.realpathSync(tree.repositoryPath),
