@@ -19,6 +19,8 @@ function createRepository({ initial = true } = {}) {
   git('init', '-q');
   git('config', 'user.name', 'Deletion test');
   git('config', 'user.email', 'fixture@example.invalid');
+  // LocalConnection inherits system Git settings; keep fixture checkout bytes stable.
+  git('config', 'core.autocrlf', 'false');
   if (initial) {
     fs.writeFileSync(path.join(repo, 'tracked.txt'), 'original\n');
     git('add', '--', 'tracked.txt');

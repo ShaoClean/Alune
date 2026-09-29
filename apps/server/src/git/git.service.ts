@@ -29,6 +29,8 @@ import {
   GitWorktrees,
   worktreePathKey,
   runGit,
+  assertFileChanges,
+  ignoreDirectory,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
 import type { DiscardChangesScope, Repository } from '@alune/shared';
@@ -449,12 +451,15 @@ export class GitService implements OnModuleDestroy {
     }
   }
   checkout(id: string, files: string[]) {
-    return this.write(id, 'discard', (git, repo) =>
-      this.checked(git, repo.path, [
-        'checkout',
-        '--',
-        ...this.files(repo, files),
-      ]),
+    return this.write(id, 'discard', async (git, repo, connection) => {
+      const paths = this.files(repo, files);
+      await assertFileChanges(connection, repo.path, paths);
+      return this.checked(git, repo.path, ['checkout', '--', ...paths]);
+    });
+  }
+  ignoreDirectory(id: string, path: string) {
+    return this.write(id, 'ignore-directory', (_git, repo, connection) =>
+      ignoreDirectory(connection, repo.path, path),
     );
   }
   async previewDiscardChanges(id: string) {

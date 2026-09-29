@@ -146,6 +146,8 @@ export const repositoryApi = {
 
 // Git Operation APIs
 export const gitApi = {
+  ignoreDirectory: (id: string, path: string) =>
+    api.post(`/repositories/${id}/ignore-directory`, { path }, gitTimeout).then((r) => r.data),
   operation: (id: string) => api.get(`/repositories/${id}/operation`).then((r) => r.data),
   cancel: (id: string) => api.post(`/repositories/${id}/operation/cancel`).then((r) => r.data),
   deepen: (id: string, remote?: string) =>

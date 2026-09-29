@@ -167,8 +167,8 @@ for (const change of ['content', 'untracked-content', 'index', 'branch', 'new-pa
   });
 }
 
-test('blocks conflicts, submodules, nested repositories, intent-to-add, and directory replacements', async (t) => {
-  for (const kind of ['conflict', 'submodule', 'nested', 'intent', 'directory']) {
+test('blocks conflicts and intent-to-add before discarding', async (t) => {
+  for (const kind of ['conflict', 'intent']) {
     await t.test(kind, async (t) => {
       const f = fixture(t);
       if (kind === 'conflict') {
@@ -179,22 +179,9 @@ test('blocks conflicts, submodules, nested repositories, intent-to-add, and dire
         f.write('tracked.txt', 'base\n');
         f.git('commit', '-qam', 'base');
         assert.throws(() => f.git('merge', 'topic'));
-      } else if (kind === 'submodule') {
-        f.git(
-          'update-index',
-          '--add',
-          '--cacheinfo',
-          `160000,${f.git('rev-parse', 'HEAD').trim()},module`,
-        );
-      } else if (kind === 'nested') {
-        f.git('init', '-q', 'nested');
-        f.write('nested/keep.txt');
-      } else if (kind === 'intent') {
+      } else {
         f.write('intent.txt');
         f.git('add', '-N', '--', 'intent.txt');
-      } else {
-        fs.unlinkSync(path.join(f.repo, 'tracked.txt'));
-        f.write('tracked.txt/keep.txt');
       }
       const before = index(f);
       await assert.rejects(f.discard.preview(f.repo), /冲突|子模块|嵌套仓库|意向添加|目录/);
@@ -204,7 +191,7 @@ test('blocks conflicts, submodules, nested repositories, intent-to-add, and dire
 });
 
 test(
-  'protects symlink targets and refuses parents replaced by symlinks or nested repositories',
+  'protects symlink targets, refuses symlink parents and skips newly nested repositories',
   { skip: process.platform === 'win32' },
   async (t) => {
     const f = fixture(t);
@@ -225,7 +212,10 @@ test(
     fs.unlinkSync(path.join(f.repo, 'dir'));
     f.git('init', '-q', 'dir');
     f.write('dir/keep.txt', 'nested edit\n');
-    await assert.rejects(f.discard.preview(f.repo), /其他仓库/);
+    const nested = await f.discard.preview(f.repo);
+    assert.equal(nested.skipped[0].path, 'dir');
+    assert.equal((await f.discard.discard(f.repo, nested.token, 'all')).success, true);
+    assert.equal(read(f, 'dir/keep.txt'), 'nested edit\n');
   },
 );
 

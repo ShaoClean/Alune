@@ -142,6 +142,18 @@ export function DiscardChangesDialog({ repoId, onClose }: Props) {
           </p>
           <p className="git-path-detail">{preview.repositoryPath}</p>
           <p>作用于整个当前仓库 / worktree，不受文件列表筛选影响。其他仓库和 worktree 不受影响。</p>
+          {!!preview.skipped?.length && (
+            <details className="change-skipped" open>
+              <summary>跳过 {preview.skipped.length} 个目录或子模块</summary>
+              <ul>
+                {preview.skipped.map((item) => (
+                  <li key={item.path}>
+                    <span className="git-path-detail">{item.path}</span>：{item.reason}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
           {preview.tracked + preview.untracked === 0 ? (
             <Alert type="info" showIcon title="当前没有可放弃的未暂存更改。" />
           ) : (
