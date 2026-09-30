@@ -1,0 +1,51 @@
+---
+import arrow from '@tabler/icons/outline/arrow-up-right.svg?raw';
+import right from '@tabler/icons/outline/arrow-right.svg?raw';
+import download from '@tabler/icons/outline/download.svg?raw';
+import github from '@tabler/icons/outline/brand-github.svg?raw';
+import apple from '@tabler/icons/outline/brand-apple.svg?raw';
+import windows from '@tabler/icons/outline/brand-windows.svg?raw';
+import linux from '@tabler/icons/outline/device-desktop.svg?raw';
+import device from '@tabler/icons/outline/device-laptop.svg?raw';
+import server from '@tabler/icons/outline/server.svg?raw';
+import branch from '@tabler/icons/outline/git-branch.svg?raw';
+import layers from '@tabler/icons/outline/layers-linked.svg?raw';
+import sparkles from '@tabler/icons/outline/sparkles.svg?raw';
+import palette from '@tabler/icons/outline/palette.svg?raw';
+import menu from '@tabler/icons/outline/menu-2.svg?raw';
+const icons = {
+  arrow,
+  right,
+  download,
+  github,
+  apple,
+  windows,
+  linux,
+  device,
+  server,
+  branch,
+  layers,
+  sparkles,
+  palette,
+  menu,
+};
+interface Props {
+  name: keyof typeof icons;
+}
+const { name } = Astro.props;
+---
+
+<span class="icon" aria-hidden="true" set:html={icons[name]} />
+<style>
+  .icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 1.25em;
+    height: 1.25em;
+  }
+  .icon :global(svg) {
+    width: 100%;
+    height: 100%;
+    stroke-width: 1.6;
+  }
+</style>

@@ -1,0 +1,267 @@
+---
+import Icon from './Icon.astro';
+import { navigation, site } from '../data/site';
+---
+
+<a class="skip-link" href="#main">
+  跳到主要内容
+</a>
+<header class="header">
+  <nav class="island" aria-label="主导航">
+    <a class="brand" href={import.meta.env.BASE_URL} aria-label="Alune 首页">
+      <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="" width="32" height="32" />
+      <span>alune</span>
+    </a>
+    <div class="nav-links" id="nav-links">
+      {navigation.map((item) => (
+        <a href={item.href}>{item.label}</a>
+      ))}
+      <a href={site.docs}>
+        文档 <Icon name="arrow" />
+      </a>
+    </div>
+    <div class="nav-actions">
+      <label class="theme-control" hidden data-theme-control>
+        <Icon name="palette" />
+        <span class="sr-only">配色主题</span>
+        <select id="theme" aria-label="配色主题">
+          <option value="system">跟随系统</option>
+          <option value="light">浅色</option>
+          <option value="dark">深色</option>
+        </select>
+      </label>
+      <a class="nav-download" href="#download">
+        下载 <Icon name="download" />
+      </a>
+      <button
+        class="menu-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="nav-links"
+        aria-label="打开导航菜单"
+        hidden
+      >
+        <Icon name="menu" />
+      </button>
+    </div>
+  </nav>
+</header>
+<script>
+  const button = document.querySelector<HTMLButtonElement>('.menu-toggle');
+  const links = document.querySelector<HTMLElement>('#nav-links');
+  if (button && links) {
+    button.hidden = false;
+    document.documentElement.classList.add('nav-enhanced');
+    const close = () => {
+      button.setAttribute('aria-expanded', 'false');
+      button.setAttribute('aria-label', '打开导航菜单');
+      links.classList.remove('is-open');
+    };
+    button.addEventListener('click', () => {
+      const open = button.getAttribute('aria-expanded') !== 'true';
+      button.setAttribute('aria-expanded', String(open));
+      button.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
+      links.classList.toggle('is-open', open);
+    });
+    links.addEventListener('click', (event) => {
+      if ((event.target as Element).closest('a')) close();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && button.getAttribute('aria-expanded') === 'true') {
+        close();
+        button.focus();
+      }
+    });
+    document.addEventListener('click', (event) => {
+      if (!(event.target as Element).closest('.island')) close();
+    });
+    document.querySelector('.island')?.addEventListener('focusout', (event) => {
+      if (
+        !(event.currentTarget as Element).contains(
+          (event as FocusEvent).relatedTarget as Node | null,
+        )
+      )
+        close();
+    });
+    matchMedia('(min-width: 1024px)').addEventListener('change', close);
+  }
+</script>
+<style>
+  .header {
+    position: sticky;
+    top: 18px;
+    z-index: var(--z-nav);
+    height: 64px;
+    margin: 18px auto 0;
+    padding: 0 24px;
+  }
+  .island {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    width: fit-content;
+    max-width: 100%;
+    margin: auto;
+    padding: 9px 12px 9px 15px;
+    min-height: 58px;
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-pill);
+    background: var(--nav-bg);
+    box-shadow:
+      var(--nav-shadow),
+      inset 0 1px 0 var(--highlight);
+    backdrop-filter: blur(22px);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 20px;
+    font-weight: 650;
+    letter-spacing: -0.06em;
+  }
+  .brand img {
+    border-radius: 10px;
+  }
+  .nav-links {
+    display: flex;
+    gap: 23px;
+    align-items: center;
+    padding-left: 23px;
+    border-left: 1px solid var(--hair);
+  }
+  .nav-links a {
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .nav-links a:hover {
+    color: var(--accent);
+  }
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .theme-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--muted);
+  }
+  select {
+    background: transparent;
+    color: var(--ink);
+    border: 0;
+    font: inherit;
+    font-size: 12px;
+    width: 82px;
+    min-height: 36px;
+    cursor: pointer;
+  }
+  select option {
+    background: var(--surface);
+  }
+  .nav-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 550;
+    padding: 10px 16px;
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: var(--radius-pill);
+    white-space: nowrap;
+  }
+  .menu-toggle {
+    display: none;
+    place-items: center;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--hair);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 50%;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .island {
+      background: var(--surface);
+      backdrop-filter: none;
+    }
+  }
+  @media (max-width: 1023px) {
+    .island {
+      width: 100%;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .nav-links {
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 0;
+      border: 0;
+    }
+    :global(.nav-enhanced) .nav-links {
+      display: none;
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      right: 0;
+      padding: 18px;
+      background: var(--surface);
+      border: 1px solid var(--hair);
+      border-radius: var(--radius-core);
+      box-shadow: var(--nav-shadow);
+    }
+    :global(.nav-enhanced) .nav-links.is-open {
+      display: grid;
+    }
+    .nav-links a {
+      padding: 10px;
+      font-size: 15px;
+    }
+    .menu-toggle:not([hidden]) {
+      display: grid;
+    }
+    :global(html:not(.nav-enhanced)) .header {
+      height: auto;
+    }
+    :global(html:not(.nav-enhanced)) .island {
+      flex-wrap: wrap;
+      border-radius: var(--radius-core);
+    }
+  }
+  @media (max-width: 639px) {
+    .header {
+      padding: 0 12px;
+      margin-top: 12px;
+      top: 12px;
+    }
+    .nav-actions {
+      gap: 6px;
+    }
+    .theme-control > :global(.icon) {
+      display: none;
+    }
+    .nav-download {
+      padding: 10px 12px;
+    }
+    .nav-download :global(.icon) {
+      display: none;
+    }
+    .brand {
+      font-size: 19px;
+      gap: 6px;
+    }
+    .island {
+      gap: 8px;
+      padding-left: 10px;
+    }
+  }
+</style>

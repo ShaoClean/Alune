@@ -1,0 +1,30 @@
+/* Small transitions acknowledge interaction. Content never waits for an animation. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+  .button,
+  .nav-download {
+    transition:
+      transform 180ms var(--ease),
+      box-shadow 180ms var(--ease);
+  }
+  .button:hover,
+  .nav-download:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--nav-shadow);
+  }
+  .button:active,
+  .nav-download:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,223 @@
+---
+import Icon from '../components/Icon.astro';
+import Screenshot from '../components/Screenshot.astro';
+import light from '../assets/screenshots/workspace-light.png';
+import dark from '../assets/screenshots/workspace-dark.png';
+import files from '../assets/screenshots/files.png';
+import { site } from '../data/site';
+---
+
+<section class="section changes" id="changes" aria-labelledby="changes-title">
+  <div class="container">
+    <h2 class="section-title" id="changes-title">
+      看清每一处改动，
+      <br />
+      再落下一次提交。
+    </h2>
+    <p class="section-lede">
+      从阅读文件到检查差异，再到暂存和提交。
+      <br />
+      让一次修改的上下文，留在眼前。
+    </p>
+    <div class="change-layout">
+      <div class="gallery">
+        <div class="gallery-tabs" role="tablist" aria-label="功能截图" hidden>
+          <button
+            type="button"
+            role="tab"
+            id="tab-diff"
+            aria-selected="true"
+            aria-controls="panel-diff"
+            tabindex="0"
+          >
+            查看改动
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-files"
+            aria-selected="false"
+            aria-controls="panel-files"
+            tabindex="-1"
+          >
+            阅读文件
+          </button>
+        </div>
+        <div class="gallery-panel" id="panel-diff">
+          <div class="shell">
+            <div class="core">
+              <Screenshot
+                image={light}
+                dark={dark}
+                alt="改动视图：分栏显示文本差异，右侧列出未暂存和已暂存文件，并填写提交摘要与描述"
+                sizes="(max-width: 767px) 94vw, 65vw"
+              />
+            </div>
+          </div>
+          <p class="caption">文本差异与暂存、提交面板。截图基于 v0.5.0。</p>
+        </div>
+        <div class="gallery-panel" id="panel-files">
+          <div class="shell">
+            <div class="core">
+              <Screenshot
+                image={files}
+                alt="文件视图：左侧目录树，中央以 Catppuccin Mocha 主题阅读带行号的 TSX 文件"
+                sizes="(max-width: 767px) 94vw, 65vw"
+              />
+            </div>
+          </div>
+          <p class="caption">文件只读预览与独立代码阅读主题。截图基于 v0.5.0。</p>
+        </div>
+      </div>
+      <div class="change-notes">
+        <article>
+          <h3>对照着看，更清楚</h3>
+          <p>统一或分栏文本 Diff，也能查看 PNG、JPEG、GIF、WebP 图片的前后变化。</p>
+        </article>
+        <article>
+          <h3>只提交准备好的部分</h3>
+          <p>暂存所需文件，填写摘要与描述。同一文件已暂存的内容和后续修改分别展示。</p>
+        </article>
+        <article class="ai-note">
+          <Icon name="sparkles" />
+          <h3>让 AI 帮你起草</h3>
+          <p>可选配置模型服务，根据已暂存改动生成可编辑的提交信息。</p>
+          <p class="privacy">启用后会将已暂存差异发送给你配置的服务。检查文案后，由你主动提交。</p>
+          <a href={site.ai} class="text-link">
+            了解 AI 配置 <Icon name="arrow" />
+          </a>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+  const tabs = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('.gallery-tabs [role="tab"]'),
+  );
+  const activate = (index: number, focus = true) => {
+    tabs.forEach((tab, i) => {
+      const active = i === index;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+      const panel = document.getElementById(tab.getAttribute('aria-controls')!);
+      if (panel) {
+        panel.hidden = !active;
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', tab.id);
+        panel.tabIndex = 0;
+      }
+    });
+    if (focus) tabs[index]?.focus();
+  };
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activate(index));
+    tab.addEventListener('keydown', (event) => {
+      const next =
+        event.key === 'ArrowRight'
+          ? (index + 1) % tabs.length
+          : event.key === 'ArrowLeft'
+            ? (index + tabs.length - 1) % tabs.length
+            : event.key === 'Home'
+              ? 0
+              : event.key === 'End'
+                ? tabs.length - 1
+                : null;
+      if (next !== null) {
+        event.preventDefault();
+        activate(next);
+      }
+    });
+  });
+  activate(0, false);
+  document.querySelector('.gallery-tabs')?.removeAttribute('hidden');
+</script>
+<style>
+  .changes {
+    background: linear-gradient(145deg, var(--halo-indigo), transparent 65%);
+  }
+  .change-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 0.75fr);
+    gap: 56px;
+    align-items: center;
+    margin-top: 40px;
+  }
+  .gallery-tabs {
+    display: flex;
+    gap: 5px;
+    padding: 5px;
+    margin-bottom: 20px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--hair);
+    background: var(--shell);
+    width: fit-content;
+  }
+  .gallery-tabs button {
+    padding: 9px 20px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    color: var(--muted);
+    background: transparent;
+    font-size: 13px;
+  }
+  .gallery-tabs button[aria-selected='true'] {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--hair);
+    box-shadow: 0 2px 5px rgb(30 45 95 / 5%);
+  }
+  .gallery-panel + .gallery-panel {
+    margin-top: 24px;
+  }
+  .gallery:has([role='tabpanel']) .gallery-panel {
+    margin-top: 0;
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 550;
+    margin-bottom: 10px;
+  }
+  article p {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  article + article {
+    margin-top: 28px;
+  }
+  .ai-note {
+    border-top: 1px solid var(--hair);
+    padding-top: 24px;
+  }
+  .ai-note > :global(.icon) {
+    margin-bottom: 12px;
+    color: var(--accent);
+    font-size: 24px;
+  }
+  .ai-note .privacy {
+    margin-top: 12px;
+    font-size: 12px;
+  }
+  .ai-note .text-link {
+    font-size: 12px;
+    margin-top: 7px;
+  }
+  @media (max-width: 1023px) {
+    .change-layout {
+      gap: 28px;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 767px) {
+    .change-layout {
+      grid-template-columns: 1fr;
+    }
+    .change-notes {
+      display: grid;
+      gap: 25px;
+    }
+    article + article {
+      margin: 0;
+    }
+  }
+</style>

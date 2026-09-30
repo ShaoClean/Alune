@@ -1,0 +1,72 @@
+/* UI-Dialogs HTML baseline: 97f51ecebcfceb42cb950cff1a326568827a592ddee2b4542fffeaec3ea34a33.
+   Website adaptation of its board, floating navigation and concentric shells.
+   Design variance 6 / motion intensity 3 / visual density 3. */
+:root {
+  color-scheme: light;
+  --bg: #edf1f9;
+  --surface: #fbfcff;
+  --ink: #111c36;
+  --muted: #56648a;
+  --accent: #415ab0;
+  --accent-on: #fff;
+  --moon-indigo: #6e86e8;
+  --moon-cyan: #8fe3ee;
+  --gradient: linear-gradient(120deg, var(--moon-indigo), var(--moon-cyan));
+  --hair: rgb(35 52 102 / 13%);
+  --shell: rgb(255 255 255 / 44%);
+  --highlight: rgb(255 255 255 / 92%);
+  --nav-bg: rgb(250 252 255 / 82%);
+  --nav-shadow: 0 12px 36px -18px rgb(30 45 95 / 30%);
+  --shadow: 0 1px 2px rgb(30 45 95 / 4%), 0 28px 64px -36px rgb(30 45 95 / 30%);
+  --halo-indigo: rgb(110 134 232 / 22%);
+  --halo-cyan: rgb(143 227 238 / 26%);
+  --radius-shell: 22px;
+  --radius-core: 16px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+  --shell-pad: 6px;
+  --font-sans:
+    'Geist Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'SF Mono', Menlo, monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Layer scale: ordinary content 0, navigation 10, skip link 20. */
+  --z-nav: 10;
+  --z-skip: 20;
+}
+/* System fallback also works when JavaScript is disabled. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0a1120;
+    --surface: #0f1829;
+    --ink: #eef3ff;
+    --muted: #a5b5d8;
+    --accent: #afc6ff;
+    --accent-on: #151e30;
+    --hair: rgb(175 198 255 / 17%);
+    --shell: rgb(175 198 255 / 5%);
+    --highlight: rgb(214 228 255 / 10%);
+    --nav-bg: rgb(16 24 42 / 88%);
+    --nav-shadow: 0 12px 36px -18px rgb(2 6 18 / 72%);
+    --shadow: 0 1px 2px rgb(2 6 18 / 30%), 0 30px 70px -36px rgb(2 6 18 / 72%);
+    --halo-indigo: rgb(110 134 232 / 20%);
+    --halo-cyan: rgb(143 227 238 / 9%);
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0a1120;
+  --surface: #0f1829;
+  --ink: #eef3ff;
+  --muted: #a5b5d8;
+  --accent: #afc6ff;
+  --accent-on: #151e30;
+  --hair: rgb(175 198 255 / 17%);
+  --shell: rgb(175 198 255 / 5%);
+  --highlight: rgb(214 228 255 / 10%);
+  --nav-bg: rgb(16 24 42 / 88%);
+  --nav-shadow: 0 12px 36px -18px rgb(2 6 18 / 72%);
+  --shadow: 0 1px 2px rgb(2 6 18 / 30%), 0 30px 70px -36px rgb(2 6 18 / 72%);
+  --halo-indigo: rgb(110 134 232 / 20%);
+  --halo-cyan: rgb(143 227 238 / 9%);
+}
