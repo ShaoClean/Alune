@@ -257,7 +257,11 @@ function RemotePullRequests({
         items={data?.items || []}
         refreshToken={refreshToken}
         onOpen={setOpened}
-        onBack={() => setOpened(null)}
+        onBack={() => {
+          setOpened(null);
+          setRetry((value) => value + 1);
+        }}
+        onChanged={() => setRetry((value) => value + 1)}
       />
     );
   }
@@ -400,8 +404,8 @@ function RemotePullRequests({
             </p>
             <p>
               {provider === 'github'
-                ? 'GitHub：细粒度令牌需要此仓库的 Pull requests 读取权限；经典令牌需要 repo 权限。组织仓库可能需要 SSO 授权。'
-                : 'GitLab：使用有项目访问权且包含 read_api 或 api 权限的个人、项目或群组访问令牌。'}
+                ? 'GitHub：细粒度令牌需要此仓库的 Pull requests 读写权限（仅查看时可用读取权限）；经典令牌需要 repo 权限。组织仓库可能需要 SSO 授权。'
+                : 'GitLab：使用有项目访问权且包含 read_api（仅查看）或 api（评论及状态操作）权限的个人、项目或群组访问令牌。'}
             </p>
             <form
               className="pull-requests-auth__form"

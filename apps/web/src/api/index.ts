@@ -26,6 +26,9 @@ import type {
   PullRequestDiscussion,
   PullRequestFile,
   PullRequestResourcePage,
+  PullRequestActions,
+  PullRequestMutation,
+  PullRequestMutationResult,
   AccessTokenSettings,
   SaveAccessToken,
   ApplyAccessToken,
@@ -101,6 +104,16 @@ export const repositoryApi = {
   ): Promise<PullRequestResourcePage<PullRequestDiscussion>> =>
     api
       .post(`/repositories/${id}/pull-requests/discussions`, query, { signal })
+      .then((r) => r.data),
+  pullRequestActions: (
+    id: string,
+    query: PullRequestDetailQuery,
+    signal?: AbortSignal,
+  ): Promise<PullRequestActions> =>
+    api.post(`/repositories/${id}/pull-requests/actions`, query, { signal }).then((r) => r.data),
+  mutatePullRequest: (id: string, query: PullRequestMutation): Promise<PullRequestMutationResult> =>
+    api
+      .post(`/repositories/${id}/pull-requests/mutate`, query, { timeout: 90_000 })
       .then((r) => r.data),
   inspectLocal: (
     path: string,

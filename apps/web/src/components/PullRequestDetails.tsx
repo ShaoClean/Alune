@@ -3,6 +3,8 @@ import { Alert, Button, Empty, Select, Spin, Tabs, Tag } from 'antd';
 import { ArrowLeftOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
 import type {
   PullRequestDetailQuery,
+  PullRequestDetail,
+  PullRequestCommentPosition,
   PullRequestDiscussion,
   PullRequestDiscussionKind,
   PullRequestFile,
@@ -13,7 +15,9 @@ import type {
 } from '@alune/shared';
 import { repositoryApi } from '../api';
 import { errorMessage } from './files-tree';
-import { getNumberedDiffLines } from './diff-lines';
+import { pullRequestDiffLines, pullRequestRange } from '@alune/shared';
+import { ReviewActionBar, ReviewCommentComposer, useReviewActions } from './PullRequestActions';
+import type { ReviewActions } from './PullRequestActions';
 import { MarkdownContent } from './ReleaseNotes';
 
 // Match a result to its loader as well as aborting it, so changing identity never paints stale data.
@@ -90,8 +94,18 @@ function LoadState({
   return null;
 }
 
-export function PullRequestPatch({ patch }: { patch: string }) {
-  const lines = useMemo(() => getNumberedDiffLines(patch), [patch]);
+export function PullRequestPatch({
+  patch,
+  selection,
+  onSelect,
+  disabled = false,
+}: {
+  patch: string;
+  selection?: PullRequestCommentPosition;
+  onSelect?: (side: 'LEFT' | 'RIGHT', line: number, extend: boolean) => void;
+  disabled?: boolean;
+}) {
+  const lines = useMemo(() => pullRequestDiffLines(patch), [patch]);
   return (
     <div
       className="pull-request-patch"
@@ -109,9 +123,34 @@ export function PullRequestPatch({ patch }: { patch: string }) {
         </thead>
         <tbody>
           {lines.map((row, index) => (
-            <tr key={index} className={`pull-request-patch__${row.kind}`}>
-              <td className="pull-request-patch__number">{row.oldLine}</td>
-              <td className="pull-request-patch__number">{row.newLine}</td>
+            <tr
+              key={index}
+              className={`pull-request-patch__${row.kind}${selection && (selection.side === 'LEFT' ? row.oldLine : row.newLine)! >= selection.startLine && (selection.side === 'LEFT' ? row.oldLine : row.newLine)! <= selection.endLine ? ' pull-request-patch__selected' : ''}`}
+            >
+              {(['LEFT', 'RIGHT'] as const).map((side) => {
+                const line = side === 'LEFT' ? row.oldLine : row.newLine;
+                return (
+                  <td key={side} className="pull-request-patch__number">
+                    {onSelect && line ? (
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        aria-label={`${side === 'LEFT' ? '旧行' : '新行'} ${line}，点击评论，Shift 点击选择多行`}
+                        aria-pressed={
+                          selection?.side === side &&
+                          line >= selection.startLine &&
+                          line <= selection.endLine
+                        }
+                        onClick={(event) => onSelect(side, line, event.shiftKey)}
+                      >
+                        {line}
+                      </button>
+                    ) : (
+                      line
+                    )}
+                  </td>
+                );
+              })}
               <td>
                 <code>{row.text || ' '}</code>
               </td>
@@ -146,20 +185,58 @@ function Files({
   query,
   notice,
   expectedCount,
+  revision,
+  review,
+  refresh,
+  selected,
+  onFileChange,
 }: {
   repoId: string;
   query: PullRequestDetailQuery;
   notice?: string;
   expectedCount?: number | null;
+  revision?: string;
+  review: ReviewActions;
+  refresh: number;
+  selected: string | null;
+  onFileChange: (path: string) => void;
 }) {
   const load = useCallback(
     (page: number, signal: AbortSignal) =>
-      repositoryApi.pullRequestFiles(repoId, { ...query, page }, signal),
-    [repoId, query],
+      repositoryApi.pullRequestFiles(
+        repoId,
+        { ...query, page, ...(revision ? { revision } : {}) },
+        signal,
+      ),
+    [repoId, query, revision, refresh],
   );
   const resource = usePages(load);
-  const [selected, setSelected] = useState<string | null>(null);
   const file = resource.items.find((item) => item.path === selected) || resource.items[0];
+  const [selectionError, setSelectionError] = useState('');
+  const anchor = useRef<{ path: string; side: 'LEFT' | 'RIGHT'; line: number } | null>(null);
+  const selectLine = (side: 'LEFT' | 'RIGHT', line: number, extend: boolean) => {
+    if (!file?.patch || !revision || review.pending) return;
+    const first = extend ? anchor.current : null;
+    if (first && (first.side !== side || first.path !== file.path)) {
+      setSelectionError('多行评论只能选择同一文件、同一侧的连续行。');
+      return;
+    }
+    const start = first?.line ?? line;
+    const position: PullRequestCommentPosition = {
+      path: file.path,
+      side,
+      startLine: Math.min(start, line),
+      endLine: Math.max(start, line),
+      filePage: Math.floor(resource.items.indexOf(file) / 30) + 1,
+    };
+    if (!pullRequestRange(file.patch, position)) {
+      setSelectionError('选区不能跨越 Diff 区块、缺失行或新增与删除两侧。');
+      return;
+    }
+    if (!extend || !first) anchor.current = { path: file.path, side, line };
+    setSelectionError('');
+    review.select(position, revision);
+  };
   const missing =
     !resource.loading &&
     !resource.error &&
@@ -195,7 +272,7 @@ function Files({
                 type="button"
                 key={item.path}
                 aria-pressed={item.path === file.path}
-                onClick={() => setSelected(item.path)}
+                onClick={() => onFileChange(item.path)}
                 title={item.path}
               >
                 <span>{item.path}</span>
@@ -213,7 +290,38 @@ function Files({
               <p className="pull-request-muted">原路径：{file.previousPath}</p>
             )}
             {file.notice && <Alert type="info" showIcon title={file.notice} />}
-            {file.patch && <PullRequestPatch patch={file.patch} />}
+            {file.patch && (
+              <>
+                <p className="pull-request-muted">
+                  点击新行或旧行的行号评论；按住 Shift 点击另一行选择连续多行。选区须在同一 Diff
+                  区块、同一侧。
+                </p>
+                {selectionError && <Alert type="warning" showIcon title={selectionError} />}
+                <PullRequestPatch
+                  patch={file.patch}
+                  selection={
+                    review.draft.position?.path === file.path ? review.draft.position : undefined
+                  }
+                  onSelect={!file.notice && revision ? selectLine : undefined}
+                  disabled={review.pending || review.loading || !review.actions?.comment.allowed}
+                />
+                {file.notice && (
+                  <p className="pull-request-muted">此 Diff 不完整，暂不支持定位评论。</p>
+                )}
+              </>
+            )}
+            {review.draft.position?.path === file.path && (
+              <ReviewCommentComposer review={review} inline />
+            )}
+            <Discussions
+              key={`file:${file.path}:${refresh}`}
+              repoId={repoId}
+              query={query}
+              kind={query.provider === 'github' ? 'code' : 'comments'}
+              title="此文件的代码讨论"
+              file={file}
+              posted={review.posted}
+            />
           </article>
         </div>
       )}
@@ -289,7 +397,8 @@ export function DiscussionThread({ thread }: { thread: PullRequestDiscussion }) 
                 {note.context.oldPath &&
                   note.context.oldPath !== note.context.path &&
                   `（原路径 ${note.context.oldPath}）`}
-                {note.context.startLine && ` · 起始行 ${note.context.startLine}`}
+                {note.context.startLine &&
+                  ` · 起始${note.context.startSide === 'LEFT' ? '旧' : '新'}行 ${note.context.startLine}`}
                 {note.context.oldLine && ` · 旧行 ${note.context.oldLine}`}
                 {note.context.newLine && ` · 新行 ${note.context.newLine}`}
                 {!note.context.oldLine && !note.context.newLine && ' · 文件级评论或行号不可用'}
@@ -322,9 +431,13 @@ function Discussions({
   query,
   kind,
   title,
+  file,
+  posted = [],
 }: {
   repoId: string;
   query: PullRequestDetailQuery;
+  file?: PullRequestFile;
+  posted?: PullRequestDiscussion[];
   kind: PullRequestDiscussionKind;
   title: string;
 }) {
@@ -334,7 +447,47 @@ function Discussions({
     [repoId, query, kind],
   );
   const resource = usePages(load);
-  const threads = mergeDiscussions(resource.items);
+  const threads = mergeDiscussions([
+    ...resource.items,
+    ...posted.filter((thread) => query.provider === 'gitlab' || thread.id.startsWith(`${kind}:`)),
+  ])
+    .filter(
+      (thread) =>
+        !file ||
+        thread.comments.some(
+          (note) =>
+            note.context?.path === file.path ||
+            (note.context?.oldPath === file.previousPath && !!file.previousPath),
+        ),
+    )
+    .map((thread) =>
+      !file?.patch
+        ? thread
+        : {
+            ...thread,
+            comments: thread.comments.map((note) => {
+              const ctx = note.context;
+              if (!ctx || ctx.patch || ctx.outdated) return note;
+              const side = ctx.newLine ? 'RIGHT' : 'LEFT';
+              const endLine = ctx.newLine || ctx.oldLine || 0;
+              const range = pullRequestRange(file.patch!, {
+                side,
+                startLine: ctx.startLine || endLine,
+                endLine,
+              });
+              if (!range) return note;
+              const first = range[0];
+              return {
+                ...note,
+                context: {
+                  ...ctx,
+                  patch: `@@ -${first.oldLine || 0},${range.filter((r) => r.oldLine).length} +${first.newLine || 0},${range.filter((r) => r.newLine).length} @@\n${range.map((r) => r.text).join('\n')}`,
+                  notice: '当前 Diff 中对应的代码范围。',
+                },
+              };
+            }),
+          },
+    );
   return (
     <section className="pull-request-discussions" aria-label={title}>
       <h3>{title}</h3>
@@ -356,19 +509,33 @@ function DetailContent({
   item,
   tab,
   onTabChange,
+  refresh,
+  onChanged,
 }: {
   repoId: string;
   query: PullRequestDetailQuery;
   item?: PullRequestItem;
   tab: string;
   onTabChange: (tab: string) => void;
+  refresh: number;
+  onChanged: () => void;
 }) {
   const load = useCallback(
     (signal: AbortSignal) => repositoryApi.pullRequestDetail(repoId, query, signal),
-    [repoId, query],
+    [repoId, query, refresh],
   );
   const resource = useResource(load);
-  const detail = resource.data;
+  const review = useReviewActions(repoId, query, refresh, onChanged);
+  const [selectedFile, setSelectedFile] = useState<string | null>(
+    review.draft.position?.path || null,
+  );
+  const [lastDetail, setLastDetail] = useState<PullRequestDetail>();
+  useEffect(() => {
+    if (resource.data) setLastDetail(resource.data);
+  }, [resource.data]);
+  // Identity is keyed by the parent. Preserve loaded file pages across refreshes
+  // of the same revision so a comment on page 2 stays in its file context.
+  const detail = resource.data || lastDetail;
   const summary = detail || item;
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -411,6 +578,7 @@ function DetailContent({
         )}
       </header>
       <LoadState {...resource} />
+      <ReviewActionBar review={review} query={query} />
       <Tabs
         activeKey={tab}
         onChange={onTabChange}
@@ -418,21 +586,40 @@ function DetailContent({
           {
             key: 'overview',
             label: '概览',
-            children: detail && (
-              <div className="release-notes pull-request-markdown pull-request-description">
-                {detail.description.trim() ? (
-                  <MarkdownContent text={detail.description} />
-                ) : (
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无描述" />
+            children: (
+              <>
+                {detail && (
+                  <div className="release-notes pull-request-markdown pull-request-description">
+                    {detail.description.trim() ? (
+                      <MarkdownContent text={detail.description} />
+                    ) : (
+                      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无描述" />
+                    )}
+                  </div>
                 )}
-              </div>
+                <ReviewCommentComposer review={review} />
+                <Discussions
+                  key={`overview:${refresh}`}
+                  posted={review.posted}
+                  repoId={repoId}
+                  query={query}
+                  kind="comments"
+                  title={query.provider === 'github' ? '评论' : '评论与代码讨论'}
+                />
+              </>
             ),
           },
           {
             key: 'files',
             label: `文件变动${detail?.fileCount != null ? ` (${detail.fileCount})` : ''}`,
-            children: (
+            children: detail && (
               <Files
+                key={detail.revision}
+                revision={detail.revision}
+                selected={selectedFile}
+                onFileChange={setSelectedFile}
+                review={review}
+                refresh={refresh}
                 repoId={repoId}
                 query={query}
                 notice={detail?.filesNotice}
@@ -446,6 +633,8 @@ function DetailContent({
             children: (
               <>
                 <Discussions
+                  key={`comments:${refresh}`}
+                  posted={review.posted}
                   repoId={repoId}
                   query={query}
                   kind="comments"
@@ -453,8 +642,21 @@ function DetailContent({
                 />
                 {query.provider === 'github' && (
                   <>
-                    <Discussions repoId={repoId} query={query} kind="reviews" title="Review 记录" />
-                    <Discussions repoId={repoId} query={query} kind="code" title="代码行讨论" />
+                    <Discussions
+                      key={`reviews:${refresh}`}
+                      repoId={repoId}
+                      query={query}
+                      kind="reviews"
+                      title="Review 记录"
+                    />
+                    <Discussions
+                      key={`code:${refresh}`}
+                      posted={review.posted}
+                      repoId={repoId}
+                      query={query}
+                      kind="code"
+                      title="代码行讨论"
+                    />
                   </>
                 )}
               </>
@@ -476,6 +678,7 @@ export function PullRequestDetails({
   refreshToken,
   onOpen,
   onBack,
+  onChanged,
 }: {
   repoId: string;
   remote: PullRequestRemote;
@@ -486,6 +689,7 @@ export function PullRequestDetails({
   refreshToken: number;
   onOpen: (number: number) => void;
   onBack: () => void;
+  onChanged: () => void;
 }) {
   const [refresh, setRefresh] = useState(0);
   const [tab, setTab] = useState('overview');
@@ -528,7 +732,11 @@ export function PullRequestDetails({
         </a>
       </div>
       <DetailContent
-        key={`${refreshToken}:${refresh}`}
+        refresh={refreshToken + refresh}
+        onChanged={() => {
+          setRefresh((value) => value + 1);
+          onChanged();
+        }}
         repoId={repoId}
         query={query}
         item={item}

@@ -361,6 +361,62 @@
 .pull-request-more {
   margin-block: 12px;
 }
+.pull-request-actions {
+  display: grid;
+  gap: 8px;
+  margin-block: 16px;
+}
+.pull-request-actions p {
+  margin: 0;
+}
+.pull-request-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.pull-request-composer {
+  display: grid;
+  gap: 12px;
+  margin-block: 20px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.pull-request-composer h3 {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.pull-request-confirm-target {
+  overflow-wrap: anywhere;
+}
+.pull-request-patch__number button {
+  border: 0;
+  padding: 0 4px;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  text-align: right;
+  cursor: pointer;
+}
+.pull-request-patch__number button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.pull-request-patch__number button:hover:not(:disabled),
+.pull-request-patch__number button:focus-visible {
+  color: var(--blue);
+  outline: 2px solid var(--blue);
+}
+.pull-request-patch__selected {
+  box-shadow: inset 3px 0 var(--blue);
+}
+.pull-request-patch__selected td {
+  background: var(--blue-soft);
+}
 @media (max-width: 760px) {
   .pull-request-detail {
     padding-inline: 12px;

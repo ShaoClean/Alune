@@ -47,6 +47,7 @@ export interface PullRequestDetailQuery extends Omit<PullRequestQuery, 'state' |
 
 export interface PullRequestResourceQuery extends PullRequestDetailQuery {
   page: number;
+  revision?: string;
 }
 
 export type PullRequestDiscussionKind = 'comments' | 'reviews' | 'code';
@@ -59,6 +60,7 @@ export interface PullRequestDetail extends PullRequestItem {
   description: string;
   fileCount: number | null;
   filesNotice?: string;
+  revision?: string;
 }
 
 export interface PullRequestFile {
@@ -77,9 +79,45 @@ export interface PullRequestCodeContext {
   oldLine?: number;
   newLine?: number;
   startLine?: number;
+  startSide?: 'LEFT' | 'RIGHT';
   outdated: boolean;
   patch?: string;
   notice?: string;
+}
+
+export type PullRequestMergeMethod = 'merge' | 'squash' | 'rebase';
+
+export interface PullRequestActions {
+  revision: string;
+  state: PullRequestItem['state'];
+  targetBranch: string;
+  comment: { allowed: boolean; reason?: string };
+  close: { allowed: boolean; reason?: string };
+  merge: { allowed: boolean; reason?: string };
+  mergeMethods: { value: PullRequestMergeMethod; label: string }[];
+}
+
+export interface PullRequestCommentPosition {
+  path: string;
+  side: 'LEFT' | 'RIGHT';
+  startLine: number;
+  endLine: number;
+  filePage: number;
+}
+
+export interface PullRequestMutation extends PullRequestDetailQuery {
+  // Reuse this ID when retrying the same submission.
+  operationId: string;
+  revision: string;
+  action: 'comment' | 'merge' | 'close';
+  body?: string;
+  position?: PullRequestCommentPosition;
+  method?: PullRequestMergeMethod;
+}
+
+export interface PullRequestMutationResult {
+  state?: PullRequestItem['state'];
+  discussion?: PullRequestDiscussion;
 }
 
 export interface PullRequestComment {
