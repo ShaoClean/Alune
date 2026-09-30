@@ -227,7 +227,9 @@ export class WorkspaceFileActions {
               await this.parent(sftp, repo, path);
               await rename(temporary, target);
             } catch {
-              throw fail(`重命名中断且无法恢复原名称，文件保留在 ${temporary}，请核对后恢复。`);
+              throw fail(
+                `重命名中断且无法确认恢复结果。请核对原路径 ${target}、新路径 ${destination} 和临时路径 ${temporary}，确认文件位置后再操作。`,
+              );
             }
             throw error;
           }

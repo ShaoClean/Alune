@@ -209,3 +209,50 @@ test('does not report success when the connection fails after unlink', async (t)
   assert.equal(fs.existsSync(path.join(f.repo, 'tracked.txt')), false);
   assert.equal(f.git('ls-files', '--stage', '-z'), before);
 });
+
+test('reports all possible paths when case-only rename loses its completion acknowledgement', async (t) => {
+  const f = createRepository();
+  t.after(f.close);
+  f.write('case.txt', 'preserve contents');
+  const local = new LocalConnection();
+  let lostAcknowledgement = false;
+  const actions = new WorkspaceFileActions({
+    execGit: local.execGit.bind(local),
+    execCommand: local.execCommand.bind(local),
+    withSftp: (op) =>
+      local.withSftp((sftp) =>
+        op({
+          ...sftp,
+          // Model case-insensitive lookup on every CI host, including Linux.
+          lstat(file, cb) {
+            if (!lostAcknowledgement && path.basename(file) === 'CASE.txt')
+              return sftp.lstat(path.join(path.dirname(file), 'case.txt'), cb);
+            sftp.lstat(file, cb);
+          },
+          rename(source, destination, cb) {
+            sftp.rename(source, destination, (error) => {
+              if (!error && path.basename(destination) === 'CASE.txt') {
+                lostAcknowledgement = true;
+                return cb(new Error('SSH disconnected after rename'));
+              }
+              cb(error);
+            });
+          },
+        }),
+      ),
+  });
+  const preview = await actions.preview(f.repo, 'case.txt');
+  await assert.rejects(
+    actions.mutate(f.repo, 'case.txt', preview.token, 'rename', 'CASE.txt'),
+    (error) => {
+      assert.match(error.message, /无法确认恢复结果/);
+      assert.match(error.message, /原路径 .*case\.txt/);
+      assert.match(error.message, /新路径 .*CASE\.txt/);
+      assert.match(error.message, /临时路径 .*\.alune-rename-/);
+      assert.doesNotMatch(error.message, /文件保留在/);
+      return true;
+    },
+  );
+  assert.equal(fs.readFileSync(path.join(f.repo, 'CASE.txt'), 'utf8'), 'preserve contents');
+  assert.ok(!fs.readdirSync(f.repo).some((name) => name.startsWith('.alune-rename-')));
+});
