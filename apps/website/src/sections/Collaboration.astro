@@ -1,0 +1,101 @@
+---
+import Icon from '../components/Icon.astro';
+import Screenshot from '../components/Screenshot.astro';
+import history from '../assets/screenshots/history.png';
+import { site } from '../data/site';
+---
+
+<section class="section container" id="collaboration" aria-labelledby="collaboration-title">
+  <h2 data-reveal class="section-title" id="collaboration-title">
+    沿着分支，读懂项目的来路。
+  </h2>
+  <p data-reveal data-reveal-delay="70" class="section-lede">
+    浏览已经获取的分支、标签与提交关系。
+    <br />
+    选择一次提交，继续往下看文件和差异。
+  </p>
+  <figure data-reveal class="history-figure">
+    <div class="shell">
+      <div class="core">
+        <Screenshot
+          image={history}
+          alt="提交历史视图：上方显示本地分支、远程跟踪分支与标签的提交图，下方展示选中提交的文件和 Diff"
+        />
+      </div>
+    </div>
+    <figcaption class="caption">
+      提交图随滚动继续加载，选择提交后在下方检查差异。截图基于 v0.5.0。
+    </figcaption>
+  </figure>
+  <div class="collaboration-details">
+    <article data-reveal>
+      <Icon name="branch" />
+      <div>
+        <h3>分支与 Worktree，各就其位</h3>
+        <p>
+          创建、切换、合并分支，拉取或推送更新。本地仓库可创建和删除 Worktree；SSH
+          仓库支持发现与打开已有 Worktree。
+        </p>
+      </div>
+    </article>
+    <article data-reveal>
+      <Icon name="layers" />
+      <div>
+        <h3>PR 与 MR，在工作区里阅读</h3>
+        <p>
+          查看 GitHub PR、GitLab MR 的详情、文件 Diff、评论和代码讨论。支持 HTTPS 自建
+          GitLab，私有仓库可配置访问令牌。
+        </p>
+      </div>
+    </article>
+  </div>
+  <a class="text-link" href={site.workspace}>
+    查看分支与协作说明 <Icon name="arrow" />
+  </a>
+</section>
+<style>
+  .history-figure {
+    max-width: 1100px;
+    margin: 42px auto 38px;
+  }
+  .collaboration-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    border-top: 1px solid var(--hair);
+    padding-top: 32px;
+  }
+  article {
+    display: flex;
+    gap: 18px;
+  }
+  article > :global(.icon) {
+    color: var(--accent);
+    font-size: 27px;
+  }
+  h3 {
+    font-size: 20px;
+    font-weight: 550;
+    margin-bottom: 13px;
+  }
+  article p {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 480px;
+  }
+  .text-link {
+    margin: 24px 0 0 51px;
+  }
+  @media (max-width: 767px) {
+    .collaboration-details {
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+    h3 {
+      font-size: 18px;
+    }
+    .history-figure {
+      margin-top: 30px;
+    }
+  }
+</style>
