@@ -1,6 +1,6 @@
 import { FeedbackNotice } from '../Feedback';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Input, Modal, Switch, Tag } from 'antd';
+import { Alert, Button, Input, Modal, Switch, Tag, Select } from 'antd';
 import {
   ApiOutlined,
   CloudServerOutlined,
@@ -223,7 +223,7 @@ export function ProxySettings() {
   const testsDisabled = busy || dirty || outdated || !saved?.enabled;
   const server = servers.find((item) => item.id === connectionId);
   return (
-    <div className="settings-page-content proxy-settings">
+    <div className="settings-page-content settings-page-content--wide proxy-settings">
       <div className="settings-section-heading">
         <h1>网络代理</h1>
         {saved && (
@@ -285,19 +285,20 @@ export function ProxySettings() {
                   <p className="settings-field-hint">
                     关闭代理保留已填写的内容和认证信息，保存后生效。
                   </p>
-                  <label className="settings-field">
+                  <label htmlFor="proxy-protocol" className="settings-field">
                     代理类型
-                    <select
+                    <Select
+                      id="proxy-protocol"
                       aria-label="代理类型"
+                      disabled={busy}
                       value={draft.protocol}
-                      onChange={(event) =>
-                        change({ protocol: event.target.value as SaveNetworkProxy['protocol'] })
-                      }
-                    >
-                      <option value="http">HTTP</option>
-                      <option value="https">HTTPS</option>
-                      <option value="socks5">SOCKS5</option>
-                    </select>
+                      onChange={(protocol) => change({ protocol })}
+                      options={[
+                        { value: 'http', label: 'HTTP' },
+                        { value: 'https', label: 'HTTPS' },
+                        { value: 'socks5', label: 'SOCKS5' },
+                      ]}
+                    />
                   </label>
                   <div className="settings-form-row proxy-address">
                     <label className="settings-field">
@@ -458,24 +459,21 @@ export function ProxySettings() {
                   {results.http?.success === false ? '重试 HTTP' : '测试 HTTP'}
                 </Button>
                 {result('http')}
-                <label className="settings-field proxy-test-target">
+                <label htmlFor="proxy-server" className="settings-field proxy-test-target">
                   SSH 服务器
-                  <select
+                  <Select
+                    id="proxy-server"
                     aria-label="测试 SSH 服务器"
-                    value={connectionId}
-                    onChange={(event) => {
+                    value={connectionId || undefined}
+                    allowClear
+                    placeholder="选择服务器"
+                    onChange={(value) => {
                       invalidate();
-                      setConnectionId(event.target.value);
+                      setConnectionId(value || '');
                       setRepositoryId('');
                     }}
-                  >
-                    <option value="">选择服务器</option>
-                    {servers.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={servers.map((item) => ({ value: item.id, label: item.name }))}
+                  />
                 </label>
                 <Button
                   disabled={testsDisabled || !connectionId}
@@ -485,25 +483,22 @@ export function ProxySettings() {
                   {results.ssh?.success === false ? '重试 SSH' : '测试 SSH'}
                 </Button>
                 {result('ssh')}
-                <label className="settings-field proxy-test-target">
+                <label htmlFor="proxy-repository" className="settings-field proxy-test-target">
                   远端 Git 仓库
-                  <select
+                  <Select
+                    id="proxy-repository"
                     aria-label="测试远端 Git 仓库"
-                    value={repositoryId}
-                    onChange={(event) => {
+                    value={repositoryId || undefined}
+                    allowClear
+                    placeholder="选择已打开的仓库或 Worktree"
+                    onChange={(value) => {
                       invalidate();
-                      setRepositoryId(event.target.value);
+                      setRepositoryId(value || '');
                     }}
-                  >
-                    <option value="">选择已打开的仓库或 Worktree</option>
-                    {repositories
+                    options={repositories
                       .filter((repo) => repo.connectionId === connectionId)
-                      .map((repo) => (
-                        <option key={repo.id} value={repo.id}>
-                          {repo.name} · {repo.path}
-                        </option>
-                      ))}
-                  </select>
+                      .map((repo) => ({ value: repo.id, label: `${repo.name} · ${repo.path}` }))}
+                  />
                 </label>
                 <Button
                   disabled={testsDisabled || !repositoryId || server?.pendingReconnect}

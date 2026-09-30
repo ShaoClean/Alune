@@ -140,11 +140,13 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
   };
 
   return (
-    <div className="settings-page-content access-token-settings">
+    <div className="settings-page-content settings-page-content--wide access-token-settings">
       <div className="token-page-heading">
         <div>
           <h1>访问令牌</h1>
-          <p className="settings-lead">给令牌起个名字，在仓库的 PR/MR 页面按名称选择。</p>
+          <p className="settings-lead">
+            给令牌起个名字，在仓库的 PR/MR 页面按名称选择。令牌仅用于明确关联的仓库远端。
+          </p>
         </div>
         <Button
           type="primary"

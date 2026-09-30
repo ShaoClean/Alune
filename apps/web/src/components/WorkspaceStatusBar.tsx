@@ -3,7 +3,6 @@ import { Popover } from 'antd';
 import { LaptopOutlined, BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
 import type { Repository } from '@alune/shared';
 import { useNavigate } from 'react-router-dom';
-import { useRepositoryStore } from '../stores/repositoryStore';
 import { useConnectionStore } from '../stores/connectionStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { RepositorySwitcher } from './RepositorySwitcher';
@@ -65,10 +64,7 @@ export function WorkspaceStatusBar({
           connections={connections}
           statuses={statuses}
           version={version}
-          onSelect={(id) => {
-            useRepositoryStore.getState().activateRepositoryTab(id);
-            navigate(`/repositories/${id}`);
-          }}
+          onSelect={(id) => navigate(`/repositories/${id}`)}
           onBrowse={() => navigate('/repositories')}
           onConnections={() => navigate('/connections')}
           onSettings={onSettings}

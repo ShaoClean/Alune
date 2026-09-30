@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { settingsFixture } from './fixtures/settings-api.mjs';
 
 // Browser acceptance only: all Git writes change memory, never SSH or a real repository.
 const root = path.resolve(process.argv[2] || fileURLToPath(new URL('../dist/', import.meta.url)));
@@ -141,6 +142,7 @@ const json = (response, body, code = 200) =>
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, 'http://localhost');
   const pathname = url.pathname;
+  if (process.env.ALUNE_SETTINGS_FIXTURE && await settingsFixture(request, response, pathname)) return;
   if (pathname === '/__fixture/actions') return json(response, actions);
   if (pathname === '/__fixture/reset' && request.method === 'POST') {
     reset();

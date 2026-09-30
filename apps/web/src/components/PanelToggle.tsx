@@ -4,10 +4,18 @@ interface Props {
   controls: string;
   onClick: () => void;
   disabled?: boolean;
+  panelName?: string;
 }
 
-export function PanelToggle({ side, expanded, controls, onClick, disabled = false }: Props) {
-  const label = `${expanded ? '隐藏' : '显示'}${side === 'left' ? '左侧工作区' : '右侧面板'}`;
+export function PanelToggle({
+  side,
+  expanded,
+  controls,
+  onClick,
+  disabled = false,
+  panelName,
+}: Props) {
+  const label = `${expanded ? '隐藏' : '显示'}${panelName || (side === 'left' ? '左侧工作区' : '右侧面板')}`;
   return (
     <button
       type="button"

@@ -4,6 +4,7 @@ import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Input, App, notification } from 'antd';
 import {
   ApartmentOutlined,
+  ArrowLeftOutlined,
   FolderOpenOutlined,
   PlusOutlined,
   SearchOutlined,
@@ -17,7 +18,7 @@ import { WorkspaceTree } from './WorkspaceTree';
 import { useWorkspaceStorageStatus } from '../stores/workspaceStorage';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 import { PanelResizeHandle } from './PanelResizeHandle';
-import { SettingsCenter } from './settings/SettingsCenter';
+import { SettingsCenter, SettingsNavigation, getSettingsCategory } from './settings/SettingsCenter';
 import { PanelToggle } from './PanelToggle';
 import { SIDEBAR_MIN } from '../stores/workspaceLayout';
 import { WorkspaceStatusBar } from './WorkspaceStatusBar';
@@ -52,24 +53,56 @@ export function Layout() {
     !returnTo.startsWith('/settings')
       ? returnTo
       : lastWorkspacePath.current;
+  const settingsCategory = getSettingsCategory(location.pathname);
+  const focusSettingsBack = useCallback(() => {
+    Array.from(document.querySelectorAll<HTMLButtonElement>('.settings-back'))
+      .find((button) => button.getClientRects().length && !button.closest('[inert]'))
+      ?.focus();
+  }, []);
   const openSettings = useCallback(
-    (category = 'providers') => {
-      navigate(`/settings/${category}`, { state: { returnTo: lastWorkspacePath.current } });
+    (category?: string) => {
+      if (isSettings && (!category || category === settingsCategory.id)) {
+        focusSettingsBack();
+        return;
+      }
+      navigate(`/settings/${category || 'providers'}`, { state: { returnTo: workspacePath } });
     },
-    [navigate],
+    [navigate, isSettings, settingsCategory.id, workspacePath, focusSettingsBack],
   );
+  const selectSettings = (id: string) => {
+    if (id === settingsCategory.id) setMobileNavOpen(false);
+    else
+      navigate(`/settings/${id}`, {
+        replace: true,
+        state: { ...location.state, returnTo: workspacePath },
+      });
+  };
   useEffect(() => {
+    if (isSettings) {
+      focusSettingsBack();
+      return;
+    }
     if (
       !isSettings &&
       workspaceFocus.current?.isConnected &&
       workspaceFocus.current.getClientRects().length
     ) {
-      workspaceFocus.current.focus();
-    }
-  }, [isSettings]);
+      workspaceFocus.current.focus({ preventScroll: true });
+    } else if (!isSettings)
+      document
+        .querySelector<HTMLElement>('.repository-tab--active button, .sidebar-nav-item--active')
+        ?.focus({ preventScroll: true });
+  }, [isSettings, focusSettingsBack]);
   const { layout, updateLayout, compact, sidebarWidth, sidebarMax } = useWorkspaceLayout();
   const collapsed = !compact && layout.sidebarCollapsed;
   const sidebarRef = useRef<HTMLElement>(null);
+  const shellFocus = useRef<HTMLElement | null>(null);
+  const workspaceSidebar = useRef<HTMLDivElement>(null);
+  const sidebarScroll = useRef(0);
+  useLayoutEffect(() => {
+    if (!isSettings && workspaceSidebar.current)
+      workspaceSidebar.current.scrollTop = sidebarScroll.current;
+  }, [isSettings]);
   const storageError = useWorkspaceStorageStatus((state) => state.error);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const sidebarVisible = compact ? mobileNavOpen : !collapsed;
@@ -126,29 +159,38 @@ export function Layout() {
     if (!compact) setMobileNavOpen(false);
   }, [compact]);
 
-  useEffect(() => {
-    // Expanding moves the toggle from the tab bar into the sidebar header.
+  useLayoutEffect(() => {
+    // Focus follows controls when their visible copy moves between the sidebar and tab bar.
+    const previous = shellFocus.current;
     if (
+      isSettings &&
+      previous?.matches('.settings-back') &&
+      (!previous.isConnected || !previous.getClientRects().length)
+    ) {
+      focusSettingsBack();
+    } else if (
       sidebarVisible &&
       !compact &&
-      workspaceFocus.current?.matches('.panel-toggle[aria-controls="workspace-sidebar"]') &&
-      !workspaceFocus.current.isConnected
-    )
+      previous?.matches('.panel-toggle[aria-controls="workspace-sidebar"]') &&
+      !previous.isConnected
+    ) {
       sidebarRef.current
         ?.querySelector<HTMLButtonElement>('[aria-controls="workspace-sidebar"]')
         ?.focus();
-    if (!sidebarVisible && sidebarRef.current?.contains(document.activeElement))
+    } else if (!sidebarVisible && sidebarRef.current?.contains(previous)) {
       document
         .querySelector<HTMLButtonElement>('.app-tabbar [aria-controls="workspace-sidebar"]')
         ?.focus();
+    }
     if (
+      !isSettings &&
       layout.changesCollapsed &&
       document.querySelector('#workspace-list')?.contains(document.activeElement)
     )
       document
         .querySelector<HTMLButtonElement>('.app-tabbar [aria-controls="workspace-list"]')
         ?.focus();
-  }, [sidebarVisible, compact, layout.changesCollapsed]);
+  }, [sidebarVisible, compact, layout.changesCollapsed, isSettings, focusSettingsBack]);
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -158,11 +200,11 @@ export function Layout() {
         openSettings();
         return;
       }
-      if (isSettings) return;
       if (event.key.toLowerCase() === 'b' || event.key === '\\') {
         event.preventDefault();
         if (event.shiftKey) {
-          if (rightPanelAvailable) updateLayout({ changesCollapsed: !layout.changesCollapsed });
+          if (!isSettings && rightPanelAvailable)
+            updateLayout({ changesCollapsed: !layout.changesCollapsed });
         } else if (compact) setMobileNavOpen((open) => !open);
         else updateLayout({ sidebarCollapsed: !layout.sidebarCollapsed });
       }
@@ -181,7 +223,9 @@ export function Layout() {
 
   useEffect(() => {
     if (!compact || !mobileNavOpen) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previous = document.querySelector<HTMLButtonElement>(
+      '.app-tabbar [aria-controls="workspace-sidebar"]',
+    );
     const sidebar = sidebarRef.current;
     const focusable = () =>
       Array.from(
@@ -227,9 +271,12 @@ export function Layout() {
       navigate(activeId ? `/repositories/${activeId}` : '/repositories', { replace: true });
     }
   }, [activeRepositoryId, listLoaded, repositories, navigate]);
+  const workspaceRepositoryId = isSettings
+    ? workspacePath.match(/^\/repositories\/([^/?#]+)/)?.[1]
+    : activeRepositoryId;
   const activeRepository =
-    openRepositories.find((repo: any) => repo.id === activeRepositoryId) ||
-    (currentRepo?.id === activeRepositoryId ? currentRepo : null);
+    openRepositories.find((repo: any) => repo.id === workspaceRepositoryId) ||
+    (currentRepo?.id === workspaceRepositoryId ? currentRepo : null);
 
   const handleOpenRepository = (repo: any) => {
     openRepository(repo);
@@ -273,26 +320,20 @@ export function Layout() {
   return (
     <>
       {notificationContext}
-      {isSettings && (
-        <FeedbackScope id={location.pathname} label="设置">
-          <SettingsCenter returnTo={workspacePath} updates={updates} />
-        </FeedbackScope>
-      )}
       <FeedbackNotice
         source="workspace-storage"
         title={storageError ? '无法保存外观与工作区设置' : null}
         description={storageError || undefined}
       />
       <div
-        className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}${mobileNavOpen ? ' app-shell--mobile-open' : ''}`}
+        className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}${mobileNavOpen ? ' app-shell--mobile-open' : ''}${isSettings ? ' app-shell--settings' : ''}`}
         style={
           {
             '--sidebar-width': `${sidebarWidth}px`,
-            display: isSettings ? 'none' : undefined,
           } as CSSProperties
         }
-        inert={isSettings}
         onFocusCapture={(event) => {
+          if (event.target instanceof HTMLElement) shellFocus.current = event.target;
           if (!isSettings && event.target instanceof HTMLElement)
             workspaceFocus.current = event.target;
         }}
@@ -302,6 +343,7 @@ export function Layout() {
             <div className="app-tabbar__leading">
               <PanelToggle
                 side="left"
+                panelName={isSettings ? '设置分类' : undefined}
                 expanded={sidebarVisible}
                 controls="workspace-sidebar"
                 onClick={() =>
@@ -310,9 +352,23 @@ export function Layout() {
                     : updateLayout({ sidebarCollapsed: !collapsed })
                 }
               />
+              {isSettings && (
+                <Button
+                  className="settings-back"
+                  type="text"
+                  icon={<ArrowLeftOutlined />}
+                  aria-label="返回工作区"
+                  title="返回工作区"
+                  onClick={() => navigate(workspacePath)}
+                />
+              )}
             </div>
           )}
-          {selectedKey === '/repositories' && openRepositories.length > 0 ? (
+          {isSettings ? (
+            <span className="app-tabbar__title">
+              设置 <span aria-hidden="true">/</span> <strong>{settingsCategory.name}</strong>
+            </span>
+          ) : selectedKey === '/repositories' && openRepositories.length > 0 ? (
             <RepositoryTabs
               repositories={openRepositories}
               activeId={activeRepository?.id}
@@ -330,7 +386,7 @@ export function Layout() {
               {selectedKey === '/connections' ? '连接' : '仓库'}
             </span>
           )}
-          {activeRepositoryId && (
+          {!isSettings && activeRepositoryId && (
             <PanelToggle
               side="right"
               expanded={rightPanelAvailable && !layout.changesCollapsed}
@@ -344,24 +400,37 @@ export function Layout() {
           ref={sidebarRef}
           id="workspace-sidebar"
           className="app-sidebar"
-          aria-label="主导航"
+          aria-label={isSettings ? '设置导航' : '主导航'}
           role={compact && mobileNavOpen ? 'dialog' : undefined}
           aria-modal={compact && mobileNavOpen ? true : undefined}
           inert={!sidebarVisible}
         >
           <div className="app-sidebar__header">
-            <strong>工作区</strong>
+            <strong>{isSettings ? '设置' : '工作区'}</strong>
             <div className="app-sidebar__header-actions">
-              <Button
-                type="text"
-                size="small"
-                icon={<PlusOutlined />}
-                aria-label="打开本地仓库"
-                title="打开本地仓库"
-                onClick={() => navigate('/repositories?open=local')}
-              />
+              {isSettings ? (
+                <Button
+                  className="settings-back"
+                  type="text"
+                  size="small"
+                  icon={<ArrowLeftOutlined />}
+                  aria-label="返回工作区"
+                  title="返回工作区"
+                  onClick={() => navigate(workspacePath)}
+                />
+              ) : (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<PlusOutlined />}
+                  aria-label="打开本地仓库"
+                  title="打开本地仓库"
+                  onClick={() => navigate('/repositories?open=local')}
+                />
+              )}
               <PanelToggle
                 side="left"
+                panelName={isSettings ? '设置分类' : undefined}
                 expanded
                 controls="workspace-sidebar"
                 onClick={() =>
@@ -370,7 +439,20 @@ export function Layout() {
               />
             </div>
           </div>
-          <div className="app-sidebar__content">
+          {isSettings && (
+            <div className="app-sidebar__content">
+              <SettingsNavigation category={settingsCategory} onSelect={selectSettings} />
+            </div>
+          )}
+          <div
+            className="app-sidebar__content"
+            ref={workspaceSidebar}
+            hidden={isSettings}
+            inert={isSettings}
+            onScroll={(event) => {
+              if (!isSettings) sidebarScroll.current = event.currentTarget.scrollTop;
+            }}
+          >
             <Input
               className="sidebar-search"
               aria-label="查找仓库"
@@ -418,7 +500,7 @@ export function Layout() {
         {!compact && !collapsed && (
           <PanelResizeHandle
             className="sidebar-resize-handle"
-            label="调整工作区宽度"
+            label={isSettings ? '调整设置分类宽度' : '调整工作区宽度'}
             controls="workspace-sidebar"
             value={sidebarWidth}
             min={SIDEBAR_MIN}
@@ -431,21 +513,26 @@ export function Layout() {
           <button
             type="button"
             className="sidebar-backdrop"
-            aria-label="关闭导航"
+            aria-label={isSettings ? '关闭设置分类' : '关闭导航'}
             onClick={() => setMobileNavOpen(false)}
           />
         )}
 
-        {activeRepositoryId && (
+        {workspaceRepositoryId && (
           <div
             ref={setRepositoryToolbarSlot}
             className="repository-toolbar-row"
+            hidden={isSettings}
             inert={compact && mobileNavOpen}
           />
         )}
 
         <main className="app-main" inert={compact && mobileNavOpen}>
-          <div className={`app-content${activeRepositoryId ? ' app-content--workspace' : ''}`}>
+          <div
+            className={`app-content${workspaceRepositoryId ? ' app-content--workspace' : ''}`}
+            hidden={isSettings}
+            inert={isSettings}
+          >
             <FeedbackScope
               id={workspacePath}
               label={activeRepository?.name || currentRepo?.name || '仓库'}
@@ -454,6 +541,16 @@ export function Layout() {
               {workspaceOutlet.current}
             </FeedbackScope>
           </div>
+          {isSettings && (
+            <FeedbackScope id={location.pathname} label="设置">
+              <SettingsCenter
+                returnTo={workspacePath}
+                updates={updates}
+                category={settingsCategory}
+                onSelect={selectSettings}
+              />
+            </FeedbackScope>
+          )}
         </main>
         <WorkspaceStatusBar
           repository={activeRepository}

@@ -151,9 +151,9 @@ module.exports = async ({ window, origin, token, restore }) => {
     await execute("document.querySelector('button.repository-switcher').click()");
     await waitFor("document.querySelector('.repository-switcher-panel') !== null");
     await execute("Array.from(document.querySelectorAll('.repository-switcher-panel button')).find(button => button.querySelector('strong')?.textContent === '设置').click()");
-    await waitFor("document.querySelector('.settings-navigation') !== null");
+    await waitFor("document.querySelector('.settings-category-nav') !== null");
     await execute(
-      "Array.from(document.querySelectorAll('.settings-navigation button')).find(button => button.textContent === '布局').click()",
+      "Array.from(document.querySelectorAll('.settings-category-nav button')).find(button => button.textContent === '布局').click()",
     );
     await waitFor('document.querySelector(\'input[aria-label="右侧面板宽度"]\') !== null');
     await execute(`(() => {
@@ -163,7 +163,7 @@ module.exports = async ({ window, origin, token, restore }) => {
     })()`);
     await waitFor("document.querySelector('input[aria-label=\"右侧面板宽度\"]').value === '430'");
     await execute(
-      `Array.from(document.querySelectorAll('.settings-header button')).find(button => button.textContent.replaceAll(' ', '') === '返回工作区').click()`,
+      `Array.from(document.querySelectorAll('.settings-back')).find(button => button.getClientRects().length && !button.closest('[inert]')).click()`,
     );
     await execute(`document.querySelector('[aria-label="隐藏左侧工作区"]').click()`);
     await waitFor("document.querySelector('.app-shell--collapsed') !== null");

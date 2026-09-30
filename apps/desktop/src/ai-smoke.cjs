@@ -94,7 +94,7 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
       await execute(`window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))`);
       window.setSize(390, 844);
       await wait(
-        `document.querySelector('select[aria-label="设置分类"]')?.getClientRects().length && document.querySelector('.provider-list__item')`,
+        `document.querySelector('.app-tabbar [aria-label="显示设置分类"]')?.getClientRects().length && document.querySelector('.provider-list__item')`,
       );
       assert.equal(await execute('document.documentElement.scrollWidth <= innerWidth'), true);
       await execute(
@@ -115,7 +115,7 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
         `Array.from(document.querySelectorAll('.provider-mobile-back')).find(button => button.getClientRects().length).click()`,
       );
       await wait(`document.querySelector('.provider-list')?.getClientRects().length > 0`);
-      await execute(`document.querySelector('.settings-header button').click()`);
+      await execute(`Array.from(document.querySelectorAll('.settings-back')).find(button => button.getClientRects().length && !button.closest('[inert]')).click()`);
       console.log(
         'Desktop narrow settings passed: 390 px provider list/detail, masked key and return to workspace.',
       );

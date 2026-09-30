@@ -1,6 +1,6 @@
 import { FeedbackNotice } from '../Feedback';
 import { useRef, useState } from 'react';
-import { Button, Input, InputNumber } from 'antd';
+import { Button, Input, InputNumber, Select } from 'antd';
 import { useAppearance } from '../../appearance';
 import { BUILTIN_CODE_THEMES, MAX_THEME_BYTES } from '../../code-themes';
 import {
@@ -98,32 +98,37 @@ export function CodeAppearanceSettings() {
         actionLabel="知道了"
         onAction={dismissCodeAppearanceNotice}
       />
-      <label className="settings-field">
+      <label htmlFor="code-theme" className="settings-field">
         代码主题
-        <select
+        <Select
+          id="code-theme"
+          aria-label="代码主题"
           aria-describedby="code-theme-mode-hint"
           value={theme.id}
-          onChange={(event) => selectCodeTheme(mode, event.target.value)}
-        >
-          <optgroup label="内置主题">
-            {BUILTIN_CODE_THEMES.map((item) => (
-              <option key={item.id} value={item.id} disabled={item.mode !== mode}>
-                {item.name} · {item.mode === 'dark' ? '深色' : '浅色'}
-                {item.mode !== mode ? '（与当前外观不匹配）' : ''}
-              </option>
-            ))}
-          </optgroup>
-          {preferences.customThemes.length > 0 && (
-            <optgroup label="已安装主题">
-              {preferences.customThemes.map((item) => (
-                <option key={item.id} value={item.id} disabled={item.mode !== mode}>
-                  {item.name} · {item.mode === 'dark' ? '深色' : '浅色'}
-                  {item.mode !== mode ? '（与当前外观不匹配）' : ''}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
+          onChange={(value) => selectCodeTheme(mode, value)}
+          options={[
+            {
+              label: '内置主题',
+              options: BUILTIN_CODE_THEMES.map((item) => ({
+                value: item.id,
+                disabled: item.mode !== mode,
+                label: `${item.name} · ${item.mode === 'dark' ? '深色' : '浅色'}${item.mode !== mode ? '（与当前外观不匹配）' : ''}`,
+              })),
+            },
+            ...(preferences.customThemes.length
+              ? [
+                  {
+                    label: '已安装主题',
+                    options: preferences.customThemes.map((item) => ({
+                      value: item.id,
+                      disabled: item.mode !== mode,
+                      label: `${item.name} · ${item.mode === 'dark' ? '深色' : '浅色'}${item.mode !== mode ? '（与当前外观不匹配）' : ''}`,
+                    })),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </label>
       <p id="code-theme-mode-hint" className="settings-field-hint">
         当前 Alune 为{modeLabel}外观，仅可选择{modeLabel}代码主题。浅色与深色分别记住上次选择。
@@ -177,19 +182,18 @@ export function CodeAppearanceSettings() {
       <div className="code-appearance-preview">
         <div className="code-appearance-preview__header">
           <span>代码预览 · {theme.name}</span>
-          <label>
+          <label htmlFor="code-example-language">
             示例语言{' '}
-            <select
+            <Select
+              id="code-example-language"
               aria-label="示例语言"
               value={example}
-              onChange={(event) => setExample(event.target.value as keyof typeof examples)}
-            >
-              {Object.entries(examples).map(([path, item]) => (
-                <option key={path} value={path}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setExample(value)}
+              options={Object.entries(examples).map(([path, item]) => ({
+                value: path,
+                label: item.label,
+              }))}
+            />
           </label>
         </div>
         <CodeView
