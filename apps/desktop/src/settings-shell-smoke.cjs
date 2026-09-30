@@ -26,6 +26,13 @@ module.exports = async ({ window, origin, repositoryId }) => {
     execute(
       `Array.from(document.querySelectorAll(${JSON.stringify(selector)})).find(node => node.getClientRects().length && !node.closest('[inert]')).click()`,
     );
+  const backToWorkspace = async () => {
+    await click('.settings-back');
+    // The router updates the URL before React restores the workspace DOM and scroll.
+    await wait(
+      `!location.pathname.startsWith('/settings') && !document.querySelector('.settings-main') && document.querySelector('.app-main > .app-content:not([hidden])')?.getClientRects().length > 0`,
+    );
+  };
   const fill = (selector, value) =>
     execute(`(() => {
     const input = document.querySelector(${JSON.stringify(selector)});
@@ -111,14 +118,13 @@ module.exports = async ({ window, origin, repositoryId }) => {
     );
     await shortcut('b');
     await wait("document.querySelector('.app-shell--collapsed') !== null");
-    await click('.settings-back');
-    await wait("!location.pathname.startsWith('/settings')");
+    await backToWorkspace();
     assert.equal(await execute('location.pathname'), `/repositories/${repositoryId}`);
     assert.equal(
       await execute('document.querySelector(\'[aria-label="提交摘要"]\').value'),
       'settings draft retained',
     );
-    assert.equal(await execute("document.activeElement?.getAttribute('aria-label')"), '提交摘要');
+    await wait("document.activeElement?.getAttribute('aria-label') === '提交摘要'");
     assert.equal(
       await execute(
         "window.settingsWorkspaceNode === document.querySelector('.workspace-body') && window.settingsSidebarNode === document.querySelector('.sidebar-workspace')",
@@ -138,8 +144,7 @@ module.exports = async ({ window, origin, repositoryId }) => {
     await shortcut('b');
     await wait("!document.querySelector('.app-shell--collapsed')");
     // A nonzero scroll offset must survive even when focus returns above the viewport.
-    await click('.settings-back');
-    await wait("!location.pathname.startsWith('/settings')");
+    await backToWorkspace();
     window.setMinimumSize(0, 0);
     window.setContentSize(1440, 240);
     await wait('innerHeight === 240');
@@ -155,8 +160,7 @@ module.exports = async ({ window, origin, repositoryId }) => {
     assert.ok(nonzeroScroll > 0, 'exercise a genuinely scrolled sidebar');
     await shortcut(',');
     await wait("document.querySelector('.settings-main') !== null");
-    await click('.settings-back');
-    await wait("!location.pathname.startsWith('/settings')");
+    await backToWorkspace();
     assert.equal(
       await execute("document.querySelector('.app-sidebar__content').scrollTop"),
       nonzeroScroll,
@@ -253,8 +257,8 @@ module.exports = async ({ window, origin, repositoryId }) => {
       await wait("document.querySelector('.app-shell') !== null");
       await shortcut(',');
       await wait("document.querySelector('.settings-main') !== null");
-      await click('.settings-back');
-      await wait(`location.pathname === '${path}'`);
+      await backToWorkspace();
+      assert.equal(await execute('location.pathname'), path);
     }
     await window.loadURL(origin + '/settings/unknown');
     await wait("document.querySelector('.app-tabbar__title strong')?.textContent === 'AI 服务商'");
