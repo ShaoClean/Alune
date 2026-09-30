@@ -7,6 +7,7 @@ import {
   rmSync,
   existsSync,
   realpathSync,
+  readdirSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -23,7 +24,9 @@ describe('workspace file HTTP actions', () => {
   const git = (...args: string[]) =>
     execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' });
   beforeEach(async () => {
-    root = realpathSync(mkdtempSync(join(tmpdir(), 'alune-workspace-http-')));
+    root = realpathSync.native(
+      mkdtempSync(join(tmpdir(), 'alune-workspace-http-')),
+    );
     git('init', '-q');
     writeFileSync(join(root, '中文 文件.txt'), 'staged');
     git('add', '.');
@@ -92,6 +95,21 @@ describe('workspace file HTTP actions', () => {
       .expect(201);
     expect(existsSync(join(root, 'new.txt'))).toBe(false);
     expect(git('ls-files', '--stage', '-z')).toBe(index);
+  });
+  it('renames case only according to the native filesystem', async () => {
+    const { body } = await preview();
+    await request(app.getHttpServer())
+      .post(`/repositories/${id}/workspace-file`)
+      .send({
+        path: body.path,
+        token: body.token,
+        action: 'rename',
+        name: '中文 文件.TXT',
+      })
+      .expect(201);
+    expect(readdirSync(root)).toContain('中文 文件.TXT');
+    expect(readdirSync(root)).not.toContain('中文 文件.txt');
+    expect(git('show', ':中文 文件.txt')).toBe('staged');
   });
   it('validates payload, scope and UUID before any write', async () => {
     for (const body of [
