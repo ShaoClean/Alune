@@ -379,6 +379,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           onSelectFile={handleSelectFile}
           selectedFile={selectedFile}
           onFileChanged={(path) => {
+            setFilesRefresh((value) => value + 1);
             if (selectedFile?.path === path) {
               setSelectedFile(null);
               clearDiff();
@@ -388,7 +389,19 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         />
       );
     if (activePanel === 'files')
-      return <FilesView key={id} repoId={id} refreshToken={filesRefresh} />;
+      return (
+        <FilesView
+          key={id}
+          repoId={id}
+          refreshToken={filesRefresh}
+          onFileChanged={(path) => {
+            if (selectedFile?.path === path) {
+              setSelectedFile(null);
+              clearDiff();
+            }
+          }}
+        />
+      );
     if (activePanel === 'pull-requests')
       return <PullRequestsView key={id} repoId={id} refreshToken={pullRequestsRefresh} />;
     if (activePanel === 'history') return <HistoryWorkspace repoId={id} />;

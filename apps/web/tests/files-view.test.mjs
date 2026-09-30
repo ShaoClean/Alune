@@ -254,10 +254,10 @@ test('文件夹图标区分展开、嵌套仓库和链接', () => {
   assert.match(src({ variant: 'link' }), /\/folder-link\.svg$/);
 });
 
-test('未选择文件时提示选择，且说明浏览只读', () => {
+test('未选择文件时提示预览和右键文件操作', () => {
   const html = renderPreview({ entry: null, file: null });
   assert.match(html, /选择文件以预览/);
-  assert.match(html, /只读/);
+  assert.match(html, /右键文件可重命名、删除或复制路径/);
 });
 
 test('文本预览显示路径、行号、语言、编码和大小，不依赖 language- 类名', () => {
@@ -458,11 +458,11 @@ test('超大文本关闭语法高亮并提示原因', () => {
   assert.doesNotMatch(plain, /已关闭语法高亮/);
 });
 
-test('文件视图首屏显示只读标识、目录加载状态和可调整的树宽度', () => {
+test('文件视图首屏显示文件操作入口、目录加载状态和可调整的树宽度', () => {
   const html = renderToStaticMarkup(createElement(FilesView, { repoId: 'fixture' }));
   assert.match(html, /aria-label="仓库文件"/);
   assert.match(html, /工作区文件/);
-  assert.match(html, /只读/);
+  assert.match(html, /右键文件可重命名、删除或复制路径/);
   assert.match(html, /正在读取目录/);
   assert.match(html, /aria-label="调整文件树宽度"/);
   assert.match(html, /style="width:280px"/);

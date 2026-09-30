@@ -5,6 +5,7 @@ import type {
   DiffImageContent,
   DiffImageOptions,
   NewFileDeletionPreview,
+  WorkspaceFilePreview,
   DiscardChangesPreview,
   DiscardChangesResult,
   DiscardChangesScope,
@@ -211,6 +212,18 @@ export const gitApi = {
     api
       .post(`/repositories/${id}/worktrees/remove`, { path, confirmed: true }, gitTimeout)
       .then((r) => r.data),
+  previewWorkspaceFile: (id: string, path: string): Promise<WorkspaceFilePreview> =>
+    api.post(`/repositories/${id}/workspace-file/preview`, { path }).then((res) => res.data),
+  mutateWorkspaceFile: (
+    id: string,
+    path: string,
+    token: string,
+    action: 'delete' | 'rename',
+    name?: string,
+  ): Promise<{ success: true; newPath?: string }> =>
+    api
+      .post(`/repositories/${id}/workspace-file`, { path, token, action, name })
+      .then((res) => res.data),
   previewNewFileDeletion: (id: string, path: string): Promise<NewFileDeletionPreview> =>
     api
       .post(`/repositories/${id}/delete-new-file/preview`, { path }, { timeout: 60000 })

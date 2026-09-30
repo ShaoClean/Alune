@@ -173,6 +173,17 @@ export class GitController {
     return this.gitService.checkout(id, body.files);
   }
 
+  @Post(':id/workspace-file/preview')
+  previewWorkspaceFile(@Param('id', ParseUUIDPipe) id: string, @Body() body: { path: string }) {
+    return this.gitService.previewWorkspaceFile(id, body?.path);
+  }
+
+  @Post(':id/workspace-file')
+  mutateWorkspaceFile(@Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { path: string; token: string; action: 'delete' | 'rename'; name?: string }) {
+    return this.gitService.mutateWorkspaceFile(id, body?.path, body?.token, body?.action, body?.name);
+  }
+
   @Post(':id/delete-new-file/preview')
   async previewNewFileDeletion(
     @Param('id', ParseUUIDPipe) id: string,
