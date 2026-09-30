@@ -2119,3 +2119,11 @@
   padding-inline: 6px;
   gap: 6px;
 }
+
+/* Settings share the shell; retained workspace regions must not participate in layout or focus. */
+.app-shell [hidden] {
+  display: none !important;
+}
+.app-shell--settings .app-tabbar__title strong {
+  color: var(--text);
+}

@@ -93,8 +93,8 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   assert.equal(window.webContents.getURL(), originalUrl);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.replace(/\\s/g, '') === '下载更新').click()`);
   await waitForUI(window, `document.body.innerText.includes('正在下载安装包')`);
-  await window.webContents.executeJavaScript(`document.querySelector('.settings-header button').click()`);
-  await waitForUI(window, `document.querySelector('.app-shell')?.getClientRects().length > 0`);
+  await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.settings-back')).find(button => button.getClientRects().length && !button.closest('[inert]')).click()`);
+  await waitForUI(window, `!location.pathname.startsWith('/settings') && document.querySelector('.app-main > .app-content:not([hidden])')?.getClientRects().length > 0`);
   assert.ok(['downloading', 'downloaded'].includes(updates.getState().status));
   await openUpdateSettings(window);
   // Refresh while downloading: the main process owns the operation and snapshot.
@@ -183,9 +183,12 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
 async function openUpdateSettings(window) {
   const current = await window.webContents.executeJavaScript("location.pathname");
   if (current !== '/settings/updates') {
+    const collapsed = await window.webContents.executeJavaScript("document.querySelector('.app-shell--collapsed') !== null");
     await window.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))`);
-    await waitForUI(window, `document.querySelector('.settings-navigation')`);
-    await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.settings-navigation button')).find(button => button.textContent === '版本更新').click()`);
+    await waitForUI(window, `document.querySelector('.settings-category-nav')`);
+    await window.webContents.executeJavaScript(`document.querySelector('.app-tabbar [aria-label="显示设置分类"]')?.click()`);
+    await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.settings-category-nav button')).find(button => button.textContent === '版本更新').click()`);
+    if (collapsed) await window.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true }))`);
   }
   await waitForUI(window, `document.querySelector('[data-testid="update-panel"]')`);
 }

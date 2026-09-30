@@ -1,6 +1,6 @@
 import { FeedbackNotice } from '../Feedback';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Input, Modal, Switch, Tag } from 'antd';
+import { Alert, Button, Input, Modal, Switch, Tag, Select } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -54,6 +54,9 @@ export function ProviderSettings({ settings }: { settings: AiSettings }) {
   const select = (id: string) => {
     setSelected(id);
     setMobileDetail(true);
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLElement>('.provider-detail h1')?.focus(),
+    );
   };
   return (
     <div className={`provider-settings${mobileDetail ? ' provider-settings--detail' : ''}`}>
@@ -97,6 +100,7 @@ export function ProviderSettings({ settings }: { settings: AiSettings }) {
           <Button block icon={<PlusOutlined />} onClick={() => select('new')}>
             自定义服务商
           </Button>
+          <p className="settings-field-hint">设置应用于此设备的所有仓库</p>
         </div>
       </section>
       <div className="provider-detail">
@@ -169,7 +173,6 @@ function ProviderForm({
     }
   }, [provider?.id, settings.revision]);
   useEffect(() => {
-    detailTitle.current?.focus();
     return () => active.current?.abort();
   }, []);
 
@@ -330,22 +333,20 @@ function ProviderForm({
                   onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                 />
               </label>
-              <label className="settings-field">
+              <label htmlFor="provider-protocol" className="settings-field">
                 接口协议
-                <select
+                <Select
+                  id="provider-protocol"
                   aria-label="接口协议"
+                  disabled={Boolean(busy)}
                   value={draft.protocol}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      protocol: event.target.value as SaveAiProvider['protocol'],
-                    })
-                  }
-                >
-                  <option value="openai">OpenAI（兼容接口）</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="gemini">Gemini</option>
-                </select>
+                  onChange={(protocol) => setDraft({ ...draft, protocol })}
+                  options={[
+                    { value: 'openai', label: 'OpenAI（兼容接口）' },
+                    { value: 'anthropic', label: 'Anthropic' },
+                    { value: 'gemini', label: 'Gemini' },
+                  ]}
+                />
               </label>
             </>
           )}
@@ -407,25 +408,25 @@ function ProviderForm({
           {!settings.secretStorage.available && (
             <Alert type="info" showIcon title={settings.secretStorage.description} />
           )}
-          <label className="settings-field">
+          <label htmlFor="provider-test-model" className="settings-field">
             测试模型
-            <select
+            <Select
+              id="provider-test-model"
               aria-label="测试模型"
               value={testModelId}
               disabled={!provider || dirty || Boolean(busy)}
-              onChange={(event) => {
-                setTestModelId(event.target.value);
+              onChange={(value) => {
+                setTestModelId(value);
                 setNotice(null);
               }}
-            >
-              <option value="">仅测试模型列表接口</option>
-              {provider?.models.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.name === model.id ? model.id : `${model.name} (${model.id})`}
-                  {!model.enabled && ' · 未启用'}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '仅测试模型列表接口' },
+                ...(provider?.models || []).map((model) => ({
+                  value: model.id,
+                  label: `${model.name === model.id ? model.id : `${model.name} (${model.id})`}${!model.enabled ? ' · 未启用' : ''}`,
+                })),
+              ]}
+            />
           </label>
           <p className="settings-field-hint">
             选择已保存的模型进行测试，未启用的模型也可测试。此选择不更改默认提交模型。

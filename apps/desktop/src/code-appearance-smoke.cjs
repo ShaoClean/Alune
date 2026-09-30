@@ -10,11 +10,19 @@ module.exports = async ({ window, origin, restore }) => {
       setTimeout(poll, 30);
     }; poll();
   })`);
-  const select = (selector, value) =>
-    execute(`(() => {
-    const input = document.querySelector(${JSON.stringify(selector)});
-    input.value = ${JSON.stringify(value)}; input.dispatchEvent(new Event('change', { bubbles: true }));
-  })()`);
+  const select = async (label) => {
+    await execute(
+      `document.querySelector('#code-theme').closest('.ant-select').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))`,
+    );
+    await wait(
+      "Array.from(document.querySelectorAll('.ant-select-item-option')).some(option => option.title === " +
+        JSON.stringify(label) +
+        ')',
+    );
+    await execute(
+      `Array.from(document.querySelectorAll('.ant-select-item-option')).find(option => option.title === ${JSON.stringify(label)}).click()`,
+    );
+  };
   const active = () => execute(`document.querySelector('.files-code').dataset.codeTheme`);
   await window.loadURL(`${origin}/settings/appearance`);
   await wait("document.querySelector('.files-code .token.keyword') !== null");
@@ -37,15 +45,22 @@ module.exports = async ({ window, origin, restore }) => {
     );
     return;
   }
-  const selector = 'select[aria-describedby="code-theme-mode-hint"]';
   assert.equal(await active(), 'catppuccin-mocha');
+  await execute(
+    `document.querySelector('#code-theme').closest('.ant-select').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))`,
+  );
+  await wait("document.querySelector('.ant-select-item-option-disabled') !== null");
   assert.equal(
     await execute(
-      `document.querySelector('${selector} option[value="catppuccin-latte"]').disabled`,
+      `Array.from(document.querySelectorAll('.ant-select-item-option-disabled')).some(option => option.textContent.includes('Latte'))`,
     ),
     true,
   );
-  await select(selector, 'catppuccin-frappe');
+  await execute(
+    `document.querySelector('#code-theme').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }))`,
+  );
+  await select('Catppuccin Frappé · 深色');
+  await wait("document.querySelector('.files-code').dataset.codeTheme === 'catppuccin-frappe'");
   assert.equal(await active(), 'catppuccin-frappe');
   await execute(`document.querySelector('input[value=light]').click()`);
   await wait("document.querySelector('.files-code').dataset.codeTheme === 'catppuccin-latte'");
@@ -66,7 +81,7 @@ module.exports = async ({ window, origin, restore }) => {
   assert.equal(await active(), 'catppuccin-frappe', 'install does not activate a theme');
   const installed = JSON.parse(await execute('window.aluneWorkspace.load()')).state.codeAppearance
     .customThemes[0];
-  await select(selector, installed.id);
+  await select('Desktop Fixture · 深色');
   await wait(
     "getComputedStyle(document.querySelector('.token.keyword')).color === 'rgb(170, 187, 204)'",
   );

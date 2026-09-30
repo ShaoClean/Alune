@@ -28,7 +28,9 @@ try {
   );
   await writeFile(
     path.join(appPath, 'smoke.cjs'),
-    "module.exports = Object.assign(require('./code-files-smoke.cjs'), require('./smoke-original.cjs'));\n",
+    // Fail visibly instead of leaving Electron's native exception dialog waiting for input.
+    "process.on('uncaughtException', error => { console.error(error); require('electron').app.exit(1); });\n" +
+      "module.exports = Object.assign(require('./code-files-smoke.cjs'), require('./smoke-original.cjs'));\n",
   );
   const env = {
     ...process.env,
@@ -37,7 +39,10 @@ try {
   };
   delete env.ELECTRON_RUN_AS_NODE;
   const child = spawn(require('electron'), [appPath, '--smoke-test'], { env, stdio: 'inherit' });
-  const timer = setTimeout(() => child.kill('SIGKILL'), 60_000);
+  const timer = setTimeout(() => {
+    console.error('Code appearance desktop acceptance exceeded 60 seconds (local and SSH).');
+    child.kill('SIGKILL');
+  }, 60_000);
   try {
     const code = await new Promise((resolve, reject) => {
       child.once('error', reject);

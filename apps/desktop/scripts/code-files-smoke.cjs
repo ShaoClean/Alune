@@ -41,7 +41,16 @@ module.exports = async ({ window, origin, token }) => {
     await execute("document.querySelector('input[value=dark]').click()");
     await wait("document.querySelector('.files-code')?.dataset.codeTheme === 'catppuccin-mocha'");
     await execute(
-      `(() => { const input = document.querySelector('select[aria-describedby="code-theme-mode-hint"]'); input.value='catppuccin-macchiato'; input.dispatchEvent(new Event('change',{bubbles:true})); })()`,
+      `document.querySelector('#code-theme').closest('.ant-select').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))`,
+    );
+    await wait(
+      "Array.from(document.querySelectorAll('.ant-select-item-option')).some(option => option.title === 'Catppuccin Macchiato · 深色')",
+    );
+    await execute(
+      `Array.from(document.querySelectorAll('.ant-select-item-option')).find(option => option.title === 'Catppuccin Macchiato · 深色').click()`,
+    );
+    await wait(
+      "document.querySelector('.files-code')?.dataset.codeTheme === 'catppuccin-macchiato'",
     );
     await execute("document.querySelector('input[value=system]').click()");
     await wait("document.querySelector('.files-code')?.dataset.codeTheme === 'catppuccin-latte'");
@@ -87,6 +96,8 @@ module.exports = async ({ window, origin, token }) => {
         input.dispatchEvent(new Event('input', { bubbles: true }));
       })()`);
       await execute('history.back()');
+      // Settings deliberately retain the file DOM; wait for the route before interacting.
+      await wait(`location.pathname === ${JSON.stringify('/repositories/' + repo.id)}`);
       await wait(
         "document.querySelector('.files-code')?.getAttribute('aria-label') === 'example.ts 的内容'",
       );
@@ -124,6 +135,9 @@ module.exports = async ({ window, origin, token }) => {
         `Code appearance passed for ${repo.source}: TypeScript/Python/JSON, unknown/large fallbacks, OS mode changes, per-mode theme, aligned gutters, selection and scroll preservation.`,
       );
     }
+  } catch (error) {
+    console.error(await execute(`({ path: location.pathname, text: document.body.innerText })`));
+    throw error;
   } finally {
     nativeTheme.themeSource = 'system';
   }

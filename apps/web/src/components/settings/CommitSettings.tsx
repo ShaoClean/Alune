@@ -1,6 +1,6 @@
 import { FeedbackNotice } from '../Feedback';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Input } from 'antd';
+import { Alert, Button, Input, Select } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import type { AiSettings, CommitGenerationPreferences } from '@alune/shared';
 import { aiApi, aiError } from '../../api/ai';
@@ -43,7 +43,7 @@ export function CommitSettings({
   return (
     <div className="settings-page-content">
       <h1>提交生成</h1>
-      <p className="settings-lead">让每次提交清楚地说明这次改动。</p>
+      <p className="settings-lead">让每次提交清楚地说明这次改动。设置应用于此设备的所有仓库。</p>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -68,37 +68,31 @@ export function CommitSettings({
             />
           )}
           <div className="settings-form-row">
-            <label className="settings-field">
+            <label htmlFor="commit-provider" className="settings-field">
               服务商
-              <select
+              <Select
+                id="commit-provider"
                 aria-label="默认服务商"
-                value={draft.providerId || ''}
-                onChange={(event) =>
-                  change({ providerId: event.target.value || null, modelId: null })
-                }
-              >
-                <option value="">选择服务商</option>
-                {providers.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                disabled={busy}
+                value={draft.providerId || undefined}
+                options={providers.map((p) => ({ value: p.id, label: p.name }))}
+                onChange={(value) => change({ providerId: value || null, modelId: null })}
+                allowClear
+                placeholder="选择服务商"
+              />
             </label>
-            <label className="settings-field">
+            <label htmlFor="commit-model" className="settings-field">
               模型
-              <select
+              <Select
+                id="commit-model"
                 aria-label="默认模型"
-                value={draft.modelId || ''}
-                onChange={(event) => change({ modelId: event.target.value || null })}
-              >
-                <option value="">选择模型</option>
-                {models.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} · {m.id}
-                  </option>
-                ))}
-              </select>
+                disabled={busy}
+                value={draft.modelId || undefined}
+                options={models.map((m) => ({ value: m.id, label: `${m.name} · ${m.id}` }))}
+                onChange={(value) => change({ modelId: value || null })}
+                allowClear
+                placeholder="选择模型"
+              />
             </label>
           </div>
           <p className="settings-field-hint">
@@ -109,33 +103,33 @@ export function CommitSettings({
           </p>
           <h2 className="settings-subheading">生成偏好</h2>
           <div className="settings-form-row">
-            <label className="settings-field">
+            <label htmlFor="commit-language" className="settings-field">
               输出语言
-              <select
+              <Select
+                id="commit-language"
                 aria-label="输出语言"
+                disabled={busy}
                 value={draft.language}
-                onChange={(event) =>
-                  change({
-                    language: event.target.value as CommitGenerationPreferences['language'],
-                  })
-                }
-              >
-                <option value="zh-CN">简体中文</option>
-                <option value="en">English</option>
-              </select>
+                options={[
+                  { value: 'zh-CN', label: '简体中文' },
+                  { value: 'en', label: 'English' },
+                ]}
+                onChange={(language) => change({ language })}
+              />
             </label>
-            <label className="settings-field">
+            <label htmlFor="commit-format" className="settings-field">
               提交格式
-              <select
+              <Select
+                id="commit-format"
                 aria-label="提交格式"
+                disabled={busy}
                 value={draft.format}
-                onChange={(event) =>
-                  change({ format: event.target.value as CommitGenerationPreferences['format'] })
-                }
-              >
-                <option value="conventional">Conventional Commits</option>
-                <option value="natural">自然语言</option>
-              </select>
+                options={[
+                  { value: 'conventional', label: 'Conventional Commits' },
+                  { value: 'natural', label: '自然语言' },
+                ]}
+                onChange={(format) => change({ format })}
+              />
             </label>
           </div>
           <label className="settings-field">
