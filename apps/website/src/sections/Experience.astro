@@ -6,16 +6,16 @@ import { site } from '../data/site';
 ---
 
 <section class="section container" id="experience" aria-labelledby="experience-title">
-  <h2 class="section-title" id="experience-title">
+  <h2 data-reveal class="section-title" id="experience-title">
     让工作区，贴合你的习惯。
   </h2>
-  <p class="section-lede">
+  <p data-reveal data-reveal-delay="70" class="section-lede">
     多标签整理项目，调整面板留出空间。
     <br />
     从外观到代码阅读，让常用操作更顺手。
   </p>
   <div class="experience-grid">
-    <article class="reading shell">
+    <article data-reveal class="reading shell">
       <div class="core">
         <div class="reading-copy">
           <h3>阅读，有自己的配色</h3>
@@ -35,7 +35,7 @@ import { site } from '../data/site';
       </div>
     </article>
     <div class="experience-side">
-      <article class="shortcuts">
+      <article data-reveal class="shortcuts">
         <h3>常用操作，触手可及</h3>
         <dl>
           <div>
@@ -59,7 +59,7 @@ import { site } from '../data/site';
         </dl>
         <p>拖动标签重新排序，按需要隐藏或调宽面板。</p>
       </article>
-      <article class="network">
+      <article data-reveal class="network">
         <h3>连接，也有合适的设置</h3>
         <p>支持 HTTP、HTTPS 与 SOCKS5 代理，可用于 AI 请求、版本更新、SSH 连接及远端 Git 同步。</p>
         <a class="text-link" href={site.proxy}>

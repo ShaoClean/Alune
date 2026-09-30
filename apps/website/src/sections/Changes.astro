@@ -9,18 +9,18 @@ import { site } from '../data/site';
 
 <section class="section changes" id="changes" aria-labelledby="changes-title">
   <div class="container">
-    <h2 class="section-title" id="changes-title">
+    <h2 data-reveal class="section-title" id="changes-title">
       看清每一处改动，
       <br />
       再落下一次提交。
     </h2>
-    <p class="section-lede">
+    <p data-reveal data-reveal-delay="70" class="section-lede">
       从阅读文件到检查差异，再到暂存和提交。
       <br />
       让一次修改的上下文，留在眼前。
     </p>
     <div class="change-layout">
-      <div class="gallery">
+      <div data-reveal class="gallery">
         <div class="gallery-tabs" role="tablist" aria-label="功能截图" hidden>
           <button
             type="button"
@@ -70,15 +70,15 @@ import { site } from '../data/site';
         </div>
       </div>
       <div class="change-notes">
-        <article>
+        <article data-reveal>
           <h3>对照着看，更清楚</h3>
           <p>统一或分栏文本 Diff，也能查看 PNG、JPEG、GIF、WebP 图片的前后变化。</p>
         </article>
-        <article>
+        <article data-reveal>
           <h3>只提交准备好的部分</h3>
           <p>暂存所需文件，填写摘要与描述。同一文件已暂存的内容和后续修改分别展示。</p>
         </article>
-        <article class="ai-note">
+        <article data-reveal class="ai-note">
           <Icon name="sparkles" />
           <h3>让 AI 帮你起草</h3>
           <p>可选配置模型服务，根据已暂存改动生成可编辑的提交信息。</p>
@@ -92,12 +92,14 @@ import { site } from '../data/site';
   </div>
 </section>
 <script>
+  import { reveal } from '../scripts/motion';
   const tabs = Array.from(
     document.querySelectorAll<HTMLButtonElement>('.gallery-tabs [role="tab"]'),
   );
   const activate = (index: number, focus = true) => {
     tabs.forEach((tab, i) => {
       const active = i === index;
+      const changed = tab.getAttribute('aria-selected') !== String(active);
       tab.setAttribute('aria-selected', String(active));
       tab.tabIndex = active ? 0 : -1;
       const panel = document.getElementById(tab.getAttribute('aria-controls')!);
@@ -106,6 +108,7 @@ import { site } from '../data/site';
         panel.setAttribute('role', 'tabpanel');
         panel.setAttribute('aria-labelledby', tab.id);
         panel.tabIndex = 0;
+        if (active && changed && focus) reveal(panel, { duration: 320, distance: 10 });
       }
     });
     if (focus) tabs[index]?.focus();

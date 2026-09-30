@@ -1,22 +1,109 @@
-/* Small transitions acknowledge interaction. Content never waits for an animation. */
+/* Entry motion establishes reading order; scroll reveals follow the feature story.
+   Only opacity and transforms animate. Content is visible in its resting state. */
+@keyframes moonrise {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes workspace-arrive {
+  from {
+    opacity: 0;
+    translate: 32px 20px;
+    scale: 0.97;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+@keyframes moonlight-arrive {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
   }
+  .hero-copy > * {
+    animation: moonrise 850ms var(--ease) backwards;
+  }
+  .hero-copy > :nth-child(2) {
+    animation-delay: 90ms;
+  }
+  .hero-copy > :nth-child(3) {
+    animation-delay: 180ms;
+  }
+  .hero-copy > :nth-child(4) {
+    animation-delay: 270ms;
+  }
+  .hero-visual > .shell {
+    animation: workspace-arrive 1100ms var(--ease) 180ms backwards;
+  }
+  .hero-visual > .caption {
+    animation: moonrise 700ms var(--ease) 450ms backwards;
+  }
+  .hero::before {
+    animation: moonlight-arrive 1400ms ease-out backwards;
+  }
+  .hero-copy:focus-within > *,
+  .nav-links.is-open:focus-within {
+    animation: none;
+  }
   .button,
   .nav-download {
     transition:
-      transform 180ms var(--ease),
-      box-shadow 180ms var(--ease);
+      transform 260ms var(--ease),
+      box-shadow 260ms var(--ease);
   }
   .button:hover,
   .nav-download:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     box-shadow: var(--nav-shadow);
   }
   .button:active,
   .nav-download:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(0) scale(0.97);
+  }
+  .text-link .icon,
+  .button .orb {
+    transition: transform 260ms var(--ease);
+  }
+  .text-link:hover .icon {
+    transform: translate(2px, -2px);
+  }
+  .button:hover .orb {
+    transform: translateX(3px);
+  }
+  .platform,
+  .reading {
+    transition: transform 350ms var(--ease);
+  }
+  .gallery-tabs button {
+    transition: transform 200ms var(--ease);
+  }
+  .gallery-tabs button:active {
+    transform: scale(0.96);
+  }
+  .nav-links.is-open {
+    animation: moonrise 280ms var(--ease) backwards;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .platform:hover,
+    .reading:hover {
+      transform: translateY(-5px);
+    }
   }
 }
 @media (prefers-reduced-motion: reduce) {

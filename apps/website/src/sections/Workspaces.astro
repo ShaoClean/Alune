@@ -6,7 +6,7 @@ import { site } from '../data/site';
 ---
 
 <section class="section container" id="workspaces" aria-labelledby="workspaces-title">
-  <div class="intro">
+  <div data-reveal class="intro">
     <h2 class="section-title" id="workspaces-title">
       仓库在哪里，
       <br />
@@ -19,7 +19,7 @@ import { site } from '../data/site';
     </p>
   </div>
   <div class="workspace-grid">
-    <figure>
+    <figure data-reveal>
       <div class="shell">
         <div class="core">
           <Screenshot
@@ -34,14 +34,14 @@ import { site } from '../data/site';
       </figcaption>
     </figure>
     <div class="workspace-details">
-      <article>
+      <article data-reveal>
         <span class="feature-icon">
           <Icon name="device" />
         </span>
         <h3>本地，打开即开始</h3>
         <p>选择本机目录或输入完整路径。首次提交、无远程仓库、浅克隆，都可以打开。</p>
       </article>
-      <article>
+      <article data-reveal>
         <span class="feature-icon">
           <Icon name="server" />
         </span>

@@ -6,15 +6,15 @@ import { site } from '../data/site';
 ---
 
 <section class="section container" id="collaboration" aria-labelledby="collaboration-title">
-  <h2 class="section-title" id="collaboration-title">
+  <h2 data-reveal class="section-title" id="collaboration-title">
     沿着分支，读懂项目的来路。
   </h2>
-  <p class="section-lede">
+  <p data-reveal data-reveal-delay="70" class="section-lede">
     浏览已经获取的分支、标签与提交关系。
     <br />
     选择一次提交，继续往下看文件和差异。
   </p>
-  <figure class="history-figure">
+  <figure data-reveal class="history-figure">
     <div class="shell">
       <div class="core">
         <Screenshot
@@ -28,7 +28,7 @@ import { site } from '../data/site';
     </figcaption>
   </figure>
   <div class="collaboration-details">
-    <article>
+    <article data-reveal>
       <Icon name="branch" />
       <div>
         <h3>分支与 Worktree，各就其位</h3>
@@ -38,7 +38,7 @@ import { site } from '../data/site';
         </p>
       </div>
     </article>
-    <article>
+    <article data-reveal>
       <Icon name="layers" />
       <div>
         <h3>PR 与 MR，在工作区里阅读</h3>

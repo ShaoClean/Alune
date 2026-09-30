@@ -5,7 +5,7 @@ import { site, platforms } from '../data/site';
 
 <section class="section download" id="download" aria-labelledby="download-title">
   <div class="container">
-    <div class="download-intro">
+    <div data-reveal class="download-intro">
       <img
         src={`${import.meta.env.BASE_URL}brand.png`}
         width="72"
@@ -23,8 +23,8 @@ import { site, platforms } from '../data/site';
       </p>
     </div>
     <div class="platforms">
-      {platforms.map((platform) => (
-        <article class="platform shell">
+      {platforms.map((platform, index) => (
+        <article data-reveal data-reveal-delay={index * 70} class="platform shell">
           <div class="core">
             <div class="platform-title">
               <Icon name={platform.icon} />

@@ -24,7 +24,8 @@ npm run website:preview
 - `src/sections/`：首屏、工作区、改动、协作、体验和下载的文案及布局。
 - `src/data/site.ts`：导航、文档与公共链接、平台安装包命名。
 - `src/styles/tokens.css`：月光主题、字体、同心圆角、外壳及阴影。组件样式与组件一起维护。
-- `src/styles/motion.css`：悬停／按压反馈；遵循系统减少动态效果。页面没有自动循环动画。
+- `src/styles/motion.css`：首屏文案分步入场、工作区截图与背景光晕显现、卡片悬停和按钮／链接反馈。
+- `src/scripts/motion.ts`：通过 IntersectionObserver 和 Web Animations API 实现区块首次滚动显现、下载卡片错峰入场与截图切换过渡；不引入动画库或逐帧滚动监听。默认增加展示动效，系统启用减少动态效果时跳过动画，并立即取消正在播放的过渡。内容默认可见，禁用 JS 或动画 API 不可用时仍可阅读。
 - 主题默认跟随系统，可手动选择浅色、深色并在本机保存。`?theme=light` / `?theme=dark` 可用于预览；手动切换后移除预览参数。
 - 无 JavaScript 时，内容、下载、导航、系统主题仍可用，两张改动区截图按顺序展示。
 - Geist / Geist Mono 字体通过 Fontsource 构建并自托管，中文使用系统字体回退；图标来自 Tabler Icons（MIT）。随站点发布的许可文本位于 `public/third-party-licenses.txt`。
@@ -74,6 +75,6 @@ node apps/website/scripts/generate-brand.mjs
 
 ## 验收与未完成范围
 
-桌面／移动端、深浅主题、导航与截图切换键盘交互、系统主题变化、存储不可用、无 JS 和减少动态效果应随 UI 修改复核。更新截图后检查尺寸、加载与布局稳定性；发布前复核所有外链及最新稳定版的安装包。
+UI 修改后应复核首屏入场、滚动显现、截图切换和交互反馈，以及系统减少动态效果的即时回退。同步检查桌面／移动端布局、深浅主题、键盘操作、系统主题变化、存储不可用和无 JS 场景。更新截图后检查尺寸、加载与布局稳定性；发布前复核所有外链及最新稳定版的安装包。
 
 设计及验收证据统一维护到 [Wiki](https://github.com/ShaoClean/Alune/wiki)，关联 [#94](https://github.com/ShaoClean/Alune/issues/94)。全身角色确认、素材使用权核对、首次公开部署与仓库 Homepage 设置完成前，不能将整个 Issue 标记为已完成。
