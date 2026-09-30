@@ -4,7 +4,13 @@ const path = require('node:path');
 
 module.exports = async ({ window, origin, token, restore }) => {
   const fixturePath = path.join(process.env.ALUNE_SMOKE_DIR, 'sidebar-smoke.json');
-  const execute = (script) => window.webContents.executeJavaScript(script);
+  const execute = async (script) => {
+    try {
+      return await window.webContents.executeJavaScript(script);
+    } catch (error) {
+      throw new Error(`Sidebar smoke failed while executing: ${script}`, { cause: error });
+    }
+  };
   const waitFor = (expression) =>
     execute(`new Promise((resolve, reject) => {
     const start = Date.now();
@@ -164,6 +170,10 @@ module.exports = async ({ window, origin, token, restore }) => {
     await waitFor("document.querySelector('input[aria-label=\"右侧面板宽度\"]').value === '430'");
     await execute(
       `Array.from(document.querySelectorAll('.settings-back')).find(button => button.getClientRects().length && !button.closest('[inert]')).click()`,
+    );
+    // Returning from settings restores the workspace controls on the next React render.
+    await waitFor(
+      `location.pathname === '/repositories' && document.querySelector('[aria-label="隐藏左侧工作区"]') !== null`,
     );
     await execute(`document.querySelector('[aria-label="隐藏左侧工作区"]').click()`);
     await waitFor("document.querySelector('.app-shell--collapsed') !== null");
