@@ -26,7 +26,7 @@ import { readRepositorySession, removeSessionRepositories } from './repositorySe
 import type { RepositorySession } from './repositorySession';
 
 type RepositoryIdentity = { id: string; connectionId?: string; source?: 'local' | 'ssh' };
-export type CollectionView = 'grid' | 'list';
+export type CollectionView = 'grid' | 'list' | 'overview';
 export type CollectionPage = 'repositories' | 'connections';
 type Preferences = {
   repositorySession: RepositorySession;
@@ -100,7 +100,12 @@ function readPreferences(value: unknown): Preferences & { codeAppearanceNotice: 
   return {
     repositorySession: readRepositorySession(saved.repositorySession),
     collectionViews: {
-      repositories: views.repositories === 'list' ? 'list' : 'grid',
+      repositories:
+        views.repositories === 'overview'
+          ? 'overview'
+          : views.repositories === 'list'
+            ? 'list'
+            : 'grid',
       connections: views.connections === 'list' ? 'list' : 'grid',
     },
     appearance: readAppearancePreferences(saved.appearance),
@@ -210,7 +215,12 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           codeAppearanceNotice: null,
         })),
       setCollectionView: (page, view) =>
-        set((state) => ({ collectionViews: { ...state.collectionViews, [page]: view } })),
+        set((state) => ({
+          collectionViews: {
+            ...state.collectionViews,
+            [page]: page === 'connections' && view === 'overview' ? 'grid' : view,
+          },
+        })),
       updateAppearance: (patch) =>
         set((state) => ({
           appearance: readAppearancePreferences({ ...state.appearance, ...patch }),

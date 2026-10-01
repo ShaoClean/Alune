@@ -23,6 +23,7 @@ import { EmptyState, ErrorState, formatBranchName, LoadingState } from '../compo
 
 import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicator';
 import { CollectionViewSwitch } from '../components/CollectionViewSwitch';
+import { RepositoryOverview } from '../components/RepositoryOverview';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { AluneModal, DialogHints, Kbd } from '../components/AluneModal';
 import { DialogIcon } from '../components/DialogIcons';
@@ -39,6 +40,7 @@ export function RepositoriesPage() {
   const localOpen = searchParams.get('open') === 'local';
   const showLocal = () => setSearchParams({ open: 'local' });
   const [sort, setSort] = useState('name');
+  const [overviewRevision, setOverviewRevision] = useState(0);
   const { connections, fetchConnections } = useConnectionStore();
   const view = useWorkspaceStore((state) => state.collectionViews.repositories);
   const {
@@ -86,6 +88,7 @@ export function RepositoriesPage() {
   const selectedConnection = connections.find((connection: any) => connection.id === connectionId);
 
   const refresh = () => {
+    setOverviewRevision((value) => value + 1);
     void fetchRepositories();
     void refreshRepositoryStatuses();
   };
@@ -192,7 +195,7 @@ export function RepositoriesPage() {
   };
 
   return (
-    <div>
+    <div className="repositories-page">
       <div className="page-heading">
         <div>
           <h2>仓库</h2>
@@ -229,6 +232,7 @@ export function RepositoriesPage() {
         <div className="content-card__header collection-filter-bar">
           <Space wrap>
             <Select
+              aria-label="仓库来源"
               allowClear
               value={groupId}
               onChange={chooseConnection}
@@ -273,6 +277,38 @@ export function RepositoriesPage() {
         )}
         {!listLoaded && repositories.length === 0 ? (
           !listError && <LoadingState label="正在加载已登记仓库…" />
+        ) : view === 'overview' ? (
+          <>
+            {visibleRepositories.length === 0 && (
+              <EmptyState
+                title={repositories.length ? '没有匹配的仓库' : '暂无已登记的仓库'}
+                description={
+                  repositories.length
+                    ? '请调整来源或搜索条件。'
+                    : '打开本地仓库，或配置 SSH 后开始统计。'
+                }
+                action={
+                  repositories.length ? (
+                    <Button
+                      onClick={() => {
+                        setSearch('');
+                        chooseConnection('');
+                      }}
+                    >
+                      清除筛选
+                    </Button>
+                  ) : (
+                    <Button onClick={showLocal}>打开本地仓库</Button>
+                  )
+                }
+              />
+            )}
+            <RepositoryOverview
+              repositories={visibleRepositories}
+              connections={connections}
+              revision={overviewRevision}
+            />
+          </>
         ) : visibleRepositories.length === 0 ? (
           listLoaded &&
           !listError && (

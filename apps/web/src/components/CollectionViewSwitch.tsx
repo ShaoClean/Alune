@@ -1,4 +1,4 @@
-import { AppstoreOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, UnorderedListOutlined, BarChartOutlined } from '@ant-design/icons';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import type { CollectionPage } from '../stores/workspaceStore';
 
@@ -30,6 +30,17 @@ export function CollectionViewSwitch({ page }: { page: CollectionPage }) {
         <UnorderedListOutlined aria-hidden="true" />
         <span>列表</span>
       </button>
+      {page === 'repositories' && (
+        <button
+          type="button"
+          aria-label="数据总览视图"
+          aria-pressed={view === 'overview'}
+          onClick={() => setView(page, 'overview')}
+        >
+          <BarChartOutlined aria-hidden="true" />
+          <span>数据总览</span>
+        </button>
+      )}
     </div>
   );
 }
