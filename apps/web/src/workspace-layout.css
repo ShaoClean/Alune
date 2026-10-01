@@ -1666,29 +1666,25 @@
   border: 1px solid var(--line);
   border-radius: 50%;
 }
-.status-notifications {
-  display: grid;
-  width: min(340px, calc(100vw - 48px));
-  overflow-wrap: anywhere;
-  outline: none;
+.status-button--feedback {
+  gap: 5px;
 }
-.status-notifications .feedback-list {
-  max-height: min(360px, calc(100dvh - 160px));
+.status-button--feedback > .dlg-ic {
+  width: 14px;
+  height: 14px;
 }
-.status-notifications__empty {
-  padding: 18px 14px 22px;
-  font-size: 12px;
-  text-align: center;
-  color: var(--text-muted);
+.status-bar__notice-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
-.status-notifications__more {
-  justify-self: start;
-  margin: 0 14px 12px;
+.status-button--feedback .status-bar__notice-dot {
+  position: static;
+  flex: 0 0 5px;
 }
-/* The tray sits in the same corner; step it aside while the notices are open. */
-:root:has(.ant-popover:not(.ant-popover-hidden) .status-notifications) .feedback-tray {
-  opacity: 0;
-  pointer-events: none;
+.feedback-fullscreen-status {
+  flex: 0 0 32px;
+  width: 100%;
 }
 @media (max-width: 900px) {
   .repository-switcher {

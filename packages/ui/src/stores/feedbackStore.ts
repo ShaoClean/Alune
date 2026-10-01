@@ -12,8 +12,10 @@ export interface FeedbackEvent {
   title: string;
   description?: string;
   type: 'error' | 'warning' | 'info' | 'success';
-  /** Legacy intent controls configuration actions; all modes now enter the modal queue. */
+  /** Intent controls configuration actions; automatic presentation defaults to the modal queue. */
   mode: 'modal' | 'notification' | 'manual';
+  /** Inbox-only notices do not interrupt the current view. */
+  autoOpen?: boolean;
   actionLabel?: string;
   onAction?: () => void | Promise<unknown>;
   busy?: boolean;
@@ -63,7 +65,7 @@ export function createFeedbackStore() {
         lease: ++lease,
         busy: event.busy ?? (fresh ? false : previous?.busy),
         at: fresh || !previous ? Date.now() : previous.at,
-        queued: fresh || previous?.queued || false,
+        queued: event.autoOpen !== false && (fresh || previous?.queued || false),
       };
       set({
         entries:
@@ -101,6 +103,7 @@ export function createFeedbackStore() {
           get().publish({
             ...entry,
             mode: 'modal',
+            autoOpen: true,
             type: 'error',
             title: '操作未完成',
             description: error instanceof Error ? error.message : String(error),

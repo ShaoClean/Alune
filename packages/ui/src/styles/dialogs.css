@@ -16,7 +16,7 @@
 .a-pop,
 .a-menu,
 .feedback-dialog,
-.feedback-tray,
+.feedback-inbox,
 .dlg-note,
 .fb-item {
   --tone-fg: var(--blue);
@@ -76,7 +76,7 @@
 .a-pop,
 .a-menu,
 .feedback-dialog,
-.feedback-tray {
+.feedback-inbox {
   font-family: var(--dlg-font-sans);
   font-size: 13px;
   line-height: 1.5;
@@ -84,7 +84,7 @@
   -webkit-font-smoothing: antialiased;
   text-align: left;
 }
-:is(.a-dlg .ant-modal, .a-pop, .a-menu, .feedback-dialog, .feedback-tray)
+:is(.a-dlg .ant-modal, .a-pop, .a-menu, .feedback-dialog, .feedback-inbox)
   :is([class*='ant-'], button, input, textarea, select) {
   font-family: inherit;
 }
@@ -1762,7 +1762,7 @@
 }
 
 /* ---------------------------------------------------------------------
-   Feedback centre: native <dialog> in the top layer and a popover tray
+   Feedback centre: native detail dialog and status bar inbox in the top layer
    --------------------------------------------------------------------- */
 .feedback-dialog {
   width: min(566px, calc(100vw - 32px));
@@ -2026,13 +2026,14 @@
   box-shadow: 0 0 0 3px var(--tone-soft);
   pointer-events: none;
 }
-/* Inbox: a popover rising from the tray. No scrim, no scroll lock. */
+/* Inbox: anchored above the status bar in the native top layer. */
 .feedback-inbox {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 10px);
-  width: min(360px, calc(100vw - 32px));
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: min(360px, calc(100vw - 16px));
   padding: 5px;
+  border: 0;
   border-radius: 17px;
   background: var(--dlg-shell-bg);
   box-shadow:
@@ -2041,16 +2042,14 @@
     var(--pop-shadow);
   transform-origin: bottom right;
   animation: alune-pop-rise var(--t-pop) var(--ease-glide) both;
-}
-.feedback-inbox[hidden] {
-  display: none;
+  outline: none;
 }
 .feedback-inbox-core {
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  max-height: min(520px, calc(100dvh - 120px));
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  max-height: min(520px, calc(100dvh - 64px));
   overflow: hidden;
   border-radius: 12px;
   background: var(--dlg-core-bg);
@@ -2084,72 +2083,14 @@
   line-height: 1.55;
   color: var(--text-muted);
 }
-.feedback-tray {
-  position: fixed;
-  inset: auto 16px 42px auto;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  overflow: visible;
-}
-.feedback-tray-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 5px 0 13px;
-  border: 0;
-  border-radius: 999px;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--text);
-  background: var(--dlg-shell-bg);
-  -webkit-backdrop-filter: blur(12px) saturate(1.2);
-  backdrop-filter: blur(12px) saturate(1.2);
-  box-shadow:
-    inset 0 0 0 1px var(--dlg-shell-ring),
-    inset 0 1px 0 var(--dlg-shell-hi),
-    var(--pop-shadow);
-  cursor: pointer;
-  transition: transform var(--t-press) var(--ease-enter);
-}
-.feedback-tray-button:active {
-  transform: scale(0.97);
-}
-.feedback-tray-button > .dlg-ic {
-  width: 16px;
-  height: 16px;
+.feedback-inbox-empty {
+  padding: 24px 14px;
+  text-align: center;
   color: var(--text-muted);
 }
-.feedback-tray-count {
-  display: grid;
-  place-items: center;
-  min-width: 30px;
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-family: var(--dlg-font-mono);
-  font-size: 12px;
-  color: var(--primary-on);
-  background: var(--btn-primary-bg);
-  box-shadow: var(--btn-primary-shadow);
-}
-.feedback-tray[data-tone='danger'] .feedback-tray-count {
-  color: var(--btn-danger-on);
-  background: var(--btn-danger-bg);
-  box-shadow: var(--btn-danger-shadow);
-}
-.feedback-tray-dots {
-  display: flex;
-  gap: 3px;
-}
-.feedback-tray-dots i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--tone-fg);
+.feedback-inbox-more {
+  justify-self: start;
+  margin: 0 14px 12px;
 }
 
 /* ---------------------------------------------------------------------

@@ -37,6 +37,7 @@ app.whenReady().then(async () => {
     waitForFunction,
     waitForSelector: (value) => waitForFunction((value) => !!document.querySelector(value), value),
     click: resolve((node) => {
+      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' }));
       node.focus();
       node.click();
     }),
@@ -48,12 +49,20 @@ app.whenReady().then(async () => {
     press: async (value, key) => {
       await resolve((node) => node.focus())(value);
       window.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
+      if (key === 'Enter') window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
       window.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
     },
   };
   try {
     const { runFeedbackChecks } = await import('../../web/tests/feedback-browser.mjs');
     console.log('Electron feedback:', JSON.stringify(await runFeedbackChecks(page)));
+    const { runNotificationChecks } = await import('../../web/tests/notification-browser.mjs');
+    console.log(
+      'Electron notification center:',
+      JSON.stringify(
+        await runNotificationChecks(page, (width, height) => window.setSize(width, height)),
+      ),
+    );
     window.destroy();
     app.exit(0);
   } catch (error) {

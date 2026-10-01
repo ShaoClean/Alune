@@ -100,8 +100,10 @@ module.exports = async ({ window, origin, token, backend }) => {
     await click('[aria-label="提交历史"]');
     await wait("document.querySelectorAll('.history-row').length > 0");
     assert.equal(
-      await execute('document.querySelector(\'[aria-label="显示右侧面板"]\').disabled'),
-      true,
+      await execute(
+        'document.querySelector(\'[aria-label="显示右侧面板"]\').getAttribute("aria-disabled")',
+      ),
+      'true',
     );
     await click('.history-row');
     await wait(

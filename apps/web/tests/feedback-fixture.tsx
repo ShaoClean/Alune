@@ -1,6 +1,7 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AluneUIProvider, Button, Input } from '@alune/ui';
+import { MemoryRouter } from 'react-router-dom';
 import { useAppearance } from '../src/appearance';
 import { FeedbackNotice, FeedbackScope } from '../src/components/Feedback';
 import { FeedbackAlert } from '../src/components/FeedbackAlert';
@@ -10,9 +11,14 @@ import { ReviewActionBar } from '../src/components/PullRequestActions';
 import { FilePreviewPane } from '../src/components/FilesView';
 import { useFeedbackMessage } from '../src/components/useFeedbackMessage';
 import '@alune/ui/styles.css';
+import { WorkspaceStatusBar } from '../src/components/WorkspaceStatusBar';
+import { DiffViewer } from '../src/components/DiffViewer';
+import { DesktopUpdateFeedback } from '../src/components/UpdatePanel';
+import type { UpdateState } from '../src/types/desktop-updates';
 import '../src/index.css';
 import '../src/theme.css';
 import '../src/dialogs.css';
+import '../src/workspace-layout.css';
 function Fixture() {
   const [open, setOpen] = useState(false);
   const [failure, setFailure] = useState(false);
@@ -24,10 +30,87 @@ function Fixture() {
   const [previewCase, setPreviewCase] = useState('binary');
   const [permissions, setPermissions] = useState(false);
   const [long, setLong] = useState(0);
+  const [noticeRevision, setNoticeRevision] = useState(0);
+  const [storageFailure, setStorageFailure] = useState(false);
+  const [localFailure, setLocalFailure] = useState(false);
+  const [sshFailure, setSshFailure] = useState(false);
+  const [updatesOpened, setUpdatesOpened] = useState(0);
   const message = useFeedbackMessage();
   return (
     <main style={{ padding: 24 }}>
       <h1>提示迁移交互验收</h1>
+      <Button
+        id="notifications"
+        onClick={() => {
+          setNoticeRevision((value) => value + 1);
+          setStorageFailure(true);
+          setLocalFailure(true);
+          setSshFailure(true);
+        }}
+      >
+        新增全应用通知
+      </Button>
+      <Button id="notice-revision" onClick={() => setNoticeRevision((value) => value + 1)}>
+        更新通知
+      </Button>
+      <Button
+        id="clear-notifications"
+        onClick={() => {
+          setNoticeRevision(0);
+          setStorageFailure(false);
+          setLocalFailure(false);
+          setSshFailure(false);
+        }}
+      >
+        解决所有问题
+      </Button>
+      <output id="updates-opened">{updatesOpened}</output>
+      <DesktopUpdateFeedback
+        state={
+          noticeRevision
+            ? ({
+                supported: true,
+                status: 'available',
+                currentVersion: '0.6.0',
+                latestVersion: `99.0.${noticeRevision - 1}`,
+                revision: noticeRevision,
+                background: false,
+              } as UpdateState)
+            : null
+        }
+        error={null}
+        invoke={async () => {}}
+        onUpdates={() => setUpdatesOpened((value) => value + 1)}
+      />
+      <FeedbackScope id="settings" label="设置">
+        <FeedbackNotice
+          source="workspace-storage"
+          title={storageFailure ? '无法保存外观与工作区设置' : null}
+          description="存储不可写"
+          autoOpen={false}
+        />
+      </FeedbackScope>
+      <FeedbackScope id="local" label="本机仓库">
+        <FeedbackNotice
+          source="sync"
+          title={localFailure ? '本机拉取失败' : null}
+          description="请检查仓库配置"
+          actionLabel="重试本机"
+          onAction={() => setLocalFailure(false)}
+          autoOpen={false}
+        />
+      </FeedbackScope>
+      <FeedbackScope id="ssh" label="SSH 仓库">
+        <FeedbackNotice
+          source="sync"
+          title={sshFailure ? 'SSH 拉取失败' : null}
+          description="请检查远端连接"
+          type="warning"
+          actionLabel="重试 SSH"
+          onAction={() => setSshFailure(false)}
+          autoOpen={false}
+        />
+      </FeedbackScope>
       <div id="workspace" style={{ height: 240, overflow: 'auto', border: '1px solid gray' }}>
         <div style={{ height: 700 }}>工作区布局与滚动基线</div>
       </div>
@@ -122,6 +205,14 @@ function Fixture() {
         )}
       />
       <output id="tick-value">{tick}</output>
+      <div style={{ height: 200 }}>
+        <DiffViewer
+          title="通知验收.txt"
+          diff={
+            'diff --git a/notice.txt b/notice.txt\n--- a/notice.txt\n+++ b/notice.txt\n@@ -1 +1 @@\n-before\n+after\n'
+          }
+        />
+      </div>
       <FeedbackScope id={repo} label={repo}>
         <FeedbackNotice
           source="progress"
@@ -193,6 +284,15 @@ function Fixture() {
           />
         )}
       </AluneModal>
+      <div style={{ position: 'fixed', inset: 'auto 0 0' }}>
+        <WorkspaceStatusBar
+          repositories={[]}
+          version="v0.6.0"
+          inert={false}
+          onSettings={() => {}}
+          onUpdates={() => setUpdatesOpened((value) => value + 1)}
+        />
+      </div>
     </main>
   );
 }
@@ -200,7 +300,9 @@ function FixtureApp() {
   const { theme, reduceMotion } = useAppearance();
   return (
     <AluneUIProvider theme={theme} reduceMotion={reduceMotion}>
-      <Fixture />
+      <MemoryRouter>
+        <Fixture />
+      </MemoryRouter>
     </AluneUIProvider>
   );
 }
