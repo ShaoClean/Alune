@@ -1,7 +1,7 @@
 import { repositorySourceLabel } from '../stores/repositorySource';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
-import { Dropdown } from 'antd';
+import { Dropdown, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import { CloseOutlined, FolderOpenOutlined, PlusOutlined } from '@ant-design/icons';
 import { horizontalPlacement, moveBeforeOrAfter } from '../stores/sidebarOrder';
@@ -457,15 +457,17 @@ export function RepositoryTabs({
           </Dropdown>
         )}
       </div>
-      <button
-        type="button"
-        className="repository-tabs__open"
-        aria-label="打开仓库"
-        onClick={onOpenRepository}
-      >
-        <PlusOutlined />
-        <span>打开仓库</span>
-      </button>
+      <Tooltip title="打开仓库" trigger={['hover', 'focus']} placement="bottom">
+        <button
+          type="button"
+          className="repository-tabs__open"
+          aria-label="打开仓库"
+          onClick={onOpenRepository}
+        >
+          <PlusOutlined />
+          <span>打开仓库</span>
+        </button>
+      </Tooltip>
       <span className="tree-sort-announcement" role="status" aria-live="polite">
         {announcement}
       </span>
