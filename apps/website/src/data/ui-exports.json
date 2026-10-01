@@ -187,6 +187,10 @@
     "source": "packages/ui/src/components/Feedback.tsx",
     "type": false
   },
+  "FeedbackStatusButton": {
+    "source": "packages/ui/src/components/Feedback.tsx",
+    "type": false
+  },
   "FeedbackProviderProps": {
     "source": "packages/ui/src/components/Feedback.tsx",
     "type": true

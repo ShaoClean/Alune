@@ -91,7 +91,14 @@
       "type": "\"modal\" | \"notification\" | \"manual\"",
       "required": true,
       "default": "—",
-      "description": "反馈意图；当前三种模式均进入已合入的队列。"
+      "description": "反馈意图，控制后续配置动作；自动弹出由 autoOpen 决定。"
+    },
+    {
+      "name": "autoOpen",
+      "type": "boolean",
+      "required": false,
+      "default": "true",
+      "description": "是否自动弹出详情；false 时仅进入通知与提示中心，动作失败仍会重新提示。"
     },
     {
       "name": "actionLabel",
@@ -226,7 +233,14 @@
       "type": "\"modal\" | \"notification\" | \"manual\"",
       "required": true,
       "default": "—",
-      "description": "反馈意图；当前三种模式均进入已合入的队列。"
+      "description": "反馈意图，控制后续配置动作；自动弹出由 autoOpen 决定。"
+    },
+    {
+      "name": "autoOpen",
+      "type": "boolean",
+      "required": false,
+      "default": "true",
+      "description": "是否自动弹出详情；false 时仅进入通知与提示中心，动作失败仍会重新提示。"
     },
     {
       "name": "actionLabel",
@@ -774,6 +788,29 @@
       "description": "渲染的子内容。"
     }
   ],
+  "StatusButtonProps": [
+    {
+      "name": "label",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "tooltip",
+      "type": "string",
+      "required": false,
+      "default": "label",
+      "description": "悬停或聚焦时的说明。"
+    },
+    {
+      "name": "active",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "当前激活状态。"
+    }
+  ],
   "FeedbackScopeProps": [
     {
       "name": "id",
@@ -852,7 +889,14 @@
       "type": "\"modal\" | \"notification\" | \"manual\"",
       "required": false,
       "default": "'modal'",
-      "description": "反馈意图；当前三种模式均进入已合入的队列。"
+      "description": "反馈意图，控制后续配置动作；自动弹出由 autoOpen 决定。"
+    },
+    {
+      "name": "autoOpen",
+      "type": "boolean",
+      "required": false,
+      "default": "true",
+      "description": "是否自动弹出详情；false 时仅进入通知与提示中心，动作失败仍会重新提示。"
     },
     {
       "name": "eventKey",
@@ -1461,29 +1505,6 @@
       "required": false,
       "default": "—",
       "description": "面板可访问名称。"
-    }
-  ],
-  "StatusButtonProps": [
-    {
-      "name": "label",
-      "type": "string",
-      "required": true,
-      "default": "—",
-      "description": "可访问名称或展示文案。"
-    },
-    {
-      "name": "tooltip",
-      "type": "string",
-      "required": false,
-      "default": "label",
-      "description": "悬停或聚焦时的说明。"
-    },
-    {
-      "name": "active",
-      "type": "boolean",
-      "required": false,
-      "default": "false",
-      "description": "当前激活状态。"
     }
   ],
   "ToolbarButtonProps": [

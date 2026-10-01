@@ -91,7 +91,8 @@ const descriptions = {
   columns: '选项列数。',
   source: '来源标识；与 scope 和 context 一起确定去重身份。',
   type: '反馈语义类型。',
-  mode: '反馈意图；当前三种模式均进入已合入的队列。',
+  mode: '反馈意图，控制后续配置动作；自动弹出由 autoOpen 决定。',
+  autoOpen: '是否自动弹出详情；false 时仅进入通知与提示中心，动作失败仍会重新提示。',
   eventKey: '修订标识，同一身份与修订不重复提示。',
   context: '反馈上下文说明。',
   actionLabel: '重试或后续动作的名称。',
@@ -123,6 +124,9 @@ const descriptions = {
   success: '发布成功；高频常规操作应保持克制。',
 };
 const computedDefaults = {
+  FeedbackEvent: { autoOpen: 'true' },
+  FeedbackEntry: { autoOpen: 'true' },
+  FeedbackNoticeProps: { autoOpen: 'true' },
   AluneModalProps: {
     tone: 'danger 为 true 或 L2 时 danger，否则 default；弹窗反馈可覆盖',
     danger: 'level === 2',
