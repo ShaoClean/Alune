@@ -10,6 +10,7 @@ const smokeTest = process.argv.includes('--smoke-test');
 app.setName('Alune');
 if (smokeTest) {
   if (!process.env.ALUNE_SMOKE_DIR) throw new Error('Smoke tests require an isolated data directory');
+  if (process.env.CI === 'true') app.disableHardwareAcceleration();
   app.setPath('userData', process.env.ALUNE_SMOKE_DIR);
 } else {
   app.setPath('userData', path.join(app.getPath('appData'), 'Alune'));

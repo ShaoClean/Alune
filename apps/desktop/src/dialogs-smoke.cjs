@@ -20,20 +20,43 @@ module.exports = async ({ window }) => {
   const shell = 'document.querySelector(\'.a-dlg-shell[data-level="2"]\')';
   const visible = `(${shell}?.closest('.ant-modal-wrap') && getComputedStyle(${shell}.closest('.ant-modal-wrap')).display !== 'none')`;
   const gone = `!${visible}`;
-  // Records every CSS animation on the dialog panel until it settles.
+  // Capture CSS motion at class changes as well as animation frames. CI
+  // renderers can throttle frames, so getAnimations() alone misses entrances.
   const recordMotion = () =>
     execute(`(() => {
     window.__dialogMotion = [];
+    const add = (entry) => {
+      if (!window.__dialogMotion.includes(entry)) window.__dialogMotion.push(entry);
+    };
+    const captureStyle = () => {
+      for (const panel of document.querySelectorAll('.a-dlg .ant-modal')) {
+        const style = getComputedStyle(panel);
+        const names = style.animationName.split(',');
+        const durations = style.animationDuration.split(',');
+        names.forEach((name, index) => {
+          name = name.trim();
+          if (!name || name === 'none') return;
+          const duration = (durations[index] || durations[0] || '0s').trim();
+          const millis = duration.endsWith('ms') ? parseFloat(duration) : parseFloat(duration) * 1000;
+          add(name + ':' + Math.round(millis));
+        });
+      }
+    };
+    const observer = new MutationObserver(captureStyle);
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style'] });
     const started = performance.now();
     const sample = () => {
+      captureStyle();
       for (const animation of document.getAnimations()) {
         const target = animation.effect?.target;
         if (!(target instanceof Element) || !target.matches('.a-dlg .ant-modal')) continue;
         const entry = animation.animationName + ':' + animation.effect.getTiming().duration;
-        if (!window.__dialogMotion.includes(entry)) window.__dialogMotion.push(entry);
+        add(entry);
       }
       if (performance.now() - started < 1500) requestAnimationFrame(sample);
     };
+    setTimeout(() => observer.disconnect(), 1500);
+    captureStyle();
     requestAnimationFrame(sample);
   })()`);
   const motion = () =>
@@ -55,6 +78,9 @@ module.exports = async ({ window }) => {
   };
   const originalSize = window.getSize();
   const originalMotion = await execute('document.documentElement.dataset.reducedMotion ?? null');
+  const motionEnabled =
+    originalMotion !== 'true' &&
+    !(await execute("matchMedia('(prefers-reduced-motion: reduce)').matches"));
   const restoreMotion = () =>
     execute(
       `(${JSON.stringify(originalMotion)} === null) ? delete document.documentElement.dataset.reducedMotion : (document.documentElement.dataset.reducedMotion = ${JSON.stringify(originalMotion)})`,
@@ -78,10 +104,9 @@ module.exports = async ({ window }) => {
       await execute(`${shell}.querySelector('.a-dlg-actions .ant-btn-dangerous').disabled`),
       true,
     );
-    assert.deepEqual(
-      (await motion()).filter((entry) => entry.startsWith('alune-dlg-rise')),
-      ['alune-dlg-rise:360'],
-    );
+    const entrance = (await motion()).filter((entry) => entry.startsWith('alune-dlg-rise'));
+    if (motionEnabled) assert.deepEqual(entrance, ['alune-dlg-rise:360']);
+    else assert.deepEqual(entrance, []);
     await wait(
       `!${shell}.querySelector('.a-dlg-actions .ant-btn-dangerous').getAttribute('aria-busy')`,
     );
@@ -96,10 +121,11 @@ module.exports = async ({ window }) => {
       true,
     );
 
-    // Esc closes with the 160ms exit and focus returns to the trigger.
+    // Esc closes with the configured exit motion and returns focus to the trigger.
     await recordMotion();
     await close();
-    assert.ok((await motion()).includes('alune-dlg-leave:160'));
+    if (motionEnabled) assert.ok((await motion()).includes('alune-dlg-leave:160'));
+    else await motion();
 
     // Tab stays inside the open dialog.
     await open();
@@ -115,14 +141,15 @@ module.exports = async ({ window }) => {
     await recordMotion();
     await open();
     const reduced = await motion();
-    assert.ok(reduced.includes('alune-fade-in:120'), reduced.join());
+    if (motionEnabled) assert.ok(reduced.includes('alune-fade-in:120'), reduced.join());
     assert.equal(
       reduced.some((entry) => entry.startsWith('alune-dlg-rise')),
       false,
     );
     await recordMotion();
     await close();
-    assert.ok((await motion()).includes('alune-fade-out:120'));
+    if (motionEnabled) assert.ok((await motion()).includes('alune-fade-out:120'));
+    else await motion();
     await restoreMotion();
 
     // ≤560px: a bottom sheet with full-width, stacked 44px actions.
@@ -146,7 +173,7 @@ module.exports = async ({ window }) => {
     assert.notEqual(sheet.buttons[0].top, sheet.buttons[1].top);
     await close();
     console.log(
-      'Desktop dialogs passed: L2 alertdialog with Cancel focus and disabled ↵, Esc and focus return, focus trap, 360ms enter / 160ms exit, reduced-motion fade and 390px bottom sheet.',
+      `Desktop dialogs passed: L2 alertdialog with Cancel focus and disabled ↵, Esc and focus return, focus trap, ${motionEnabled ? '360ms enter / 160ms exit and reduced-motion fade' : 'system reduced motion respected'}, and 390px bottom sheet.`,
     );
   } finally {
     await restoreMotion().catch(() => {});
