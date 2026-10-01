@@ -6,7 +6,7 @@ module.exports = async ({ window, origin, repositoryId }) => {
     try {
       return await window.webContents.executeJavaScript(script);
     } catch (error) {
-      const page = await window.webContents.executeJavaScript('document.body.innerText');
+      const page = await window.webContents.executeJavaScript('document.body.innerText + "\\nFocus: " + JSON.stringify({active: document.activeElement?.tagName, label: document.activeElement?.getAttribute("aria-label"), documentFocused: document.hasFocus()})');
       throw new Error(`Settings shell failed: ${script}\n${page}`, { cause: error });
     }
   };
@@ -73,12 +73,20 @@ module.exports = async ({ window, origin, repositoryId }) => {
     await execute(
       `document.querySelector('[aria-label="提交摘要"]').focus(); window.settingsWorkspaceNode = document.querySelector('.workspace-body'); window.settingsSidebarNode = document.querySelector('.sidebar-workspace');`,
     );
+    await wait("document.activeElement?.getAttribute('aria-label') === '提交摘要'");
     await execute(`document.querySelector('.app-sidebar__content').scrollTop = 120`);
     const sidebarScroll = await execute(
       "document.querySelector('.app-sidebar__content').scrollTop",
     );
     const before = await dimensions();
     await shortcut(',');
+    await wait("document.querySelector('.settings-main [aria-label=\"API 地址\"]')");
+    const { createAiSecretStorage } = require('./ai-secret-storage.cjs');
+    if (!createAiSecretStorage(require('electron').safeStorage).available) {
+      await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('系统密钥存储不可用')");
+      await click('.feedback-dialog [aria-label="关闭提示"]');
+      await wait("!document.querySelector('.feedback-dialog[open]')");
+    }
     await wait(
       "document.querySelector('.settings-main') && document.activeElement?.getAttribute('aria-label') === '返回工作区'",
     );
@@ -100,6 +108,9 @@ module.exports = async ({ window, origin, repositoryId }) => {
     await shortcut('b');
     await wait("document.activeElement?.matches('.app-sidebar .settings-back')");
     await category('提交生成');
+    await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('仅已暂存改动')");
+    await click('.feedback-dialog [aria-label="关闭提示"]');
+    await wait("!document.querySelector('.feedback-dialog[open]')");
     assert.ok(
       await execute(
         'document.querySelector(\'textarea[aria-label="补充提示词"]\').getBoundingClientRect().height > 60',
@@ -228,11 +239,19 @@ module.exports = async ({ window, origin, repositoryId }) => {
     await wait("innerWidth === 1440 && !document.querySelector('.app-shell--mobile-open')");
     await category('网络代理');
     await wait('document.querySelector(\'[aria-label="代理服务器地址"]\') !== null');
+    if (!createAiSecretStorage(require('electron').safeStorage).available) {
+      await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('设备安全存储不可用')");
+      await click('.feedback-dialog [aria-label="关闭提示"]');
+      await wait("!document.querySelector('.feedback-dialog[open]')");
+    }
     assert.equal(
       await execute("document.querySelector('.proxy-savebar').getBoundingClientRect().bottom"),
       await execute("document.querySelector('.status-bar').getBoundingClientRect().top"),
     );
     await fill('[aria-label="代理服务器地址"]', 'draft.example.invalid');
+    await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('有未保存修改')");
+    await click('.feedback-dialog [aria-label="关闭提示"]');
+    await wait("!document.querySelector('.feedback-dialog[open]')");
     await menu('浏览全部仓库');
     await wait("document.querySelector('.a-dlg-title')?.textContent === '保存网络代理修改？'");
     assert.equal(await execute('location.pathname'), '/settings/proxy');

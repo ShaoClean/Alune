@@ -3,8 +3,11 @@ const assert = require('node:assert/strict');
 // Renderer integration fixture. Real Git-over-SSH semantics are covered in ssh-client/tests.
 module.exports = async ({ window, origin, token, backend }) => {
   const { ConnectionService } = require('./server/connection/connection.service');
+  const { RepositoryService } = require('./server/repository/repository.service');
   const { GitCommands } = require('@alune/ssh-client');
   const connections = backend.get(ConnectionService);
+  const repositories = backend.get(RepositoryService);
+  const originalContext = repositories.getContext;
   const originalConnect = connections.ensureConnected;
   const originals = Object.fromEntries(
     ['status', 'diff', 'stage', 'unstage'].map((key) => [key, GitCommands.prototype[key]]),
@@ -28,12 +31,19 @@ module.exports = async ({ window, origin, token, backend }) => {
     const started = Date.now();
     const check = () => {
       if (${expression}) return resolve(true);
-      if (Date.now() - started > 10000) return reject(new Error('Diff smoke timed out: ' + ${JSON.stringify(expression)}));
+      if (Date.now() - started > 10000) return reject(new Error('Diff smoke timed out: ' + ${JSON.stringify(expression)} + ' | ' + document.querySelector('.feedback-dialog[open]')?.textContent));
       setTimeout(check, 30);
     }; check();
   })`);
   const click = (selector) =>
     execute(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  const acknowledge = async (text) => {
+    await waitFor(
+      `document.querySelector('.feedback-dialog[open]')?.textContent.includes(${JSON.stringify(text)})`,
+    );
+    await click('.feedback-dialog [aria-label="关闭提示"]');
+    await waitFor("!document.querySelector('.feedback-dialog[open]')");
+  };
   const preview = (file, staged = false) =>
     click(`button[aria-label="查看差异 ${file}（${staged ? '已暂存' : '未暂存'}）"]`);
   const file = '子目录/新增 文件.ts';
@@ -44,6 +54,17 @@ module.exports = async ({ window, origin, token, backend }) => {
   let connection, repo;
   try {
     connections.ensureConnected = async () => ({});
+    // This renderer fixture has no SSH transport; provide its repository context
+    // so unrelated configuration errors cannot open a modal over the Diff.
+    repositories.getContext = async () => ({
+      path: '/fixture/new-file-diff',
+      source: 'ssh',
+      author: { name: 'Fixture', email: 'fixture@example.invalid' },
+      shallow: false,
+      unborn: false,
+      upstream: 'origin/main',
+      remotes: [{ name: 'origin', fetchUrl: 'fixture.invalid/repo', pushUrl: 'fixture.invalid/repo' }],
+    });
     GitCommands.prototype.status = async () => ({
       branch: 'main',
       ahead: 0,
@@ -127,6 +148,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     await click('[aria-label="显示右侧面板"]');
     await click(`button[aria-label="暂存 ${file}"]`);
     await waitFor("document.querySelector('.diff-shell__title')?.textContent.includes('已暂存')");
+    await acknowledge('1 项改动已暂存');
     edited = true;
     await click('[aria-label="刷新仓库"]');
     await waitFor(
@@ -153,15 +175,14 @@ module.exports = async ({ window, origin, token, backend }) => {
     await waitFor(
       "document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop second') && !document.querySelector('.diff-split-cell--remove')",
     );
+    await acknowledge('1 项改动已取消暂存');
     for (const [name, feedback] of [
       ['empty.txt', '新增空文件'],
       ['binary.dat', '二进制文件'],
       ['large.txt', '1 MiB'],
     ]) {
       await preview(name);
-      await waitFor(
-        `document.querySelector('.diff-shell__body')?.textContent.includes(${JSON.stringify(feedback)})`,
-      );
+      await acknowledge(feedback);
       assert.equal(
         await execute(
           "document.querySelector('.diff-shell__body').textContent.includes('请选择改动文件')",
@@ -172,8 +193,9 @@ module.exports = async ({ window, origin, token, backend }) => {
     await preview('slow.txt');
     await preview('empty.txt');
     await waitFor(
-      "document.querySelector('.diff-shell__body')?.textContent.includes('新增空文件')",
+      "document.querySelector('.diff-shell__title')?.textContent.includes('empty.txt') && document.querySelector('.feedback-list')?.textContent.includes('新增空文件')",
     );
+    assert.equal(await execute("Boolean(document.querySelector('.feedback-dialog[open]'))"), false);
     await new Promise((resolve) => setTimeout(resolve, 350));
     assert.equal(
       await execute(
@@ -191,6 +213,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     );
   } finally {
     connections.ensureConnected = originalConnect;
+    repositories.getContext = originalContext;
     Object.assign(GitCommands.prototype, originals);
     if (repo?.id)
       await fetch(`${origin}/api/repositories/${repo.id}`, { method: 'DELETE', headers });

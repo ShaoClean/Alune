@@ -102,7 +102,7 @@ module.exports = async ({ window, git, repo }) => {
     await execute(
       "document.querySelector('[aria-label=拉取]').click(); document.querySelector('[aria-label=全屏查看差异]').click()",
     );
-    await wait("document.querySelector('.feedback-dialog[open]')");
+    await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('Git 操作未完成')");
     assert.equal(await execute("document.querySelectorAll('dialog:modal').length"), 2);
     assert.equal(
       await execute(
@@ -155,8 +155,12 @@ module.exports = async ({ window, git, repo }) => {
     git('config', 'user.name', '');
     await click('[aria-label="刷新仓库"]');
     await wait(
-      "document.querySelector('.feedback-list')?.textContent.includes('提交前需要设置作者')",
+      "document.querySelector('.feedback-dialog[open]')?.textContent.includes('提交前需要设置作者')",
     );
+    // Configuration notices now open a dialog too. Acknowledge it before
+    // exercising the retained inbox entry from inside a fullscreen Diff.
+    await click('.feedback-dialog [aria-label="关闭提示"]');
+    await wait("!document.querySelector('.feedback-dialog[open]')");
     await click('[aria-label="全屏查看差异"]');
     await wait("document.querySelector('.diff-shell--fullscreen .feedback-tray:popover-open')");
     await click('.feedback-tray button');
@@ -193,7 +197,7 @@ module.exports = async ({ window, git, repo }) => {
       "document.querySelector('[aria-label=拉取]').getAttribute('aria-disabled') !== 'true'",
     );
     await click('[aria-label="拉取"]');
-    await wait("document.querySelector('.feedback-dialog[open]')");
+    await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('Git 操作未完成')");
     await wait(
       "(() => {const r = document.querySelector('.feedback-dialog').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;})()",
     );
@@ -203,7 +207,7 @@ module.exports = async ({ window, git, repo }) => {
       ),
       true,
     );
-    await click('.feedback-actions button:last-child');
+    await click('.feedback-dialog [aria-label="关闭提示"]');
     await wait("!document.querySelector('.feedback-dialog').open");
     console.log(
       'Desktop feedback passed: real Git failure, layout/draft stability, copy, focus return, acknowledgement/retry, fullscreen notices, tray inbox and author action, and 390px window.',

@@ -56,7 +56,11 @@ module.exports = async ({ window, scroll = false }) => {
     document.querySelector('.diff-shell').dispatchEvent(new Event('cancel', { cancelable: true }));`);
   await wait("!document.querySelector('.diff-shell--fullscreen')");
   assert.equal(await execute('window.__fullscreenBody.scrollTop'), position);
-  assert.equal(await execute("document.activeElement.getAttribute('aria-label')"), '全屏查看差异');
+  assert.equal(
+    await execute("document.activeElement.getAttribute('aria-label')"),
+    '全屏查看差异',
+    await execute("document.querySelector('.feedback-dialog[open]')?.textContent"),
+  );
   assert.equal(await execute("document.querySelector('.app-tabbar').inert"), false);
   // Rapid toggles must neither leave a backdrop nor lose the content node.
   for (let index = 0; index < 4; index++) {

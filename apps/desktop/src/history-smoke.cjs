@@ -2,8 +2,11 @@ const assert = require('node:assert/strict');
 
 module.exports = async ({ window, origin, token, backend }) => {
   const { ConnectionService } = require('./server/connection/connection.service');
+  const { RepositoryService } = require('./server/repository/repository.service');
   const { GitCommands, GitLogChangedError } = require('@alune/ssh-client');
   const connections = backend.get(ConnectionService);
+  const repositories = backend.get(RepositoryService);
+  const originalContext = repositories.getContext;
   const originalConnect = connections.ensureConnected;
   const originals = Object.fromEntries(
     ['status', 'log', 'commitFiles', 'diff'].map((key) => [key, GitCommands.prototype[key]]),
@@ -56,6 +59,15 @@ module.exports = async ({ window, origin, token, backend }) => {
   const originalSize = window.getSize();
   try {
     connections.ensureConnected = async () => ({});
+    repositories.getContext = async () => ({
+      path: '/fixture/history',
+      source: 'ssh',
+      author: { name: 'Fixture', email: 'fixture@example.invalid' },
+      shallow: false,
+      unborn: false,
+      upstream: 'origin/main',
+      remotes: [{ name: 'origin', fetchUrl: 'fixture.invalid/repo', pushUrl: 'fixture.invalid/repo' }],
+    });
     GitCommands.prototype.status = async () => ({ branch: 'main', ahead: 0, behind: 0, files: [] });
     GitCommands.prototype.log = async (_path, options) => {
       if (options.revision && options.revision !== revision) throw new GitLogChangedError();
@@ -178,6 +190,7 @@ module.exports = async ({ window, origin, token, backend }) => {
   } finally {
     window.setSize(...originalSize);
     connections.ensureConnected = originalConnect;
+    repositories.getContext = originalContext;
     Object.assign(GitCommands.prototype, originals);
     if (repo) await fetch(origin + '/api/repositories/' + repo.id, { method: 'DELETE', headers });
     if (connection)
