@@ -7,6 +7,7 @@ import {
   DiscussionThread,
   mergeDiscussions,
   PullRequestPatch,
+  ReviewLineGuidance,
 } from '../src/components/PullRequestDetails.tsx';
 
 test('origin is selected explicitly before another platform; invalid remotes have a usable fallback', () => {
@@ -120,8 +121,59 @@ test('review line buttons expose the selected side/range and disable writes whil
       disabled: true,
     }),
   );
-  assert.match(html, /aria-label="旧行 4，点击评论，Shift 点击选择多行" aria-pressed="false"/);
-  assert.match(html, /aria-label="新行 4，点击评论，Shift 点击选择多行" aria-pressed="true"/);
-  assert.match(html, /aria-label="新行 5，点击评论，Shift 点击选择多行" aria-pressed="true"/);
+  assert.match(html, /aria-label="旧行 4，评论不可用" aria-pressed="false"/);
+  assert.match(html, /aria-label="新行 4，评论不可用" aria-pressed="true"/);
+  assert.match(html, /aria-label="新行 5，评论不可用" aria-pressed="true"/);
   assert.equal((html.match(/<button[^>]*disabled=""/g) || []).length, 5);
+  const enabled = renderToStaticMarkup(
+    createElement(PullRequestPatch, {
+      patch: '@@ -1 +1 @@\n-old\n+new',
+      onSelect() {},
+    }),
+  );
+  assert.match(enabled, /aria-label="新行 1，点击评论，Shift 点击选择多行"/);
+  assert.doesNotMatch(enabled, /disabled=""/);
+});
+
+test('file diff explains why line comments are unavailable and only shows selection instructions when allowed', () => {
+  const render = ({ review: reviewChanges = {}, ...props } = {}) =>
+    renderToStaticMarkup(
+      createElement(ReviewLineGuidance, {
+        revision: 'revision-1',
+        review: {
+          loading: false,
+          pending: false,
+          error: '',
+          actions: { comment: { allowed: true } },
+          load() {},
+          ...reviewChanges,
+        },
+        ...props,
+      }),
+    );
+  const allowed = render();
+  assert.match(allowed, /点击新行或旧行的行号评论/);
+  const unauthenticated = render({
+    review: {
+      actions: { comment: { allowed: false, reason: '请配置有写入权限的访问令牌。' } },
+    },
+  });
+  assert.match(unauthenticated, /评论不可用：请配置有写入权限的访问令牌/);
+  assert.match(unauthenticated, /返回 PR\/MR 列表.*应用到此仓库/);
+  const locked = render({
+    review: {
+      actions: { comment: { allowed: false, reason: '讨论已锁定，当前用户不能发表评论。' } },
+    },
+  });
+  assert.match(locked, /评论不可用：讨论已锁定/);
+  assert.doesNotMatch(locked, /应用到此仓库/);
+  const loading = render({ review: { loading: true } });
+  assert.match(loading, /正在检查评论权限/);
+  const failed = render({ review: { error: '网络错误', actions: undefined } });
+  assert.match(failed, /评论权限检查失败：网络错误/);
+  assert.match(failed, /重\s*试/);
+  for (const blocked of [unauthenticated, locked, loading, failed])
+    assert.doesNotMatch(blocked, /点击新行或旧行的行号评论/);
+  assert.match(render({ review: { pending: true } }), /正在执行 Review 操作/);
+  assert.match(render({ fileNotice: '部分 Diff 缺失' }), /此 Diff 不完整/);
 });
