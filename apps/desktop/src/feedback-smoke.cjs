@@ -155,12 +155,14 @@ module.exports = async ({ window, git, repo }) => {
     git('config', 'user.name', '');
     await click('[aria-label="刷新仓库"]');
     await wait(
-      "document.querySelector('.feedback-dialog[open]')?.textContent.includes('提交前需要设置作者')",
+      "document.querySelector('.feedback-list')?.textContent.includes('提交前需要设置作者')",
     );
-    // Configuration notices now open a dialog too. Acknowledge it before
-    // exercising the retained inbox entry from inside a fullscreen Diff.
-    await click('.feedback-dialog [aria-label="关闭提示"]');
-    await wait("!document.querySelector('.feedback-dialog[open]')");
+    // CI may have already shown this notice before the fixture set an author.
+    // Acknowledge a fresh dialog; otherwise exercise the retained inbox entry.
+    if (await execute("document.querySelector('.feedback-dialog[open]')?.textContent.includes('提交前需要设置作者')")) {
+      await click('.feedback-dialog [aria-label="关闭提示"]');
+      await wait("!document.querySelector('.feedback-dialog[open]')");
+    }
     await click('[aria-label="全屏查看差异"]');
     await wait("document.querySelector('.diff-shell--fullscreen .feedback-tray:popover-open')");
     await click('.feedback-tray button');
