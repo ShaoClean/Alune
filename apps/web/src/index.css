@@ -1138,7 +1138,34 @@ body,
   flex-wrap: wrap;
 }
 
-.workspace-file-menu__anchor { position: fixed; width: 1px; height: 1px; pointer-events: none; }
-.workspace-file-menu { width: min(260px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; }
-.workspace-file-menu__path { display: block; max-width: 228px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-file-menu__reason { display: block; max-width: 228px; white-space: normal; }
+/* Business-specific sizing; the shared a-menu shell owns colors and surfaces. */
+.workspace-file-menu__anchor {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.workspace-file-menu {
+  width: min(260px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+}
+.workspace-file-menu__path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.workspace-file-menu__reason {
+  display: block;
+  padding-block: 6px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
