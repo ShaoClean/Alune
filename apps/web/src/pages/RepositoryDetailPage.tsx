@@ -5,7 +5,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Button, App, Input, Modal, Select } from 'antd';
+import { Button, App, Input, Select } from 'antd';
+import { AluneModal, DialogHints, Kbd, useAluneConfirm } from '../components/AluneModal';
+import { DialogIcon } from '../components/DialogIcons';
+import { DialogCard, DialogNote, RepoRow } from '../components/DialogParts';
 import { FeedbackNotice } from '../components/Feedback';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { gitApi, repositoryApi } from '../api';
@@ -46,7 +49,8 @@ export function RepositoryDetailPage() {
 }
 
 function RepositoryWorkspace({ id }: { id: string | undefined }) {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirm = useAluneConfirm();
   const navigate = useNavigate();
   const location = useLocation();
   const { setRightPanelAvailable, repositoryToolbarSlot } = useOutletContext<{
@@ -319,26 +323,55 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         setSyncSelection({ operation, ...options });
       } else void runSync(operation, options);
     };
-    if (options?.force)
-      modal.confirm({
+    if (options?.force) {
+      const branch = status?.branch || '';
+      void confirm({
+        level: 2,
+        glyph: 'cloud-up',
+        eyebrow: {
+          label: currentRepo?.source === 'local' ? '本机' : 'SSH',
+          detail: [currentRepo?.name, branch].filter(Boolean).join(' · '),
+        },
+        levelLabel: '覆盖远程',
         title: '强制推送当前分支？',
+        description: '将更新远程历史，覆盖上次获取后已知的远程提交。',
         content: (
           <>
-            <p>
-              {currentRepo?.source === 'local' ? '本机' : 'SSH'} · {currentRepo?.name} ·{' '}
-              {status?.branch}
-            </p>
-            <p className="git-path-detail">{currentRepo?.path}</p>
-            <p>
-              将更新远程历史，覆盖上次获取后已知的远程提交。若远程又有变化，Git 会拒绝此次推送。
-            </p>
+            <DialogCard>
+              <RepoRow name={currentRepo?.name} path={currentRepo?.path}>
+                {current.upstream ? (
+                  <span className="dlg-badge is-mono">{current.upstream}</span>
+                ) : null}
+              </RepoRow>
+            </DialogCard>
+            <DialogNote quiet icon="shield">
+              <p>
+                使用 <code>--force-with-lease</code>：若远程又有变化，Git 会拒绝此次推送。
+              </p>
+            </DialogNote>
           </>
         ),
+        typedConfirm: branch
+          ? {
+              value: branch,
+              icon: 'branch',
+              mismatch: '与当前分支名不一致',
+              match: '分支名一致',
+            }
+          : undefined,
+        hints: (
+          <DialogHints tone="warn">
+            <span>
+              <DialogIcon name="warning" />
+              覆盖远程历史
+            </span>
+          </DialogHints>
+        ),
         okText: '确认强制推送',
-        okButtonProps: { danger: true },
+        okIcon: 'cloud-up',
         onOk: execute,
       });
-    else execute();
+    } else execute();
   };
 
   const handleSelectFile = (file: any) => {
@@ -456,12 +489,30 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         actionLabel="重试"
         onAction={() => handleRefresh(false)}
       />
-      <Modal
-        title={syncSelection?.operation === 'push' ? '设置上游并推送' : '选择拉取来源'}
+      <AluneModal
         open={!!syncSelection}
+        glyph={syncSelection?.operation === 'push' ? 'cloud-up' : 'cloud-down'}
+        eyebrow={{
+          label: syncSelection?.operation === 'push' ? '推送' : '拉取',
+          detail: [currentRepo?.name, status?.branch].filter(Boolean).join(' · '),
+        }}
+        title={syncSelection?.operation === 'push' ? '设置上游并推送' : '选择拉取来源'}
+        description="当前分支还没有上游。确认远程和分支后执行。"
+        hints={
+          <DialogHints>
+            <span>
+              <Kbd>↵</Kbd> 执行
+            </span>
+            <i />
+            <span>
+              <Kbd>Esc</Kbd> 取消
+            </span>
+          </DialogHints>
+        }
         onCancel={() => setSyncSelection(null)}
         okText={syncSelection?.operation === 'push' ? '设置并推送' : '拉取'}
-        okButtonProps={{ disabled: !remote || !remoteBranch.trim() }}
+        okDisabled={!remote || !remoteBranch.trim()}
+        initialFocus="field"
         onOk={() => {
           if (!syncSelection) return;
           const selected = syncSelection;
@@ -469,31 +520,53 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           void runSync(selected.operation, {
             ...selected,
             remote,
-            branch: remoteBranch,
+            branch: remoteBranch.trim(),
             setUpstream: selected.operation === 'push',
           });
         }}
       >
-        <p className="modal-description">当前分支尚未关联上游。确认远程和分支后执行。</p>
-        <label className="git-form-label" htmlFor="git-sync-remote">
-          远程
-        </label>
-        <Select
-          id="git-sync-remote"
-          style={{ width: '100%' }}
-          value={remote}
-          onChange={setRemote}
-          options={context?.remotes.map((item) => ({ value: item.name, label: item.name }))}
-        />
-        <label className="git-form-label" htmlFor="git-sync-branch">
-          远程分支
-        </label>
-        <Input
-          id="git-sync-branch"
-          value={remoteBranch}
-          onChange={(event) => setRemoteBranch(event.target.value)}
-        />
-      </Modal>
+        <div className="dlg-fld-row">
+          <label className="dlg-fld">
+            <span className="dlg-fld-label">远程</span>
+            <Select
+              id="git-sync-remote"
+              aria-label="远程"
+              prefix={<DialogIcon name="globe" />}
+              value={remote}
+              onChange={setRemote}
+              options={context?.remotes.map((item) => ({ value: item.name, label: item.name }))}
+            />
+          </label>
+          <label className="dlg-fld">
+            <span className="dlg-fld-label">远程分支</span>
+            <Input
+              id="git-sync-branch"
+              className="dlg-mono-input"
+              value={remoteBranch}
+              autoComplete="off"
+              spellCheck={false}
+              data-autofocus
+              onChange={(event) => setRemoteBranch(event.target.value)}
+            />
+          </label>
+        </div>
+        <DialogCard>
+          <div className="dlg-card-row">
+            {syncSelection?.operation === 'push' ? (
+              <span className="dlg-path">
+                <b>{status?.branch}</b> → {remote}/<b>{remoteBranch.trim()}</b>
+              </span>
+            ) : (
+              <span className="dlg-path">
+                {remote}/<b>{remoteBranch.trim()}</b> → <b>{status?.branch}</b>
+              </span>
+            )}
+            <span className="dlg-badge is-mono" style={{ marginLeft: 'auto' }}>
+              {syncSelection?.operation === 'push' ? '--set-upstream' : '--no-edit'}
+            </span>
+          </div>
+        </DialogCard>
+      </AluneModal>
       <div
         className={
           'workspace-body' +

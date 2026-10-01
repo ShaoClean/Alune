@@ -1,7 +1,6 @@
 import { LOCAL_GROUP_ID, repositoryGroupId } from '../stores/repositorySource';
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
-import { Popconfirm } from 'antd';
 import {
   LaptopOutlined,
   BranchesOutlined,
@@ -15,6 +14,7 @@ import type { ConnectionStatusInfo, Repository } from '@alune/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { RepositoryStatusIndicator } from './RepositoryStatusIndicator';
+import { RemoveRepositoryConfirm } from './AlunePopconfirm';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { canMoveTreeItem, orderItems } from '../stores/sidebarOrder';
 import type { Placement, TreeItem } from '../stores/sidebarOrder';
@@ -360,23 +360,8 @@ export function WorkspaceTree({
                           </span>
                           <RepositoryStatusIndicator id={repo.id} compact />
                         </button>
-                        <Popconfirm
-                          title="确认移除仓库？"
-                          description={
-                            <div className="tree-delete-confirm">
-                              <div>
-                                <strong>名称：</strong>
-                                {repo.name}
-                              </div>
-                              <div>
-                                <strong>路径：</strong>
-                                {repo.path}
-                              </div>
-                              <small>仅移除应用内登记，不会删除仓库目录或文件。</small>
-                            </div>
-                          }
-                          okText="确认移除"
-                          cancelText="取消"
+                        <RemoveRepositoryConfirm
+                          repository={repo}
                           placement="right"
                           onConfirm={() => handleDelete(repo)}
                         >
@@ -391,7 +376,7 @@ export function WorkspaceTree({
                           >
                             <DeleteOutlined />
                           </button>
-                        </Popconfirm>
+                        </RemoveRepositoryConfirm>
                       </div>
                     );
                   })}

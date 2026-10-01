@@ -7,8 +7,29 @@ import zhCN from 'antd/locale/zh_CN';
 import { router } from './router';
 import { useAppearance } from './appearance';
 import { FeedbackProvider } from './components/Feedback';
+import { AluneConfirmProvider } from './components/AluneModal';
+import { DialogIcon } from './components/DialogIcons';
 
 const queryClient = new QueryClient();
+
+// Moonlight overlay skins (dialogs.css). AluneModal adds the shell and levels;
+// these defaults keep any remaining Ant Design overlay on the same surfaces.
+const modalConfig = {
+  centered: true,
+  mask: { blur: true },
+  closeIcon: <DialogIcon name="x" />,
+  classNames: {
+    root: 'a-dlg',
+    mask: 'a-dlg-scrim',
+    container: 'a-dlg-core',
+    header: 'a-dlg-head',
+    body: 'a-dlg-body',
+    footer: 'a-dlg-foot',
+  },
+};
+const popconfirmConfig = { arrow: false, classNames: { root: 'a-pop' } };
+const dropdownConfig = { classNames: { root: 'a-menu' } };
+const popoverConfig = { arrow: false, classNames: { root: 'a-pop' } };
 
 function App() {
   const { theme, reduceMotion } = useAppearance();
@@ -65,11 +86,20 @@ function App() {
     };
   }, [theme, reduceMotion]);
   return (
-    <ConfigProvider locale={zhCN} theme={config}>
+    <ConfigProvider
+      locale={zhCN}
+      theme={config}
+      modal={modalConfig}
+      popconfirm={popconfirmConfig}
+      dropdown={dropdownConfig}
+      popover={popoverConfig}
+    >
       <AntApp component={false}>
         <QueryClientProvider client={queryClient}>
           <FeedbackProvider>
-            <RouterProvider router={router} />
+            <AluneConfirmProvider>
+              <RouterProvider router={router} />
+            </AluneConfirmProvider>
           </FeedbackProvider>
         </QueryClientProvider>
       </AntApp>

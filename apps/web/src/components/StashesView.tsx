@@ -1,9 +1,165 @@
-import { useEffect, useState } from 'react';
-import { Button, Checkbox, Input, Modal, Popconfirm, App } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Input, App } from 'antd';
 import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
+import { AlunePopconfirm } from './AlunePopconfirm';
+import { AluneModal, CheckCard, DialogHints, Kbd } from './AluneModal';
+import { DialogIcon } from './DialogIcons';
+import { DialogCard, DialogEmpty, DialogPath } from './DialogParts';
+import { getNumberedDiffLines } from './diff-lines';
+import type { NumberedDiffLine } from './diff-lines';
 import { ErrorState, EmptyState, formatRelativeDate, PanelHeader } from './ui';
+
+interface StashFile {
+  path: string;
+  added: boolean;
+  deleted: boolean;
+  binary: boolean;
+  adds: number;
+  dels: number;
+  lines: NumberedDiffLine[];
+}
+
+// Groups `git stash show --patch` output by file; headers become the file row and
+// only hunk content is rendered as diff rows.
+function parseStashDiff(diff: string): StashFile[] {
+  const files: StashFile[] = [];
+  let current: StashFile | null = null;
+  let inHunk = false;
+  for (const line of getNumberedDiffLines(diff)) {
+    const { text } = line;
+    if (text.startsWith('diff --git ')) {
+      const paths = /^diff --git "?a\/(.*?)"? "?b\/(.*?)"?$/.exec(text);
+      current = {
+        path: paths?.[2] ?? text.slice('diff --git '.length),
+        added: false,
+        deleted: false,
+        binary: false,
+        adds: 0,
+        dels: 0,
+        lines: [],
+      };
+      inHunk = false;
+      files.push(current);
+      continue;
+    }
+    if (!current) continue;
+    if (text.startsWith('@@')) inHunk = true;
+    else if (!inHunk) {
+      if (text.startsWith('+++ b/')) current.path = text.slice(6);
+      else if (text.startsWith('rename to ')) current.path = text.slice(10);
+      else if (text.startsWith('new file mode')) current.added = true;
+      else if (text.startsWith('deleted file mode')) current.deleted = true;
+      else if (/^Binary files |^GIT binary patch$/.test(text)) current.binary = true;
+      continue;
+    }
+    if (line.kind === 'add') current.adds++;
+    if (line.kind === 'remove') current.dels++;
+    current.lines.push(line);
+  }
+  // The trailing newline of the patch would otherwise show up as an empty meta row.
+  for (const file of files) {
+    while (file.lines.length && file.lines[file.lines.length - 1].text === '') file.lines.pop();
+  }
+  return files;
+}
+
+function StashDiff({ diff }: { diff: string }) {
+  const files = useMemo(() => parseStashDiff(diff), [diff]);
+  if (!diff.trim()) {
+    return (
+      <DialogCard>
+        <DialogEmpty>此储藏没有文本差异。</DialogEmpty>
+      </DialogCard>
+    );
+  }
+  if (!files.length) {
+    return (
+      <DialogCard>
+        <pre className="stash-diff">{diff}</pre>
+      </DialogCard>
+    );
+  }
+  const adds = files.reduce((sum, file) => sum + file.adds, 0);
+  const dels = files.reduce((sum, file) => sum + file.dels, 0);
+  return (
+    <>
+      <div className="dlg-badges">
+        <span className="dlg-badge">
+          <DialogIcon name="file" />
+          {files.length} 个文件
+        </span>
+        <span className="dlg-badge is-mono" data-tone="success" aria-label={`新增 ${adds} 行`}>
+          +{adds}
+        </span>
+        <span className="dlg-badge is-mono" data-tone="danger" aria-label={`删除 ${dels} 行`}>
+          −{dels}
+        </span>
+      </div>
+      <DialogCard>
+        <div className="stash-diff" tabIndex={0} aria-label="储藏差异内容">
+          <div className="diff-unified-view">
+            {files.map((file, fileIndex) => (
+              <div key={`${fileIndex}-${file.path}`}>
+                <div className="dlg-diff-file">
+                  <DialogIcon name={file.added ? 'file-plus' : 'file'} />
+                  <DialogPath path={file.path} />
+                  {file.added ? (
+                    <span className="dlg-badge" data-tone="success">
+                      新文件
+                    </span>
+                  ) : file.deleted ? (
+                    <span className="dlg-badge" data-tone="danger">
+                      已删除
+                    </span>
+                  ) : null}
+                  {file.adds || file.dels ? (
+                    <span className="dlg-badges">
+                      <span className="dlg-badge is-mono" data-tone="success">
+                        +{file.adds}
+                      </span>
+                      <span className="dlg-badge is-mono" data-tone="danger">
+                        −{file.dels}
+                      </span>
+                    </span>
+                  ) : null}
+                </div>
+                {file.lines.length ? (
+                  file.lines.map(({ text, kind, oldLine, newLine }, index) => (
+                    <div className={`diff-code-row diff-code-row--${kind}`} key={index}>
+                      {kind !== 'meta' && (
+                        <>
+                          <span className="diff-line-number" aria-hidden="true">
+                            {oldLine}
+                          </span>
+                          <span className="diff-line-number" aria-hidden="true">
+                            {newLine}
+                          </span>
+                        </>
+                      )}
+                      <code>{text}</code>
+                    </div>
+                  ))
+                ) : (
+                  <div className="diff-code-row diff-code-row--meta">
+                    <code>
+                      {file.binary
+                        ? '二进制文件，无法显示文本差异。'
+                        : file.added
+                          ? '新增空文件'
+                          : '没有文本内容变化'}
+                    </code>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </DialogCard>
+    </>
+  );
+}
 
 interface Props {
   repoId: string;
@@ -13,6 +169,11 @@ interface Props {
 export function StashesView({ repoId, onRefresh }: Props) {
   const { message } = App.useApp();
   const { stashes, fetchStashes, error, errorPanel } = useRepositoryStore();
+  const repoName = useRepositoryStore(
+    (state) => state.repositories.find((repo) => repo.id === repoId)?.name,
+  );
+  const status = useRepositoryStore((state) => state.repositoryStatuses[repoId]?.data);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(false);
   const [stashModalVisible, setStashModalVisible] = useState(false);
   const [stashMessage, setStashMessage] = useState('');
@@ -74,6 +235,25 @@ export function StashesView({ repoId, onRefresh }: Props) {
       setPreviewLoading(null);
     }
   };
+
+  // Keep the last preview while the dialog animates out.
+  const lastPreview = useRef(preview);
+  if (preview) lastPreview.current = preview;
+  const shownPreview = preview ?? lastPreview.current;
+  const previewStash = shownPreview
+    ? stashes.find((stash: any) => stash.index === shownPreview.index)
+    : undefined;
+  // Counts come from the last status read, so they only describe what that read saw.
+  const stashCounts = useMemo(() => {
+    if (!status) return null;
+    const tracked = new Set<string>();
+    const untracked = new Set<string>();
+    for (const file of status.files) {
+      if (file.status === 'ignored') continue;
+      (file.status === 'untracked' ? untracked : tracked).add(file.path);
+    }
+    return { tracked: tracked.size, untracked: untracked.size };
+  }, [status]);
 
   return (
     <section className="workspace-panel">
@@ -159,10 +339,27 @@ export function StashesView({ repoId, onRefresh }: Props) {
                 >
                   弹出
                 </Button>
-                <Popconfirm
-                  title="删除此储藏？"
-                  description="此快照无法恢复。"
-                  onConfirm={() => void runStashAction('stashDrop', stash.index)}
+                <AlunePopconfirm
+                  icon="archive"
+                  title={
+                    <>
+                      删除{' '}
+                      <code>
+                        stash@{'{'}
+                        {stash.index}
+                        {'}'}
+                      </code>
+                      ？
+                    </>
+                  }
+                  description={
+                    stash.message
+                      ? `“${stash.message}”删除后无法恢复。`
+                      : '这条储藏删除后无法恢复。'
+                  }
+                  okText="删除储藏"
+                  disabled={loading}
+                  onConfirm={() => runStashAction('stashDrop', stash.index)}
                 >
                   <Button
                     size="small"
@@ -172,44 +369,98 @@ export function StashesView({ repoId, onRefresh }: Props) {
                   >
                     删除
                   </Button>
-                </Popconfirm>
+                </AlunePopconfirm>
               </div>
             </article>
           ))}
         </div>
       )}
-      <Modal
-        title={`储藏差异 · stash@{${preview?.index ?? 0}}`}
+      <AluneModal
         open={preview !== null}
+        size="xl"
+        glyph="archive"
+        eyebrow={{
+          label: '储藏',
+          detail: [
+            repoName,
+            previewStash?.branch,
+            previewStash && formatRelativeDate(previewStash.date),
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        }}
+        title={
+          <>
+            储藏差异 · <code>{`stash@{${shownPreview?.index ?? 0}}`}</code>
+          </>
+        }
+        description={previewStash?.message || undefined}
         onCancel={() => setPreview(null)}
-        footer={<Button onClick={() => setPreview(null)}>关闭</Button>}
-        width={880}
+        afterOpenChange={(visible) => {
+          if (visible) closeRef.current?.focus();
+        }}
+        hints={
+          <DialogHints>
+            <span>
+              <Kbd>Esc</Kbd> 关闭
+            </span>
+            <i />
+            <span>只读预览</span>
+          </DialogHints>
+        }
+        footer={
+          <Button ref={closeRef} autoFocus onClick={() => setPreview(null)}>
+            关闭
+          </Button>
+        }
       >
-        <pre className="stash-diff">{preview?.diff || '此储藏没有文本差异。'}</pre>
-      </Modal>
-      <Modal
-        title="储藏当前改动"
+        {shownPreview && <StashDiff diff={shownPreview.diff} />}
+      </AluneModal>
+      <AluneModal
         open={stashModalVisible}
+        size="sm"
+        glyph="archive"
+        eyebrow={{
+          label: '储藏',
+          detail: [repoName, status?.branch].filter(Boolean).join(' · ') || undefined,
+        }}
+        title="储藏当前改动"
+        description="保存改动并还原工作区，之后可以随时恢复。"
+        hintVerb="创建"
         onCancel={() => setStashModalVisible(false)}
-        onOk={() => void createStash()}
+        onOk={createStash}
         confirmLoading={loading}
         okText="创建储藏"
+        busyText="正在储藏…"
       >
-        <Input
-          autoFocus
-          placeholder="可选备注"
-          value={stashMessage}
-          onChange={(event) => setStashMessage(event.target.value)}
-          onPressEnter={() => void createStash()}
-        />
-        <Checkbox
-          style={{ marginTop: 16 }}
+        <label className="dlg-fld">
+          <span className="dlg-fld-label">
+            <span>备注</span>
+            <small>可选</small>
+          </span>
+          <Input
+            data-autofocus
+            placeholder="例如：设置页布局实验"
+            value={stashMessage}
+            prefix={<DialogIcon name="pencil" />}
+            onChange={(event) => setStashMessage(event.target.value)}
+          />
+        </label>
+        <CheckCard
           checked={includeUntracked}
-          onChange={(event) => setIncludeUntracked(event.target.checked)}
-        >
-          包含未跟踪文件（忽略文件仍会保留）
-        </Checkbox>
-      </Modal>
+          onChange={setIncludeUntracked}
+          disabled={loading}
+          title="包含未跟踪文件"
+          description="忽略文件仍会保留在工作区"
+        />
+        {stashCounts && (
+          <p className="dlg-fld-hint">
+            {includeUntracked && stashCounts.untracked
+              ? `将储藏 ${stashCounts.tracked + stashCounts.untracked} 项改动，包括 ${stashCounts.untracked} 个未跟踪项`
+              : `将储藏 ${stashCounts.tracked} 项已跟踪改动`}
+          </p>
+        )}
+      </AluneModal>
     </section>
   );
 }

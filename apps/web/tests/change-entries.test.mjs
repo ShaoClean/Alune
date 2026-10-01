@@ -4,6 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { changeActions } from '@alune/shared';
+import { AluneConfirmProvider } from '../src/components/AluneModal.tsx';
 import { ChangesView } from '../src/components/ChangesView.tsx';
 import { useRepositoryStore } from '../src/stores/repositoryStore.ts';
 
@@ -19,7 +20,11 @@ function render(files) {
     createElement(
       MemoryRouter,
       null,
-      createElement(ChangesView, { repoId: 'directory-fixture', onRefresh: async () => {} }),
+      createElement(
+        AluneConfirmProvider,
+        null,
+        createElement(ChangesView, { repoId: 'directory-fixture', onRefresh: async () => {} }),
+      ),
     ),
   );
 }

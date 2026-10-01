@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Input, Modal, Space, Typography } from 'antd';
-import { FolderOpenOutlined, LaptopOutlined } from '@ant-design/icons';
+import { Button, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { AluneModal, DialogHints, Kbd } from './AluneModal';
+import { DialogIcon } from './DialogIcons';
+import {
+  DialogCard,
+  DialogNote,
+  DialogProgress,
+  DialogStat,
+  DialogStats,
+  RepoRow,
+} from './DialogParts';
 
 type Inspection = Awaited<ReturnType<typeof repositoryApi.inspectLocal>>;
 
@@ -67,84 +76,124 @@ export function OpenLocalRepository({ open, onClose }: { open: boolean; onClose:
       if (current === generation.current) setBusy(false);
     }
   };
+  const checking = busy && !inspection;
+  const changes = inspection?.status.files.length ?? 0;
   return (
-    <Modal
-      title={
-        <Space>
-          <LaptopOutlined />
-          打开本地仓库
-        </Space>
-      }
+    <AluneModal
       open={open}
-      onCancel={onClose}
-      footer={
-        <>
-          <Button onClick={onClose}>取消</Button>
-          <Button
-            type="primary"
-            disabled={!inspection}
-            loading={busy}
-            onClick={() => void confirm()}
-          >
-            打开工作区
-          </Button>
-        </>
+      size="md"
+      glyph="folder-open"
+      eyebrow={{ label: '仓库', detail: '本机' }}
+      title="打开本地仓库"
+      description="选择已有 Git 仓库，或粘贴本机的完整目录路径。Git 操作在运行 Alune 的电脑上执行。"
+      okText="打开工作区"
+      busyText="正在打开…"
+      okDisabled={!inspection}
+      hints={
+        <DialogHints>
+          <span>
+            <Kbd>↵</Kbd> 检查 · 打开
+          </span>
+          <i />
+          <span>
+            <Kbd>Esc</Kbd> 取消
+          </span>
+        </DialogHints>
       }
+      // ↵ opens the workspace once the inspection is ready; before that the path field inspects.
+      onOk={() => confirm()}
+      onCancel={onClose}
     >
-      <p className="modal-description">
-        选择已有 Git 仓库，或粘贴本机的完整目录路径。Git 操作在运行 Alune 的电脑上执行。
-      </p>
-      <label className="git-form-label" htmlFor="local-repo-path">
-        仓库目录
-      </label>
-      <Space.Compact block>
-        <Input
-          id="local-repo-path"
-          autoFocus
-          value={path}
-          disabled={busy}
-          onChange={(event) => changePath(event.target.value)}
-          onPressEnter={() => void inspect()}
-          placeholder="/Users/me/Projects/repository 或 C:\\Projects\\repository"
-        />
-        {window.aluneWorkspace?.chooseDirectory && (
-          <Button icon={<FolderOpenOutlined />} disabled={busy} onClick={() => void choose()}>
-            浏览
+      <div className="dlg-fld">
+        <label className="dlg-fld-label" htmlFor="local-repo-path">
+          仓库目录
+        </label>
+        <div className="dlg-inp-group">
+          <Input
+            id="local-repo-path"
+            className="dlg-mono-input"
+            prefix={<DialogIcon name="folder" />}
+            suffix={
+              window.aluneWorkspace?.chooseDirectory ? (
+                <Button
+                  size="small"
+                  type="text"
+                  className="dlg-inp-btn"
+                  disabled={busy}
+                  onClick={() => void choose()}
+                >
+                  浏览
+                </Button>
+              ) : undefined
+            }
+            data-autofocus
+            autoComplete="off"
+            spellCheck={false}
+            value={path}
+            disabled={busy}
+            onChange={(event) => changePath(event.target.value)}
+            onPressEnter={() => {
+              if (!inspection && path.trim() && !busy) void inspect();
+            }}
+            placeholder="/Users/me/Projects/repository"
+          />
+          <Button
+            className={checking ? 'is-busy' : undefined}
+            aria-busy={checking || undefined}
+            disabled={!path.trim() || (busy && !checking)}
+            onClick={() => {
+              if (!busy) void inspect();
+            }}
+          >
+            {checking ? <span className="dlg-moonload" aria-hidden="true" /> : null}
+            <span>{checking ? '检查中' : '检查仓库'}</span>
           </Button>
-        )}
-      </Space.Compact>
-      <Button
-        className="local-inspect-button"
-        disabled={!path || busy}
-        loading={busy && !inspection}
-        onClick={() => void inspect()}
-      >
-        检查仓库
-      </Button>
-      {error && <Alert type="error" showIcon title="无法打开仓库" description={error} />}
-      {inspection && (
-        <div className="local-repository-preview" role="status">
-          <strong>
-            <FolderOpenOutlined /> {inspection.name}
-          </strong>
-          <Typography.Paragraph className="local-repository-preview__path">
-            {inspection.path}
-          </Typography.Paragraph>
-          <Space wrap>
-            <span className="source-badge">本机</span>
-            <span>{inspection.status.branch || '游离 HEAD'}</span>
-            <span>
-              {inspection.unborn ? '等待首次提交' : `${inspection.status.files.length} 项改动`}
-            </span>
-            <span>
-              {inspection.remotes.length ? `${inspection.remotes.length} 个远程` : '未配置远程'}
-            </span>
-          </Space>
-          {(!inspection.author.name || !inspection.author.email) && (
-            <p>尚未配置提交作者，可在工作区中补充。</p>
-          )}
         </div>
+        {!path && (
+          <span className="dlg-fld-hint">
+            也可以直接粘贴 Windows 路径，例如 <code>C:\Projects\repository</code>
+          </span>
+        )}
+      </div>
+      {checking && <DialogProgress label="正在读取仓库状态、分支与远程…" />}
+      {inspection && (
+        <DialogCard>
+          <RepoRow name={inspection.name} path={inspection.path}>
+            <span className="dlg-badge" data-tone="success" style={{ marginLeft: 'auto' }}>
+              本机
+            </span>
+          </RepoRow>
+          <div className="dlg-card-divide" />
+          <DialogStats>
+            <DialogStat value={inspection.status.branch || '游离 HEAD'} label="当前分支" />
+            {inspection.unborn ? (
+              <DialogStat value="—" label="等待首次提交" off />
+            ) : (
+              <DialogStat
+                value={changes}
+                label="项改动"
+                tone={changes > 0 ? 'warning' : undefined}
+                off={changes === 0}
+              />
+            )}
+            {inspection.remotes.length ? (
+              <DialogStat value={inspection.remotes.length} label="个远程" />
+            ) : (
+              <DialogStat value="—" label="未配置远程" off />
+            )}
+          </DialogStats>
+        </DialogCard>
       )}
-    </Modal>
+      {inspection && (!inspection.author.name || !inspection.author.email) && (
+        <DialogNote tone="warning" icon="user">
+          尚未配置提交作者，可以在工作区中补充。
+        </DialogNote>
+      )}
+      {error && (
+        <DialogNote tone="danger" icon="warning" title="无法打开仓库" role="alert">
+          {error}
+        </DialogNote>
+      )}
+    </AluneModal>
   );
 }

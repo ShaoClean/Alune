@@ -268,7 +268,7 @@ export function RepositorySwitcher({
               </span>
               <span>
                 <strong>已打开仓库</strong>
-                <small>{repositories.length} 个仓库 · 按仓库来源分组</small>
+                <small>按仓库来源分组 · ↑↓ 选择，↵ 打开</small>
               </span>
             </span>
             <span
@@ -302,62 +302,49 @@ export function RepositorySwitcher({
 
           <div className="repository-switcher-panel__list">{menu}</div>
 
-          <div className="repository-switcher-panel__sections">
-            <section aria-label="工作区入口">
-              <button
-                type="button"
-                className="repository-switcher-panel__action"
-                onClick={() => openPage(onBrowse)}
-              >
-                <FolderOpenOutlined />
-                <span>
-                  <strong>浏览全部仓库</strong>
-                  <small>查看并打开工作区</small>
-                </span>
-                <RightOutlined />
-              </button>
-              <button
-                type="button"
-                className="repository-switcher-panel__action"
-                onClick={() => openPage(onConnections)}
-              >
-                <CloudServerOutlined />
-                <span>
-                  <strong>管理远程连接</strong>
-                  <small>配置 SSH 主机</small>
-                </span>
-                <RightOutlined />
-              </button>
-            </section>
-            <section aria-label="应用入口">
-              <button
-                type="button"
-                className="repository-switcher-panel__action"
-                onClick={() => openPage(onSettings)}
-              >
-                <SettingOutlined />
-                <span>
-                  <strong>设置</strong>
-                  <small>⌘ / Ctrl ,</small>
-                </span>
-                <RightOutlined />
-              </button>
-              <a
-                className="repository-switcher-panel__action"
-                href="https://github.com/ShaoClean/Alune/wiki"
-                target="_blank"
-                rel="noreferrer"
-                onClick={closeAndFocus}
-              >
-                <QuestionCircleOutlined />
-                <span>
-                  <strong>帮助与文档</strong>
-                  <small>使用指南和常见问题</small>
-                </span>
-                <RightOutlined />
-              </a>
-            </section>
-          </div>
+          {/* L02: the entries share one compact row so the list keeps two more rows. */}
+          <nav className="repository-switcher-panel__entries" aria-label="工作区与应用入口">
+            <button
+              type="button"
+              className="repository-switcher-panel__entry"
+              aria-label="浏览全部仓库"
+              onClick={() => openPage(onBrowse)}
+            >
+              <FolderOpenOutlined />
+              <strong>全部仓库</strong>
+            </button>
+            <button
+              type="button"
+              className="repository-switcher-panel__entry"
+              aria-label="管理远程连接"
+              onClick={() => openPage(onConnections)}
+            >
+              <CloudServerOutlined />
+              <strong>远程连接</strong>
+            </button>
+            <button
+              type="button"
+              className="repository-switcher-panel__entry"
+              aria-label="设置"
+              title="设置 · ⌘ / Ctrl ,"
+              onClick={() => openPage(onSettings)}
+            >
+              <SettingOutlined />
+              <strong>设置</strong>
+            </button>
+            <a
+              className="repository-switcher-panel__entry"
+              aria-label="帮助与文档"
+              title="帮助与文档 · 使用指南和常见问题"
+              href="https://github.com/ShaoClean/Alune/wiki"
+              target="_blank"
+              rel="noreferrer"
+              onClick={closeAndFocus}
+            >
+              <QuestionCircleOutlined />
+              <strong>帮助</strong>
+            </a>
+          </nav>
 
           <footer className="repository-switcher-panel__footer">
             <span>Alune</span>
