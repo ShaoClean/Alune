@@ -1,13 +1,13 @@
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useState } from 'react';
-import { Input } from 'antd';
-import { FeedbackNotice } from './Feedback';
+import { Input } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
 import type { RepositoryContext } from '@alune/shared';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { AluneModal } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
-import { DialogNote } from './DialogParts';
+import { AluneModal } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import { DialogNote } from '@alune/ui';
 
 export function RepositoryContextNotice({
   repoId,

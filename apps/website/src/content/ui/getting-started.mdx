@@ -1,0 +1,48 @@
+<h2 id="setup">初始化</h2>
+
+Alune-UI 是仓库内的私有源码包，路径为 `packages/ui`。它由 Vite 与 Astro 直接编译，不需要先生成 dist，也没有首期公开 npm 安装命令。
+
+使用 Node.js 22.12+ 和 npm（CI 为 Node.js 22.22.0），在仓库根目录执行：
+
+```sh
+npm ci
+npm run website:dev
+```
+
+打开终端给出的 `/Alune/ui/` 地址。应用开发流程见 [开发与打包](https://github.com/ShaoClean/Alune/blob/development/docs/development.md)。
+
+<h2 id="connect">最小接入</h2>
+
+```tsx
+import { AluneUIProvider, Button } from '@alune/ui';
+import '@alune/ui/styles.css';
+
+export function Example() {
+  return (
+    <AluneUIProvider theme="light" reduceMotion={false}>
+      <Button type="primary">保存</Button>
+    </AluneUIProvider>
+  );
+}
+```
+
+`theme` 必填，值为 `light | dark`；`reduceMotion` 默认为 false。宿主负责解析系统偏好与持久化，再传入解析结果。同一文档使用一个根 Provider，主题属性、浮层、反馈和确认上下文由它统一管理；多主题独立演示使用 iframe。
+
+样式只导入一次，位于应用业务布局 CSS 之前。共享包不设置 `#root` 或工作区尺寸。Geist / Geist Mono 字体由宿主加载；当前官网与应用使用 `@fontsource-variable/geist`、`@fontsource-variable/geist-mono`，缺失时回退系统字体。
+
+React 19、React DOM 19 与 Ant Design 6 是宿主 peer dependencies。基础控件保留原始属性、泛型和行为；业务状态和接口由宿主承担。
+
+<h2 id="run">开发与检查</h2>
+
+在仓库根目录执行：
+
+```sh
+npm run ui:check
+npm test -w web
+npm run build -w web
+npm run website:check
+npm run desktop:build
+npm run website:preview
+```
+
+首次启动无须构建共享包。UI 检查包括类型、运行时边界与导出覆盖；官网检查同时验证 TSX 示例、API 数据和静态页面。组件 API 与运行源码随代码更新，详细设计和验收证据维护在 [Issue #153 Wiki](https://github.com/ShaoClean/Alune/wiki/Issue-153)。

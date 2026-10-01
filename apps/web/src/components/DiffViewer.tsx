@@ -1,6 +1,6 @@
-import { FeedbackAlert } from './FeedbackAlert';
+import { FeedbackAlert } from '@alune/ui';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Button, Segmented } from 'antd';
+import { Button, Segmented } from '@alune/ui';
 import {
   CloseOutlined,
   CompressOutlined,

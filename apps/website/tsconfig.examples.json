@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "types": ["astro/client"] },
+  "include": ["src/examples/**/*.tsx", "src/examples/**/*.ts", "src/data/ui.ts"]
+}

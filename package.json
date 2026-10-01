@@ -28,7 +28,8 @@
     "website:dev": "npm run dev -w website",
     "website:build": "npm run build -w website",
     "website:preview": "npm run preview -w website",
-    "website:check": "npm run check -w website && npm run build -w website && npm test -w website"
+    "website:check": "npm run check -w website && npm run build -w website && npm test -w website",
+    "ui:check": "npm run check -w @alune/ui && npm test -w @alune/ui && node apps/website/scripts/ui-api.mjs --check && node apps/website/scripts/ui-coverage.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.2",

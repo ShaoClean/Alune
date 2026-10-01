@@ -1,0 +1,21 @@
+/* Import once in each host document, before application-specific layout CSS. */
+@import './src/styles/tokens.css';
+@import './src/styles/controls.css';
+@import './src/styles/dialogs.css';
+:root {
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+:where(button, input, textarea, select) {
+  font: inherit;
+}
+:where(button) {
+  cursor: pointer;
+}

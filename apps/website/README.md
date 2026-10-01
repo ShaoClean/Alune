@@ -1,6 +1,6 @@
 # Alune 官网
 
-独立 Astro 静态站点，介绍本地与 SSH Git 工作区。现有 `apps/web` 仍承载桌面应用界面。官网不依赖 React、Ant Design、Electron、server 或共享业务包。
+独立 Astro 静态站点，介绍本地与 SSH Git 工作区。现有 `apps/web` 仍承载桌面应用界面。产品首页保持静态 Astro；`/Alune/ui/` 文档通过 React / MDX 与 `@alune/ui` 展示真实组件，示例隔离在独立 iframe 中。官网不依赖 Electron、server 或共享业务包，产品首页不加载组件示例运行时。
 
 ## 本地开发与检查
 
@@ -67,7 +67,7 @@ node apps/website/scripts/generate-brand.mjs
 
 1. 在仓库 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。仓库须允许 Pages，`github-pages` 环境须允许 `development` 部署。
 2. 将官网代码合入 `development` 后，网站及相关配置的变更触发 `.github/workflows/website.yml`。PR 只检查并上传产物；部署仅在 `development` push 或从该分支手动运行时执行。
-3. 工作流只安装官网 workspace 并运行 `website:check`，上传 `apps/website/dist`。部署使用 `pages:write` 与 OIDC，不使用个人访问令牌。
+3. 工作流只安装 `website` / `@alune/ui`，执行 `ui:check` 与 `website:check`，上传 `apps/website/dist`。部署使用 `pages:write` 与 OIDC，不使用个人访问令牌。
 4. 部署成功后打开 HTTPS 地址，确认 HTML、`/Alune/_astro/` 下的图片、字体与脚本及分享图正常；验证下载和文档入口。
 5. 公开访问验证通过后，再将仓库 About 的 Homepage 设置为上述地址。不要在站点尚未上线时填写。
 
@@ -78,3 +78,17 @@ node apps/website/scripts/generate-brand.mjs
 UI 修改后应复核首屏入场、滚动显现、截图切换和交互反馈，以及系统减少动态效果的即时回退。同步检查桌面／移动端布局、深浅主题、键盘操作、系统主题变化、存储不可用和无 JS 场景。更新截图后检查尺寸、加载与布局稳定性；发布前复核所有外链及最新稳定版的安装包。
 
 设计及验收证据统一维护到 [Wiki](https://github.com/ShaoClean/Alune/wiki)，关联 [#94](https://github.com/ShaoClean/Alune/issues/94)。全身角色确认、素材使用权核对、首次公开部署与仓库 Homepage 设置完成前，不能将整个 Issue 标记为已完成。
+
+## Alune-UI 文档与示例
+
+公开入口：[UI 文档](https://shaoclean.github.io/Alune/ui/)。`src/data/ui.ts` 的 UIDocument 注册表驱动分类、导航、搜索与静态路径，`src/content/ui` 存放中文 MDX 指南，`src/styles/ui-docs.css` 负责文档布局。组件 API 由 `scripts/ui-api.mjs` 从真实 TypeScript 定义生成，新增能力会由覆盖检查校验。
+
+`src/examples/*.tsx` 是运行与源码展示的唯一来源，示例 ID 在 `src/examples/registry.ts` 注册；`DemoRoot.tsx` 是运行宿主。文档路径为 `/Alune/ui/<slug>/`，独立预览为 `/Alune/ui/preview/<id>/`。iframe 支持主题、390px、重置和独立打开，来源消息只接受同源且匹配当前 iframe 的通知。正文、API 和完整源码在无 JavaScript 时可阅读。
+
+```sh
+node apps/website/scripts/ui-api.mjs
+npm run ui:check
+npm run website:check
+```
+
+所有 TSX 示例参与独立类型检查。静态产物测试递归校验页面、CSS 资源、深层路径、跨页锚点、canonical、重复 ID 与 aria-controls，并检查产品首页没有示例运行时。贡献与迁移说明见 [贡献指南](https://shaoclean.github.io/Alune/ui/contributing/) 和 [迁移指南](https://shaoclean.github.io/Alune/ui/migration/)。设计/验收资料维护在 [Issue #153 Wiki](https://github.com/ShaoClean/Alune/wiki/Issue-153)。

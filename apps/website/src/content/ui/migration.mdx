@@ -1,0 +1,32 @@
+<h2 id="imports">路径映射</h2>
+
+| 原应用路径                                                     | 新入口                                                                                                                       |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| components/ui.tsx 的控件                                       | `@alune/ui` 的 PanelHeader、CommandButton、StatusBadge、FileIcon、FolderIcon、EmptyState、LoadingState、ErrorState、RefBadge |
+| ToolbarButton / StatusButton / PanelToggle                     | `@alune/ui` 同名导出                                                                                                         |
+| AluneModal / AlunePopconfirm / DialogIcons / DialogParts       | `@alune/ui` 同名成员与 Props 类型                                                                                            |
+| Feedback / FeedbackNotice / FeedbackAlert / useFeedbackMessage | `@alune/ui` Provider、作用域、反馈与 hook                                                                                    |
+| stores/feedbackStore                                           | `@alune/ui` 的 createFeedbackStore、FeedbackEvent、FeedbackEntry、FeedbackStore                                              |
+| antd 的首期 20 个基础控件                                      | `@alune/ui` 同名控件和 Props 类型                                                                                            |
+
+旧控件路径仅保留纯转导出供现有测试兼容；应用运行代码使用新入口。formatRelativeDate、formatBranchName 继续留在应用的 ui.tsx。所有控件保持同一个实现和同一套状态源。
+
+<h2 id="provider">Provider 与样式</h2>
+
+应用 App 使用 AluneUIProvider，外观偏好解析与 workspace 初始化仍在应用层。移除额外 FeedbackProvider / AluneConfirmProvider，避免双重中心或队列；原来的 Ant Design 主题与浮层默认配置统一迁入 Provider。
+
+```tsx
+import { AluneUIProvider } from '@alune/ui';
+import '@alune/ui/styles.css';
+// 之后引入宿主的业务布局样式。
+```
+
+基础 token、通用控件、弹窗和反馈外观维护在 packages/ui；工作区布局、复杂业务阅读表面和业务弹窗内容仍由应用 CSS 负责。字体继续由宿主加载。
+
+<h2 id="retained">保留的业务边界</h2>
+
+RemoveRepositoryConfirm 的仓库移除文案、Git / SSH 操作、业务格式化函数、workspace 与 repository store、业务路由、接口和 Electron 不进入共享包。复杂 Diff 与代码阅读组件也没有被纳入首期。
+
+测试守卫同时扫描应用与共享包。TS/TSX resolver 与静态资源适配共用一个实现，不能通过迁出目录绕过弹窗约束或反馈回归。
+
+本次保持基线中已合入的通知行为，#151 / #152 单独演进；相关需求合入后，应同时更新组件、应用、示例、规范与受影响的测试。

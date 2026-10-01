@@ -14,8 +14,9 @@ import { navigation, site } from '../data/site';
     </a>
     <div class="nav-links" id="nav-links">
       {navigation.map((item) => (
-        <a href={item.href}>{item.label}</a>
+        <a href={`${import.meta.env.BASE_URL}${item.href}`}>{item.label}</a>
       ))}
+      <a href={`${import.meta.env.BASE_URL}ui/`}>UI 文档</a>
       <a href={site.docs}>
         文档 <Icon name="arrow" />
       </a>
@@ -30,7 +31,7 @@ import { navigation, site } from '../data/site';
           <option value="dark">深色</option>
         </select>
       </label>
-      <a class="nav-download" href="#download">
+      <a class="nav-download" href={`${import.meta.env.BASE_URL}#download`}>
         下载 <Icon name="download" />
       </a>
       <button

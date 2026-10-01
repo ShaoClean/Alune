@@ -1,0 +1,67 @@
+---
+import UIDocLayout from '../../layouts/UIDocLayout.astro';
+import { categories, documents, uiPath } from '../../data/ui';
+import { examples } from '../../examples/registry';
+const descriptions: Record<string, string> = {
+  快速开始: '初始化仓库，接入主题与统一运行时。',
+  设计规范: '用实现中的 token 和交互约定协作。',
+  基础组件: '保留 Ant Design API，统一月光主题。',
+  'Alune 组件': '与应用共用按钮、状态、图标、弹窗与反馈。',
+  组合示例: '探索常用控件在真实场景中的组合。',
+  贡献指南: '新增组件、维护文档与完成迁移。',
+};
+---
+
+<UIDocLayout
+  toc={[
+    { id: 'catalog', title: '组件与规范' },
+    { id: 'boundaries', title: '使用边界' },
+  ]}
+>
+  <section class="ui-intro">
+    <p class="ui-eyebrow">ALUNE-UI / SHARED INTERFACES</p>
+    <h1>
+      组件共享，
+      <br />
+      月光如一。
+    </h1>
+    <p class="ui-lead">
+      应用里的真实组件，也在这里。用同一套实现构建界面，查阅中文 API，在隔离预览中验证交互。
+    </p>
+    <div class="ui-intro-links">
+      <a href={uiPath('getting-started')}>开始使用 →</a>
+      <a href={uiPath('design')}>阅读设计规范</a>
+    </div>
+  </section>
+  <div class="ui-package-line">
+    <span>@alune/ui</span>
+    <span>React 19 / Ant Design 6</span>
+    <span>{documents.filter((doc) => !doc.guide).length} 篇组件文档</span>
+    <span>{examples.length} 个真实示例</span>
+  </div>
+  <h2 id="catalog">组件与规范</h2>
+  <div class="ui-category-grid">
+    {categories.map((category) => (
+      <section class="ui-category">
+        <h2>{category}</h2>
+        <p>{descriptions[category]}</p>
+        <div class="ui-category-links">
+          {documents
+            .filter((doc) => doc.category === category)
+            .map((doc) => (
+              <a href={uiPath(doc.slug)}>{doc.title}</a>
+            ))}
+        </div>
+      </section>
+    ))}
+  </div>
+  <h2 id="boundaries">使用边界</h2>
+  <p>
+    Alune-UI 是仓库内的私有源码共享包，由应用和官网一起维护。Provider
+    统一主题与上下文，业务状态、Git / SSH 操作和复杂工作区仍由宿主承担。
+  </p>
+  <p>
+    每份运行示例与可复制源码均来自同一个 TSX 文件。示例通过 iframe
+    隔离主题、样式和浮层；文档正文、API 与源码在关闭 JavaScript 后仍可阅读。
+  </p>
+</UIDocLayout>

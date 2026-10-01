@@ -1,13 +1,13 @@
-import { FeedbackAlert } from './FeedbackAlert';
-import { FeedbackNotice } from './Feedback';
-import { Button, Progress, Space, Spin, Typography } from 'antd';
+import { FeedbackAlert } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
+import { Button, Progress, Space, Spin, Typography } from '@alune/ui';
 import { CloudDownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { DesktopUpdates, UpdateState } from '../types/desktop-updates';
 import { ReleaseNotes } from './ReleaseNotes';
-import { AluneModal, DialogHints, Kbd } from './AluneModal';
-import { DialogCard, DialogNote, DialogProgress, DialogStat, DialogStats } from './DialogParts';
-import { DialogIcon } from './DialogIcons';
-import type { DialogIconName } from './DialogIcons';
+import { AluneModal, DialogHints, Kbd } from '@alune/ui';
+import { DialogCard, DialogNote, DialogProgress, DialogStat, DialogStats } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import type { DialogIconName } from '@alune/ui';
 
 const labels: Record<UpdateState['status'], string> = {
   idle: '检查是否有新版本',

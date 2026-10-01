@@ -1,5 +1,5 @@
-import { FeedbackNotice } from './FeedbackNotice';
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { FeedbackNotice } from '@alune/ui';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
 import { gitApi } from '../api';
 

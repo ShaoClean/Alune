@@ -1,4 +1,4 @@
-import { Radio, Switch } from 'antd';
+import { Radio, Switch } from '@alune/ui';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { useAppearance } from '../../appearance';
 import { CodeAppearanceSettings } from './CodeAppearanceSettings';

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import '@fontsource-variable/geist/wght.css';
 import '@fontsource-variable/geist-mono/wght.css';
 import App from './App';
+import '@alune/ui/styles.css';
 import './index.css';
 import './workspace-layout.css';
 import './files.css';

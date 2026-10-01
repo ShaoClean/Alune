@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactElement, WheelEvent } from 'react';
-import { Dropdown } from 'antd';
+import { Dropdown } from '@alune/ui';
 import {
   BranchesOutlined,
   CloudDownloadOutlined,
@@ -19,7 +19,7 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import type { RepositoryStatus } from '@alune/shared';
-import { ToolbarButton } from './ToolbarButton';
+import { ToolbarButton } from '@alune/ui';
 import { WorktreesMenu } from './WorktreesMenu';
 import { BranchPicker } from './BranchPicker';
 import { useToolbarTier } from '../hooks/useToolbarTier';

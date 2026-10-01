@@ -16,10 +16,10 @@ Alune 使用 Conventional Commits 描述变更，commitlint 校验提交信息�
 
 安装依赖时，`prepare` 会运行 `scripts/install-hooks.mjs`，启用两个 Git hooks：
 
-| Hook | 执行时机 | 检查内容 |
-| --- | --- | --- |
-| `commit-msg` | 创建提交时 | 使用 commitlint 检查本次提交信息 |
-| `pre-push` | 推送分支或 tag 时 | 检查根包版本、锁文件版本和发布 tag 是否一致 |
+| Hook         | 执行时机          | 检查内容                                    |
+| ------------ | ----------------- | ------------------------------------------- |
+| `commit-msg` | 创建提交时        | 使用 commitlint 检查本次提交信息            |
+| `pre-push`   | 推送分支或 tag 时 | 检查根包版本、锁文件版本和发布 tag 是否一致 |
 
 已有工作区、或 npm 配置了 `ignore-scripts` 时，安装依赖后手动执行：
 
@@ -39,6 +39,12 @@ npm run --silent commitlint -- --edit "$1"
 node scripts/pre-push.mjs "$@"
 ```
 
+## 共享组件与 UI 文档
+
+应用通用组件的唯一实现维护在 `packages/ui`，公开入口为 `@alune/ui`，样式入口为 `@alune/ui/styles.css`。新增组件需同步公开 Props、共享 token、真实 TSX 示例、中文 API 和类型化文档注册表；运行 `npm run ui:check` 与 `npm run website:check`，并验证主题、键盘、390px 和浮层。详细步骤见 [UI 贡献指南](https://shaoclean.github.io/Alune/ui/contributing/)，接入与路径映射见 [快速开始](https://shaoclean.github.io/Alune/ui/getting-started/) 和 [迁移指南](https://shaoclean.github.io/Alune/ui/migration/)。
+
+组件使用文档和示例随代码维护，设计与验收截图仍按上文维护到 Wiki，任务状态记录在 Issue。第三方图标和字体随组件迁移保留来源及许可。
+
 ## 提交信息规范
 
 格式为：
@@ -53,19 +59,19 @@ node scripts/pre-push.mjs "$@"
 
 `type` 使用小写，描述不能为空，首行不超过 100 个字符，首行结尾不用英文句号。正文和 footer 与前一部分之间留空行。支持中文描述，也允许描述中的 GitHub、SSH 等名称保留大小写。
 
-| 类型 | 用途 | Release 中的展示 |
-| --- | --- | --- |
-| `feat` | 新功能 | 🚀 新功能 |
-| `fix` | Bug 修复 | 🐛 Bug 修复 |
-| `perf` | 性能优化 | ⚡ 性能优化 |
-| `refactor` | 重构 | 🔧 重构改进 |
-| `revert` | 回退已有变更 | ↩️ 回退变更 |
-| `docs` | 文档修改 | 默认隐藏 |
-| `test` | 测试修改 | 默认隐藏 |
-| `ci` | CI 工作流修改 | 默认隐藏 |
-| `build` | 构建工具或依赖修改 | 默认隐藏 |
-| `chore` | 维护事务、版本号更新 | 默认隐藏 |
-| `style` | 不改变行为的代码格式调整 | 默认隐藏 |
+| 类型       | 用途                     | Release 中的展示 |
+| ---------- | ------------------------ | ---------------- |
+| `feat`     | 新功能                   | 🚀 新功能        |
+| `fix`      | Bug 修复                 | 🐛 Bug 修复      |
+| `perf`     | 性能优化                 | ⚡ 性能优化      |
+| `refactor` | 重构                     | 🔧 重构改进      |
+| `revert`   | 回退已有变更             | ↩️ 回退变更      |
+| `docs`     | 文档修改                 | 默认隐藏         |
+| `test`     | 测试修改                 | 默认隐藏         |
+| `ci`       | CI 工作流修改            | 默认隐藏         |
+| `build`    | 构建工具或依赖修改       | 默认隐藏         |
+| `chore`    | 维护事务、版本号更新     | 默认隐藏         |
+| `style`    | 不改变行为的代码格式调整 | 默认隐藏         |
 
 `scope` 可使用 `workspace`、`terminal`、`ssh`、`repository`、`desktop`、`release` 等模块名，不强制固定范围。界面功能或交互修复应使用 `feat` / `fix`；`style` 用于代码格式调整。
 

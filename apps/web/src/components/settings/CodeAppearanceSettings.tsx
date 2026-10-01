@@ -1,6 +1,6 @@
-import { FeedbackNotice } from '../Feedback';
+import { FeedbackNotice } from '@alune/ui';
 import { useRef, useState } from 'react';
-import { Button, Input, InputNumber, Select } from 'antd';
+import { Button, Input, InputNumber, Select } from '@alune/ui';
 import { useAppearance } from '../../appearance';
 import { BUILTIN_CODE_THEMES, MAX_THEME_BYTES } from '../../code-themes';
 import {

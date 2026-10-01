@@ -1,12 +1,12 @@
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from 'antd';
+import { Button } from '@alune/ui';
 import type { NewFileDeletionPreview } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { AluneModal } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
-import { DialogCard, DialogNote, DialogPath, DialogProgress } from './DialogParts';
+import { AluneModal } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import { DialogCard, DialogNote, DialogPath, DialogProgress } from '@alune/ui';
 
 interface Props {
   repoId: string;

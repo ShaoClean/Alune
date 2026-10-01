@@ -1,0 +1,45 @@
+---
+import api from '../../data/ui-api.json';
+interface Props {
+  name: string;
+}
+const { name } = Astro.props;
+const rows =
+  (
+    api as Record<
+      string,
+      { name: string; type: string; required: boolean; default: string; description: string }[]
+    >
+  )[name] ?? [];
+---
+
+<div class="api-scroll" tabindex="0" aria-label={`${name} API 表格，可横向滚动`}>
+  <table>
+    <thead>
+      <tr>
+        <th>属性 / 方法</th>
+        <th>类型</th>
+        <th>默认值</th>
+        <th>必填</th>
+        <th>说明</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr>
+          <td>
+            <code>{row.name}</code>
+          </td>
+          <td>
+            <code>{row.type}</code>
+          </td>
+          <td>
+            <code>{row.default}</code>
+          </td>
+          <td>{row.required ? '是' : '否'}</td>
+          <td>{row.description || '参见类型定义及对应实现。'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

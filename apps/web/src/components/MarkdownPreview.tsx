@@ -1,4 +1,4 @@
-import { FeedbackAlert } from './FeedbackAlert';
+import { FeedbackAlert } from '@alune/ui';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';

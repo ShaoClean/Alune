@@ -1,4 +1,4 @@
-import { useFeedbackMessage } from '../components/useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { OpenLocalRepository } from '../components/OpenLocalRepository';
 import { RemoveRepositoryConfirm } from '../components/AlunePopconfirm';
 import {
@@ -8,7 +8,7 @@ import {
 } from '../stores/repositorySource';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Input, Select, Space } from 'antd';
+import { Button, Input, Select, Space } from '@alune/ui';
 import {
   BranchesOutlined,
   DeleteOutlined,
@@ -19,15 +19,16 @@ import {
 } from '@ant-design/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { EmptyState, ErrorState, formatBranchName, LoadingState } from '../components/ui';
+import { EmptyState, ErrorState, LoadingState } from '@alune/ui';
+import { formatBranchName } from '../components/ui';
 
 import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicator';
 import { CollectionViewSwitch } from '../components/CollectionViewSwitch';
 import { RepositoryOverview } from '../components/RepositoryOverview';
 import { useWorkspaceStore } from '../stores/workspaceStore';
-import { AluneModal, DialogHints, Kbd } from '../components/AluneModal';
-import { DialogIcon } from '../components/DialogIcons';
-import { DialogCard, DialogEmpty, DialogPath, DialogProgress } from '../components/DialogParts';
+import { AluneModal, DialogHints, Kbd } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import { DialogCard, DialogEmpty, DialogPath, DialogProgress } from '@alune/ui';
 
 const pathName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() || path;
 

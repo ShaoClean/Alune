@@ -1,0 +1,2581 @@
+{
+  "UIAppearance": [
+    {
+      "name": "theme",
+      "type": "\"light\" | \"dark\"",
+      "required": true,
+      "default": "—",
+      "description": "宿主解析后的浅色或深色主题。"
+    },
+    {
+      "name": "reduceMotion",
+      "type": "boolean",
+      "required": true,
+      "default": "—",
+      "description": "减少动态效果，系统偏好由宿主解析后传入。"
+    }
+  ],
+  "FeedbackEvent": [
+    {
+      "name": "id",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "身份或作用域 ID。"
+    },
+    {
+      "name": "host",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "所属弹窗身份，由上下文管理。"
+    },
+    {
+      "name": "content",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "富内容。"
+    },
+    {
+      "name": "actions",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "额外动作节点。"
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "来源作用域。"
+    },
+    {
+      "name": "context",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "反馈上下文说明。"
+    },
+    {
+      "name": "revision",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "来源修订，用于去重。"
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "type",
+      "type": "\"error\" | \"warning\" | \"info\" | \"success\"",
+      "required": true,
+      "default": "—",
+      "description": "反馈语义类型。"
+    },
+    {
+      "name": "mode",
+      "type": "\"modal\" | \"notification\" | \"manual\"",
+      "required": true,
+      "default": "—",
+      "description": "反馈意图；当前三种模式均进入已合入的队列。"
+    },
+    {
+      "name": "actionLabel",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "重试或后续动作的名称。"
+    },
+    {
+      "name": "onAction",
+      "type": "(() => void | Promise<unknown>)",
+      "required": false,
+      "default": "—",
+      "description": "动作回调，支持 Promise；重试成功后自动移除反馈。"
+    },
+    {
+      "name": "busy",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "受控等待状态。"
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "actionIcon",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "主动作图标。"
+    }
+  ],
+  "FeedbackEntry": [
+    {
+      "name": "lease",
+      "type": "number",
+      "required": true,
+      "default": "—",
+      "description": "来源租约，用于拒绝过期释放与回调。"
+    },
+    {
+      "name": "queued",
+      "type": "boolean",
+      "required": true,
+      "default": "—",
+      "description": "是否仍等待展示。"
+    },
+    {
+      "name": "at",
+      "type": "number",
+      "required": true,
+      "default": "—",
+      "description": "该修订首次到达的时间戳。"
+    },
+    {
+      "name": "id",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "身份或作用域 ID。"
+    },
+    {
+      "name": "host",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "所属弹窗身份，由上下文管理。"
+    },
+    {
+      "name": "content",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "富内容。"
+    },
+    {
+      "name": "actions",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "额外动作节点。"
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "来源作用域。"
+    },
+    {
+      "name": "context",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "反馈上下文说明。"
+    },
+    {
+      "name": "revision",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "来源修订，用于去重。"
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "type",
+      "type": "\"error\" | \"warning\" | \"info\" | \"success\"",
+      "required": true,
+      "default": "—",
+      "description": "反馈语义类型。"
+    },
+    {
+      "name": "mode",
+      "type": "\"modal\" | \"notification\" | \"manual\"",
+      "required": true,
+      "default": "—",
+      "description": "反馈意图；当前三种模式均进入已合入的队列。"
+    },
+    {
+      "name": "actionLabel",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "重试或后续动作的名称。"
+    },
+    {
+      "name": "onAction",
+      "type": "(() => void | Promise<unknown>)",
+      "required": false,
+      "default": "—",
+      "description": "动作回调，支持 Promise；重试成功后自动移除反馈。"
+    },
+    {
+      "name": "busy",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "受控等待状态。"
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "actionIcon",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "主动作图标。"
+    }
+  ],
+  "FeedbackStore": [
+    {
+      "name": "entries",
+      "type": "FeedbackEntry[]",
+      "required": true,
+      "default": "—",
+      "description": "当前反馈列表。"
+    },
+    {
+      "name": "updatePresentation",
+      "type": "(id: string, content?: ReactNode, actions?: ReactNode) => void",
+      "required": true,
+      "default": "—",
+      "description": "更新富内容与动作，不重新排队。"
+    },
+    {
+      "name": "publish",
+      "type": "(event: FeedbackEvent) => number",
+      "required": true,
+      "default": "—",
+      "description": "发布反馈并返回来源租约 number。"
+    },
+    {
+      "name": "release",
+      "type": "(id: string, lease: number) => void",
+      "required": true,
+      "default": "—",
+      "description": "用 id 与 lease 释放当前来源，过期租约不会覆盖新来源。"
+    },
+    {
+      "name": "acknowledge",
+      "type": "(id: string) => void",
+      "required": true,
+      "default": "—",
+      "description": "将当前修订标为已读，去重记录跨重新挂载保留。"
+    },
+    {
+      "name": "rearm",
+      "type": "(id: string) => void",
+      "required": true,
+      "default": "—",
+      "description": "允许指定来源再次提示。"
+    },
+    {
+      "name": "run",
+      "type": "(id: string) => Promise<void>",
+      "required": true,
+      "default": "—",
+      "description": "执行当前动作，等待时锁定；成功移除，失败保留并支持重试。"
+    }
+  ],
+  "DialogIconProps": [
+    {
+      "name": "name",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": true,
+      "default": "—",
+      "description": "展示名称。"
+    }
+  ],
+  "DialogEyebrow": [
+    {
+      "name": "label",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "detail",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": ""
+    }
+  ],
+  "AluneModalProps": [
+    {
+      "name": "level",
+      "type": "DialogLevel",
+      "required": false,
+      "default": "0",
+      "description": "风险等级：0 普通表单，1 提醒，2 不可撤销。"
+    },
+    {
+      "name": "tone",
+      "type": "DialogTone",
+      "required": false,
+      "default": "danger 为 true 或 L2 时 danger，否则 default；弹窗反馈可覆盖",
+      "description": "语义色调。"
+    },
+    {
+      "name": "size",
+      "type": "number | DialogSize",
+      "required": false,
+      "default": "'md'",
+      "description": "预设尺寸或数字宽度。"
+    },
+    {
+      "name": "glyph",
+      "type": "ReactNode",
+      "required": false,
+      "default": "不显示",
+      "description": "标题图标，false 隐藏。"
+    },
+    {
+      "name": "eyebrow",
+      "type": "DialogEyebrow",
+      "required": false,
+      "default": "—",
+      "description": "标题上方的上下文。"
+    },
+    {
+      "name": "levelLabel",
+      "type": "ReactNode",
+      "required": false,
+      "default": "L2: 不可撤销；其他等级不显示",
+      "description": "风险标签，false 隐藏。"
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "hints",
+      "type": "ReactNode",
+      "required": false,
+      "default": "按 level 生成键盘提示，窄屏隐藏",
+      "description": "页脚提示，false 隐藏。"
+    },
+    {
+      "name": "hintVerb",
+      "type": "ReactNode",
+      "required": false,
+      "default": "确认",
+      "description": "默认 Enter 提示中的操作动词。"
+    },
+    {
+      "name": "danger",
+      "type": "boolean",
+      "required": false,
+      "default": "level === 2",
+      "description": "危险操作样式。"
+    },
+    {
+      "name": "okIcon",
+      "type": "false | \"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": false,
+      "default": "'arrow-right'",
+      "description": "确认按钮图标，false 隐藏。"
+    },
+    {
+      "name": "okDisabled",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "锁定确认按钮。"
+    },
+    {
+      "name": "busyText",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "等待状态文案。"
+    },
+    {
+      "name": "hideCancel",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "隐藏取消按钮。"
+    },
+    {
+      "name": "footer",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "替换操作行，null 移除整个页脚。"
+    },
+    {
+      "name": "extra",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "额外内容或操作。"
+    },
+    {
+      "name": "acknowledge",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "必须勾选的确认说明；不传时没有此门槛。"
+    },
+    {
+      "name": "typedConfirm",
+      "type": "{ value: string; label?: ReactNode; placeholder?: string; icon?: DialogIconName; mismatch?: ReactNode; match?: ReactNode; }",
+      "required": false,
+      "default": "—",
+      "description": "必须输入的目标文字与匹配说明。"
+    },
+    {
+      "name": "body",
+      "type": "\"default\" | \"flush\" | \"tight\" | \"scroll\"",
+      "required": false,
+      "default": "'default'",
+      "description": "正文内边距或滚动方式。"
+    },
+    {
+      "name": "initialFocus",
+      "type": "\"ok\" | \"cancel\" | \"field\"",
+      "required": false,
+      "default": "L0: field；L1: ok；L2: cancel",
+      "description": "初始焦点目标；默认由风险等级决定。"
+    },
+    {
+      "name": "onOk",
+      "type": "(() => unknown)",
+      "required": false,
+      "default": "—",
+      "description": "确认回调；返回 Promise 时进入等待，拒绝后恢复操作并保留弹窗。关闭由宿主控制。"
+    },
+    {
+      "name": "onCancel",
+      "type": "(() => void)",
+      "required": false,
+      "default": "—",
+      "description": "取消回调，宿主更新受控状态。"
+    }
+  ],
+  "AluneConfirmOptions": [
+    {
+      "name": "content",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "富内容。"
+    },
+    {
+      "name": "onOk",
+      "type": "(() => unknown)",
+      "required": false,
+      "default": "—",
+      "description": "返回 Promise 时等待；成功后确认结果为 true，拒绝时继续停留。"
+    },
+    {
+      "name": "onCancel",
+      "type": "(() => void)",
+      "required": false,
+      "default": "—",
+      "description": "取消回调，宿主更新受控状态。"
+    },
+    {
+      "name": "danger",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "危险操作样式。"
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "footer",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "替换操作行，null 移除整个页脚。"
+    },
+    {
+      "name": "level",
+      "type": "DialogLevel",
+      "required": false,
+      "default": "—",
+      "description": "风险等级：0 普通表单，1 提醒，2 不可撤销。"
+    },
+    {
+      "name": "tone",
+      "type": "DialogTone",
+      "required": false,
+      "default": "—",
+      "description": "语义色调。"
+    },
+    {
+      "name": "size",
+      "type": "number | DialogSize",
+      "required": false,
+      "default": "—",
+      "description": "预设尺寸或数字宽度。"
+    },
+    {
+      "name": "glyph",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "标题图标，false 隐藏。"
+    },
+    {
+      "name": "eyebrow",
+      "type": "DialogEyebrow",
+      "required": false,
+      "default": "—",
+      "description": "标题上方的上下文。"
+    },
+    {
+      "name": "levelLabel",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "风险标签，false 隐藏。"
+    },
+    {
+      "name": "description",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "hints",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "页脚提示，false 隐藏。"
+    },
+    {
+      "name": "hintVerb",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "默认 Enter 提示中的操作动词。"
+    },
+    {
+      "name": "okIcon",
+      "type": "false | \"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": false,
+      "default": "—",
+      "description": "确认按钮图标，false 隐藏。"
+    },
+    {
+      "name": "okDisabled",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "锁定确认按钮。"
+    },
+    {
+      "name": "busyText",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "等待状态文案。"
+    },
+    {
+      "name": "hideCancel",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "隐藏取消按钮。"
+    },
+    {
+      "name": "extra",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "额外内容或操作。"
+    },
+    {
+      "name": "acknowledge",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "必须勾选的确认说明；不传时没有此门槛。"
+    },
+    {
+      "name": "typedConfirm",
+      "type": "{ value: string; label?: ReactNode; placeholder?: string; icon?: DialogIconName; mismatch?: ReactNode; match?: ReactNode; }",
+      "required": false,
+      "default": "—",
+      "description": "必须输入的目标文字与匹配说明。"
+    },
+    {
+      "name": "body",
+      "type": "\"default\" | \"flush\" | \"tight\" | \"scroll\"",
+      "required": false,
+      "default": "—",
+      "description": "正文内边距或滚动方式。"
+    },
+    {
+      "name": "initialFocus",
+      "type": "\"ok\" | \"cancel\" | \"field\"",
+      "required": false,
+      "default": "—",
+      "description": "初始焦点目标；默认由风险等级决定。"
+    }
+  ],
+  "AluneConfirmApi": [
+    {
+      "name": "confirm",
+      "type": "(options: AluneConfirmOptions) => Promise<boolean>",
+      "required": true,
+      "default": "—",
+      "description": "接收 AluneConfirmOptions，返回 Promise<boolean>，确认 true，取消 false。"
+    }
+  ],
+  "DialogHintsProps": [
+    {
+      "name": "tone",
+      "type": "\"warn\"",
+      "required": false,
+      "default": "—",
+      "description": "语义色调。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "KbdProps": [
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "CheckCardProps": [
+    {
+      "name": "checked",
+      "type": "boolean",
+      "required": true,
+      "default": "—",
+      "description": "受控勾选状态。"
+    },
+    {
+      "name": "onChange",
+      "type": "(checked: boolean) => void",
+      "required": true,
+      "default": "—",
+      "description": "值变化回调，参数与 value/checked 的类型一致。"
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "tone",
+      "type": "\"danger\"",
+      "required": false,
+      "default": "—",
+      "description": "语义色调。"
+    },
+    {
+      "name": "plain",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "减少确认卡片外观。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "禁用操作。"
+    },
+    {
+      "name": "className",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "附加 CSS 类名。"
+    }
+  ],
+  "AluneConfirmProviderProps": [
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "FeedbackScopeProps": [
+    {
+      "name": "id",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "身份或作用域 ID。"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "active",
+      "type": "boolean",
+      "required": false,
+      "default": "true",
+      "description": "与上层作用域共同控制来源有效性；停用后释放来源及过期动作。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "FeedbackNoticeProps": [
+    {
+      "name": "source",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "来源标识；与 scope 和 context 一起确定去重身份。"
+    },
+    {
+      "name": "content",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "富内容。"
+    },
+    {
+      "name": "actions",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "额外动作节点。"
+    },
+    {
+      "name": "title",
+      "type": "string | null",
+      "required": false,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "type",
+      "type": "\"error\" | \"warning\" | \"info\" | \"success\"",
+      "required": false,
+      "default": "'error'",
+      "description": "反馈语义类型。"
+    },
+    {
+      "name": "mode",
+      "type": "\"modal\" | \"notification\" | \"manual\"",
+      "required": false,
+      "default": "'modal'",
+      "description": "反馈意图；当前三种模式均进入已合入的队列。"
+    },
+    {
+      "name": "eventKey",
+      "type": "string | number | object",
+      "required": false,
+      "default": "—",
+      "description": "修订标识，同一身份与修订不重复提示。"
+    },
+    {
+      "name": "context",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "反馈上下文说明。"
+    },
+    {
+      "name": "actionLabel",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "重试或后续动作的名称。"
+    },
+    {
+      "name": "onAction",
+      "type": "(() => void | Promise<unknown>)",
+      "required": false,
+      "default": "—",
+      "description": "动作回调，支持 Promise；重试成功后自动移除反馈。"
+    },
+    {
+      "name": "busy",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "受控等待状态。"
+    },
+    {
+      "name": "icon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": false,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "actionIcon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": false,
+      "default": "—",
+      "description": "主动作图标。"
+    },
+    {
+      "name": "resetOnClear",
+      "type": "boolean",
+      "required": false,
+      "default": "mode === 'modal'",
+      "description": "title 清空时是否允许同来源再次提示。"
+    }
+  ],
+  "FeedbackProviderProps": [
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "AluneUIProviderProps": [
+    {
+      "name": "theme",
+      "type": "\"light\" | \"dark\"",
+      "required": true,
+      "default": "—",
+      "description": "宿主解析后的浅色或深色主题。"
+    },
+    {
+      "name": "reduceMotion",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "减少动态效果，系统偏好由宿主解析后传入。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "AlunePopconfirmProps": [
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "extra",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "额外内容或操作。"
+    },
+    {
+      "name": "icon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": true,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "tone",
+      "type": "\"warning\" | \"danger\" | \"safe\"",
+      "required": false,
+      "default": "'warning'",
+      "description": "语义色调。"
+    },
+    {
+      "name": "okText",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "确认动作文字。"
+    },
+    {
+      "name": "okDisabled",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "锁定确认按钮。"
+    },
+    {
+      "name": "hint",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "确认提示。"
+    },
+    {
+      "name": "onConfirm",
+      "type": "() => unknown",
+      "required": true,
+      "default": "—",
+      "description": "确认回调；Promise 交给 Ant Design 管理等待，拒绝时保留浮层。"
+    },
+    {
+      "name": "onOpenChange",
+      "type": "((open: boolean) => void)",
+      "required": false,
+      "default": "—",
+      "description": "开启状态变化回调，参数为 boolean。"
+    },
+    {
+      "name": "placement",
+      "type": "TooltipPlacement",
+      "required": false,
+      "default": "—",
+      "description": "相对触发元素的浮层位置。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "禁用操作。"
+    },
+    {
+      "name": "wide",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "使用加宽确认浮层。"
+    },
+    {
+      "name": "focus",
+      "type": "\"ok\" | \"extra\"",
+      "required": false,
+      "default": "'ok'",
+      "description": "初始焦点：确认按钮或 extra 中第一个控件。"
+    },
+    {
+      "name": "children",
+      "type": "ReactElement<unknown, string | JSXElementConstructor<any>>",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "FeedbackAlertProps": [
+    {
+      "name": "source",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "来源标识；与 scope 和 context 一起确定去重身份。"
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "message",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "title 的兼容替代。"
+    },
+    {
+      "name": "description",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "type",
+      "type": "\"error\" | \"warning\" | \"info\" | \"success\"",
+      "required": false,
+      "default": "'info'",
+      "description": "反馈语义类型。"
+    },
+    {
+      "name": "action",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "操作节点。"
+    },
+    {
+      "name": "context",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "反馈上下文说明。"
+    },
+    {
+      "name": "eventKey",
+      "type": "string | number | object",
+      "required": false,
+      "default": "—",
+      "description": "修订标识，同一身份与修订不重复提示。"
+    }
+  ],
+  "LedgerItem": [
+    {
+      "name": "icon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": true,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "text",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": ""
+    }
+  ],
+  "OptionCard": [
+    {
+      "name": "value",
+      "type": "T",
+      "required": true,
+      "default": "—",
+      "description": "受控值。"
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "icon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": false,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "禁用操作。"
+    }
+  ],
+  "DialogCardProps": [
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    },
+    {
+      "name": "pad",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "添加卡片内部间距。"
+    },
+    {
+      "name": "className",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "附加 CSS 类名。"
+    }
+  ],
+  "DialogPathProps": [
+    {
+      "name": "path",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "文件或目录路径，只读取名称，不访问文件系统。"
+    },
+    {
+      "name": "className",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "附加 CSS 类名。"
+    }
+  ],
+  "RepoRowProps": [
+    {
+      "name": "name",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "展示名称。"
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "文件或目录路径，只读取名称，不访问文件系统。"
+    },
+    {
+      "name": "icon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": false,
+      "default": "'folder'",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "DialogStatsProps": [
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "DialogStatProps": [
+    {
+      "name": "value",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "受控值。"
+    },
+    {
+      "name": "label",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "tone",
+      "type": "Tone",
+      "required": false,
+      "default": "—",
+      "description": "语义色调。"
+    },
+    {
+      "name": "off",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "弱化统计项。"
+    }
+  ],
+  "DialogLedgerProps": [
+    {
+      "name": "change",
+      "type": "LedgerItem[]",
+      "required": true,
+      "default": "—",
+      "description": "将改变的内容列表。"
+    },
+    {
+      "name": "keep",
+      "type": "LedgerItem[]",
+      "required": true,
+      "default": "—",
+      "description": "保留的内容列表。"
+    },
+    {
+      "name": "changeTitle",
+      "type": "ReactNode",
+      "required": false,
+      "default": "'将放弃'",
+      "description": "改变内容的列标题。"
+    },
+    {
+      "name": "keepTitle",
+      "type": "ReactNode",
+      "required": false,
+      "default": "'将保留'",
+      "description": "保留内容的列标题。"
+    }
+  ],
+  "DialogNoteProps": [
+    {
+      "name": "tone",
+      "type": "Tone",
+      "required": false,
+      "default": "'info'",
+      "description": "语义色调。"
+    },
+    {
+      "name": "icon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": false,
+      "default": "—",
+      "description": "旧兼容属性，当前静态说明不绘制图标。"
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "渲染的子内容。"
+    },
+    {
+      "name": "action",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "操作节点。"
+    },
+    {
+      "name": "quiet",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "旧兼容属性，当前不会改变行为。"
+    },
+    {
+      "name": "role",
+      "type": "\"alert\" | \"status\"",
+      "required": false,
+      "default": "—",
+      "description": "alert/status 时转入反馈；不传时保留静态说明。"
+    }
+  ],
+  "DialogEmptyProps": [
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "DialogProgressProps": [
+    {
+      "name": "value",
+      "type": "number",
+      "required": false,
+      "default": "—",
+      "description": "0～1 的进度比例，有限数值会限制在范围内；不传时显示持续等待。"
+    },
+    {
+      "name": "label",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    }
+  ],
+  "OptionCardsProps": [
+    {
+      "name": "value",
+      "type": "T",
+      "required": true,
+      "default": "—",
+      "description": "受控值。"
+    },
+    {
+      "name": "options",
+      "type": "OptionCard<T>[]",
+      "required": true,
+      "default": "—",
+      "description": "选项及其标题、说明、图标和可用状态。"
+    },
+    {
+      "name": "onChange",
+      "type": "(value: T) => void",
+      "required": true,
+      "default": "—",
+      "description": "值变化回调，参数与 value/checked 的类型一致。"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "columns",
+      "type": "number",
+      "required": false,
+      "default": "—",
+      "description": "选项列数。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "禁用操作。"
+    }
+  ],
+  "PanelToggleProps": [
+    {
+      "name": "side",
+      "type": "\"left\" | \"right\"",
+      "required": true,
+      "default": "—",
+      "description": "面板所在方向。"
+    },
+    {
+      "name": "expanded",
+      "type": "boolean",
+      "required": true,
+      "default": "—",
+      "description": "当前展开状态。"
+    },
+    {
+      "name": "controls",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "被控制元素的 DOM id。"
+    },
+    {
+      "name": "onClick",
+      "type": "() => void",
+      "required": true,
+      "default": "—",
+      "description": "点击回调，由宿主执行操作。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用操作。"
+    },
+    {
+      "name": "panelName",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "面板可访问名称。"
+    }
+  ],
+  "StatusButtonProps": [
+    {
+      "name": "label",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "tooltip",
+      "type": "string",
+      "required": false,
+      "default": "label",
+      "description": "悬停或聚焦时的说明。"
+    },
+    {
+      "name": "active",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "当前激活状态。"
+    }
+  ],
+  "ToolbarButtonProps": [
+    {
+      "name": "label",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "tooltip",
+      "type": "string",
+      "required": false,
+      "default": "label",
+      "description": "悬停或聚焦时的说明。"
+    },
+    {
+      "name": "active",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "当前激活状态。"
+    },
+    {
+      "name": "variant",
+      "type": "ToolbarButtonVariant",
+      "required": false,
+      "default": "'nav'",
+      "description": "视觉或内容变体。"
+    }
+  ],
+  "PanelHeaderProps": [
+    {
+      "name": "title",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "count",
+      "type": "number",
+      "required": false,
+      "default": "—",
+      "description": "数量，0 也会显示。"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "icon",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "extra",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "额外内容或操作。"
+    }
+  ],
+  "CommandButtonProps": [
+    {
+      "name": "label",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    },
+    {
+      "name": "danger",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "危险操作样式。"
+    },
+    {
+      "name": "onClick",
+      "type": "(() => void)",
+      "required": false,
+      "default": "—",
+      "description": "点击回调，由宿主执行操作。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "禁用操作。"
+    }
+  ],
+  "StatusBadgeProps": [
+    {
+      "name": "status",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "状态关键字，同时保留文字表达。"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "subtle",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "弱化状态外观。"
+    }
+  ],
+  "FileIconProps": [
+    {
+      "name": "path",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "文件或目录路径，只读取名称，不访问文件系统。"
+    }
+  ],
+  "FolderIconProps": [
+    {
+      "name": "open",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "受控开启状态。"
+    },
+    {
+      "name": "variant",
+      "type": "\"folder\" | \"link\" | \"repository\"",
+      "required": false,
+      "default": "'folder'",
+      "description": "视觉或内容变体。"
+    }
+  ],
+  "EmptyStateProps": [
+    {
+      "name": "title",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "action",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "操作节点。"
+    }
+  ],
+  "LoadingStateProps": [
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "'正在加载工作区…'",
+      "description": "可访问名称或展示文案。"
+    }
+  ],
+  "ErrorStateProps": [
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "'无法加载当前页面'",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "string | null",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "onRetry",
+      "type": "(() => void)",
+      "required": false,
+      "default": "—",
+      "description": "重试回调，状态更新由宿主负责。"
+    },
+    {
+      "name": "announce",
+      "type": "boolean",
+      "required": false,
+      "default": "true",
+      "description": "是否同时发布反馈。"
+    }
+  ],
+  "RefBadgeProps": [
+    {
+      "name": "value",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "受控值。"
+    }
+  ],
+  "FeedbackMessageApi": [
+    {
+      "name": "error",
+      "type": "(title: string) => void",
+      "required": true,
+      "default": "—",
+      "description": "发布错误，弹窗内错误归属当前表单。"
+    },
+    {
+      "name": "warning",
+      "type": "(title: string) => void",
+      "required": true,
+      "default": "—",
+      "description": "发布警告，保留作用域与卸载清理。"
+    },
+    {
+      "name": "info",
+      "type": "(title: string) => void",
+      "required": true,
+      "default": "—",
+      "description": "发布说明。"
+    },
+    {
+      "name": "success",
+      "type": "(title: string) => void",
+      "required": true,
+      "default": "—",
+      "description": "发布成功；高频常规操作应保持克制。"
+    }
+  ],
+  "ButtonProps": [
+    {
+      "name": "type",
+      "type": "\"link\" | \"default\" | \"text\" | \"primary\" | \"dashed\"",
+      "required": false,
+      "default": "default",
+      "description": "按钮类型。"
+    },
+    {
+      "name": "size",
+      "type": "SizeType",
+      "required": false,
+      "default": "middle",
+      "description": "尺寸；Alune 不改写原值。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用点击。"
+    },
+    {
+      "name": "loading",
+      "type": "boolean | { delay?: number; icon?: React.ReactNode; }",
+      "required": false,
+      "default": "false",
+      "description": "等待状态，可设置延迟。"
+    },
+    {
+      "name": "danger",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "危险动作样式。"
+    },
+    {
+      "name": "onClick",
+      "type": "MouseEventHandler<HTMLElement>",
+      "required": false,
+      "default": "—",
+      "description": "原生鼠标点击事件，业务操作由宿主处理。"
+    }
+  ],
+  "InputProps": [
+    {
+      "name": "value",
+      "type": "ValueType",
+      "required": false,
+      "default": "—",
+      "description": "受控输入值。"
+    },
+    {
+      "name": "defaultValue",
+      "type": "string | number | readonly string[]",
+      "required": false,
+      "default": "—",
+      "description": "非受控初始值。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用编辑。"
+    },
+    {
+      "name": "allowClear",
+      "type": "boolean | { clearIcon?: ReactNode; }",
+      "required": false,
+      "default": "false",
+      "description": "显示清空操作。"
+    },
+    {
+      "name": "status",
+      "type": "\"\" | \"error\" | \"warning\" | \"success\" | \"validating\"",
+      "required": false,
+      "default": "—",
+      "description": "校验语义，配合可阅读的错误说明。"
+    },
+    {
+      "name": "onChange",
+      "type": "ChangeEventHandler<HTMLInputElement, HTMLInputElement>",
+      "required": false,
+      "default": "—",
+      "description": "输入变化事件，值从 event.target.value 读取。"
+    }
+  ],
+  "InputNumberProps": [
+    {
+      "name": "value",
+      "type": "T | null",
+      "required": false,
+      "default": "—",
+      "description": "受控数值。"
+    },
+    {
+      "name": "min",
+      "type": "T",
+      "required": false,
+      "default": "-Infinity",
+      "description": "最小值。"
+    },
+    {
+      "name": "max",
+      "type": "T",
+      "required": false,
+      "default": "Infinity",
+      "description": "最大值。"
+    },
+    {
+      "name": "step",
+      "type": "ValueType",
+      "required": false,
+      "default": "1",
+      "description": "每次增减的步长。"
+    },
+    {
+      "name": "stringMode",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "使用字符串保留高精度小数。"
+    },
+    {
+      "name": "onChange",
+      "type": "((value: T | null) => void)",
+      "required": false,
+      "default": "—",
+      "description": "返回新值或 null；泛型沿用原控件。"
+    }
+  ],
+  "SelectProps": [
+    {
+      "name": "value",
+      "type": "ValueType | null",
+      "required": false,
+      "default": "—",
+      "description": "受控选中值，支持原泛型。"
+    },
+    {
+      "name": "options",
+      "type": "OptionType[]",
+      "required": false,
+      "default": "—",
+      "description": "选项数组，保留 label/value 类型。"
+    },
+    {
+      "name": "mode",
+      "type": "\"multiple\" | \"tags\"",
+      "required": false,
+      "default": "—",
+      "description": "默认单选，可选 multiple 或 tags。"
+    },
+    {
+      "name": "allowClear",
+      "type": "boolean | { clearIcon?: React.ReactNode; }",
+      "required": false,
+      "default": "false",
+      "description": "允许清空选中值。"
+    },
+    {
+      "name": "loading",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "异步加载状态。"
+    },
+    {
+      "name": "onChange",
+      "type": "((value: ValueType, option?: OptionType | OptionType[] | undefined) => void)",
+      "required": false,
+      "default": "—",
+      "description": "接收选中值和对应 option。"
+    }
+  ],
+  "SwitchProps": [
+    {
+      "name": "checked",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "受控开启状态。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用切换。"
+    },
+    {
+      "name": "loading",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "等待状态。"
+    },
+    {
+      "name": "size",
+      "type": "SwitchSize",
+      "required": false,
+      "default": "default",
+      "description": "开关尺寸。"
+    },
+    {
+      "name": "onChange",
+      "type": "SwitchChangeEventHandler",
+      "required": false,
+      "default": "—",
+      "description": "接收 checked 与原事件。"
+    }
+  ],
+  "RadioProps": [
+    {
+      "name": "checked",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "受控选中状态。"
+    },
+    {
+      "name": "value",
+      "type": "any",
+      "required": false,
+      "default": "—",
+      "description": "在 Radio.Group 中标识选项。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用选项。"
+    },
+    {
+      "name": "onChange",
+      "type": "((e: RadioChangeEvent) => void)",
+      "required": false,
+      "default": "—",
+      "description": "选中变化事件。"
+    }
+  ],
+  "RadioGroupProps": [
+    {
+      "name": "value",
+      "type": "any",
+      "required": false,
+      "default": "—",
+      "description": "受控选中值。"
+    },
+    {
+      "name": "options",
+      "type": "(string | number | CheckboxOptionType<any>)[]",
+      "required": false,
+      "default": "—",
+      "description": "选项列表。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用整个组。"
+    },
+    {
+      "name": "optionType",
+      "type": "RadioGroupOptionType",
+      "required": false,
+      "default": "default",
+      "description": "普通单选或按钮式单选。"
+    },
+    {
+      "name": "onChange",
+      "type": "((e: RadioChangeEvent) => void)",
+      "required": false,
+      "default": "—",
+      "description": "从 event.target.value 获取选中值。"
+    }
+  ],
+  "FormProps": [
+    {
+      "name": "layout",
+      "type": "FormLayout",
+      "required": false,
+      "default": "horizontal",
+      "description": "horizontal / vertical / inline 表单布局。"
+    },
+    {
+      "name": "initialValues",
+      "type": "Store",
+      "required": false,
+      "default": "—",
+      "description": "初始化或重置值；异步数据用 form.setFieldsValue。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用组内 Ant Design 控件。"
+    },
+    {
+      "name": "onFinish",
+      "type": "((values: Values) => void)",
+      "required": false,
+      "default": "—",
+      "description": "校验成功后接收 values；等待和失败状态由宿主维护。"
+    },
+    {
+      "name": "onFinishFailed",
+      "type": "((errorInfo: ValidateErrorEntity<Values>) => void)",
+      "required": false,
+      "default": "—",
+      "description": "校验失败时接收 values、errorFields、outOfDate。"
+    }
+  ],
+  "TagProps": [
+    {
+      "name": "color",
+      "type": "LiteralUnion<\"error\" | \"warning\" | \"success\" | \"default\" | PresetColorType | \"processing\">",
+      "required": false,
+      "default": "—",
+      "description": "预设语义色或自定义颜色。"
+    },
+    {
+      "name": "closable",
+      "type": "boolean | (ClosableType & AriaAttributes)",
+      "required": false,
+      "default": "false",
+      "description": "显示关闭按钮。"
+    },
+    {
+      "name": "icon",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "图标节点。"
+    },
+    {
+      "name": "onClose",
+      "type": "((e: React.MouseEvent<HTMLElement>) => void)",
+      "required": false,
+      "default": "—",
+      "description": "关闭事件；preventDefault 可保留标签。"
+    }
+  ],
+  "TooltipProps": [
+    {
+      "name": "title",
+      "type": "ReactNode | RenderFunction",
+      "required": false,
+      "default": "—",
+      "description": "提示内容。"
+    },
+    {
+      "name": "placement",
+      "type": "TooltipPlacement",
+      "required": false,
+      "default": "top",
+      "description": "浮层方位。"
+    },
+    {
+      "name": "trigger",
+      "type": "ActionType | ActionType[]",
+      "required": false,
+      "default": "hover",
+      "description": "触发方式，键盘操作须能获得等价说明。"
+    },
+    {
+      "name": "open",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "受控开启状态。"
+    },
+    {
+      "name": "onOpenChange",
+      "type": "((visible: boolean) => void)",
+      "required": false,
+      "default": "—",
+      "description": "接收新的开启状态。"
+    }
+  ],
+  "PopoverProps": [
+    {
+      "name": "title",
+      "type": "ReactNode | RenderFunction",
+      "required": false,
+      "default": "—",
+      "description": "浮层标题。"
+    },
+    {
+      "name": "content",
+      "type": "ReactNode | RenderFunction",
+      "required": false,
+      "default": "—",
+      "description": "浮层正文。"
+    },
+    {
+      "name": "trigger",
+      "type": "ActionType | ActionType[]",
+      "required": false,
+      "default": "hover",
+      "description": "触发方式，操作性内容优先用 click。"
+    },
+    {
+      "name": "placement",
+      "type": "TooltipPlacement",
+      "required": false,
+      "default": "top",
+      "description": "浮层方位。"
+    },
+    {
+      "name": "open",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "受控开启状态。"
+    },
+    {
+      "name": "onOpenChange",
+      "type": "((open: boolean) => void)",
+      "required": false,
+      "default": "—",
+      "description": "接收新的开启状态。"
+    }
+  ],
+  "DropdownProps": [
+    {
+      "name": "menu",
+      "type": "(MenuProps & { activeKey?: MenuProps[\"activeKey\"]; })",
+      "required": false,
+      "default": "—",
+      "description": "MenuProps，含 items 和点击回调。"
+    },
+    {
+      "name": "trigger",
+      "type": "(\"contextMenu\" | \"hover\" | \"click\")[]",
+      "required": false,
+      "default": "[hover]",
+      "description": "触发方式数组，操作菜单推荐 click。"
+    },
+    {
+      "name": "placement",
+      "type": "\"top\" | \"bottom\" | \"topLeft\" | \"topRight\" | \"bottomLeft\" | \"bottomRight\" | \"topCenter\" | \"bottomCenter\"",
+      "required": false,
+      "default": "bottomLeft",
+      "description": "菜单位置。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用触发。"
+    },
+    {
+      "name": "open",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "受控开启状态。"
+    },
+    {
+      "name": "onOpenChange",
+      "type": "((open: boolean, info: { source: \"trigger\" | \"menu\"; }) => void)",
+      "required": false,
+      "default": "—",
+      "description": "接收 open 及触发来源 info。"
+    }
+  ],
+  "SegmentedProps": [
+    {
+      "name": "options",
+      "type": "SegmentedOptions<ValueType>",
+      "required": true,
+      "default": "必填",
+      "description": "选项及图标、禁用状态。"
+    },
+    {
+      "name": "value",
+      "type": "ValueType",
+      "required": false,
+      "default": "—",
+      "description": "受控选项值。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用全部选项。"
+    },
+    {
+      "name": "block",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "占满容器宽度。"
+    },
+    {
+      "name": "onChange",
+      "type": "((value: ValueType) => void)",
+      "required": false,
+      "default": "—",
+      "description": "接收选中的 value。"
+    }
+  ],
+  "TabsProps": [
+    {
+      "name": "items",
+      "type": "(Tab & CompatibilityProps)[]",
+      "required": false,
+      "default": "—",
+      "description": "标签页列表，以 key 标识。"
+    },
+    {
+      "name": "activeKey",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "受控当前 key；非受控默认首项。"
+    },
+    {
+      "name": "type",
+      "type": "TabsType",
+      "required": false,
+      "default": "line",
+      "description": "line / card / editable-card。"
+    },
+    {
+      "name": "size",
+      "type": "SizeType",
+      "required": false,
+      "default": "middle",
+      "description": "标签尺寸。"
+    },
+    {
+      "name": "onChange",
+      "type": "((activeKey: string) => void)",
+      "required": false,
+      "default": "—",
+      "description": "接收新的 activeKey。"
+    }
+  ],
+  "PaginationProps": [
+    {
+      "name": "current",
+      "type": "number",
+      "required": false,
+      "default": "1",
+      "description": "受控当前页。"
+    },
+    {
+      "name": "total",
+      "type": "number",
+      "required": false,
+      "default": "0",
+      "description": "记录总数。"
+    },
+    {
+      "name": "pageSize",
+      "type": "number",
+      "required": false,
+      "default": "10",
+      "description": "每页数量。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "禁用翻页。"
+    },
+    {
+      "name": "onChange",
+      "type": "((page: number, pageSize: number) => void)",
+      "required": false,
+      "default": "—",
+      "description": "接收 page 和 pageSize。"
+    }
+  ],
+  "ProgressProps": [
+    {
+      "name": "percent",
+      "type": "number",
+      "required": false,
+      "default": "0",
+      "description": "完成比例，范围 0～100。"
+    },
+    {
+      "name": "type",
+      "type": "\"circle\" | \"line\" | \"dashboard\"",
+      "required": false,
+      "default": "line",
+      "description": "line / circle / dashboard。"
+    },
+    {
+      "name": "status",
+      "type": "\"success\" | \"active\" | \"normal\" | \"exception\"",
+      "required": false,
+      "default": "—",
+      "description": "normal / active / success / exception。"
+    },
+    {
+      "name": "showInfo",
+      "type": "boolean",
+      "required": false,
+      "default": "true",
+      "description": "显示比例或状态图标。"
+    },
+    {
+      "name": "strokeColor",
+      "type": "string | string[] | ProgressGradient",
+      "required": false,
+      "default": "—",
+      "description": "进度条颜色，可用渐变。"
+    }
+  ],
+  "SpinProps": [
+    {
+      "name": "spinning",
+      "type": "boolean",
+      "required": false,
+      "default": "true",
+      "description": "是否显示加载状态。"
+    },
+    {
+      "name": "size",
+      "type": "\"default\" | SizeType",
+      "required": false,
+      "default": "default",
+      "description": "加载图标尺寸。"
+    },
+    {
+      "name": "delay",
+      "type": "number",
+      "required": false,
+      "default": "—",
+      "description": "延迟显示的毫秒数。"
+    },
+    {
+      "name": "tip",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "嵌套或全屏模式的加载说明。"
+    }
+  ],
+  "EmptyProps": [
+    {
+      "name": "description",
+      "type": "ReactNode",
+      "required": false,
+      "default": "默认空状态文案",
+      "description": "内容说明，false 可隐藏。"
+    },
+    {
+      "name": "image",
+      "type": "ReactNode",
+      "required": false,
+      "default": "默认插画",
+      "description": "自定义图片或内置插画。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "操作内容，回调由宿主提供。"
+    }
+  ],
+  "ResultProps": [
+    {
+      "name": "status",
+      "type": "ResultStatusType",
+      "required": false,
+      "default": "info",
+      "description": "结果语义或 HTTP 状态。"
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "标题。"
+    },
+    {
+      "name": "subTitle",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "extra",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "后续操作。"
+    },
+    {
+      "name": "icon",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "自定义图标。"
+    }
+  ],
+  "SpaceProps": [
+    {
+      "name": "size",
+      "type": "SpaceSize | [SpaceSize, SpaceSize]",
+      "required": false,
+      "default": "small",
+      "description": "间距值，支持水平/垂直数组。"
+    },
+    {
+      "name": "direction",
+      "type": "Orientation",
+      "required": false,
+      "default": "horizontal",
+      "description": "布局方向。"
+    },
+    {
+      "name": "align",
+      "type": "\"end\" | \"center\" | \"start\" | \"baseline\"",
+      "required": false,
+      "default": "—",
+      "description": "对齐方式。"
+    },
+    {
+      "name": "wrap",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "横向排列允许换行。"
+    }
+  ],
+  "TypographyProps": [
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "文本或排版子内容。"
+    }
+  ],
+  "TextProps": [
+    {
+      "name": "type",
+      "type": "BaseType",
+      "required": false,
+      "default": "—",
+      "description": "secondary / success / warning / danger。"
+    },
+    {
+      "name": "strong",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "加粗。"
+    },
+    {
+      "name": "copyable",
+      "type": "boolean | CopyConfig",
+      "required": false,
+      "default": "false",
+      "description": "复制操作及配置。"
+    },
+    {
+      "name": "ellipsis",
+      "type": "boolean | Omit<EllipsisConfig, \"rows\" | \"expandable\" | \"onExpand\">",
+      "required": false,
+      "default": "false",
+      "description": "单行省略。"
+    }
+  ],
+  "TitleProps": [
+    {
+      "name": "level",
+      "type": "1 | 2 | 5 | 3 | 4",
+      "required": false,
+      "default": "1",
+      "description": "标题层级 1～5，需符合文档结构。"
+    },
+    {
+      "name": "type",
+      "type": "BaseType",
+      "required": false,
+      "default": "—",
+      "description": "文本语义。"
+    },
+    {
+      "name": "copyable",
+      "type": "boolean | CopyConfig",
+      "required": false,
+      "default": "false",
+      "description": "复制操作及配置。"
+    },
+    {
+      "name": "ellipsis",
+      "type": "boolean | EllipsisConfig",
+      "required": false,
+      "default": "false",
+      "description": "省略配置。"
+    }
+  ],
+  "ParagraphProps": [
+    {
+      "name": "type",
+      "type": "BaseType",
+      "required": false,
+      "default": "—",
+      "description": "文本语义。"
+    },
+    {
+      "name": "copyable",
+      "type": "boolean | CopyConfig",
+      "required": false,
+      "default": "false",
+      "description": "复制操作及配置。"
+    },
+    {
+      "name": "ellipsis",
+      "type": "boolean | EllipsisConfig",
+      "required": false,
+      "default": "false",
+      "description": "行数与展开配置。"
+    },
+    {
+      "name": "editable",
+      "type": "boolean | EditConfig",
+      "required": false,
+      "default": "false",
+      "description": "可编辑配置。"
+    }
+  ]
+}

@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Popover } from 'antd';
+import { Button, Popover } from '@alune/ui';
 import { LaptopOutlined, BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
 import type { Repository } from '@alune/shared';
 import { useNavigate } from 'react-router-dom';
 import { useConnectionStore } from '../stores/connectionStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { RepositorySwitcher } from './RepositorySwitcher';
-import { StatusButton } from './StatusButton';
+import { StatusButton } from '@alune/ui';
 import { useSyncStatusStore } from '../stores/syncStatusStore';
-import { DialogIcon } from './DialogIcons';
-import type { DialogIconName } from './DialogIcons';
+import { DialogIcon } from '@alune/ui';
+import type { DialogIconName } from '@alune/ui';
 
 /** One status bar notice, drawn with the feedback centre's item styling (L04). */
 export interface StatusNotice {

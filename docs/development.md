@@ -28,11 +28,17 @@ npm run test:repository-session -w desktop # 构建后验证标签跨进程/端�
 
 图标源文件为 `apps/desktop/assets/alune.png`（至少 1024 × 1024 的正方形 PNG）。修改后运行 `npm run icons:generate`，生成 1024 × 1024 桌面 PNG 和 64 × 64 网页 favicon，并一起提交派生资源。`npm run icons:check` 检查资源是否同步，根构建和桌面构建也会执行此检查。高细节头像在 16–32px 下会损失面部与 Git 饰件细节；正式发布前需在目标系统的任务栏、Dock 和安装包中目视验收。
 
+## Alune-UI 共享组件
+
+共享源码包位于 `packages/ui`。应用与官网示例通过 `@alune/ui` 使用同一实现，样式入口为 `@alune/ui/styles.css`；初始化后无需先生成 UI dist。组件不依赖业务 store、路由、API 或 Electron。
+
+运行 `npm run ui:check` 验证类型、运行时边界、真实示例与导出覆盖；运行 `node apps/website/scripts/ui-api.mjs` 更新自定义 API 数据。中文规范、完整组件 API、隔离示例、贡献与迁移说明见 [Alune-UI 文档](https://shaoclean.github.io/Alune/ui/) 和 [包说明](../packages/ui/README.md)。
+
 ## 官网开发
 
 官网位于独立的 `apps/website` Astro workspace。`npm run website:dev` 启动开发服务（`http://127.0.0.1:4321/Alune/`），`npm run website:check` 执行类型检查、构建及站点资源验证，`npm run website:preview` 预览构建产物。
 
-`npm run build` 构建所有 workspace，包含官网；`desktop:build` 与桌面发布仍只构建桌面依赖。官网工作流只安装和构建 `website`，不会触发桌面打包。素材、下载链接与 GitHub Pages 部署维护见 [官网说明](../apps/website/README.md)。
+`npm run build` 构建所有 workspace，包含官网；`desktop:build` 与桌面发布仍只构建桌面依赖。官网工作流只安装 `website` 与 `@alune/ui` 并检查和构建官网，不会触发桌面打包。素材、下载链接与 GitHub Pages 部署维护见 [官网说明](../apps/website/README.md)。
 
 ## 测试与发布验收
 

@@ -1,257 +1,6 @@
 /* Shared Moonlight theme (UI Guidelines). Geometry and code preferences stay independent. */
-:root {
-  color-scheme: light;
-  --content: #f5f7fb;
-  --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --surface-muted: #f5f7fb;
-  --surface-hover: #eaf0fc;
-  --code: #fbfcfe;
-  --text: #1b2943;
-  --text-muted: #526076;
-  --text-faint: #526076;
-  --line: #d8e0ee;
-  --line-strong: #77859c;
-  --blue: #415ab0;
-  --primary-hover: #354b98;
-  --primary-on: #ffffff;
-  --blue-soft: #eaf0fc;
-  --green: #0f6d56;
-  --green-soft: #e9f7ef;
-  --green-line: #a5cdbb;
-  --orange: #995413;
-  --orange-soft: #fff3e3;
-  --orange-line: #dbc29f;
-  --red: #ad3b49;
-  --red-soft: #fcecef;
-  --red-line: #e1b7bf;
-  --purple: #7046a0;
-  --purple-soft: #f1ebfa;
-  --purple-line: #cdb9e5;
-  --sidebar-bg: #e9eff9;
-  --sidebar-bg-deep: #e9eff9;
-  --sidebar-surface: #f5f7fb;
-  --sidebar-line: var(--line);
-  --sidebar-text: var(--text);
-  --sidebar-muted: var(--text-muted);
-  --sidebar-active: #dce5f7;
-  --nav-900: var(--sidebar-bg);
-  --nav-850: var(--sidebar-bg);
-  --nav-800: var(--sidebar-surface);
-  --nav-700: var(--sidebar-active);
-  --diff-add: #e9f7ef;
-  --diff-remove: #fcecef;
-  --diff-meta: #eaf0fc;
-  --scrollbar: #8491a8;
-  --overlay: rgb(10 14 22 / 48%);
-  --highlight: rgb(255 255 255 / 75%);
-  --shadow-color: rgb(16 24 40 / 7%);
-  --focus-soft: rgb(65 90 176 / 18%);
-  --shadow-sm: 0 1px 2px var(--shadow-color);
-  --shadow-md: 0 8px 24px var(--shadow-color);
-  --shadow-card: var(--shadow-sm);
-  --graph-1: var(--blue);
-  --graph-2: var(--purple);
-  --graph-3: var(--green);
-  --graph-4: var(--orange);
-  --graph-5: var(--red);
-  --graph-6: var(--cyan);
-  --radius-control: 10px;
-  --radius-panel: 12px;
-  --space-control-gap: 8px;
-  --motion-hover: 140ms;
-  --motion-select: 160ms;
-  --motion-result: 120ms;
-  --motion-panel: 220ms;
-  --motion-wait: 1600ms;
-  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
-  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
-  --font-sans:
-    'Geist Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif,
-    system-ui, sans-serif;
-  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
-
-  --dlg-font-sans: var(--font-sans);
-  --dlg-font-mono: var(--font-mono);
-
-  --moon-indigo: #6e86e8;
-  --moon-cyan: #8fe3ee;
-  --cyan: #146c89;
-  --cyan-soft: #e6f4f7;
-  --cyan-line: #a6d2dc;
-
-  --hair: rgb(35 52 102 / 10%);
-  --hair-strong: rgb(35 52 102 / 17%);
-  --dlg-scrim: rgb(22 32 62 / 28%);
-  --dlg-halo-a: rgb(110 134 232 / 24%);
-  --dlg-halo-b: rgb(143 227 238 / 16%);
-  --dlg-shell-bg: rgb(255 255 255 / 58%);
-  --dlg-shell-ring: rgb(35 52 102 / 9%);
-  --dlg-shell-hi: rgb(255 255 255 / 95%);
-  --dlg-core-bg: #ffffff;
-  --dlg-core-ring: rgb(35 52 102 / 8%);
-  --dlg-core-hi: rgb(255 255 255 / 100%);
-  --dlg-foot-bg: #f7f9fd;
-  --dlg-shadow:
-    0 1px 2px rgb(30 45 95 / 5%), 0 14px 32px -14px rgb(30 45 95 / 20%),
-    0 52px 100px -36px rgb(45 66 140 / 34%);
-  --pop-shadow: 0 1px 2px rgb(30 45 95 / 6%), 0 14px 34px -12px rgb(30 45 95 / 24%);
-  --tone-rim-default: rgb(110 134 232 / 60%);
-  --field-bg: #fbfcfe;
-  --field-ring: #d3dcec;
-  --field-ring-hover: #aebbd4;
-  --field-inset: rgb(30 45 95 / 4%);
-  --chip-bg: rgb(65 90 176 / 6%);
-  --chip-ring: rgb(65 90 176 / 13%);
-  --kbd-bg: #ffffff;
-  --kbd-ring: rgb(35 52 102 / 17%);
-  --seg-bg: rgb(35 52 102 / 5%);
-  --seg-thumb: #ffffff;
-  --card-shell: rgb(35 52 102 / 3.5%);
-  --card-core: #ffffff;
-  --code-bg: #f8fafd;
-  --hover-veil: rgb(65 90 176 / 7%);
-  --btn-ghost-ring: rgb(35 52 102 / 17%);
-  --btn-primary-bg: linear-gradient(180deg, #4d67c1 0%, #415ab0 100%);
-  --btn-primary-hover: linear-gradient(180deg, #4560b8 0%, #354b98 100%);
-  --btn-primary-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 18%), 0 1px 2px rgb(30 45 110 / 22%),
-    0 8px 18px -8px rgb(65 90 176 / 55%);
-  --btn-danger-bg: linear-gradient(180deg, #bd4a58 0%, #ad3b49 100%);
-  --btn-danger-hover: linear-gradient(180deg, #b04150 0%, #97303e 100%);
-  --btn-danger-on: #ffffff;
-  --btn-danger-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 18%), 0 1px 2px rgb(110 30 45 / 22%),
-    0 8px 18px -8px rgb(173 59 73 / 50%);
-  --orb-bg: rgb(255 255 255 / 16%);
-  --orb-ring: rgb(255 255 255 / 24%);
-  --sw-off: rgb(35 52 102 / 16%);
-
-  /* Concentric radii: inner = outer - padding. */
-  --shell-pad: 6px;
-  --r-shell: 22px;
-  --r-core: 16px;
-  --r-card: 12px;
-  --r-field: 10px;
-  --r-chip: 7px;
-
-  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-orbit: cubic-bezier(0.55, 0.12, 0.45, 0.88);
-  --t-hover: 140ms;
-  --t-press: 90ms;
-  --t-scrim: 240ms;
-  --t-enter: 360ms;
-  --t-exit: 160ms;
-  --t-pop: 200ms;
-  --t-stagger: 40ms;
-}
-
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --content: #151e30;
-  --surface: #202c43;
-  --surface-raised: #202c43;
-  --surface-muted: #151e30;
-  --surface-hover: #253654;
-  --code: #192438;
-  --text: #e8effc;
-  --text-muted: #b7c8ec;
-  --text-faint: #b7c8ec;
-  --line: #3b4a65;
-  --line-strong: #7c8fab;
-  --blue: #afc6ff;
-  --primary-hover: #c5d5ff;
-  --primary-on: #151e30;
-  --blue-soft: #253654;
-  --green: #b0e5cc;
-  --green-soft: #153328;
-  --green-line: #47765e;
-  --orange: #ffd096;
-  --orange-soft: #3b2d20;
-  --orange-line: #85633d;
-  --red: #ffb7c0;
-  --red-soft: #431d27;
-  --red-line: #8e5460;
-  --purple: #d4baff;
-  --purple-soft: #342644;
-  --purple-line: #71558e;
-  --sidebar-bg: #101a2d;
-  --sidebar-bg-deep: #101a2d;
-  --sidebar-surface: #202c43;
-  --sidebar-active: #253654;
-  --diff-add: #153328;
-  --diff-remove: #431d27;
-  --diff-meta: #253654;
-  --scrollbar: #7c8fab;
-  --overlay: rgb(4 8 16 / 65%);
-  --highlight: rgb(183 200 236 / 8%);
-  --shadow-color: rgb(0 0 0 / 24%);
-  --focus-soft: rgb(175 198 255 / 22%);
-  --cyan: #8fe3ee;
-  --cyan-soft: #16313b;
-  --cyan-line: #3d6e7b;
-
-  --hair: rgb(175 198 255 / 10%);
-  --hair-strong: rgb(175 198 255 / 17%);
-  --dlg-scrim: rgb(4 8 20 / 52%);
-  --dlg-halo-a: rgb(110 134 232 / 22%);
-  --dlg-halo-b: rgb(143 227 238 / 9%);
-  --dlg-shell-bg: rgb(175 198 255 / 6%);
-  --dlg-shell-ring: rgb(175 198 255 / 14%);
-  --dlg-shell-hi: rgb(214 228 255 / 16%);
-  --dlg-core-bg: linear-gradient(180deg, #223049 0%, #1c273d 100%);
-  --dlg-core-ring: rgb(175 198 255 / 10%);
-  --dlg-core-hi: rgb(214 228 255 / 9%);
-  --dlg-foot-bg: rgb(10 16 30 / 34%);
-  --dlg-shadow:
-    0 1px 2px rgb(2 6 18 / 40%), 0 22px 48px -18px rgb(2 6 18 / 72%),
-    0 64px 120px -40px rgb(46 66 150 / 42%);
-  --pop-shadow: 0 1px 2px rgb(2 6 18 / 40%), 0 18px 44px -16px rgb(2 6 18 / 72%);
-  --tone-rim-default: rgb(143 227 238 / 50%);
-  --field-bg: rgb(9 15 29 / 42%);
-  --field-ring: rgb(175 198 255 / 17%);
-  --field-ring-hover: rgb(175 198 255 / 30%);
-  --field-inset: rgb(0 0 0 / 14%);
-  --chip-bg: rgb(175 198 255 / 8%);
-  --chip-ring: rgb(175 198 255 / 15%);
-  --kbd-bg: rgb(175 198 255 / 7%);
-  --kbd-ring: rgb(175 198 255 / 19%);
-  --seg-bg: rgb(9 15 29 / 45%);
-  --seg-thumb: #2b3a58;
-  --card-shell: rgb(175 198 255 / 4%);
-  --card-core: rgb(9 15 29 / 32%);
-  --code-bg: rgb(9 15 29 / 48%);
-  --hover-veil: rgb(175 198 255 / 8%);
-  --btn-ghost-ring: rgb(175 198 255 / 21%);
-  --btn-primary-bg: linear-gradient(180deg, #c6d6ff 0%, #a9c1ff 100%);
-  --btn-primary-hover: linear-gradient(180deg, #d6e2ff 0%, #bdd0ff 100%);
-  --btn-primary-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 45%), 0 0 0 1px rgb(175 198 255 / 30%),
-    0 10px 28px -10px rgb(110 134 232 / 75%);
-  --btn-danger-bg: linear-gradient(180deg, #ffc8cf 0%, #ffb0ba 100%);
-  --btn-danger-hover: linear-gradient(180deg, #ffd6db 0%, #ffc0c8 100%);
-  --btn-danger-on: #3b1019;
-  --btn-danger-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 45%), 0 0 0 1px rgb(255 183 192 / 28%),
-    0 10px 28px -10px rgb(255 120 140 / 45%);
-  --orb-bg: rgb(21 30 48 / 10%);
-  --orb-ring: rgb(21 30 48 / 16%);
-  --sw-off: rgb(175 198 255 / 18%);
-}
 
 /* Immediate focus, including native controls outside Ant Design. */
-:where(button, a, input, textarea, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
-}
-:where(input, select) {
-  accent-color: var(--blue);
-}
-::selection {
-  color: var(--text);
-  background: var(--sidebar-active);
-}
 
 .diff-shell__body,
 .diff-unified-view,
@@ -290,20 +39,13 @@
 .repository-tab,
 .file-row,
 .sidebar-nav-item,
-.tree-node,
-.toolbar-button {
+.tree-node {
   transition:
     color var(--motion-select) var(--ease-enter),
     background-color var(--motion-select) var(--ease-enter),
     border-color var(--motion-select) var(--ease-enter);
 }
 /* Reading surfaces remain still when files or selections change. */
-.ant-message-notice-content {
-  animation: moonlight-content var(--motion-result) var(--ease-enter);
-}
-.anticon-spin {
-  animation-duration: var(--motion-wait);
-}
 @keyframes moonlight-content {
   from {
     opacity: 0.65;
@@ -314,76 +56,12 @@
 }
 
 /* Theme skin only: existing control heights, padding and panel layout are retained. */
-.ant-btn {
-  border-radius: 999px;
-  transition:
-    color var(--t-hover) var(--ease-enter),
-    background-color var(--t-hover) var(--ease-enter),
-    border-color var(--t-hover) var(--ease-enter),
-    transform var(--t-press) var(--ease-enter);
-}
-.ant-btn:not(:disabled):not(.ant-btn-loading):active {
-  transform: scale(0.98);
-}
-.ant-btn.ant-btn-default {
-  color: var(--text);
-  background: transparent;
-  border-color: var(--btn-ghost-ring);
-  box-shadow: none;
-}
-.ant-btn.ant-btn-default:not(:disabled):hover {
-  color: var(--text);
-  background: var(--hover-veil);
-  border-color: var(--line-strong);
-}
-.ant-btn.ant-btn-primary:not(.ant-btn-background-ghost) {
-  color: var(--primary-on);
-  background: var(--btn-primary-bg);
-  border-color: transparent;
-  box-shadow: var(--btn-primary-shadow);
-}
-.ant-btn.ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled):hover {
-  color: var(--primary-on);
-  background: var(--btn-primary-hover);
-  border-color: transparent;
-}
-.ant-btn.ant-btn-dangerous:not(.ant-btn-primary),
-.ant-btn.ant-btn-dangerous.ant-btn-background-ghost {
-  color: var(--red);
-  background: var(--red-soft);
-  border-color: var(--red-line);
-}
-.ant-btn.ant-btn-dangerous:not(.ant-btn-primary):not(:disabled):hover,
-.ant-btn.ant-btn-dangerous.ant-btn-background-ghost:not(:disabled):hover {
-  color: var(--red);
-  background: var(--red-soft);
-  border-color: var(--red);
-}
-.ant-btn.ant-btn-primary.ant-btn-dangerous:not(.ant-btn-background-ghost) {
-  color: var(--btn-danger-on);
-  background: var(--btn-danger-bg);
-  box-shadow: var(--btn-danger-shadow);
-}
-.ant-btn.ant-btn-primary.ant-btn-dangerous:not(.ant-btn-background-ghost):not(:disabled):hover {
-  color: var(--btn-danger-on);
-  background: var(--btn-danger-hover);
-}
-.ant-btn.ant-btn:is(.ant-btn-default, .ant-btn-primary, .ant-btn-dangerous):disabled {
-  color: var(--text-muted);
-  background: var(--surface-muted);
-  border-color: var(--line);
-  box-shadow: none;
-}
 
 :is(.ant-input-outlined, .ant-input-affix-wrapper, .ant-input-number, .ant-select-outlined) {
   border-radius: var(--r-field);
   background: var(--field-bg);
   border-color: var(--field-ring);
   box-shadow: inset 0 1px 2px var(--field-inset);
-}
-.ant-input-affix-wrapper > input.ant-input,
-.ant-input-number .ant-input-number-input {
-  background: transparent;
 }
 :is(.ant-input-outlined, .ant-input-affix-wrapper, .ant-input-number, .ant-select-outlined):not(
     .ant-input-disabled,
@@ -432,15 +110,6 @@
   border-color: var(--line);
   box-shadow: none;
 }
-.ant-select-dropdown {
-  background: var(--surface);
-  border-color: var(--hair-strong);
-  border-radius: var(--r-card);
-  box-shadow: var(--pop-shadow);
-}
-.ant-tag {
-  border-radius: var(--r-chip);
-}
 .connection-card,
 .repository-card,
 .content-card,
@@ -448,8 +117,7 @@
   border-radius: var(--r-card);
   box-shadow: var(--shadow-sm);
 }
-.content-card__header,
-.panel-header {
+.content-card__header {
   border-start-start-radius: var(--r-card);
   border-start-end-radius: var(--r-card);
 }
@@ -465,49 +133,8 @@
 }
 
 /* Native workspace actions share the same paint without changing split-button geometry. */
-.toolbar-button--primary {
-  background: var(--btn-primary-bg);
-  border-color: transparent;
-  box-shadow: none;
-}
-.toolbar-button--primary:not(:disabled):not([aria-disabled='true']):is(
-    :hover,
-    [aria-expanded='true']
-  ) {
-  color: var(--primary-on);
-  background: var(--btn-primary-hover);
-  border-color: transparent;
-}
-.toolbar-button--primary .toolbar-count {
-  color: inherit;
-  background: transparent;
-}
-.toolbar-button--primary:is(:disabled, [aria-disabled='true']) {
-  color: var(--text-muted);
-  background: var(--surface-hover);
-  border-color: var(--line);
-  box-shadow: none;
-}
 
 /* Keep completion events for library overlays while suppressing perceptible motion. */
-:root[data-reduced-motion='true'] *,
-:root[data-reduced-motion='true'] *::before,
-:root[data-reduced-motion='true'] *::after {
-  animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0s !important;
-  scroll-behavior: auto !important;
-}
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0s !important;
-    scroll-behavior: auto !important;
-  }
-}
 
 /* The shell is still empty before hydration; desktop supplies the saved background. */
 :root:not([data-theme]) body {

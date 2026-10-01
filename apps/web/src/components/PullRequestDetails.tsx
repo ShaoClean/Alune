@@ -1,7 +1,7 @@
-import { FeedbackScope } from './FeedbackNotice';
-import { FeedbackAlert } from './FeedbackAlert';
+import { FeedbackScope } from '@alune/ui';
+import { FeedbackAlert } from '@alune/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Empty, Select, Spin, Tabs, Tag } from 'antd';
+import { Button, Empty, Select, Spin, Tabs, Tag } from '@alune/ui';
 import { ArrowLeftOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
 import type {
   PullRequestDetailQuery,

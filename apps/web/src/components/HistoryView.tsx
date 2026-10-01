@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { GraphCommit, CommitReference } from '@alune/shared';
-import { FeedbackNotice } from './Feedback';
+import { FeedbackNotice } from '@alune/ui';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { EmptyState, ErrorState, formatRelativeDate } from './ui';
+import { EmptyState, ErrorState } from '@alune/ui';
+import { formatRelativeDate } from './ui';
 import { appendGraph, emptyGraph, GRAPH_LANE_WIDTH, GRAPH_ROW_HEIGHT } from './commit-graph';
 import type { GraphLayout, GraphRow } from './commit-graph';
 import '../history.css';

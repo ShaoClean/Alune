@@ -5,7 +5,9 @@ import '../styles/tokens.css';
 import '../styles/global.css';
 import '../styles/motion.css';
 import { site } from '../data/site';
-const canonical = new URL(import.meta.env.BASE_URL, Astro.site);
+interface Props { title?: string; description?: string; }
+const { title = site.title, description = site.description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
 const socialImage = new URL(`${import.meta.env.BASE_URL}og-image.png`, Astro.site);
 ---
 
@@ -14,21 +16,21 @@ const socialImage = new URL(`${import.meta.env.BASE_URL}og-image.png`, Astro.sit
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content={site.description} />
+    <meta name="description" content={description} />
     <meta name="theme-color" content="#edf1f9" />
     <link rel="icon" type="image/png" href={`${import.meta.env.BASE_URL}favicon.png`} />
     <link rel="canonical" href={canonical} />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="zh_CN" />
-    <meta property="og:title" content={site.title} />
-    <meta property="og:description" content={site.description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={socialImage} />
     <meta property="og:image:alt" content="Alune 本地与 SSH 远程 Git 工作区" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <title>{site.title}</title>
+    <title>{title}</title>
     <script is:inline>
       (() => {
         let preference = 'system';

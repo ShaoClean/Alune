@@ -1,8 +1,8 @@
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Input, Tooltip } from 'antd';
+import { Button, Input, Tooltip } from '@alune/ui';
 import {
   ApartmentOutlined,
   ArrowLeftOutlined,
@@ -20,10 +20,10 @@ import { useWorkspaceStorageStatus } from '../stores/workspaceStorage';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 import { PanelResizeHandle } from './PanelResizeHandle';
 import { SettingsCenter, SettingsNavigation, getSettingsCategory } from './settings/SettingsCenter';
-import { PanelToggle } from './PanelToggle';
+import { PanelToggle } from '@alune/ui';
 import { SIDEBAR_MIN } from '../stores/workspaceLayout';
 import { WorkspaceStatusBar } from './WorkspaceStatusBar';
-import { FeedbackNotice, FeedbackScope } from './Feedback';
+import { FeedbackNotice, FeedbackScope } from '@alune/ui';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 
 const navItems = [

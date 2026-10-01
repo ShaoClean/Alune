@@ -1,13 +1,13 @@
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent } from 'react';
-import { Button, Dropdown, Input } from 'antd';
+import { Button, Dropdown, Input } from '@alune/ui';
 import type { WorkspaceFilePreview } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { AluneModal } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
-import { DialogCard, DialogLedger, DialogNote, DialogProgress, RepoRow } from './DialogParts';
+import { AluneModal } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import { DialogCard, DialogLedger, DialogNote, DialogProgress, RepoRow } from '@alune/ui';
 
 const reason = (error: any) => error.response?.data?.message || error.message || '文件操作失败';
 export function absoluteWorkspacePath(root: string, path: string) {

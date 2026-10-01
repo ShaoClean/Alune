@@ -1,15 +1,15 @@
-import { FeedbackNotice } from './FeedbackNotice';
+import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
-import { Button, Input } from 'antd';
+import { Button, Input } from '@alune/ui';
 import { DeleteOutlined, PlusOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { WorktreeInfo } from '@alune/shared';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { AluneModal } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
-import { DialogCard, DialogNote, DialogPath } from './DialogParts';
+import { AluneModal } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import { DialogCard, DialogNote, DialogPath } from '@alune/ui';
 
 const errorMessage = (error: any) => error.response?.data?.message || error.message || '读取失败';
 const baseName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() || path;

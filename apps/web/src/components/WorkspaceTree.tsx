@@ -1,4 +1,4 @@
-import { FeedbackNotice } from './FeedbackNotice';
+import { FeedbackNotice } from '@alune/ui';
 import { LOCAL_GROUP_ID, repositoryGroupId } from '../stores/repositorySource';
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
