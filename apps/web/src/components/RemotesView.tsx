@@ -1,9 +1,23 @@
 import { gitApi } from '../api';
-import { useEffect, useState } from 'react';
-import { App, Button, Empty, Input, Modal, Space, Typography } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import { App, Button, Empty, Input, Space, Typography } from 'antd';
+import type { InputRef } from 'antd';
 import { PlusOutlined, CopyOutlined, LinkOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { useConnectionStore } from '../stores/connectionStore';
+import { AluneModal } from './AluneModal';
+import { DialogIcon } from './DialogIcons';
 import { ErrorState, PanelHeader } from './ui';
+
+const URL_PREFIXES = [
+  { label: 'GitHub SSH', value: 'git@github.com:' },
+  { label: 'GitHub HTTPS', value: 'https://github.com/' },
+  { label: 'GitLab SSH', value: 'git@gitlab.com:' },
+];
+
+// Swapping hosts keeps the "team/repository.git" part the user already typed.
+const withPrefix = (url: string, prefix: string) =>
+  prefix + url.trim().replace(/^(?:[a-z][a-z0-9+.-]*:\/\/[^/]*\/|[^@\s/:]+@[^:\s/]+:)/i, '');
 
 interface Props {
   repoId: string;
@@ -17,6 +31,13 @@ export function RemotesView({ repoId, onRefresh }: Props) {
   const [url, setUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const local = useRepositoryStore((state) => state.currentRepo?.source === 'local');
+  const repo = useRepositoryStore(
+    (state) => state.repositories.find((item) => item.id === repoId) ?? state.currentRepo,
+  );
+  const connectionName = useConnectionStore(
+    (state) => state.connections.find((item) => item.id === repo?.connectionId)?.name,
+  );
+  const urlRef = useRef<InputRef>(null);
   const save = async () => {
     setSaving(true);
     try {
@@ -120,34 +141,76 @@ export function RemotesView({ repoId, onRefresh }: Props) {
           ))}
         </div>
       )}
-      <Modal
-        title="添加远程"
+      <AluneModal
         open={open}
+        size="sm"
+        glyph="link"
+        eyebrow={{
+          label: '远程',
+          detail: local
+            ? ['本机', repo?.name].filter(Boolean).join(' · ')
+            : ['SSH', connectionName].filter(Boolean).join(' · '),
+        }}
+        title="添加远程"
+        description={
+          local
+            ? '使用本机的 Git 凭据、SSH Agent 和 known_hosts 配置同步。'
+            : '同步在远程主机上执行，使用该主机的 Git 认证配置。'
+        }
+        hintVerb="添加"
         onCancel={() => setOpen(false)}
-        onOk={() => void save()}
+        onOk={save}
         confirmLoading={saving}
         okText="添加远程"
-        okButtonProps={{ disabled: !name.trim() || !url.trim() }}
+        busyText="正在添加…"
+        okDisabled={!name.trim() || !url.trim()}
       >
-        <p className="modal-description">
-          {local
-            ? '同步使用本机的 Git 凭据、SSH Agent 和 known_hosts 配置。'
-            : '同步在远程主机上运行，使用该主机的 Git 认证配置。'}
-        </p>
-        <label className="git-form-label" htmlFor="remote-name">
-          名称
+        <label className="dlg-fld" htmlFor="remote-name">
+          <span className="dlg-fld-label">名称</span>
+          <Input
+            id="remote-name"
+            className="dlg-mono-input"
+            value={name}
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(event) => setName(event.target.value)}
+          />
         </label>
-        <Input id="remote-name" value={name} onChange={(event) => setName(event.target.value)} />
-        <label className="git-form-label" htmlFor="remote-url">
-          地址
-        </label>
-        <Input
-          id="remote-url"
-          placeholder="git@github.com:team/repository.git"
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-        />
-      </Modal>
+        <div className="dlg-fld">
+          <label className="dlg-fld-label" htmlFor="remote-url">
+            地址
+          </label>
+          <Input
+            ref={urlRef}
+            id="remote-url"
+            className="dlg-mono-input"
+            data-autofocus
+            placeholder="git@github.com:team/repository.git"
+            value={url}
+            autoComplete="off"
+            spellCheck={false}
+            prefix={<DialogIcon name="globe" />}
+            onChange={(event) => setUrl(event.target.value)}
+          />
+          <div className="dlg-badges" role="group" aria-label="地址前缀">
+            {URL_PREFIXES.map((prefix) => (
+              <Button
+                key={prefix.value}
+                size="small"
+                className="dlg-chip-btn"
+                aria-pressed={url.trim().startsWith(prefix.value)}
+                title={prefix.value}
+                onClick={() => {
+                  setUrl(withPrefix(url, prefix.value));
+                  urlRef.current?.focus();
+                }}
+              >
+                {prefix.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </AluneModal>
       {remotes.length > 0 && (
         <Space className="panel-footnote">
           <Typography.Text type="secondary">使用工作区操作来获取、拉取或推送。</Typography.Text>

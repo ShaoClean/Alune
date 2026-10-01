@@ -1,0 +1,45 @@
+---
+import { site } from '../data/site';
+import Icon from './Icon.astro';
+---
+
+<footer class="container footer">
+  <a href={import.meta.env.BASE_URL} class="footer-brand">
+    alune
+  </a>
+  <p>在桌面上，统一管理本地与 SSH 远程 Git 仓库。</p>
+  <a href={site.repository} class="text-link">
+    <Icon name="github" /> 在 GitHub 了解项目 <Icon name="arrow" />
+  </a>
+</footer>
+<style>
+  .footer {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    flex-wrap: wrap;
+    padding-block: 36px;
+  }
+  .footer-brand {
+    font-size: 25px;
+    font-weight: 550;
+    letter-spacing: -0.06em;
+  }
+  p {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .text-link {
+    margin-left: auto;
+    font-size: 12px;
+  }
+  @media (max-width: 767px) {
+    .footer {
+      gap: 12px 20px;
+    }
+    p {
+      flex-basis: 100%;
+      order: 1;
+    }
+  }
+</style>

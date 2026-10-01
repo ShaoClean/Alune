@@ -135,7 +135,7 @@ export function PullRequestPatch({
                       <button
                         type="button"
                         disabled={disabled}
-                        aria-label={`${side === 'LEFT' ? '旧行' : '新行'} ${line}，点击评论，Shift 点击选择多行`}
+                        aria-label={`${side === 'LEFT' ? '旧行' : '新行'} ${line}，${disabled ? '评论不可用' : '点击评论，Shift 点击选择多行'}`}
                         aria-pressed={
                           selection?.side === side &&
                           line >= selection.startLine &&
@@ -159,6 +159,53 @@ export function PullRequestPatch({
         </tbody>
       </table>
     </div>
+  );
+}
+
+export function ReviewLineGuidance({
+  review,
+  revision,
+  fileNotice,
+}: {
+  review: ReviewActions;
+  revision?: string;
+  fileNotice?: string;
+}) {
+  if (fileNotice) return <Alert type="info" showIcon title="此 Diff 不完整，暂不支持定位评论。" />;
+  if (review.pending)
+    return <Alert type="info" showIcon title="正在执行 Review 操作，暂时无法选择行号。" />;
+  if (review.loading)
+    return <Alert type="info" showIcon title="正在检查评论权限，暂时无法选择行号。" />;
+  if (review.error && !review.actions)
+    return (
+      <Alert
+        type="error"
+        showIcon
+        title={`评论权限检查失败：${review.error}`}
+        action={<Button onClick={() => void review.load()}>重试</Button>}
+      />
+    );
+  if (!revision || !review.actions?.comment.allowed) {
+    const reason =
+      review.actions?.comment.reason ||
+      (!revision ? '平台尚未提供完整的代码版本，请稍后刷新。' : '请刷新操作权限后重试。');
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        title={`评论不可用：${reason}`}
+        description={
+          reason === '请配置有写入权限的访问令牌。'
+            ? '请返回 PR/MR 列表，选择具有写入权限的令牌并点击「应用到此仓库」，然后重新打开文件变动。'
+            : undefined
+        }
+      />
+    );
+  }
+  return (
+    <p className="pull-request-muted">
+      点击新行或旧行的行号评论；按住 Shift 点击另一行选择连续多行。选区须在同一 Diff 区块、同一侧。
+    </p>
   );
 }
 
@@ -215,7 +262,15 @@ function Files({
   const [selectionError, setSelectionError] = useState('');
   const anchor = useRef<{ path: string; side: 'LEFT' | 'RIGHT'; line: number } | null>(null);
   const selectLine = (side: 'LEFT' | 'RIGHT', line: number, extend: boolean) => {
-    if (!file?.patch || !revision || review.pending) return;
+    if (
+      !file?.patch ||
+      file.notice ||
+      !revision ||
+      review.pending ||
+      review.loading ||
+      !review.actions?.comment.allowed
+    )
+      return;
     const first = extend ? anchor.current : null;
     if (first && (first.side !== side || first.path !== file.path)) {
       setSelectionError('多行评论只能选择同一文件、同一侧的连续行。');
@@ -292,10 +347,7 @@ function Files({
             {file.notice && <Alert type="info" showIcon title={file.notice} />}
             {file.patch && (
               <>
-                <p className="pull-request-muted">
-                  点击新行或旧行的行号评论；按住 Shift 点击另一行选择连续多行。选区须在同一 Diff
-                  区块、同一侧。
-                </p>
+                <ReviewLineGuidance review={review} revision={revision} fileNotice={file.notice} />
                 {selectionError && <Alert type="warning" showIcon title={selectionError} />}
                 <PullRequestPatch
                   patch={file.patch}
@@ -303,11 +355,14 @@ function Files({
                     review.draft.position?.path === file.path ? review.draft.position : undefined
                   }
                   onSelect={!file.notice && revision ? selectLine : undefined}
-                  disabled={review.pending || review.loading || !review.actions?.comment.allowed}
+                  disabled={
+                    !!file.notice ||
+                    !revision ||
+                    review.pending ||
+                    review.loading ||
+                    !review.actions?.comment.allowed
+                  }
                 />
-                {file.notice && (
-                  <p className="pull-request-muted">此 Diff 不完整，暂不支持定位评论。</p>
-                )}
               </>
             )}
             {review.draft.position?.path === file.path && (
@@ -578,7 +633,7 @@ function DetailContent({
         )}
       </header>
       <LoadState {...resource} />
-      <ReviewActionBar review={review} query={query} />
+      <ReviewActionBar review={review} query={query} summary={summary} />
       <Tabs
         activeKey={tab}
         onChange={onTabChange}

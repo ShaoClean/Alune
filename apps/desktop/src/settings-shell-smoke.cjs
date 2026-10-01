@@ -51,7 +51,7 @@ module.exports = async ({ window, origin, repositoryId }) => {
     await click('.repository-switcher');
     await wait("document.querySelector('.repository-switcher-panel')?.getClientRects().length > 0");
     await execute(
-      `Array.from(document.querySelectorAll('.repository-switcher-panel button')).find(button => button.querySelector('strong')?.textContent === ${JSON.stringify(name)}).click()`,
+      `Array.from(document.querySelectorAll('.repository-switcher-panel button')).find(button => button.getAttribute('aria-label') === ${JSON.stringify(name)}).click()`,
     );
   };
   const dimensions = () =>
@@ -234,7 +234,7 @@ module.exports = async ({ window, origin, repositoryId }) => {
     );
     await fill('[aria-label="代理服务器地址"]', 'draft.example.invalid');
     await menu('浏览全部仓库');
-    await wait("document.querySelector('.ant-modal-title')?.textContent === '保存网络代理修改？'");
+    await wait("document.querySelector('.a-dlg-title')?.textContent === '保存网络代理修改？'");
     assert.equal(await execute('location.pathname'), '/settings/proxy');
     await execute(
       `Array.from(document.querySelectorAll('.ant-modal button')).find(button => button.textContent === '继续编辑').click()`,
@@ -247,7 +247,7 @@ module.exports = async ({ window, origin, repositoryId }) => {
       'draft.example.invalid',
     );
     await menu('浏览全部仓库');
-    await wait("document.querySelector('.ant-modal-title')?.textContent === '保存网络代理修改？'");
+    await wait("document.querySelector('.a-dlg-title')?.textContent === '保存网络代理修改？'");
     await execute(
       `Array.from(document.querySelectorAll('.ant-modal button')).find(button => button.textContent === '放弃修改并离开').click()`,
     );

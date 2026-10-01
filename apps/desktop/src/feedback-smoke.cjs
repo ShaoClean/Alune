@@ -7,16 +7,26 @@ module.exports = async ({ window, git, repo }) => {
   const { join } = require('node:path');
   const execute = (script, gesture = false) =>
     window.webContents.executeJavaScript(script, gesture);
-  const wait = (condition) =>
+  const wait = (condition, result = 'undefined') =>
     execute(`new Promise((resolve, reject) => {
     const start = Date.now(); const check = () => {
-      if (${condition}) return resolve();
+      if (${condition}) return resolve(${result});
       if (Date.now() - start > 10000) return reject(Error('Feedback smoke: ' + ${JSON.stringify(condition)} + ' | ' + JSON.stringify({dialog:document.querySelector('.feedback-dialog')?.innerText,pull:document.querySelector('[aria-label=拉取]')?.outerHTML})));
       setTimeout(check, 30);
     }; check();
   })`);
   const click = (selector) =>
     execute(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  // Operation polling can keep its in-flow progress notice visible briefly after
+  // Git has failed. Compare idle layouts so that notice is not mistaken for a
+  // layout shift caused by the feedback dialog; keep the exact bounds assertion.
+  // Read the bounds in the same renderer task as the idle check so a polling
+  // response cannot insert/remove the notice between checking and measuring.
+  const idleLayoutBounds = () => wait(`
+    !document.querySelector('.git-operation-notice') &&
+    document.querySelector('[aria-label="刷新仓库"]')?.getAttribute('aria-busy') === 'false' &&
+    document.querySelector('[aria-label="拉取"]')?.getAttribute('aria-disabled') === 'false'
+  `, "document.querySelector('.workspace-body').getBoundingClientRect().toJSON()");
   const originalSize = window.getSize();
   const oldClipboard = await clipboard.readText();
   const originalAuthor = git('config', 'user.name').trim();
@@ -35,15 +45,13 @@ module.exports = async ({ window, git, repo }) => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
       document.querySelector('[aria-label="拉取"]').focus();
     })()`);
-    const bounds = await execute(
-      "document.querySelector('.workspace-body').getBoundingClientRect().toJSON()",
-    );
+    const bounds = await idleLayoutBounds();
     await click('[aria-label="拉取"]');
     await wait(
       "document.querySelector('.feedback-dialog[open]')?.textContent.includes('Git 操作未完成')",
     );
     assert.deepEqual(
-      await execute("document.querySelector('.workspace-body').getBoundingClientRect().toJSON()"),
+      await idleLayoutBounds(),
       bounds,
     );
     assert.equal(
@@ -51,12 +59,32 @@ module.exports = async ({ window, git, repo }) => {
       '保留草稿',
     );
     // Keep the smoke window visible for subsequent animation-frame/drag checks.
-    window.show();
-    window.focus();
-    await wait('document.hasFocus()');
-    await execute("document.querySelector('.feedback-actions button').click()", true);
-    await wait("document.querySelector('.feedback-dialog').textContent.includes('已复制')");
-    assert.match(await clipboard.readText(), /Git 操作未完成/);
+    await require('./smoke-window.cjs')(window);
+    // Observe the Unicode payload while still calling the real browser API.
+    // Windows CI clipboard synchronization can rewrite non-ANSI characters.
+    await execute(`(() => {
+      window.__feedbackWriteText = navigator.clipboard.writeText;
+      navigator.clipboard.writeText = function(text) {
+        window.__feedbackCopiedText = text;
+        return window.__feedbackWriteText.call(this, text);
+      };
+    })()`);
+    try {
+      await execute("document.querySelector('.feedback-actions button').click()", true);
+      await wait("document.querySelector('.feedback-dialog').textContent.includes('已复制')");
+      assert.match(await execute('window.__feedbackCopiedText'), /Git 操作未完成/);
+      const copied = await clipboard.readText();
+      assert.match(copied, /fatal:.*unavailable-alune\.git/);
+      if (process.platform !== 'win32' || !process.env.CI) {
+        assert.match(copied, /Git 操作未完成/);
+      }
+    } finally {
+      await execute(`(() => {
+        navigator.clipboard.writeText = window.__feedbackWriteText;
+        delete window.__feedbackWriteText;
+        delete window.__feedbackCopiedText;
+      })()`);
+    }
     await execute(
       "document.querySelector('.feedback-dialog').dispatchEvent(new Event('cancel', { cancelable: true }))",
     );
@@ -95,14 +123,34 @@ module.exports = async ({ window, git, repo }) => {
     })()`),
       true,
     );
+    // The inbox is a popover rising from the tray: no scrim, the Diff stays open.
     await click('.feedback-tray button');
     await wait(
-      "document.querySelector('.feedback-dialog[open]')?.textContent.includes('通知与仓库说明')",
+      "document.querySelector('#feedback-inbox:not([hidden])')?.textContent.includes('Git 操作未完成')",
     );
+    assert.equal(
+      await execute(
+        "document.querySelector('.feedback-tray button').getAttribute('aria-expanded')",
+      ),
+      'true',
+    );
+    assert.equal(
+      await execute(`(() => {
+      const inbox = document.querySelector('#feedback-inbox'); const rect = inbox.getBoundingClientRect();
+      return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('#feedback-inbox') === inbox;
+    })()`),
+      true,
+    );
+    assert.equal(await execute("document.querySelector('.feedback-dialog').open"), false);
     await execute(
-      "document.querySelector('.feedback-dialog').dispatchEvent(new Event('cancel', { cancelable: true }))",
+      "document.querySelector('#feedback-inbox').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))",
     );
-    await wait("!document.querySelector('.feedback-dialog').open");
+    await wait("document.querySelector('#feedback-inbox').hidden");
+    assert.equal(await execute("Boolean(document.querySelector('.diff-shell--fullscreen'))"), true);
+    assert.equal(
+      await execute("document.activeElement === document.querySelector('.feedback-tray button')"),
+      true,
+    );
     await click('[aria-label="退出全屏查看"]');
     git('config', 'user.name', '');
     await click('[aria-label="刷新仓库"]');
@@ -119,11 +167,17 @@ module.exports = async ({ window, git, repo }) => {
     await wait(
       "!document.querySelector('.diff-shell--fullscreen') && document.querySelector('#git-author-name')",
     );
+    // The dialog rises into place, so poll until the field is the topmost hit.
     assert.equal(
-      await execute(`(() => {
-        const input = document.querySelector('#git-author-name'); const rect = input.getBoundingClientRect();
-        return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === input;
-      })()`),
+      await execute(`new Promise((resolve) => {
+        const started = Date.now(); const check = () => {
+          const input = document.querySelector('#git-author-name'); const rect = input.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+          if (hit === input) return resolve(true);
+          if (Date.now() - started > 3000) return resolve(JSON.stringify({ hit: hit?.outerHTML.slice(0, 80), size: [innerWidth, innerHeight], inputs: document.querySelectorAll('#git-author-name').length, rect, wraps: Array.from(document.querySelectorAll('.a-dlg .ant-modal')).map((node) => [node.className, node.closest('dialog, [popover]')?.className, JSON.stringify(node.getBoundingClientRect())]), close: Array.from(document.querySelectorAll('.ant-modal-close')).map((node) => JSON.stringify(node.getBoundingClientRect())), top: Array.from(document.querySelectorAll(':popover-open, dialog[open]')).map((node) => node.id || node.className) }));
+          setTimeout(check, 30);
+        }; check();
+      })`),
       true,
     );
     assert.equal(await execute("document.querySelector('.feedback-dialog').open"), false);
@@ -134,11 +188,15 @@ module.exports = async ({ window, git, repo }) => {
     git('config', 'user.name', originalAuthor);
     await click('[aria-label="刷新仓库"]');
     window.setSize(390, 760);
+    await wait('innerWidth <= 400');
     await wait(
       "document.querySelector('[aria-label=拉取]').getAttribute('aria-disabled') !== 'true'",
     );
     await click('[aria-label="拉取"]');
     await wait("document.querySelector('.feedback-dialog[open]')");
+    await wait(
+      "(() => {const r = document.querySelector('.feedback-dialog').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;})()",
+    );
     assert.equal(
       await execute(
         "(() => {const r = document.querySelector('.feedback-dialog').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;})()",
@@ -148,7 +206,7 @@ module.exports = async ({ window, git, repo }) => {
     await click('.feedback-actions button:last-child');
     await wait("!document.querySelector('.feedback-dialog').open");
     console.log(
-      'Desktop feedback passed: real Git failure, layout/draft stability, copy, focus return, acknowledgement/retry, fullscreen notices and author action, and 390px window.',
+      'Desktop feedback passed: real Git failure, layout/draft stability, copy, focus return, acknowledgement/retry, fullscreen notices, tray inbox and author action, and 390px window.',
     );
   } finally {
     await clipboard.writeText(oldClipboard);

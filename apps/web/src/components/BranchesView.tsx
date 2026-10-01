@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input, Modal, Popconfirm, App } from 'antd';
+import { Button, Input, App } from 'antd';
 import {
   EditOutlined,
   MergeCellsOutlined,
@@ -13,6 +13,94 @@ import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
 import { useBranchSwitch } from '../hooks/useBranchSwitch';
 import { ErrorState, EmptyState, PanelHeader, StatusBadge } from './ui';
+import { AluneModal } from './AluneModal';
+import { AlunePopconfirm } from './AlunePopconfirm';
+import { DialogIcon } from './DialogIcons';
+
+function useBranchDialogContext(repoId: string) {
+  const branches = useRepositoryStore((state) => state.branches);
+  const repoName = useRepositoryStore((state) =>
+    state.currentRepo?.id === repoId
+      ? state.currentRepo?.name
+      : state.repositories.find((repo: any) => repo.id === repoId)?.name,
+  );
+  const localNames = useMemo(
+    () => new Set<string>(branches.filter((b: any) => !b.isRemote).map((b: any) => b.name)),
+    [branches],
+  );
+  const current: string | undefined = branches.find((b: any) => !b.isRemote && b.isCurrent)?.name;
+  return { repoName: repoName as string | undefined, localNames, current };
+}
+
+/** F04 new branch dialog, shared by the branch view and the toolbar branch picker. */
+export function NewBranchDialog({
+  open,
+  repoId,
+  value,
+  busy,
+  onChange,
+  onCreate,
+  onCancel,
+}: {
+  open: boolean;
+  repoId: string;
+  value: string;
+  busy: boolean;
+  onChange: (value: string) => void;
+  onCreate: () => Promise<unknown>;
+  onCancel: () => void;
+}) {
+  const { repoName, localNames, current } = useBranchDialogContext(repoId);
+  const name = value.trim();
+  const taken = name !== '' && localNames.has(name);
+  return (
+    <AluneModal
+      open={open}
+      size="sm"
+      glyph="branch"
+      eyebrow={{ label: '分支', detail: repoName }}
+      title="新建分支"
+      okText="创建并切换"
+      busyText="正在创建…"
+      okDisabled={!name || taken}
+      confirmLoading={busy}
+      onOk={onCreate}
+      onCancel={onCancel}
+    >
+      <label className="dlg-fld">
+        <span className="dlg-fld-label">分支名称</span>
+        <Input
+          className="dlg-mono-input"
+          prefix={<DialogIcon name="branch" />}
+          placeholder="feature/my-change"
+          value={value}
+          autoComplete="off"
+          spellCheck={false}
+          data-autofocus
+          aria-invalid={taken || undefined}
+          status={taken ? 'error' : undefined}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        {taken ? (
+          <span className="dlg-fld-hint is-error" role="status">
+            <DialogIcon name="warning" />
+            已存在同名本地分支
+          </span>
+        ) : (
+          <span className="dlg-fld-hint">
+            {current ? (
+              <>
+                从当前分支 <code>{current}</code> 创建，并立即切换
+              </>
+            ) : (
+              '从当前 HEAD 创建，并立即切换'
+            )}
+          </span>
+        )}
+      </label>
+    </AluneModal>
+  );
+}
 
 interface Props {
   repoId: string;
@@ -22,13 +110,22 @@ interface Props {
 export function BranchesView({ repoId, onRefresh }: Props) {
   const { message } = App.useApp();
   const { branches, fetchBranches, error, errorPanel } = useRepositoryStore();
+  // P02 reads the working tree so the merge prompt states the real number of changes.
+  const changedFiles = useRepositoryStore(
+    (state) => state.repositoryStatuses[repoId]?.data?.files.length ?? null,
+  );
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [mutating, setLoading] = useState(false);
   const { switching, switchBranch: handleSwitchBranch } = useBranchSwitch(repoId, onRefresh);
   const loading = mutating || switching !== null;
+  // The source name outlives the open flag so the title stays put while the dialog fades out.
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
   const [rename, setRename] = useState('');
+  const { repoName, localNames } = useBranchDialogContext(repoId);
+  const renameValue = rename.trim();
+  const renameTaken = renameValue !== renaming && localNames.has(renameValue);
   const localBranches = useMemo(
     () => branches.filter((branch: any) => !branch.isRemote),
     [branches],
@@ -81,7 +178,7 @@ export function BranchesView({ repoId, onRefresh }: Props) {
     setLoading(true);
     try {
       await gitApi.renameBranch(repoId, renaming, rename.trim());
-      setRenaming(null);
+      setRenameOpen(false);
       await refresh();
       message.success('分支已重命名');
     } catch (error: any) {
@@ -103,6 +200,9 @@ export function BranchesView({ repoId, onRefresh }: Props) {
     }
   };
 
+  const currentName = localBranches.find((branch: any) => branch.isCurrent)?.name as
+    | string
+    | undefined;
   const renderBranch = (branch: any) => (
     <div className="branch-row" key={`${branch.isRemote}-${branch.name}`}>
       <div className="branch-row__main">
@@ -115,15 +215,35 @@ export function BranchesView({ repoId, onRefresh }: Props) {
       </div>
       <div className="branch-row__actions">
         {!branch.isCurrent && (
-          <Popconfirm
-            title={`将“${branch.name}”合并到当前分支？`}
-            description="合并可能产生冲突，请先保存当前改动。"
+          <AlunePopconfirm
+            tone="safe"
+            icon="merge"
+            title={`将“${branch.name}”合并到 ${currentName ?? '当前分支'}？`}
+            description="如有冲突，会停在冲突状态，可以随时中止。"
+            extra={
+              changedFiles === null ? undefined : (
+                <span className="dlg-badges">
+                  {changedFiles === 0 ? (
+                    <span className="dlg-badge" data-tone="success">
+                      工作区干净
+                    </span>
+                  ) : (
+                    <span className="dlg-badge" data-tone="warning">
+                      {changedFiles} 项未提交改动
+                    </span>
+                  )}
+                </span>
+              )
+            }
+            hint={changedFiles ? '建议先储藏或提交当前改动。' : undefined}
+            okText="合并"
+            disabled={loading}
             onConfirm={() => mergeBranch(branch.name)}
           >
             <Button size="small" disabled={loading} icon={<MergeCellsOutlined />}>
               合并
             </Button>
-          </Popconfirm>
+          </AlunePopconfirm>
         )}
         {!branch.isRemote && (
           <Button
@@ -134,6 +254,7 @@ export function BranchesView({ repoId, onRefresh }: Props) {
             onClick={() => {
               setRenaming(branch.name);
               setRename(branch.name);
+              setRenameOpen(true);
             }}
           >
             重命名
@@ -152,18 +273,22 @@ export function BranchesView({ repoId, onRefresh }: Props) {
           </Button>
         )}
         {!branch.isCurrent && !branch.isRemote && (
-          <Popconfirm
+          <AlunePopconfirm
+            icon="branch"
             title={`删除“${branch.name}”？`}
-            description="仅删除已合并的分支；Git 会保护未合并的提交。"
-            onConfirm={() => void handleDeleteBranch(branch.name)}
+            description="只删除已合并的分支；含未合并提交时 Git 会拒绝删除。"
+            okText="删除分支"
+            disabled={loading}
+            onConfirm={() => handleDeleteBranch(branch.name)}
           >
             <Button
               size="small"
               danger
+              disabled={loading}
               icon={<DeleteOutlined />}
               aria-label={`删除 ${branch.name}`}
             />
-          </Popconfirm>
+          </AlunePopconfirm>
         )}
       </div>
     </div>
@@ -222,38 +347,67 @@ export function BranchesView({ repoId, onRefresh }: Props) {
           )}
         </div>
       )}
-      <Modal
-        title={`重命名分支 ${renaming || ''}`}
-        open={renaming !== null}
-        onCancel={() => setRenaming(null)}
-        onOk={() => void renameBranch()}
-        confirmLoading={loading}
+      <AluneModal
+        open={renameOpen}
+        size="sm"
+        glyph="branch"
+        eyebrow={{ label: '分支', detail: repoName }}
+        title={
+          <>
+            重命名分支 <code>{renaming}</code>
+          </>
+        }
         okText="重命名"
-        okButtonProps={{ disabled: !rename.trim() || rename === renaming }}
-      >
-        <Input
-          aria-label="新的分支名称"
-          value={rename}
-          onChange={(event) => setRename(event.target.value)}
-          onPressEnter={() => void renameBranch()}
-        />
-      </Modal>
-      <Modal
-        title="新建分支"
-        open={createModalVisible}
-        onOk={() => void handleCreateBranch()}
-        onCancel={() => setCreateModalVisible(false)}
+        busyText="正在重命名…"
+        okDisabled={!renameValue || renameValue === renaming || renameTaken}
         confirmLoading={loading}
-        okText="创建并切换"
+        onOk={renameBranch}
+        onCancel={() => setRenameOpen(false)}
+        afterClose={() => setRenaming(null)}
       >
-        <Input
-          autoFocus
-          placeholder="feature/my-change"
-          value={newBranchName}
-          onChange={(event) => setNewBranchName(event.target.value)}
-          onPressEnter={() => void handleCreateBranch()}
-        />
-      </Modal>
+        <label className="dlg-fld">
+          <span className="dlg-fld-label">新名称</span>
+          <Input
+            aria-label="新的分支名称"
+            className="dlg-mono-input"
+            prefix={<DialogIcon name="pencil" />}
+            value={rename}
+            autoComplete="off"
+            spellCheck={false}
+            data-autofocus
+            aria-invalid={renameTaken || undefined}
+            status={renameTaken ? 'error' : undefined}
+            onChange={(event) => setRename(event.target.value)}
+          />
+          {!renameValue ? (
+            <span className="dlg-fld-hint is-error" role="status">
+              <DialogIcon name="warning" />
+              请输入分支名称
+            </span>
+          ) : renameValue === renaming ? (
+            <span className="dlg-fld-hint">名称未变化</span>
+          ) : renameTaken ? (
+            <span className="dlg-fld-hint is-error" role="status">
+              <DialogIcon name="warning" />
+              已存在同名本地分支
+            </span>
+          ) : (
+            <span className="dlg-fld-hint is-ok">
+              <DialogIcon name="check" />
+              名称未被占用，跟踪关系保持不变
+            </span>
+          )}
+        </label>
+      </AluneModal>
+      <NewBranchDialog
+        open={createModalVisible}
+        repoId={repoId}
+        value={newBranchName}
+        busy={loading}
+        onChange={setNewBranchName}
+        onCreate={handleCreateBranch}
+        onCancel={() => setCreateModalVisible(false)}
+      />
     </section>
   );
 }

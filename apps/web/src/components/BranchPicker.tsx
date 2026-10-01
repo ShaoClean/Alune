@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Input, Modal, Popover, App } from 'antd';
+import { Input, Popover, App } from 'antd';
 import {
   BranchesOutlined,
   CheckOutlined,
@@ -12,6 +12,7 @@ import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useBranchSwitch } from '../hooks/useBranchSwitch';
 import { ToolbarButton } from './ToolbarButton';
+import { NewBranchDialog } from './BranchesView';
 
 // The pill is a context selector, so clicking it opens the switch list instead of
 // navigating to the branch view. Branch management stays reachable from the overflow menu.
@@ -209,25 +210,18 @@ export function BranchPicker({
           <DownOutlined className="branch-pill__chevron" />
         </ToolbarButton>
       </Popover>
-      <Modal
-        title="新建分支"
+      <NewBranchDialog
         open={creating}
-        okText="创建并切换"
-        confirmLoading={switching !== null}
-        onOk={() => void create()}
+        repoId={repoId}
+        value={newBranch}
+        busy={switching !== null}
+        onChange={setNewBranch}
+        onCreate={create}
         onCancel={() => {
           setCreating(false);
           setNewBranch('');
         }}
-      >
-        <Input
-          autoFocus
-          placeholder="feature/my-change"
-          value={newBranch}
-          onChange={(event) => setNewBranch(event.target.value)}
-          onPressEnter={() => void create()}
-        />
-      </Modal>
+      />
     </>
   );
 }

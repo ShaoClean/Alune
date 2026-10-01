@@ -1,5 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import '@fontsource-variable/geist/wght.css';
+import '@fontsource-variable/geist-mono/wght.css';
 import App from './App';
 import './index.css';
 import './workspace-layout.css';
@@ -7,6 +9,7 @@ import './files.css';
 import './pull-requests.css';
 import './collection-views.css';
 import './theme.css';
+import './dialogs.css';
 import { initializeAppearance } from './appearance';
 import { hydrateWorkspace } from './stores/workspaceStore';
 

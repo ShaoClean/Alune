@@ -1,4 +1,5 @@
 import { OpenLocalRepository } from '../components/OpenLocalRepository';
+import { RemoveRepositoryConfirm } from '../components/AlunePopconfirm';
 import {
   LOCAL_GROUP_ID,
   repositoryGroupId,
@@ -6,7 +7,7 @@ import {
 } from '../stores/repositorySource';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Input, Modal, Popconfirm, Select, Space, App } from 'antd';
+import { Button, Input, Select, Space, App } from 'antd';
 import {
   BranchesOutlined,
   DeleteOutlined,
@@ -22,6 +23,11 @@ import { EmptyState, ErrorState, formatBranchName, LoadingState } from '../compo
 import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicator';
 import { CollectionViewSwitch } from '../components/CollectionViewSwitch';
 import { useWorkspaceStore } from '../stores/workspaceStore';
+import { AluneModal, DialogHints, Kbd } from '../components/AluneModal';
+import { DialogIcon } from '../components/DialogIcons';
+import { DialogCard, DialogEmpty, DialogPath, DialogProgress } from '../components/DialogParts';
+
+const pathName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() || path;
 
 export function RepositoriesPage() {
   const { message } = App.useApp();
@@ -51,6 +57,8 @@ export function RepositoriesPage() {
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [scanPath, setScanPath] = useState('/home');
   const [scanResults, setScanResults] = useState<string[]>([]);
+  // Path of the last successful scan, so the result header and empty state name what was searched.
+  const [scannedPath, setScannedPath] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [addingPath, setAddingPath] = useState<string | null>(null);
 
@@ -93,7 +101,9 @@ export function RepositoriesPage() {
     }
     setScanLoading(true);
     try {
-      setScanResults(await scanRepositories(connectionId, scanPath));
+      const found = await scanRepositories(connectionId, scanPath);
+      setScanResults(found);
+      setScannedPath(scanPath);
     } catch (err: any) {
       message.error(err.message || '扫描路径失败');
     } finally {
@@ -173,13 +183,9 @@ export function RepositoriesPage() {
         >
           {entry?.phase === 'error' ? '重试状态' : '刷新状态'}
         </Button>
-        <Popconfirm
-          title="移除此仓库？"
-          description="仅移除应用内登记，保留仓库目录与文件。"
-          onConfirm={() => void handleDelete(repo.id)}
-        >
+        <RemoveRepositoryConfirm repository={repo} onConfirm={() => handleDelete(repo.id)}>
           <Button size="small" danger icon={<DeleteOutlined />} aria-label={`删除 ${repo.name}`} />
-        </Popconfirm>
+        </RemoveRepositoryConfirm>
       </div>
     );
   };
@@ -386,52 +392,121 @@ export function RepositoriesPage() {
         open={localOpen}
         onClose={() => setSearchParams(groupId ? { connectionId: groupId } : {})}
       />
-      <Modal
-        title="扫描远程目录"
+      <AluneModal
         open={scanModalVisible}
+        size="lg"
+        glyph="search"
+        eyebrow={{
+          label: '仓库',
+          detail: selectedConnection ? `SSH · ${selectedConnection.name}` : 'SSH',
+        }}
+        title="扫描远程目录"
+        description={
+          <>
+            从指定路径向下搜索最多四层，查找包含 <code>.git</code> 目录的文件夹。
+          </>
+        }
+        okDisabled={scanLoading}
+        // The scan is not awaited, so the dialog never locks and can be closed mid-scan as before.
+        onOk={() => {
+          void handleScan();
+        }}
         onCancel={() => setScanModalVisible(false)}
-        footer={null}
-        width={650}
+        hints={
+          <DialogHints>
+            <span>
+              <Kbd>↵</Kbd> 扫描
+            </span>
+            <i />
+            <span>逐个添加，无需关闭弹窗</span>
+            <i />
+            <span>
+              <Kbd>Esc</Kbd> 关闭
+            </span>
+          </DialogHints>
+        }
+        footer={<Button onClick={() => setScanModalVisible(false)}>完成</Button>}
       >
-        <p className="modal-description">
-          在路径下最多向下搜索四层，查找包含 <code>.git</code> 目录的文件夹。
-        </p>
-        <Space.Compact block>
+        <div className="dlg-inp-group">
           <Input
+            aria-label="扫描路径"
+            className="dlg-mono-input"
+            prefix={<DialogIcon name="server" />}
             value={scanPath}
             onChange={(event) => setScanPath(event.target.value)}
             placeholder="/home/developer"
+            autoComplete="off"
+            spellCheck={false}
+            data-autofocus
           />
           <Button
-            type="primary"
-            icon={<SearchOutlined />}
-            loading={scanLoading}
-            onClick={() => void handleScan()}
+            className={scanLoading ? 'is-busy' : undefined}
+            aria-busy={scanLoading || undefined}
+            onClick={() => {
+              if (!scanLoading) void handleScan();
+            }}
           >
-            扫描
+            {scanLoading ? <span className="dlg-moonload" aria-hidden="true" /> : null}
+            <span>{scanLoading ? '扫描中' : '开始扫描'}</span>
           </Button>
-        </Space.Compact>
-        {scanResults.length > 0 ? (
-          <div className="scan-results">
-            {scanResults.map((path) => (
-              <div className="scan-result" key={path}>
-                <span>{path}</span>
-                <Button
-                  size="small"
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  loading={addingPath === path}
-                  onClick={() => void handleAdd(path)}
-                >
-                  添加
-                </Button>
+        </div>
+        {scanLoading ? (
+          <DialogProgress label="正在搜索远程目录…" />
+        ) : scanResults.length > 0 ? (
+          <>
+            <p className="dlg-sub">
+              <span>发现 {scanResults.length} 个仓库</span>
+              {scannedPath ? <small>{scannedPath}</small> : null}
+            </p>
+            <DialogCard>
+              <div className={scanResults.length > 4 ? 'dlg-list is-scroll' : 'dlg-list'}>
+                {scanResults.map((path) => {
+                  const added = repositories.some(
+                    (repo: any) => repo.connectionId === connectionId && repo.path === path,
+                  );
+                  return (
+                    <div className="dlg-list-item" key={path}>
+                      <DialogIcon name="folder" />
+                      <div className="dlg-list-main">
+                        <strong>{pathName(path)}</strong>
+                        <DialogPath path={path} />
+                      </div>
+                      {added ? (
+                        <span className="dlg-badge" data-tone="success">
+                          <DialogIcon name="check" />
+                          已添加
+                        </span>
+                      ) : (
+                        <Button
+                          className="dlg-btn-xs"
+                          aria-label={`添加 ${path}`}
+                          loading={addingPath === path}
+                          onClick={() => void handleAdd(path)}
+                        >
+                          添加
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </DialogCard>
+          </>
         ) : (
-          <div className="modal-empty">执行扫描后将显示发现的仓库。</div>
+          <DialogCard>
+            <DialogEmpty>
+              {scannedPath !== null ? (
+                <>
+                  在 <code>{scannedPath}</code> 下没有找到 Git
+                  仓库。可以换一个上级目录，或检查此用户的读取权限。
+                </>
+              ) : (
+                '执行扫描后，将在这里列出发现的仓库。'
+              )}
+            </DialogEmpty>
+          </DialogCard>
         )}
-      </Modal>
+      </AluneModal>
     </div>
   );
 }

@@ -12,10 +12,15 @@ export interface FeedbackEvent {
   actionLabel?: string;
   onAction?: () => void | Promise<unknown>;
   busy?: boolean;
+  /** Dialog icon names for the glyph and the action orb; default to the type's icons. */
+  icon?: string;
+  actionIcon?: string;
 }
 export interface FeedbackEntry extends FeedbackEvent {
   lease: number;
   queued: boolean;
+  /** When this revision first arrived. */
+  at: number;
 }
 
 // One current result per source. Acknowledgement survives remounting a view;
@@ -44,6 +49,7 @@ export function createFeedbackStore() {
         ...event,
         lease: ++lease,
         busy: event.busy ?? (fresh ? false : previous?.busy),
+        at: fresh || !previous ? Date.now() : previous.at,
         queued: fresh
           ? event.mode === 'modal' || (retries.has(event.id) && !event.busy)
           : previous?.queued || false,

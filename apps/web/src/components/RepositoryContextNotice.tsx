@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Alert, App, Input, Modal } from 'antd';
+import { App, Input } from 'antd';
 import { FeedbackNotice } from './Feedback';
 import type { RepositoryContext } from '@alune/shared';
 import { gitApi, repositoryApi } from '../api';
+import { useRepositoryStore } from '../stores/repositoryStore';
+import { AluneModal } from './AluneModal';
+import { DialogIcon } from './DialogIcons';
+import { DialogNote } from './DialogParts';
 
 export function RepositoryContextNotice({
   repoId,
@@ -28,6 +32,9 @@ export function RepositoryContextNotice({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
+  const repoName = useRepositoryStore(
+    (state) => state.repositories.find((repo) => repo.id === repoId)?.name,
+  );
   useEffect(() => {
     const controller = new AbortController();
     setError('');
@@ -99,6 +106,8 @@ export function RepositoryContextNotice({
         title={context && !context.remotes.length ? '未配置远程' : null}
         type="info"
         mode="manual"
+        icon="globe"
+        actionIcon="plus"
         description="可以继续本地提交。配置远程后可获取、拉取和推送。"
         actionLabel="添加远程"
         onAction={onRemotes}
@@ -110,6 +119,9 @@ export function RepositoryContextNotice({
         }
         type="warning"
         mode="manual"
+        icon="user"
+        actionIcon="arrow-right"
+        description="user.name 和 user.email 未完整配置，提交可能失败或使用 Git 自动推断的身份。设置只写入此仓库的本地 Git 配置，不影响全局配置。"
         actionLabel="设置作者"
         onAction={() => {
           setName(context!.author.name);
@@ -123,6 +135,8 @@ export function RepositoryContextNotice({
         title={context?.shallow ? '浅克隆仅显示已获取的历史' : null}
         type="info"
         mode="manual"
+        icon="commit"
+        actionIcon="cloud-down"
         actionLabel={context?.remotes.length ? '获取完整历史' : undefined}
         busy={busy}
         onAction={deepen}
@@ -135,34 +149,66 @@ export function RepositoryContextNotice({
         actionLabel="重试"
         onAction={deepen}
       />
-      <Modal
-        title="设置提交作者"
+      <AluneModal
         open={authorOpen}
+        size="sm"
+        glyph="user"
+        eyebrow={{ label: '提交', detail: repoName }}
+        title="设置提交作者"
+        description="只写入此仓库的本地 Git 配置，不修改系统全局配置。"
+        hintVerb="保存"
         onCancel={() => setAuthorOpen(false)}
-        onOk={() => void save()}
+        onOk={save}
         confirmLoading={busy}
-        okButtonProps={{ disabled: !name.trim() || !email.trim() }}
+        okDisabled={!name.trim() || !email.trim()}
         okText="保存到此仓库"
+        busyText="正在保存…"
       >
-        {authorError && <Alert type="error" title={authorError} />}
-        <p className="modal-description">仅写入此仓库的 Git 配置，不修改系统全局配置。</p>
-        <label className="git-form-label" htmlFor="git-author-name">
-          姓名
+        {authorError && (
+          <DialogNote tone="danger" role="alert" title="作者未保存">
+            {authorError}
+          </DialogNote>
+        )}
+        <label className="dlg-fld" htmlFor="git-author-name">
+          <span className="dlg-fld-label">姓名</span>
+          <Input
+            id="git-author-name"
+            data-autofocus
+            value={name}
+            autoComplete="name"
+            prefix={<DialogIcon name="user" />}
+            onChange={(event) => setName(event.target.value)}
+          />
         </label>
-        <Input
-          id="git-author-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-        <label className="git-form-label" htmlFor="git-author-email">
-          邮箱
+        <label className="dlg-fld" htmlFor="git-author-email">
+          <span className="dlg-fld-label">邮箱</span>
+          <Input
+            id="git-author-email"
+            className="dlg-mono-input"
+            type="email"
+            value={email}
+            placeholder="you@example.com"
+            autoComplete="email"
+            spellCheck={false}
+            prefix={<DialogIcon name="mail" />}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          {name.trim() && email.trim() ? (
+            <span className="dlg-fld-hint is-ok">
+              <DialogIcon name="check" />
+              将以 <code>git config --local</code> 写入 <code>user.name</code> 和{' '}
+              <code>user.email</code>
+            </span>
+          ) : (
+            <span className="dlg-fld-hint">
+              填写后，提交记录会显示为{' '}
+              <code>
+                {name.trim() || '姓名'} &lt;{email.trim() || '邮箱'}&gt;
+              </code>
+            </span>
+          )}
         </label>
-        <Input
-          id="git-author-email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      </Modal>
+      </AluneModal>
     </>
   );
 }

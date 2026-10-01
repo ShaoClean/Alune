@@ -2,16 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { App, Input, Radio } from 'antd';
+import { App } from 'antd';
 import { gitApi } from '../src/api/index.ts';
 import { useRepositoryStore } from '../src/stores/repositoryStore.ts';
 import { useBranchSwitch } from '../src/hooks/useBranchSwitch.tsx';
+import { AluneConfirmContext } from '../src/components/AluneModal.tsx';
 
-function setup(t, run, confirm = () => {}) {
+function setup(t, run, confirm = () => false) {
   const events = [];
   t.mock.method(gitApi, 'switchBranch', run);
   t.mock.method(App, 'useApp', () => ({
-    modal: { confirm },
     message: { success: (value) => events.push(value), error: (value) => events.push(value) },
   }));
   t.mock.method(useRepositoryStore, 'getState', () => ({
@@ -23,20 +23,18 @@ function setup(t, run, confirm = () => {}) {
     hook = useBranchSwitch('repo', () => events.push('refresh'));
     return null;
   }
-  renderToStaticMarkup(React.createElement(Probe));
+  renderToStaticMarkup(
+    React.createElement(
+      AluneConfirmContext.Provider,
+      { value: { confirm } },
+      React.createElement(Probe),
+    ),
+  );
   return { hook, events };
 }
 const conflict = {
   response: { data: { code: 'LOCAL_BRANCH_EXISTS', localName: 'demo', message: '名称冲突' } },
 };
-function find(element, type) {
-  if (element?.type === type) return element;
-  for (const child of React.Children.toArray(element?.props?.children)) {
-    if (typeof child !== 'object') continue;
-    const result = find(child, type);
-    if (result) return result;
-  }
-}
 
 test('remote success reports actual local name, refreshes data, and ignores duplicate clicks', async (t) => {
   let complete;
@@ -67,12 +65,11 @@ for (const choice of ['existing', 'create', 'cancel']) {
         return { branch: choice === 'existing' ? 'demo' : 'new/demo' };
       },
       (options) => {
-        if (choice === 'cancel') return options.onCancel();
-        if (choice === 'create') {
-          find(options.content, Radio.Group).props.onChange({ target: { value: 'create' } });
-          find(options.content, Input).props.onChange({ target: { value: 'new/demo' } });
-        }
+        if (choice === 'cancel') return false;
+        if (choice === 'create')
+          options.content.props.onChange({ existing: false, name: 'new/demo' });
         options.onOk();
+        return true;
       },
     );
     await hook.switchBranch('remotes/origin/demo', true);

@@ -266,7 +266,7 @@
 .pull-request-patch table {
   border-collapse: collapse;
   width: 100%;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -387,9 +387,6 @@
 .pull-request-composer h3 {
   margin: 0;
   font-size: 14px;
-  overflow-wrap: anywhere;
-}
-.pull-request-confirm-target {
   overflow-wrap: anywhere;
 }
 .pull-request-patch__number button {

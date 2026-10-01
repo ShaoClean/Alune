@@ -1,6 +1,6 @@
 {
   "name": "alune",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "scripts": {
     "prepare": "node scripts/install-hooks.mjs",
@@ -24,7 +24,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "desktop:test:unit": "npm run test:unit -w desktop",
     "desktop:test:worktrees": "npm run desktop:build && npm run test:worktrees -w desktop",
-    "desktop:test:code-appearance": "npm run desktop:build && npm run test:code-appearance -w desktop"
+    "desktop:test:code-appearance": "npm run desktop:build && npm run test:code-appearance -w desktop",
+    "website:dev": "npm run dev -w website",
+    "website:build": "npm run build -w website",
+    "website:preview": "npm run preview -w website",
+    "website:check": "npm run check -w website && npm run build -w website && npm test -w website"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.2",

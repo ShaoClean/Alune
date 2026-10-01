@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Modal, Spin, App } from 'antd';
+import { App, Button } from 'antd';
 import type { NewFileDeletionPreview } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { AluneModal } from './AluneModal';
+import { DialogIcon } from './DialogIcons';
+import { DialogCard, DialogNote, DialogPath, DialogProgress } from './DialogParts';
 
 interface Props {
   repoId: string;
@@ -20,6 +23,9 @@ export function DeleteNewFileDialog({ repoId, path, onClose, onFileChanged }: Pr
   const [checking, setChecking] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const repository = useRepositoryStore((state) =>
+    state.repositories.find((repo) => repo.id === repoId),
+  );
   const pending = useRef(false);
   const mounted = useRef(false);
 
@@ -78,60 +84,80 @@ export function DeleteNewFileDialog({ repoId, path, onClose, onFileChanged }: Pr
     }
   };
 
+  const name = path.split(/[\\/]/).filter(Boolean).pop() || path;
+  const badge = checking
+    ? { text: '…' }
+    : !preview
+      ? null
+      : !preview.diskPresent
+        ? { text: preview.staged ? 'AD' : 'D', tone: 'danger', title: '磁盘已删除' }
+        : preview.staged && preview.hasUnstagedChanges
+          ? { text: 'AM', tone: 'warning', title: '已暂存 + 未暂存' }
+          : preview.staged
+            ? { text: 'A', tone: 'success', title: '已暂存的新文件' }
+            : { text: 'U', tone: 'success', title: '未跟踪' };
+
   return (
-    <Modal
+    <AluneModal
       open
+      level={2}
+      glyph="trash"
+      eyebrow={{ label: repository?.source === 'ssh' ? 'SSH' : '本地', detail: repository?.name }}
       title="删除整个新增文件？"
       onCancel={() => {
         if (!pending.current) onClose();
       }}
-      closable={!deleting}
-      keyboard={!deleting}
-      maskClosable={!deleting}
-      footer={[
-        <Button key="cancel" disabled={deleting} onClick={onClose}>
-          取消
-        </Button>,
-        error && (
-          <Button key="retry" disabled={checking || deleting} onClick={() => void readPreview()}>
+      onOk={() => void confirm()}
+      confirmLoading={deleting}
+      busyText="正在删除…"
+      okText="删除文件"
+      okIcon="trash"
+      okDisabled={!preview || checking}
+      acknowledge={preview ? `我确认永久删除 ${name}` : undefined}
+      extra={
+        error ? (
+          <Button disabled={checking || deleting} onClick={() => void readPreview()}>
             重新读取并确认
           </Button>
-        ),
-        <Button
-          key="delete"
-          danger
-          type="primary"
-          loading={deleting}
-          disabled={!preview || checking}
-          onClick={() => void confirm()}
-        >
-          {deleting ? '正在删除…' : '删除文件'}
-        </Button>,
-      ]}
+        ) : null
+      }
     >
-      <p>目标路径：</p>
-      <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{path}</pre>
-      {checking && (
-        <p role="status">
-          <Spin size="small" /> 正在核验远端文件和暂存内容…
-        </p>
-      )}
+      <DialogCard>
+        <div className="dlg-list">
+          <div className="dlg-list-item">
+            <DialogIcon name="file-plus" />
+            <div className="dlg-list-main">
+              <strong>{name}</strong>
+              <DialogPath path={path} />
+            </div>
+            {badge ? (
+              <span className="dlg-badge is-mono" data-tone={badge.tone} title={badge.title}>
+                {badge.text}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </DialogCard>
+      {checking && <DialogProgress label="正在核验远端文件和暂存内容…" />}
       {preview && (
         <>
-          <p>
+          <p className="dlg-text">
             {!preview.diskPresent
               ? '远端磁盘文件已不存在。本次将清理此路径残留的暂存新增内容。'
-              : preview.staged
-                ? '将删除远端磁盘文件，并移除此路径的全部暂存内容。'
-                : '将从远端磁盘删除此新增文件。'}
+              : preview.staged && preview.hasUnstagedChanges
+                ? '此新文件同时存在已暂存和未暂存改动，删除范围包含两部分的全部内容。'
+                : preview.staged
+                  ? '将删除远端磁盘文件，并移除此路径的全部暂存内容。'
+                  : '将从远端磁盘删除此新增文件。'}
           </p>
-          {preview.staged && preview.hasUnstagedChanges && preview.diskPresent && (
-            <p>此新文件同时存在已暂存和未暂存改动，删除范围包含两部分的全部内容。</p>
-          )}
-          <p>直接删除，不会进入回收站。此操作不可撤销。</p>
+          <DialogNote tone="danger">直接删除，不会进入回收站。此操作不可撤销。</DialogNote>
         </>
       )}
-      {error && <Alert type="error" showIcon title="无法完成删除" description={error} />}
-    </Modal>
+      {error && (
+        <DialogNote tone="danger" role="alert" title="无法完成删除">
+          {error}
+        </DialogNote>
+      )}
+    </AluneModal>
   );
 }

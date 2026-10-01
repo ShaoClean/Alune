@@ -1,11 +1,76 @@
-import { useRef, useState } from 'react';
-import { App, Input, Radio, Space } from 'antd';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { App, Input } from 'antd';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { AluneConfirmControl, DialogHints, Kbd, useAluneConfirm } from '../components/AluneModal';
+import { DialogIcon } from '../components/DialogIcons';
+import { OptionCards } from '../components/DialogParts';
+
+interface BranchConflictChoice {
+  existing: boolean;
+  name: string;
+}
+
+export function BranchConflictFields({
+  localName,
+  onChange,
+}: {
+  localName: string;
+  onChange: (choice: BranchConflictChoice) => void;
+}) {
+  const control = useContext(AluneConfirmControl);
+  const [mode, setMode] = useState<'existing' | 'create'>('existing');
+  const [newName, setNewName] = useState('');
+  const missing = mode === 'create' && !newName.trim();
+  useEffect(() => {
+    onChange({
+      existing: mode === 'existing',
+      name: mode === 'existing' ? localName : newName.trim(),
+    });
+    control?.setOkDisabled(missing);
+  }, [mode, newName]);
+  return (
+    <>
+      <OptionCards
+        label="检出方式"
+        columns={2}
+        value={mode}
+        onChange={setMode}
+        options={[
+          {
+            value: 'existing',
+            icon: 'swap',
+            title: '切换到现有分支',
+            description: `“${localName}”，保留跟踪关系`,
+          },
+          { value: 'create', icon: 'plus', title: '使用新名称', description: '创建新的跟踪分支' },
+        ]}
+      />
+      {mode === 'create' && (
+        <label className="dlg-fld">
+          <span className="dlg-fld-label">新的本地分支名称</span>
+          <Input
+            autoFocus
+            className="dlg-mono-input"
+            prefix={<DialogIcon name="branch" />}
+            aria-label="新的本地分支名称"
+            placeholder={`${localName}-2`}
+            autoComplete="off"
+            spellCheck={false}
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+          />
+          {missing && <span className="dlg-fld-hint">请输入新的本地分支名称</span>}
+        </label>
+      )}
+    </>
+  );
+}
 
 // Both branch entry points use the same conflict choices and refresh behavior.
 export function useBranchSwitch(repoId: string, onSwitched: () => void) {
-  const { modal, message } = App.useApp();
+  const { message } = App.useApp();
+  const confirm = useAluneConfirm();
   const pending = useRef(false);
   const [switching, setSwitching] = useState<string | null>(null);
 
@@ -28,50 +93,41 @@ export function useBranchSwitch(repoId: string, onSwitched: () => void) {
         } catch (error: any) {
           const conflict = error.response?.data;
           if (conflict?.code !== 'LOCAL_BRANCH_EXISTS') throw error;
-          const choice = await new Promise<{ existing: boolean; name: string } | null>(
-            (resolve) => {
-              let existing = true;
-              let newName = '';
-              modal.confirm({
-                title: '本地分支名称冲突',
-                content: (
-                  <Space orientation="vertical">
-                    <p>{conflict.message}</p>
-                    <Radio.Group
-                      defaultValue="existing"
-                      onChange={(event) => {
-                        existing = event.target.value === 'existing';
-                      }}
-                    >
-                      <Space orientation="vertical">
-                        <Radio value="existing">
-                          切换到现有分支“{conflict.localName}”（保留跟踪关系）
-                        </Radio>
-                        <Radio value="create">使用新名称创建跟踪分支</Radio>
-                      </Space>
-                    </Radio.Group>
-                    <Input
-                      aria-label="新的本地分支名称"
-                      placeholder="新的本地分支名称"
-                      onChange={(event) => {
-                        newName = event.target.value.trim();
-                      }}
-                    />
-                  </Space>
-                ),
-                okText: '继续',
-                cancelText: '取消',
-                onOk: () => {
-                  if (!existing && !newName) {
-                    message.error('请输入新的本地分支名称');
-                    return Promise.reject(new Error('请输入分支名称'));
-                  }
-                  resolve({ existing, name: existing ? conflict.localName : newName });
-                },
-                onCancel: () => resolve(null),
-              });
+          let choice: BranchConflictChoice | null = { existing: true, name: conflict.localName };
+          const accepted = await confirm({
+            glyph: 'swap',
+            eyebrow: { label: '分支', detail: name.replace(/^remotes\//, '') },
+            title: '本地分支名称冲突',
+            description: conflict.message,
+            content: (
+              <BranchConflictFields
+                localName={conflict.localName}
+                onChange={(value) => {
+                  choice = value;
+                }}
+              />
+            ),
+            hints: (
+              <DialogHints>
+                <span>
+                  <Kbd>↑</Kbd>
+                  <Kbd>↓</Kbd> 选择
+                </span>
+                <i />
+                <span>
+                  <Kbd>↵</Kbd> 继续
+                </span>
+              </DialogHints>
+            ),
+            okText: '继续',
+            onOk: () => {
+              if (!choice?.name) {
+                message.error('请输入新的本地分支名称');
+                return Promise.reject(new Error('请输入分支名称'));
+              }
             },
-          );
+          });
+          if (!accepted) choice = null;
           if (!choice) return;
           target = choice.existing ? choice.name : name;
           targetRemote = choice.existing ? false : isRemote;

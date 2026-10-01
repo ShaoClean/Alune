@@ -1,0 +1,111 @@
+---
+import Icon from '../components/Icon.astro';
+import Screenshot from '../components/Screenshot.astro';
+import repositories from '../assets/screenshots/repositories.png';
+import { site } from '../data/site';
+---
+
+<section class="section container" id="workspaces" aria-labelledby="workspaces-title">
+  <div data-reveal class="intro">
+    <h2 class="section-title" id="workspaces-title">
+      仓库在哪里，
+      <br />
+      工作区就在哪里。
+    </h2>
+    <p class="section-lede">
+      从笔记本上的项目，到远程开发机上的代码。
+      <br />
+      本机与 SSH 仓库，共用熟悉的操作方式。
+    </p>
+  </div>
+  <div class="workspace-grid">
+    <figure data-reveal>
+      <div class="shell">
+        <div class="core">
+          <Screenshot
+            image={repositories}
+            alt="Alune 仓库列表：按本机和 SSH 连接分组，展示仓库路径、状态与打开入口"
+            sizes="(max-width: 767px) 94vw, 60vw"
+          />
+        </div>
+      </div>
+      <figcaption class="caption">
+        仓库列表保留来源和完整路径，支持卡片与列表切换。截图基于 v0.5.0。
+      </figcaption>
+    </figure>
+    <div class="workspace-details">
+      <article data-reveal>
+        <span class="feature-icon">
+          <Icon name="device" />
+        </span>
+        <h3>本地，打开即开始</h3>
+        <p>选择本机目录或输入完整路径。首次提交、无远程仓库、浅克隆，都可以打开。</p>
+      </article>
+      <article data-reveal>
+        <span class="feature-icon">
+          <Icon name="server" />
+        </span>
+        <h3>远程，通过 SSH 连接</h3>
+        <p>支持密码、私钥与 SSH Agent。扫描远端目录，添加已有仓库，再切换到工作区。</p>
+      </article>
+      <p class="requirements">
+        执行 Git 的本机或远程主机需要安装 Git；作者信息与同步凭据由该主机提供。
+      </p>
+      <a class="text-link" href={site.workspace}>
+        了解工作区使用方式 <Icon name="arrow" />
+      </a>
+    </div>
+  </div>
+</section>
+<style>
+  .intro {
+    margin-bottom: 42px;
+  }
+  .workspace-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 0.85fr);
+    gap: 64px;
+    align-items: center;
+  }
+  article + article {
+    margin-top: 30px;
+  }
+  .feature-icon {
+    display: inline-flex;
+    padding: 9px;
+    color: var(--accent);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-card);
+    background: var(--shell);
+    margin-bottom: 15px;
+    font-size: 20px;
+  }
+  h3 {
+    font-size: 19px;
+    font-weight: 550;
+    margin-bottom: 11px;
+  }
+  article p {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .requirements {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 26px 0 8px;
+  }
+  @media (max-width: 1023px) {
+    .workspace-grid {
+      gap: 30px;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 767px) {
+    .workspace-grid {
+      grid-template-columns: 1fr;
+    }
+    .workspace-details {
+      max-width: 540px;
+    }
+  }
+</style>

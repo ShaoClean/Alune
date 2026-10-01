@@ -1,0 +1,24 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import Hero from '../sections/Hero.astro';
+import Workspaces from '../sections/Workspaces.astro';
+import Changes from '../sections/Changes.astro';
+import Collaboration from '../sections/Collaboration.astro';
+import Experience from '../sections/Experience.astro';
+import Download from '../sections/Download.astro';
+---
+
+<SiteLayout>
+  <Header />
+  <main id="main" tabindex="-1">
+    <Hero />
+    <Workspaces />
+    <Changes />
+    <Collaboration />
+    <Experience />
+    <Download />
+  </main>
+  <Footer />
+</SiteLayout>

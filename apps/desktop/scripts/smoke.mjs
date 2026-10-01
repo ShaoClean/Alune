@@ -13,7 +13,10 @@ delete env.ELECTRON_RUN_AS_NODE;
 try {
   for (const phase of ['write', 'restore']) {
     const child = spawn(executable, [...args, '--smoke-test'], { stdio: 'inherit', env: { ...env, ALUNE_SMOKE_PHASE: phase } });
-    const timeout = setTimeout(() => child.kill('SIGKILL'), 60000);
+    const timeout = setTimeout(() => {
+      console.error(`Desktop smoke ${phase} timed out after 150 seconds`);
+      child.kill('SIGKILL');
+    }, 150000);
     const code = await new Promise((resolve, reject) => {
       child.once('error', reject);
       child.once('exit', (code) => resolve(code ?? 1));

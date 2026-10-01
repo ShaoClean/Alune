@@ -1,6 +1,7 @@
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Checkbox, Input, Modal, Popconfirm, Tooltip, App } from 'antd';
+import { Button, Input, Tooltip, App } from 'antd';
+import { AlunePopconfirm } from './AlunePopconfirm';
 import { useNavigate } from 'react-router-dom';
 import { changeActions, changeKindLabel, type FileStatus } from '@alune/shared';
 import {
@@ -27,6 +28,10 @@ import { EmptyState, ErrorState, FileIcon, FolderIcon, LoadingState, PanelHeader
 import { EMPTY_DRAFT, useCommitDraftStore } from '../stores/commitDraftStore';
 import { DeleteNewFileDialog } from './DeleteNewFileDialog';
 import { DiscardChangesDialog } from './DiscardChangesDialog';
+import { AluneModal, CheckCard, useAluneConfirm } from './AluneModal';
+import { DialogIcon } from './DialogIcons';
+import type { DialogIconName } from './DialogIcons';
+import { DialogCard, DialogNote, DialogPath, DialogStat, DialogStats } from './DialogParts';
 import { Sparkles } from './Sparkles';
 import { useCommitGeneration } from '../hooks/useCommitGeneration';
 
@@ -58,6 +63,19 @@ const statusWords: Record<string, string> = {
   ignored: '已忽略',
 };
 
+const kindIcon = (file: FileStatus): DialogIconName =>
+  file.kind === 'worktree'
+    ? 'tree'
+    : file.kind === 'repository'
+      ? 'folder-open'
+      : file.kind === 'submodule'
+        ? 'link'
+        : 'folder';
+
+/** Mirrors the rule ignoreDirectory() appends to info/exclude. */
+const excludeRule = (path: string) =>
+  '/' + path.replace(/\/$/, '').replace(/[\\*?\[\]#! ]/g, '\\$&') + '/';
+
 const GENERATION_SCOPE = '仅分析已暂存改动 · 由你确认后提交';
 
 // Reordering the form must not change when committing is allowed.
@@ -71,7 +89,8 @@ export function ChangesView({
   selectedFile,
   onFileChanged,
 }: Props) {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirm = useAluneConfirm();
   const navigate = useNavigate();
   const origin = useRef<string | null>(repoId);
   useEffect(() => {
@@ -81,7 +100,8 @@ export function ChangesView({
     };
   }, [repoId]);
   const { entry, stale } = useRepositoryStatus(repoId);
-  const { status, fetchStatus } = useRepositoryStore();
+  const { status, fetchStatus, repositories } = useRepositoryStore();
+  const repoName = repositories.find((repo) => repo.id === repoId)?.name;
   const draft = useCommitDraftStore((state) => state.drafts[repoId] || EMPTY_DRAFT);
   const { updateDraft, clearSubmittedDraft } = useCommitDraftStore();
   const [discardConfirmed, setDiscardConfirmed] = useState(false);
@@ -90,7 +110,12 @@ export function ChangesView({
   const [loading, setLoading] = useState(false);
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const [discardAllOpen, setDiscardAllOpen] = useState(false);
+  const discardAllTrigger = useRef<HTMLButtonElement>(null);
   const [directoryFile, setDirectoryFile] = useState<FileStatus | null>(null);
+  const [stagePlan, setStagePlan] = useState<{
+    actionable: FileStatus[];
+    skipped: FileStatus[];
+  } | null>(null);
   const busy = loading || deletePath !== null || discardAllOpen;
 
   const fileMenu = useWorkspaceFileMenu(repoId, (path) => onFileChanged?.(path), busy);
@@ -134,33 +159,14 @@ export function ChangesView({
     const actionable = groupFiles.filter((file) => changeActions(file)[action]);
     const skipped = groupFiles.filter((file) => !changeActions(file)[action]);
     if (!actionable.length) return;
-    const run = () =>
-      runFileAction(
+    if (!skipped.length) {
+      void runFileAction(
         action,
         actionable.map((file) => file.path),
       );
-    if (!skipped.length) {
-      void run();
       return;
     }
-    modal.confirm({
-      title: `暂存 ${actionable.length} 项改动？`,
-      content: (
-        <>
-          <p>将跳过以下 {skipped.length} 项，请在对应仓库中处理：</p>
-          <ul>
-            {skipped.map((file) => (
-              <li className="git-path-detail" key={file.path}>
-                {file.path}
-              </li>
-            ))}
-          </ul>
-        </>
-      ),
-      okText: '暂存可处理的改动',
-      cancelText: '取消',
-      onOk: run,
-    });
+    setStagePlan({ actionable, skipped });
   };
 
   const openChangeRepository = async (file: FileStatus) => {
@@ -185,6 +191,7 @@ export function ChangesView({
               : await store.addRepository(parent.connectionId, file.repositoryPath));
       if (origin.current !== repoId) return;
       setDirectoryFile(null);
+      setStagePlan(null);
       store.openRepository(repo);
       navigate('/repositories/' + repo.id);
     } catch (error: any) {
@@ -196,19 +203,37 @@ export function ChangesView({
 
   const ignoreChangeDirectory = (file: FileStatus) => {
     if (loading) return;
-    modal.confirm({
+    void confirm({
+      level: 1,
+      glyph: 'eye-off',
+      eyebrow: { label: '改动', detail: [repoName, '未跟踪目录'].filter(Boolean).join(' · ') },
       title: '在本地忽略此目录？',
+      description: '目录及其内容会从当前仓库的未跟踪列表中隐藏，磁盘文件会保留。',
       content: (
         <>
-          <p className="git-path-detail">{file.path}</p>
-          <p>
-            目录及其内容会从当前仓库的未跟踪列表中隐藏，磁盘文件会保留。规则写入 Git
-            本地忽略文件，对同一仓库的 Worktree 生效，不会修改团队的 .gitignore。
-          </p>
+          <DialogCard>
+            <div className="dlg-diff">
+              <div className="dlg-diff-file">
+                <DialogIcon name="file" />
+                <DialogPath path=".git/info/exclude" />
+                <span className="adds">+1</span>
+              </div>
+              <div className="dlg-diff-row is-add">
+                <span className="ln" />
+                <span className="sg">+</span>
+                <code>{excludeRule(file.path)}</code>
+              </div>
+            </div>
+          </DialogCard>
+          <DialogNote quiet>
+            写入 Git 本地忽略文件，对同一仓库的 Worktree 生效，不会修改团队的 .gitignore。
+          </DialogNote>
         </>
       ),
+      hintVerb: '忽略',
+      okIcon: 'eye-off',
+      busyText: '正在写入…',
       okText: '本地忽略',
-      cancelText: '取消',
       onOk: async () => {
         setLoading(true);
         try {
@@ -372,22 +397,39 @@ export function ChangesView({
             />
           )}
           {actions.discard && (
-            <Popconfirm
+            <AlunePopconfirm
               title="丢弃此文件的未暂存改动？"
-              description={
-                <div>
-                  <p className="git-path-detail">{file.path}</p>
-                  <p>将恢复为暂存区的内容，保留已暂存改动。此操作不可撤销。</p>
-                  <Checkbox
+              description="恢复为暂存区的内容，已暂存的改动保留。此操作不可撤销。"
+              icon="undo"
+              tone="danger"
+              wide
+              focus="extra"
+              extra={
+                <>
+                  <p className="a-pop-path">
+                    <DialogPath path={file.path} />
+                    {file.additions ? (
+                      <span className="dlg-badge is-mono" data-tone="success">
+                        +{file.additions}
+                      </span>
+                    ) : null}
+                    {file.deletions ? (
+                      <span className="dlg-badge is-mono" data-tone="danger">
+                        −{file.deletions}
+                      </span>
+                    ) : null}
+                  </p>
+                  <CheckCard
+                    plain
+                    tone="danger"
                     checked={discardConfirmed}
-                    onChange={(event) => setDiscardConfirmed(event.target.checked)}
-                  >
-                    我确认丢弃未暂存改动
-                  </Checkbox>
-                </div>
+                    onChange={setDiscardConfirmed}
+                    title="我确认丢弃未暂存改动"
+                  />
+                </>
               }
               onOpenChange={() => setDiscardConfirmed(false)}
-              okButtonProps={{ disabled: !discardConfirmed, danger: true }}
+              okDisabled={!discardConfirmed}
               okText="丢弃改动"
               disabled={busy}
               onConfirm={() => discardFile(file.path)}
@@ -402,7 +444,7 @@ export function ChangesView({
                 loading={loading}
                 disabled={busy}
               />
-            </Popconfirm>
+            </AlunePopconfirm>
           )}
           {!kind && (actions.delete || addedPaths.has(file.path)) && (
             <Button
@@ -446,6 +488,7 @@ export function ChangesView({
                 danger
                 icon={<UndoOutlined />}
                 aria-label="放弃所有更改"
+                ref={discardAllTrigger}
                 disabled={busy}
                 onClick={() => setDiscardAllOpen(true)}
               >
@@ -479,13 +522,24 @@ export function ChangesView({
   return (
     <section className="workspace-panel changes-panel">
       {directoryFile && (
-        <Modal
+        <AluneModal
           open
+          glyph={kindIcon(directoryFile)}
+          eyebrow={{ label: '改动', detail: [repoName, '未跟踪'].filter(Boolean).join(' · ') }}
           title={`${changeKindLabel(directoryFile)}详情`}
           onCancel={() => setDirectoryFile(null)}
+          hints={
+            <p className="a-dlg-hints">
+              <span>
+                <kbd className="dlg-kbd">Esc</kbd> 关闭
+              </span>
+            </p>
+          }
           footer={
             <>
-              <Button onClick={() => setDirectoryFile(null)}>关闭</Button>
+              <Button type="text" onClick={() => setDirectoryFile(null)}>
+                关闭
+              </Button>
               {changeActions(directoryFile).ignore && (
                 <Button disabled={loading} onClick={() => ignoreChangeDirectory(directoryFile)}>
                   本地忽略
@@ -494,31 +548,102 @@ export function ChangesView({
               {changeActions(directoryFile).open && (
                 <Button
                   type="primary"
+                  className="has-orb"
                   loading={loading}
                   onClick={() => void openChangeRepository(directoryFile)}
                 >
-                  {directoryFile.kind === 'worktree' ? '打开 Worktree' : '打开仓库'}
+                  <span>{directoryFile.kind === 'worktree' ? '打开 Worktree' : '打开仓库'}</span>
+                  <span className="dlg-orb" aria-hidden="true">
+                    <DialogIcon name="arrow-up-right" />
+                  </span>
                 </Button>
               )}
             </>
           }
         >
-          <p className="git-path-detail">{directoryFile.path}</p>
-          <p>
-            {directoryFile.kind === 'directory'
+          <DialogCard>
+            <div className="dlg-card-row">
+              <span className="dlg-repo-tile" aria-hidden="true">
+                <DialogIcon name="folder" />
+              </span>
+              <div className="dlg-repo-meta">
+                <strong>{directoryFile.path.replace(/\/$/, '')}</strong>
+                <DialogPath path={directoryFile.repositoryPath || directoryFile.path} />
+              </div>
+            </div>
+          </DialogCard>
+          <p className="dlg-text">
+            {directoryFile.kind === 'directory' || !directoryFile.kind
               ? '此路径是目录，无法作为单个文件预览、暂存或删除。请在文件树中查看内容并单独处理。'
               : '此目录有独立的 Git 状态。请打开对应仓库查看改动；当前仓库的批量操作会跳过此目录。'}
           </p>
           {directoryFile.kind === 'worktree' && (
-            <p>需要移除此工作目录时，请使用 Worktree 管理中的移除操作。</p>
+            <DialogNote quiet>需要移除此工作目录时，请使用 Worktree 管理中的移除操作。</DialogNote>
           )}
-        </Modal>
+        </AluneModal>
+      )}
+      {stagePlan && (
+        <AluneModal
+          open
+          level={1}
+          glyph="plus"
+          eyebrow={{
+            label: '改动',
+            detail: [repoName, status?.branch].filter(Boolean).join(' · '),
+          }}
+          title={`暂存 ${stagePlan.actionable.length} 项改动？`}
+          description={`将跳过以下 ${stagePlan.skipped.length} 项，请在对应仓库中处理。`}
+          hintVerb="暂存"
+          okText="暂存可处理的改动"
+          busyText="正在暂存…"
+          onCancel={() => setStagePlan(null)}
+          onOk={async () => {
+            const paths = stagePlan.actionable.map((file) => file.path);
+            await runFileAction('stage', paths);
+            setStagePlan(null);
+          }}
+        >
+          <DialogCard>
+            <DialogStats>
+              <DialogStat tone="info" value={stagePlan.actionable.length} label="将暂存" />
+              <DialogStat off value={stagePlan.skipped.length} label="跳过" />
+            </DialogStats>
+          </DialogCard>
+          <DialogCard>
+            <div className="dlg-list is-scroll">
+              {stagePlan.skipped.map((file) => (
+                <div className="dlg-list-item" key={file.path}>
+                  <DialogIcon name={kindIcon(file)} />
+                  <div className="dlg-list-main">
+                    <strong>{file.path.replace(/\/$/, '')}</strong>
+                    <span className="dlg-path">
+                      {changeKindLabel(file) || '文件'} ·{' '}
+                      {file.kind ? '有独立的 Git 状态' : '无法在此暂存'}
+                    </span>
+                  </div>
+                  {changeActions(file).open && (
+                    <Button
+                      size="small"
+                      disabled={loading}
+                      onClick={() => void openChangeRepository(file)}
+                    >
+                      打开仓库
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </DialogCard>
+        </AluneModal>
       )}
       {discardAllOpen && (
         <DiscardChangesDialog
           key={repoId}
           repoId={repoId}
-          onClose={() => setDiscardAllOpen(false)}
+          onClose={() => {
+            setDiscardAllOpen(false);
+            requestAnimationFrame(() => discardAllTrigger.current?.focus({ preventScroll: true }));
+          }}
         />
       )}
       {fileMenu.element}
