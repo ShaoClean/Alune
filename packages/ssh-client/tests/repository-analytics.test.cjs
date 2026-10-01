@@ -2,7 +2,6 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
-const { pathToFileURL } = require('node:url');
 const { collectRepositoryAnalytics, primaryLanguage, LocalConnection } = require('../dist');
 const { createRepository } = require('./helpers/local-repository.cjs');
 const { connectFixture } = require('./helpers/ssh-server.cjs');
@@ -70,8 +69,9 @@ for (const transport of ['local', 'ssh']) {
       execFileSync('git', [
         'clone',
         '-q',
+        '--no-local',
         '--depth=1',
-        pathToFileURL(fixture.repo).href,
+        fixture.repo,
         path.join(fixture.root, 'shallow'),
       ]);
       const shallow = await collectRepositoryAnalytics(
