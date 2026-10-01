@@ -62,9 +62,31 @@ module.exports = async ({ window, git, repo }) => {
     window.show();
     window.focus();
     await wait('document.hasFocus()');
-    await execute("document.querySelector('.feedback-actions button').click()", true);
-    await wait("document.querySelector('.feedback-dialog').textContent.includes('已复制')");
-    assert.match(await clipboard.readText(), /Git 操作未完成/);
+    // Observe the Unicode payload while still calling the real browser API.
+    // Windows CI clipboard synchronization can rewrite non-ANSI characters.
+    await execute(`(() => {
+      window.__feedbackWriteText = navigator.clipboard.writeText;
+      navigator.clipboard.writeText = function(text) {
+        window.__feedbackCopiedText = text;
+        return window.__feedbackWriteText.call(this, text);
+      };
+    })()`);
+    try {
+      await execute("document.querySelector('.feedback-actions button').click()", true);
+      await wait("document.querySelector('.feedback-dialog').textContent.includes('已复制')");
+      assert.match(await execute('window.__feedbackCopiedText'), /Git 操作未完成/);
+      const copied = await clipboard.readText();
+      assert.match(copied, /fatal:.*unavailable-alune\.git/);
+      if (process.platform !== 'win32' || !process.env.CI) {
+        assert.match(copied, /Git 操作未完成/);
+      }
+    } finally {
+      await execute(`(() => {
+        navigator.clipboard.writeText = window.__feedbackWriteText;
+        delete window.__feedbackWriteText;
+        delete window.__feedbackCopiedText;
+      })()`);
+    }
     await execute(
       "document.querySelector('.feedback-dialog').dispatchEvent(new Event('cancel', { cancelable: true }))",
     );

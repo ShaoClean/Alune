@@ -66,6 +66,12 @@ module.exports = async ({ window }) => {
       '(() => { const trigger = document.querySelector(\'[aria-label="放弃所有更改"]\'); trigger.focus(); trigger.click(); })()',
     );
     await wait(visible);
+    // The DOM becomes visible before the dialog's effect moves focus from the
+    // trigger. Wait on every opening before sending keyboard input, including
+    // the reopen used by the Tab focus-trap check.
+    await wait(
+      `document.activeElement === ${shell}.querySelector('.a-dlg-actions .ant-btn:not(.ant-btn-dangerous)')`,
+    );
   };
   const close = async () => {
     await press('Escape');
@@ -96,9 +102,6 @@ module.exports = async ({ window }) => {
     // L2: alertdialog, Cancel focused, ↵ disabled even after the acknowledgement.
     await recordMotion();
     await open();
-    await wait(
-      `document.activeElement === ${shell}.querySelector('.a-dlg-actions .ant-btn:not(.ant-btn-dangerous)')`,
-    );
     assert.equal(await execute(`${shell}.closest('[role]').getAttribute('role')`), 'alertdialog');
     assert.equal(
       await execute(`${shell}.querySelector('.a-dlg-actions .ant-btn-dangerous').disabled`),
@@ -129,11 +132,16 @@ module.exports = async ({ window }) => {
 
     // Tab stays inside the open dialog.
     await open();
-    for (let step = 0; step < 8; step += 1) await press('Tab');
-    assert.equal(
-      await execute(`${shell}.closest('.ant-modal-wrap').contains(document.activeElement)`),
-      true,
-    );
+    for (let step = 0; step < 8; step += 1) {
+      await execute('window.__dialogTabTarget = document.activeElement');
+      await press('Tab');
+      await wait('document.activeElement !== window.__dialogTabTarget');
+      assert.equal(
+        await execute(`${shell}.closest('.ant-modal-wrap').contains(document.activeElement)`),
+        true,
+        `Tab ${step + 1} must keep focus inside the dialog`,
+      );
+    }
     await close();
 
     // Reduced motion keeps only a short fade.
