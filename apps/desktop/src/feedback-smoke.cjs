@@ -7,16 +7,26 @@ module.exports = async ({ window, git, repo }) => {
   const { join } = require('node:path');
   const execute = (script, gesture = false) =>
     window.webContents.executeJavaScript(script, gesture);
-  const wait = (condition) =>
+  const wait = (condition, result = 'undefined') =>
     execute(`new Promise((resolve, reject) => {
     const start = Date.now(); const check = () => {
-      if (${condition}) return resolve();
+      if (${condition}) return resolve(${result});
       if (Date.now() - start > 10000) return reject(Error('Feedback smoke: ' + ${JSON.stringify(condition)} + ' | ' + JSON.stringify({dialog:document.querySelector('.feedback-dialog')?.innerText,pull:document.querySelector('[aria-label=拉取]')?.outerHTML})));
       setTimeout(check, 30);
     }; check();
   })`);
   const click = (selector) =>
     execute(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  // Operation polling can keep its in-flow progress notice visible briefly after
+  // Git has failed. Compare idle layouts so that notice is not mistaken for a
+  // layout shift caused by the feedback dialog; keep the exact bounds assertion.
+  // Read the bounds in the same renderer task as the idle check so a polling
+  // response cannot insert/remove the notice between checking and measuring.
+  const idleLayoutBounds = () => wait(`
+    !document.querySelector('.git-operation-notice') &&
+    document.querySelector('[aria-label="刷新仓库"]')?.getAttribute('aria-busy') === 'false' &&
+    document.querySelector('[aria-label="拉取"]')?.getAttribute('aria-disabled') === 'false'
+  `, "document.querySelector('.workspace-body').getBoundingClientRect().toJSON()");
   const originalSize = window.getSize();
   const oldClipboard = await clipboard.readText();
   const originalAuthor = git('config', 'user.name').trim();
@@ -35,15 +45,13 @@ module.exports = async ({ window, git, repo }) => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
       document.querySelector('[aria-label="拉取"]').focus();
     })()`);
-    const bounds = await execute(
-      "document.querySelector('.workspace-body').getBoundingClientRect().toJSON()",
-    );
+    const bounds = await idleLayoutBounds();
     await click('[aria-label="拉取"]');
     await wait(
       "document.querySelector('.feedback-dialog[open]')?.textContent.includes('Git 操作未完成')",
     );
     assert.deepEqual(
-      await execute("document.querySelector('.workspace-body').getBoundingClientRect().toJSON()"),
+      await idleLayoutBounds(),
       bounds,
     );
     assert.equal(
