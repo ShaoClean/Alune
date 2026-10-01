@@ -1,0 +1,164 @@
+---
+import Screenshot from '../components/Screenshot.astro';
+import Icon from '../components/Icon.astro';
+import files from '../assets/screenshots/files.png';
+import { site } from '../data/site';
+---
+
+<section class="section container" id="experience" aria-labelledby="experience-title">
+  <h2 data-reveal class="section-title" id="experience-title">
+    让工作区，贴合你的习惯。
+  </h2>
+  <p data-reveal data-reveal-delay="70" class="section-lede">
+    多标签整理项目，调整面板留出空间。
+    <br />
+    从外观到代码阅读，让常用操作更顺手。
+  </p>
+  <div class="experience-grid">
+    <article data-reveal class="reading shell">
+      <div class="core">
+        <div class="reading-copy">
+          <h3>阅读，有自己的配色</h3>
+          <p>
+            深浅外观与系统同步。文件阅读内置四款 Catppuccin 主题，也可以导入 VS Code
+            主题，选择字体与字号。
+          </p>
+        </div>
+        <Screenshot
+          image={files}
+          alt="代码阅读示例：Catppuccin Mocha 深色代码主题，文件目录树、行号和语法高亮"
+          sizes="(max-width: 767px) 94vw, 55vw"
+        />
+        <p class="reading-caption caption">
+          代码主题仅影响文件阅读，Diff 沿用原有配色。截图基于 v0.5.0。
+        </p>
+      </div>
+    </article>
+    <div class="experience-side">
+      <article data-reveal class="shortcuts">
+        <h3>常用操作，触手可及</h3>
+        <dl>
+          <div>
+            <dt>切换左侧导航</dt>
+            <dd>
+              <kbd>⌘ / Ctrl</kbd> <kbd>B</kbd>
+            </dd>
+          </div>
+          <div>
+            <dt>切换右侧面板</dt>
+            <dd>
+              <kbd>⌘ / Ctrl</kbd> <kbd>⇧</kbd> <kbd>B</kbd>
+            </dd>
+          </div>
+          <div>
+            <dt>打开设置</dt>
+            <dd>
+              <kbd>⌘ / Ctrl</kbd> <kbd>,</kbd>
+            </dd>
+          </div>
+        </dl>
+        <p>拖动标签重新排序，按需要隐藏或调宽面板。</p>
+      </article>
+      <article data-reveal class="network">
+        <h3>连接，也有合适的设置</h3>
+        <p>支持 HTTP、HTTPS 与 SOCKS5 代理，可用于 AI 请求、版本更新、SSH 连接及远端 Git 同步。</p>
+        <a class="text-link" href={site.proxy}>
+          查看代理的生效范围 <Icon name="arrow" />
+        </a>
+      </article>
+    </div>
+  </div>
+</section>
+<style>
+  .experience-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 30px;
+    margin-top: 42px;
+  }
+  .reading-copy {
+    padding: 30px;
+  }
+  h3 {
+    font-size: 22px;
+    font-weight: 550;
+    margin-bottom: 15px;
+  }
+  p {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .reading-copy p {
+    max-width: 470px;
+  }
+  .reading-caption {
+    padding: 0 24px 18px;
+    font-size: 12px;
+  }
+  .experience-side {
+    padding: 30px 0 0 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 32px;
+  }
+  dl {
+    margin: 28px 0;
+  }
+  dl div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 18px 0;
+  }
+  dt {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  dd {
+    margin: 0;
+    white-space: nowrap;
+  }
+  kbd {
+    font: 11px var(--font-mono);
+    padding: 6px 8px;
+    border: 1px solid var(--hair);
+    border-radius: 6px;
+    background: var(--surface);
+    box-shadow: 0 2px 0 var(--hair);
+  }
+  .network {
+    border-top: 1px solid var(--hair);
+    padding-top: 30px;
+  }
+  .network h3 {
+    font-size: 20px;
+  }
+  .network .text-link {
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  @media (max-width: 1023px) {
+    .experience-side {
+      padding-left: 0;
+    }
+    kbd {
+      padding: 5px;
+    }
+  }
+  @media (max-width: 767px) {
+    .experience-grid {
+      grid-template-columns: 1fr;
+    }
+    .experience-side {
+      padding: 12px 8px 0;
+    }
+    .reading-copy {
+      padding: 24px;
+    }
+    h3 {
+      font-size: 20px;
+    }
+  }
+</style>

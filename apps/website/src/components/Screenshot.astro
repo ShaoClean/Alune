@@ -1,0 +1,58 @@
+---
+import { getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+interface Props {
+  image: ImageMetadata;
+  dark?: ImageMetadata;
+  alt: string;
+  eager?: boolean;
+  sizes?: string;
+}
+const { image, dark, alt, eager = false, sizes = '(max-width: 767px) 94vw, 80vw' } = Astro.props;
+const widths = [640, 960, 1280, image.width].filter(
+  (w, i, a) => w <= image.width && a.indexOf(w) === i,
+);
+const lightImages = await Promise.all(
+  widths.map((width) => getImage({ src: image, width, format: 'webp', quality: 88 })),
+);
+const darkImages = dark
+  ? await Promise.all(
+      widths.map((width) => getImage({ src: dark, width, format: 'webp', quality: 88 })),
+    )
+  : [];
+const srcset = (images: Awaited<ReturnType<typeof getImage>>[]) =>
+  images.map((img, i) => `${img.src} ${widths[i]}w`).join(', ');
+---
+
+<picture>
+  {dark && (
+    <source
+      data-theme-source
+      media="(prefers-color-scheme: dark)"
+      srcset={srcset(darkImages)}
+      sizes={sizes}
+      type="image/webp"
+    />
+  )}
+  <img
+    src={lightImages.at(-1)!.src}
+    srcset={srcset(lightImages)}
+    sizes={sizes}
+    width={image.width}
+    height={image.height}
+    alt={alt}
+    loading={eager ? 'eager' : 'lazy'}
+    fetchpriority={eager ? 'high' : 'auto'}
+    decoding="async"
+  />
+</picture>
+<style>
+  picture,
+  img {
+    display: block;
+    width: 100%;
+  }
+  img {
+    height: auto;
+  }
+</style>

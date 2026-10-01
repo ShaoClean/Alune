@@ -1,0 +1,59 @@
+name: Website
+
+on:
+  pull_request:
+    paths:
+      - 'apps/website/**'
+      - 'apps/desktop/assets/alune.png'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
+      - '.github/workflows/website.yml'
+  push:
+    branches: [development]
+    paths:
+      - 'apps/website/**'
+      - 'apps/desktop/assets/alune.png'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
+      - '.github/workflows/website.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      # The website does not need Electron, native server packages or desktop builds.
+      - run: npm ci --workspace website --include-workspace-root=false
+      - run: npm run website:check
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/website/dist
+
+  deploy:
+    if: github.ref == 'refs/heads/development' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - uses: actions/deploy-pages@v4
+        id: deployment
