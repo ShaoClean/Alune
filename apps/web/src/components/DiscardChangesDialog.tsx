@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, App, Button, Checkbox, Modal, Spin } from 'antd';
+import { App, Button } from 'antd';
 import type { DiscardChangesPreview, DiscardChangesResult } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { AluneModal, CheckCard, DialogHints, Kbd } from './AluneModal';
+import { DialogIcon } from './DialogIcons';
+import type { LedgerItem } from './DialogParts';
+import {
+  DialogCard,
+  DialogEmpty,
+  DialogLedger,
+  DialogNote,
+  DialogProgress,
+  DialogStat,
+  DialogStats,
+  RepoRow,
+} from './DialogParts';
 
 interface Props {
   repoId: string;
@@ -20,6 +33,7 @@ export function DiscardChangesDialog({ repoId, onClose }: Props) {
   const [checking, setChecking] = useState(true);
   const [discarding, setDiscarding] = useState(false);
   const [includeUntracked, setIncludeUntracked] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pending = useRef(false);
   const revision = useRef(0);
@@ -37,6 +51,7 @@ export function DiscardChangesDialog({ repoId, onClose }: Props) {
     setPreview(null);
     setError(null);
     setIncludeUntracked(false);
+    setAcknowledged(false);
     try {
       const value = await gitApi.previewDiscardChanges(repoId);
       if (revision.current === current) setPreview(value);
@@ -56,7 +71,7 @@ export function DiscardChangesDialog({ repoId, onClose }: Props) {
   }, [repoId]);
 
   const confirm = async () => {
-    if (pending.current || checking || !preview || !count) return;
+    if (pending.current || checking || !preview || !count || !acknowledged) return;
     pending.current = true;
     setDiscarding(true);
     const current = revision.current;
@@ -95,97 +110,137 @@ export function DiscardChangesDialog({ repoId, onClose }: Props) {
   const close = () => {
     if (!pending.current) onClose();
   };
+  const ready = Boolean(preview && preview.tracked + preview.untracked > 0);
+  const skipped = preview?.skipped?.length ?? 0;
+  const discarded: LedgerItem[] = preview
+    ? [
+        { icon: 'file', text: `${preview.tracked} 个已跟踪文件的未暂存改动` },
+        ...(includeUntracked
+          ? [{ icon: 'file-plus' as const, text: `${preview.untracked} 个未跟踪文件，直接删除` }]
+          : []),
+      ]
+    : [];
+  const kept: LedgerItem[] = preview
+    ? [
+        { icon: 'check', text: '全部已暂存内容，含已暂存的新文件' },
+        ...(!includeUntracked && preview.untracked
+          ? [{ icon: 'file-plus' as const, text: `${preview.untracked} 个未跟踪文件` }]
+          : []),
+        { icon: 'eye-off', text: '忽略文件' },
+        ...(skipped ? [{ icon: 'tree' as const, text: `跳过 ${skipped} 个目录或子模块` }] : []),
+      ]
+    : [];
+
   return (
-    <Modal
+    <AluneModal
       open
+      level={2}
+      glyph="undo"
+      eyebrow={{ label: '工作区', detail: preview?.repositoryName }}
       title="放弃所有更改？"
+      description="作用于整个当前仓库 / worktree，不受文件列表筛选影响。其他仓库和 worktree 不受影响。"
       onCancel={close}
-      closable={!discarding}
-      keyboard={!discarding}
-      maskClosable={!discarding}
-      footer={[
-        <Button key="cancel" disabled={discarding} onClick={close}>
-          取消
-        </Button>,
-        error && (
-          <Button key="retry" disabled={checking || discarding} onClick={() => void readPreview()}>
+      onOk={() => void confirm()}
+      confirmLoading={discarding}
+      busyText="正在放弃…"
+      okDisabled={checking || !count || !acknowledged}
+      okText={
+        !preview
+          ? '确认放弃'
+          : includeUntracked
+            ? `放弃全部并删除（${count}）`
+            : `仅放弃已跟踪更改（${count}）`
+      }
+      hints={
+        <DialogHints tone="warn">
+          <span>
+            <DialogIcon name="warning" />
+            默认聚焦「取消」
+          </span>
+          <i />
+          <span>
+            <Kbd>↵</Kbd> 已停用
+          </span>
+        </DialogHints>
+      }
+      extra={
+        error ? (
+          <Button disabled={checking || discarding} onClick={() => void readPreview()}>
             重新读取并确认
           </Button>
-        ),
-        <Button
-          key="discard"
-          danger
-          type="primary"
-          loading={discarding}
-          disabled={checking || !count}
-          onClick={() => void confirm()}
-        >
-          {discarding
-            ? '正在放弃…'
-            : !preview
-              ? '确认放弃'
-              : includeUntracked
-                ? `放弃全部并删除（${count}）`
-                : `仅放弃已跟踪更改（${count}）`}
-        </Button>,
-      ]}
+        ) : null
+      }
     >
-      {checking && (
-        <p role="status">
-          <Spin size="small" /> 正在核验整个仓库的改动…
-        </p>
-      )}
+      {checking && <DialogProgress label="正在核验整个仓库的改动…" />}
       {preview && (
+        <DialogCard>
+          <RepoRow name={preview.repositoryName || '当前仓库'} path={preview.repositoryPath} />
+          {ready ? (
+            <div className="dlg-card-divide">
+              <DialogStats>
+                <DialogStat tone="danger" value={preview.tracked} label="已跟踪 · 恢复" />
+                {preview.untracked > 0 ? (
+                  <DialogStat
+                    tone="danger"
+                    off={!includeUntracked}
+                    value={preview.untracked}
+                    label={includeUntracked ? '未跟踪 · 删除' : '未跟踪 · 保留'}
+                  />
+                ) : null}
+              </DialogStats>
+            </div>
+          ) : (
+            <div className="dlg-card-divide">
+              <DialogEmpty>当前没有可放弃的未暂存更改。</DialogEmpty>
+            </div>
+          )}
+        </DialogCard>
+      )}
+      {preview && ready ? (
         <>
-          <p>
-            <strong>{preview.repositoryName || '当前仓库'}</strong>
-          </p>
-          <p className="git-path-detail">{preview.repositoryPath}</p>
-          <p>作用于整个当前仓库 / worktree，不受文件列表筛选影响。其他仓库和 worktree 不受影响。</p>
-          {!!preview.skipped?.length && (
-            <details className="change-skipped" open>
-              <summary>跳过 {preview.skipped.length} 个目录或子模块</summary>
-              <ul>
-                {preview.skipped.map((item) => (
+          <DialogLedger change={discarded} keep={kept} />
+          {skipped ? (
+            <DialogNote quiet icon="tree" title={`跳过 ${skipped} 个目录或子模块`}>
+              <ul className="dlg-note-sub">
+                {preview.skipped!.map((item) => (
                   <li key={item.path}>
-                    <span className="git-path-detail">{item.path}</span>：{item.reason}
+                    <code>{item.path}</code>：{item.reason}
                   </li>
                 ))}
               </ul>
-            </details>
+            </DialogNote>
+          ) : null}
+          {preview.untracked > 0 && (
+            <CheckCard
+              tone="danger"
+              checked={includeUntracked}
+              disabled={discarding}
+              onChange={(checked) => {
+                setIncludeUntracked(checked);
+                setAcknowledged(false);
+              }}
+              title={`同时删除 ${preview.untracked} 个未跟踪文件`}
+              description={
+                includeUntracked
+                  ? '直接删除，不会进入回收站，Git 无法恢复这些文件。'
+                  : '未勾选时保留未跟踪文件及忽略文件。'
+              }
+            />
           )}
-          {preview.tracked + preview.untracked === 0 ? (
-            <Alert type="info" showIcon title="当前没有可放弃的未暂存更改。" />
-          ) : (
-            <>
-              <p>
-                将恢复 {preview.tracked}{' '}
-                个已跟踪文件的未暂存改动。保留全部已暂存内容，包括已暂存的新文件。
-              </p>
-              {preview.untracked > 0 && (
-                <Checkbox
-                  checked={includeUntracked}
-                  disabled={discarding}
-                  onChange={(event) => setIncludeUntracked(event.target.checked)}
-                >
-                  同时删除 {preview.untracked} 个未跟踪文件
-                </Checkbox>
-              )}
-              <p>
-                {includeUntracked
-                  ? `将直接删除 ${preview.untracked} 个未跟踪文件，不会进入回收站，Git 无法恢复这些文件。忽略文件不受影响。`
-                  : `保留 ${preview.untracked} 个未跟踪文件及忽略文件。`}
-              </p>
-              <Alert
-                type="warning"
-                showIcon
-                title={`本次影响 ${count} 个文件，放弃的未暂存内容不可撤销。`}
-              />
-            </>
-          )}
+          <CheckCard
+            tone="danger"
+            checked={acknowledged}
+            disabled={discarding}
+            onChange={setAcknowledged}
+            title={`我了解本次影响 ${count} 个文件，且不可撤销`}
+          />
         </>
+      ) : null}
+      {error && (
+        <DialogNote tone="danger" role="alert" title="未全部完成">
+          {error}
+        </DialogNote>
       )}
-      {error && <Alert type="error" showIcon title="未全部完成" description={error} />}
-    </Modal>
+    </AluneModal>
   );
 }

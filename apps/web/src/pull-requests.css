@@ -389,9 +389,6 @@
   font-size: 14px;
   overflow-wrap: anywhere;
 }
-.pull-request-confirm-target {
-  overflow-wrap: anywhere;
-}
 .pull-request-patch__number button {
   border: 0;
   padding: 0 4px;

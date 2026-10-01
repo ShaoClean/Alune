@@ -578,7 +578,7 @@ function DetailContent({
         )}
       </header>
       <LoadState {...resource} />
-      <ReviewActionBar review={review} query={query} />
+      <ReviewActionBar review={review} query={query} summary={summary} />
       <Tabs
         activeKey={tab}
         onChange={onTabChange}

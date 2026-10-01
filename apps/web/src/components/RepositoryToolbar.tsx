@@ -14,7 +14,7 @@ import {
   LoadingOutlined,
   ReloadOutlined,
   TagOutlined,
-  ThunderboltOutlined,
+  WarningOutlined,
   DownloadOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
@@ -26,7 +26,14 @@ import { useToolbarTier } from '../hooks/useToolbarTier';
 import { syncLabel } from '../stores/syncStatusStore';
 import type { SyncOperation } from '../stores/syncStatusStore';
 
-export type RepositoryPanel = 'changes' | 'files' | 'history' | 'branches' | 'stashes' | 'remotes' | 'pull-requests';
+export type RepositoryPanel =
+  | 'changes'
+  | 'files'
+  | 'history'
+  | 'branches'
+  | 'stashes'
+  | 'remotes'
+  | 'pull-requests';
 export type { SyncOperation };
 
 type ViewItem = { key: RepositoryPanel; label: string; icon: ReactElement };
@@ -320,6 +327,7 @@ export function RepositoryToolbar({
                   key: 'push',
                   label: '推送到上游',
                   icon: <UploadOutlined />,
+                  extra: ahead ? `↑${ahead}` : undefined,
                   disabled: busy,
                   onClick: () => onSync('push'),
                 },
@@ -341,8 +349,9 @@ export function RepositoryToolbar({
                 {
                   key: 'force-push',
                   danger: true,
-                  label: '强制推送（含租约）',
-                  icon: <ThunderboltOutlined />,
+                  // The ellipsis promises a confirmation (D03) before anything is pushed.
+                  label: '强制推送（含租约）…',
+                  icon: <WarningOutlined />,
                   disabled: busy,
                   onClick: () => onSync('push', { force: true }),
                 },

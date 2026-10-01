@@ -558,9 +558,29 @@ export function Layout() {
           version={`v${updateState?.currentVersion || __APP_VERSION__}`}
           inert={compact && mobileNavOpen}
           notices={[
-            ...(storageError ? [storageError] : []),
+            ...(storageError
+              ? [
+                  {
+                    id: 'storage',
+                    title: '设置未能保存',
+                    description: storageError,
+                    tone: 'warning' as const,
+                    icon: 'warning' as const,
+                  },
+                ]
+              : []),
             ...(updateState?.status === 'available'
-              ? [`Alune v${updateState.latestVersion} 可用`]
+              ? [
+                  {
+                    id: 'update',
+                    title: `Alune v${updateState.latestVersion} 可用`,
+                    description: '新版本已发布，可查看更新说明并下载安装。',
+                    tone: 'info' as const,
+                    icon: 'download' as const,
+                    actionLabel: isDesktop ? '查看更新' : undefined,
+                    onAction: isDesktop ? () => openSettings('updates') : undefined,
+                  },
+                ]
               : []),
           ]}
           onSettings={() => openSettings()}

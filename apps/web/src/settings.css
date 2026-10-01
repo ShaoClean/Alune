@@ -284,22 +284,6 @@
 .provider-model__actions .ant-btn.ant-btn-dangerous:not(:disabled):is(:hover, :focus-visible) {
   color: var(--red);
 }
-.provider-model-modal {
-  --settings-muted: var(--text-muted);
-}
-.provider-model-modal--delete .ant-btn-primary.ant-btn-dangerous:not(:disabled) {
-  color: var(--primary-on);
-  background: var(--red);
-  border-color: var(--red);
-  box-shadow: none;
-}
-.provider-model-modal--delete .ant-btn-primary.ant-btn-dangerous:not(:disabled):hover {
-  background: var(--red);
-  border-color: var(--red);
-}
-.provider-model-delete-copy {
-  overflow-wrap: anywhere;
-}
 .provider-model strong {
   font-size: 12px;
   margin-right: 8px;
@@ -565,26 +549,11 @@
 .token-mask > span {
   letter-spacing: 3px;
 }
-.token-actions,
-.token-saved-value {
+.token-actions {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-}
-.token-associations {
-  max-height: 280px;
-  overflow: auto;
-  padding-left: 20px;
-}
-.token-associations > li {
-  margin: 12px 0;
-  overflow-wrap: anywhere;
-}
-.token-associations span {
-  display: block;
-  color: var(--text-muted);
-  font-size: 12px;
 }
 @container settings (width < 900px) {
   .token-list > li {

@@ -1,18 +1,130 @@
-import { Button, Modal, Segmented, Switch } from 'antd';
+import { Button, Segmented, Switch } from 'antd';
+import type { CSSProperties } from 'react';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { CHANGES_MAX, CHANGES_MIN, SIDEBAR_MAX, SIDEBAR_MIN } from '../stores/workspaceLayout';
+import { AluneModal, DialogHints, Kbd } from './AluneModal';
+import { DialogCard } from './DialogParts';
+import { DialogIcon } from './DialogIcons';
+
+// The slider skin paints the track up to --fill.
+const fill = (value: number, min: number, max: number) =>
+  ({ '--fill': `${((value - min) / (max - min)) * 100}%` }) as CSSProperties;
 
 export function LayoutSettings({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { layout, updateLayout, resetLayout } = useWorkspaceStore();
   return (
-    <Modal
+    <AluneModal
+      size={420}
+      glyph="columns"
+      eyebrow={{ label: '工作区', detail: '此设备' }}
       title="布局设置"
       open={open}
       onCancel={onClose}
-      footer={<Button onClick={onClose}>完成</Button>}
-      width={420}
+      hints={
+        <DialogHints>
+          <span>即时生效 · 此设备保存</span>
+        </DialogHints>
+      }
+      footer={
+        <>
+          <Button type="text" title="保留工作区树的展开与排序" onClick={resetLayout}>
+            恢复默认
+          </Button>
+          <Button autoFocus onClick={onClose}>
+            完成
+          </Button>
+        </>
+      }
     >
-      <LayoutSettingsContent />
-    </Modal>
+      <p className="dlg-sub">
+        <span>侧边面板</span>
+      </p>
+      <DialogCard>
+        <div className="dlg-sw-row">
+          <span>
+            显示左侧工作区
+            <small>
+              连接与仓库 · <Kbd>⌘ / Ctrl</Kbd> <Kbd>B</Kbd>
+            </small>
+          </span>
+          <Switch
+            aria-label="显示左侧工作区"
+            checked={!layout.sidebarCollapsed}
+            onChange={(visible) => updateLayout({ sidebarCollapsed: !visible })}
+          />
+        </div>
+        <div className="dlg-sw-row">
+          <span>
+            显示右侧面板
+            <small>
+              改动、提交与历史 · <Kbd>⌘ / Ctrl</Kbd> <Kbd>⇧</Kbd> <Kbd>B</Kbd>
+            </small>
+          </span>
+          <Switch
+            aria-label="显示右侧面板"
+            checked={!layout.changesCollapsed}
+            onChange={(visible) => updateLayout({ changesCollapsed: !visible })}
+          />
+        </div>
+      </DialogCard>
+      <p className="dlg-sub">
+        <span>面板宽度</span>
+        <small>窗口较小时自动适配</small>
+      </p>
+      <label className="dlg-fld">
+        <span className="dlg-fld-label">
+          <span>工作区宽度</span>
+          <small>
+            <output>{layout.sidebarWidth} px</output>
+          </small>
+        </span>
+        <input
+          type="range"
+          aria-label="工作区宽度"
+          className="dlg-range"
+          style={fill(layout.sidebarWidth, SIDEBAR_MIN, SIDEBAR_MAX)}
+          min={SIDEBAR_MIN}
+          max={SIDEBAR_MAX}
+          // Adjusting a hidden panel would change nothing visible.
+          disabled={layout.sidebarCollapsed}
+          value={layout.sidebarWidth}
+          onChange={(event) => updateLayout({ sidebarWidth: Number(event.target.value) })}
+        />
+      </label>
+      <label className="dlg-fld">
+        <span className="dlg-fld-label">
+          <span>右侧面板宽度</span>
+          <small>
+            <output>{layout.changesWidth} px</output>
+          </small>
+        </span>
+        <input
+          type="range"
+          aria-label="右侧面板宽度"
+          className="dlg-range"
+          style={fill(layout.changesWidth, CHANGES_MIN, CHANGES_MAX)}
+          min={CHANGES_MIN}
+          max={CHANGES_MAX}
+          disabled={layout.changesCollapsed}
+          value={layout.changesWidth}
+          onChange={(event) => updateLayout({ changesWidth: Number(event.target.value) })}
+        />
+      </label>
+      <p className="dlg-sub">
+        <span>差异视图</span>
+        <small>也可在差异工具栏切换</small>
+      </p>
+      <Segmented
+        block
+        aria-label="默认 Diff 模式"
+        value={layout.diffMode}
+        options={[
+          { label: '统一', value: 'unified', icon: <DialogIcon name="file" /> },
+          { label: '分栏', value: 'split', icon: <DialogIcon name="columns" /> },
+        ]}
+        onChange={(diffMode) => updateLayout({ diffMode: diffMode as 'unified' | 'split' })}
+      />
+    </AluneModal>
   );
 }
 

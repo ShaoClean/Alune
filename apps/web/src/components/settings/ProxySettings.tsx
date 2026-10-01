@@ -1,6 +1,6 @@
 import { FeedbackNotice } from '../Feedback';
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Input, Modal, Switch, Tag, Select } from 'antd';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { Alert, Button, Input, Switch, Tag, Select } from 'antd';
 import {
   ApiOutlined,
   CloudServerOutlined,
@@ -19,6 +19,8 @@ import type {
 } from '@alune/shared';
 import { proxyApi, proxyError } from '../../api/proxy';
 import { repositoryApi } from '../../api';
+import { AluneModal } from '../AluneModal';
+import { DialogCard, DialogNote } from '../DialogParts';
 
 const draftOf = (settings: NetworkProxyConfig): SaveNetworkProxy => ({
   revision: settings.revision,
@@ -39,6 +41,36 @@ const forwardingLabels: Record<ProxyConnectionStatus['forwarding'], string> = {
   error: '转发不可用',
 };
 type TestKind = 'http' | 'ssh' | 'git';
+const protocolLabels: Record<SaveNetworkProxy['protocol'], string> = {
+  http: 'HTTP',
+  https: 'HTTPS',
+  socks5: 'SOCKS5',
+};
+/** Fields the leave guard lists; credentials are summarised and never shown. */
+const proxyChanges = (saved: NetworkProxyConfig, draft: SaveNetworkProxy) => {
+  const items: { label: string; from?: string; to: string }[] = [];
+  const onOff = (value: boolean) => (value ? '已启用' : '已关闭');
+  const blank = (value: string | number) =>
+    value === '' || value === 0 ? '未填写' : String(value);
+  if (saved.enabled !== draft.enabled)
+    items.push({ label: '网络代理', from: onOff(saved.enabled), to: onOff(draft.enabled) });
+  if (saved.protocol !== draft.protocol)
+    items.push({
+      label: '代理类型',
+      from: protocolLabels[saved.protocol],
+      to: protocolLabels[draft.protocol],
+    });
+  if (saved.host !== draft.host)
+    items.push({ label: '服务器地址', from: blank(saved.host), to: blank(draft.host) });
+  if (saved.port !== draft.port)
+    items.push({ label: '端口', from: blank(saved.port), to: blank(draft.port) });
+  if (saved.authEnabled !== draft.authEnabled)
+    items.push({ label: '代理认证', from: onOff(saved.authEnabled), to: onOff(draft.authEnabled) });
+  if (draft.credentials.action === 'clear') items.push({ label: '认证信息', to: '将清除' });
+  if (draft.credentials.action === 'replace')
+    items.push({ label: '认证信息', to: saved.hasCredentials ? '将替换' : '将设置' });
+  return items;
+};
 
 export function ProxySettings() {
   const navigate = useNavigate();
@@ -221,6 +253,7 @@ export function ProxySettings() {
       </div>
     );
   const testsDisabled = busy || dirty || outdated || !saved?.enabled;
+  const pendingChanges = saved && draft && dirty ? proxyChanges(saved, draft) : [];
   const server = servers.find((item) => item.id === connectionId);
   return (
     <div className="settings-page-content settings-page-content--wide proxy-settings">
@@ -623,42 +656,80 @@ export function ProxySettings() {
           </div>
         </>
       )}
-      <Modal
-        open={blocker.state === 'blocked'}
+      <AluneModal
+        level={1}
+        glyph="plug"
+        eyebrow={{
+          label: '设置',
+          detail: pendingChanges.length ? `网络代理 · ${pendingChanges.length} 项修改` : '网络代理',
+        }}
         title="保存网络代理修改？"
-        onCancel={() => blocker.state === 'blocked' && !busy && blocker.reset()}
-        closable={!busy}
-        keyboard={!busy}
-        maskClosable={!busy}
-        footer={
+        description="离开前保存配置，或放弃这次修改。已有 SSH 工作不会被保存操作中断。"
+        open={blocker.state === 'blocked'}
+        onCancel={() => blocker.state === 'blocked' && blocker.reset()}
+        onOk={() =>
+          save().then((success) => {
+            if (success && blocker.state === 'blocked') blocker.proceed();
+          })
+        }
+        confirmLoading={busy}
+        okDisabled={outdated}
+        okText="保存并离开"
+        busyText="正在保存…"
+        hideCancel
+        hints={false}
+        extra={
           <>
-            <Button disabled={busy} onClick={() => blocker.state === 'blocked' && blocker.reset()}>
+            <Button
+              type="text"
+              disabled={busy}
+              onClick={() => blocker.state === 'blocked' && blocker.reset()}
+            >
               继续编辑
             </Button>
             <Button
+              danger
               disabled={busy}
               onClick={() => blocker.state === 'blocked' && blocker.proceed()}
             >
               放弃修改并离开
             </Button>
-            <Button
-              type="primary"
-              loading={busy}
-              disabled={outdated}
-              onClick={() => {
-                void save().then((success) => {
-                  if (success && blocker.state === 'blocked') blocker.proceed();
-                });
-              }}
-            >
-              保存并离开
-            </Button>
           </>
         }
       >
-        <p>离开前保存配置，或放弃这次修改。已有 SSH 工作不会被保存操作中断。</p>
-        {notice?.error && <Alert type="error" title={notice.text} />}
-      </Modal>
+        {pendingChanges.length > 0 && (
+          <DialogCard pad>
+            <dl className="dlg-kv">
+              {pendingChanges.map((item) => (
+                <Fragment key={item.label}>
+                  <dt>{item.label}</dt>
+                  <dd>
+                    <span className="dlg-path">
+                      {item.from === undefined ? (
+                        <b>{item.to}</b>
+                      ) : (
+                        <>
+                          {item.from} → <b>{item.to}</b>
+                        </>
+                      )}
+                    </span>
+                  </dd>
+                </Fragment>
+              ))}
+            </dl>
+          </DialogCard>
+        )}
+        {outdated && (
+          <DialogNote tone="warning" title="其他窗口已修改代理配置">
+            无法保存这份草稿。继续编辑后可重新加载最新配置（会丢弃草稿），或放弃修改并离开。
+          </DialogNote>
+        )}
+        {notice?.error && (
+          <DialogNote tone="danger" role="alert" title="代理配置操作未完成">
+            {notice.text}
+          </DialogNote>
+        )}
+      </AluneModal>
     </div>
   );
 }

@@ -86,6 +86,7 @@ module.exports = async ({ window, origin, token }) => {
     );
     assert.equal((await api('/repositories/' + registered.id + '/context')).source, 'local');
     await require('./feedback-smoke.cjs')({ window, git, repo });
+    await require('./dialogs-smoke.cjs')({ window });
     await require('./settings-shell-smoke.cjs')({ window, origin, repositoryId: registered.id });
     console.log(
       'Desktop local Git passed: local source/path, real first commit, branch switch, preload directory selection and cancel (dialog stub).',

@@ -283,7 +283,8 @@
   overflow: hidden;
 }
 .worktrees-menu {
-  width: min(380px, calc(100vw - 48px));
+  width: min(360px, calc(100vw - 48px));
+  padding: 12px;
   color: var(--text);
 }
 .worktrees-menu__heading,
@@ -1283,8 +1284,7 @@
 }
 .repository-switcher-panel__header,
 .repository-switcher-panel__title,
-.repository-switcher-panel__footer,
-.repository-switcher-panel__action {
+.repository-switcher-panel__footer {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -1561,14 +1561,12 @@
 .repository-switcher-menu__empty small {
   font-size: 10px;
 }
-.repository-switcher-panel__sections {
+.repository-switcher-panel__entries {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  padding: 5px 6px;
   background: var(--surface);
-  border-top: 1px solid var(--line);
-}
-.repository-switcher-panel__sections > section {
-  padding: 5px 7px;
-}
-.repository-switcher-panel__sections > section + section {
   border-top: 1px solid var(--line);
 }
 .repository-switcher-panel__footer {
@@ -1585,66 +1583,42 @@
 .repository-switcher-panel__footer span:last-child {
   font-family: 'DM Mono', monospace;
 }
-.repository-switcher-panel__action {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 8px;
-  width: 100%;
-  min-height: 38px;
+.repository-switcher-panel__entry {
+  display: flex;
+  min-width: 0;
+  height: 30px;
   align-items: center;
-  gap: var(--space-control-gap);
-  padding: 4px 7px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
   color: var(--text-muted);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  text-align: left;
+  border: 0;
+  border-radius: 8px;
+  font-size: 11.5px;
   text-decoration: none;
+  cursor: pointer;
   transition:
     color 140ms ease,
-    background 140ms ease,
-    border-color 140ms ease;
+    background 140ms ease;
 }
-.repository-switcher-panel__action > .anticon:first-child {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  color: var(--text-muted);
-  background: transparent;
-  border-radius: 6px;
+.repository-switcher-panel__entry > .anticon {
+  flex: none;
   font-size: 12px;
 }
-.repository-switcher-panel__action > .anticon:last-child {
-  color: var(--text-muted);
-  font-size: 8px;
-}
-.repository-switcher-panel__action span,
-.repository-switcher-panel__action strong,
-.repository-switcher-panel__action small {
-  display: block;
-  min-width: 0;
-}
-.repository-switcher-panel__action strong {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
-}
-.repository-switcher-panel__action small {
-  margin-top: 1px;
+.repository-switcher-panel__entry strong {
   overflow: hidden;
-  color: var(--text-muted);
-  font-size: 9px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.repository-switcher-panel__action:hover {
+.repository-switcher-panel__entry:hover {
   color: var(--blue);
-  background: var(--surface-raised);
-  border-color: var(--line);
+  background: var(--blue-soft);
 }
-.repository-switcher-panel__action:focus-visible {
+.repository-switcher-panel__entry:focus-visible {
   outline: 2px solid var(--blue);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 @keyframes repository-switcher-enter {
   from {
@@ -1680,7 +1654,7 @@
 @media (prefers-reduced-motion: reduce) {
   .repository-switcher-menu,
   .repository-switcher-menu .ant-dropdown-menu-item,
-  .repository-switcher-panel__action,
+  .repository-switcher-panel__entry,
   .repository-switcher__chevron {
     transition: none;
     animation: none !important;
@@ -1757,8 +1731,28 @@
   border-radius: 50%;
 }
 .status-notifications {
-  width: min(300px, calc(100vw - 48px));
+  display: grid;
+  width: min(340px, calc(100vw - 48px));
   overflow-wrap: anywhere;
+  outline: none;
+}
+.status-notifications .feedback-list {
+  max-height: min(360px, calc(100dvh - 160px));
+}
+.status-notifications__empty {
+  padding: 18px 14px 22px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.status-notifications__more {
+  justify-self: start;
+  margin: 0 14px 12px;
+}
+/* The tray sits in the same corner; step it aside while the notices are open. */
+:root:has(.ant-popover:not(.ant-popover-hidden) .status-notifications) .feedback-tray {
+  opacity: 0;
+  pointer-events: none;
 }
 @media (max-width: 900px) {
   .repository-switcher {
@@ -2023,7 +2017,8 @@
 .branch-picker {
   display: flex;
   flex-direction: column;
-  width: min(280px, calc(100vw - 48px));
+  width: min(300px, calc(100vw - 48px));
+  padding: 8px;
   gap: 6px;
 }
 .branch-picker__search .ant-input-affix-wrapper {

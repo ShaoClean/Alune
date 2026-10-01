@@ -1,6 +1,6 @@
 import { FeedbackNotice } from '../Feedback';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Input, Modal, Switch, Tag, Select } from 'antd';
+import { Alert, Button, Input, Switch, Tag, Select } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -15,6 +15,9 @@ import {
 import type { AiModel, AiProvider, AiSettings, SaveAiProvider } from '@alune/shared';
 import { aiApi, aiError } from '../../api/ai';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
+import { AluneModal } from '../AluneModal';
+import { DialogNote } from '../DialogParts';
+import { DialogIcon } from '../DialogIcons';
 
 const initialProvider = (): SaveAiProvider => ({
   name: '',
@@ -145,7 +148,9 @@ function ProviderForm({
     name: string;
   } | null>(null);
   const [modelToDelete, setModelToDelete] = useState<AiModel | null>(null);
-  const [modelError, setModelError] = useState('');
+  const [modelError, setModelError] = useState<{ field: 'id' | 'name'; message: string } | null>(
+    null,
+  );
   const [testModelId, setTestModelId] = useState(() => initialTestModel(provider, settings));
   const active = useRef<AbortController | null>(null);
   const detailTitle = useRef<HTMLHeadingElement>(null);
@@ -160,7 +165,7 @@ function ProviderForm({
   useEffect(() => {
     setModelEditor(null);
     setModelToDelete(null);
-    setModelError('');
+    setModelError(null);
     if (provider) {
       setDraft(editable(provider));
       setKey(undefined);
@@ -243,23 +248,23 @@ function ProviderForm({
       id: model?.id ?? '',
       name: model?.name ?? '',
     });
-    setModelError('');
+    setModelError(null);
   };
 
   const applyModel = () => {
     if (!modelEditor || busy) return;
     const id = modelEditor.id.trim();
     if (!id || id.length > 200 || /[\s\0]/.test(id)) {
-      setModelError('请输入准确的模型 ID，不含空格。');
+      setModelError({ field: 'id', message: '请输入准确的模型 ID，不含空格。' });
       return;
     }
     if (draft.models.some((m) => m.id === id && m.id !== modelEditor.originalId)) {
-      setModelError('此模型 ID 已存在。');
+      setModelError({ field: 'id', message: '此模型 ID 已存在。' });
       return;
     }
     const name = modelEditor.name.trim() || id;
     if (name.length > 200 || name.includes('\0')) {
-      setModelError('模型名称无效（最多 200 个字符）。');
+      setModelError({ field: 'name', message: '模型名称无效（最多 200 个字符）。' });
       return;
     }
     setDraft((current) => ({
@@ -272,9 +277,18 @@ function ProviderForm({
             ),
     }));
     setModelEditor(null);
-    setModelError('');
+    setModelError(null);
     setNotice(null);
   };
+
+  const modelIdTaken =
+    !!modelEditor &&
+    draft.models.some((m) => m.id === modelEditor.id.trim() && m.id !== modelEditor.originalId);
+  const modelIdError = modelIdTaken
+    ? '此模型 ID 已存在。'
+    : modelError?.field === 'id'
+      ? modelError.message
+      : '';
 
   const deleteModel = () => {
     if (!modelToDelete || busy) return;
@@ -564,80 +578,115 @@ function ProviderForm({
           启用的模型可在“提交生成”中设为默认模型。添加、编辑、删除和启停操作均通过“保存配置”应用。
         </p>
       </section>
-      <Modal
-        className="provider-model-modal"
+      <AluneModal
+        size="md"
+        glyph="sparkle"
+        eyebrow={{ label: '设置', detail: `AI 服务商 · ${protocolNames[draft.protocol]}` }}
         title={modelEditor?.originalId === null ? '手动添加模型' : '编辑模型'}
+        description="点击「保存配置」后生效。显示名称留空时使用模型 ID。"
         open={modelEditor !== null}
         onCancel={() => setModelEditor(null)}
         onOk={applyModel}
+        okDisabled={!modelEditor?.id.trim() || modelIdTaken}
         okText={modelEditor?.originalId === null ? '添加模型' : '应用修改'}
-        cancelText="取消"
+        hintVerb={modelEditor?.originalId === null ? '添加' : '应用'}
         destroyOnHidden
       >
-        <label className="settings-field">
-          模型 ID
+        <label className="dlg-fld">
+          <span className="dlg-fld-label">
+            <span>模型 ID</span>
+          </span>
           <Input
+            className="dlg-mono-input"
             aria-label="模型 ID"
-            autoFocus
+            data-autofocus
             value={modelEditor?.id ?? ''}
             maxLength={200}
+            autoComplete="off"
+            spellCheck={false}
             placeholder="服务商提供的准确模型 ID"
+            prefix={<DialogIcon name="sparkle" />}
+            status={modelIdError ? 'error' : undefined}
+            aria-invalid={modelIdError ? true : undefined}
             onChange={(event) => {
               setModelEditor((current) => current && { ...current, id: event.target.value });
-              setModelError('');
+              setModelError(null);
             }}
-            onPressEnter={applyModel}
           />
+          {modelIdError ? (
+            <span className="dlg-fld-hint is-error" role="alert">
+              <DialogIcon name="warning" />
+              {modelIdError}
+            </span>
+          ) : (
+            <span className="dlg-fld-hint">必须与服务商文档一致，不能包含空格</span>
+          )}
         </label>
-        <label className="settings-field">
-          显示名称（可选）
+        <label className="dlg-fld">
+          <span className="dlg-fld-label">
+            <span>显示名称</span>
+            <small>可选</small>
+          </span>
           <Input
             aria-label="模型显示名称"
             value={modelEditor?.name ?? ''}
             maxLength={200}
+            autoComplete="off"
+            placeholder="留空时使用模型 ID"
+            prefix={<DialogIcon name="pencil" />}
+            status={modelError?.field === 'name' ? 'error' : undefined}
+            aria-invalid={modelError?.field === 'name' ? true : undefined}
             onChange={(event) => {
               setModelEditor((current) => current && { ...current, name: event.target.value });
-              setModelError('');
+              setModelError(null);
             }}
-            onPressEnter={applyModel}
           />
-        </label>
-        <p className="settings-field-hint">点击“保存配置”后生效，显示名称留空时使用模型 ID。</p>
-        {modelEditor?.originalId &&
-          isDefaultModel(modelEditor.originalId) &&
-          modelEditor.id.trim() !== modelEditor.originalId && (
-            <Alert
-              type="warning"
-              showIcon
-              title="更改 ID 并保存配置后，需要在“提交生成”中重新选择默认模型。"
-            />
+          {modelError?.field === 'name' && (
+            <span className="dlg-fld-hint is-error" role="alert">
+              <DialogIcon name="warning" />
+              {modelError.message}
+            </span>
           )}
-        {modelError && <Alert role="alert" type="error" title={modelError} />}
-      </Modal>
-      <Modal
-        className="provider-model-modal provider-model-modal--delete"
-        title="删除模型"
+        </label>
+        {modelEditor?.originalId && isDefaultModel(modelEditor.originalId) && (
+          <DialogNote tone="warning" title="这是当前默认提交模型">
+            更改 ID 并保存配置后，需要在「提交生成」中重新选择默认模型。
+          </DialogNote>
+        )}
+      </AluneModal>
+      <AluneModal
+        level={1}
+        danger
+        tone="warning"
+        size="sm"
+        glyph="sparkle"
+        eyebrow={{ label: '设置', detail: 'AI 服务商' }}
+        title="删除模型？"
+        description={
+          <>
+            确定从此服务商移除
+            {modelToDelete && modelToDelete.name !== modelToDelete.id
+              ? `“${modelToDelete.name}”（`
+              : ''}
+            <code>{modelToDelete?.id}</code>
+            {modelToDelete && modelToDelete.name !== modelToDelete.id ? '）' : ''}
+            吗？点击「保存配置」后生效。
+          </>
+        }
         open={modelToDelete !== null}
         onCancel={() => setModelToDelete(null)}
         onOk={deleteModel}
         okText="删除模型"
-        okButtonProps={{ danger: true }}
-        cancelText="取消"
+        hintVerb="删除"
+        body={modelToDelete && isDefaultModel(modelToDelete.id) ? 'default' : 'flush'}
         destroyOnHidden
       >
-        <p className="provider-model-delete-copy">
-          确定从此服务商移除“{modelToDelete?.name}”（{modelToDelete?.id}）吗？
-        </p>
-        <p className="settings-field-hint">点击“保存配置”后生效。</p>
         {modelToDelete && isDefaultModel(modelToDelete.id) && (
-          <Alert
-            type="warning"
-            showIcon
-            title="这是当前默认提交模型"
-            description="删除并保存配置后，需要在“提交生成”中重新选择默认模型。"
-          />
+          <DialogNote tone="warning" title="这是当前默认提交模型">
+            删除并保存配置后，需要在「提交生成」中重新选择默认模型。
+          </DialogNote>
         )}
-      </Modal>
+      </AluneModal>
     </>
   );
 }

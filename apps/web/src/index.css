@@ -122,43 +122,6 @@ button { cursor: pointer; }
   font-weight: 600;
 }
 
-.ant-modal .ant-modal-content {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 18px 45px var(--shadow-color), 0 4px 12px var(--shadow-color);
-}
-
-.ant-modal .ant-modal-header {
-  margin-bottom: 0;
-  padding: 18px 20px 13px;
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
-  border-bottom: 1px solid var(--line);
-}
-
-.ant-modal .ant-modal-title {
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.ant-modal .ant-modal-body {
-  padding: 18px 20px 8px;
-}
-
-.ant-modal .ant-modal-footer {
-  margin-top: 10px;
-  padding: 12px 20px 0;
-  border-top: 1px solid var(--line);
-}
-
-.ant-popconfirm .ant-popover-inner,
-.ant-dropdown .ant-dropdown-menu {
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  box-shadow: var(--shadow-md);
-}
-
 .ant-select-dropdown {
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -319,10 +282,6 @@ button { cursor: pointer; }
 .error-state { margin: 16px; }
 .connection-filter { min-width: 190px; }
 .repo-search { width: 230px; }
-.form-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.full-width { width: 100%; }
-.modal-description { margin: 0 0 13px; color: var(--text-muted); font-size: 12px; }
-.modal-empty { padding: 28px 0 8px; color: var(--text-faint); font-size: 11px; text-align: center; }
 
 .connection-grid, .repository-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 13px; padding: 18px; }
 .connection-card, .repository-card { position: relative; padding: 17px; overflow: hidden; background: linear-gradient(145deg, var(--surface) 0%, var(--surface-raised) 100%); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-card); transition: border-color var(--motion-hover) var(--ease-enter), box-shadow var(--motion-hover) var(--ease-enter); }
@@ -340,9 +299,6 @@ button { cursor: pointer; }
 .repository-card__metric { display: inline-flex; align-items: center; gap: 4px; }
 .repository-card__metric--ahead { color: var(--green); }
 .repository-card__metric--behind { color: var(--red); }
-.scan-results { margin-top: 18px; overflow: hidden; background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-panel); box-shadow: var(--shadow-sm); }
-.scan-result { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; color: var(--text-muted); border-bottom: 1px solid var(--line); font-family: 'DM Mono', monospace; font-size: 11px; }
-.scan-result:last-child { border-bottom: 0; }
 
 .repo-mark { display: grid; place-items: center; flex: 0 0 auto; width: 40px; height: 40px; color: var(--blue); background: linear-gradient(145deg, var(--surface-raised), var(--blue-soft)); border: 1px solid var(--line); border-radius: 9px; font-size: 18px; box-shadow: inset 0 1px var(--highlight); }
 
@@ -524,7 +480,6 @@ button { cursor: pointer; }
   .page-heading { flex-direction: column; }
   .page-heading__actions { width: 100%; flex-wrap: wrap; }
   .connection-grid, .repository-grid { grid-template-columns: 1fr; }
-  .form-grid-2 { grid-template-columns: 1fr; gap: 0; }
 }
 
 @media (max-width: 560px) {
@@ -840,9 +795,6 @@ body,
   color: var(--text-muted);
   font-size: 12px;
 }
-.tree-delete-confirm { display: grid; gap: 4px; max-width: 270px; line-height: 1.45; }
-.tree-delete-confirm > div { overflow-wrap: anywhere; }
-.tree-delete-confirm small { margin-top: 4px; color: var(--text-muted); line-height: 1.5; }
 
 .sidebar-link {
   color: var(--text-muted);
@@ -1155,28 +1107,6 @@ body,
   font-weight: 500;
   color: var(--text-muted);
 }
-.git-form-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  margin: 16px 0 6px;
-}
-.local-inspect-button {
-  margin: 12px 0 16px;
-}
-.local-repository-preview {
-  margin-top: 8px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-.local-repository-preview__path,
-.git-path-detail {
-  overflow-wrap: anywhere;
-  font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  margin: 8px 0;
-}
 .git-operation-notice {
   flex: none;
   display: flex;
@@ -1208,102 +1138,4 @@ body,
 }
 .branch-row__actions {
   flex-wrap: wrap;
-}
-
-/* Feedback lives in the browser top layer, including above fullscreen Diff. */
-.feedback-dialog {
-  width: min(560px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
-  padding: 24px;
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  color: var(--text);
-  background: var(--surface);
-  box-shadow: 0 20px 80px #0004;
-  overflow: auto;
-}
-.feedback-dialog::backdrop {
-  background: #0006;
-}
-.feedback-heading {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  justify-content: space-between;
-}
-.feedback-heading h2 {
-  margin: 2px 0 0;
-  font-size: 18px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-.feedback-context {
-  color: var(--text-muted);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-.feedback-description {
-  max-height: 50dvh;
-  overflow: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.75;
-  padding: 16px;
-  border-radius: 8px;
-  background: var(--content);
-  border-left: 3px solid var(--blue);
-  user-select: text;
-}
-.feedback-description--error {
-  border-left-color: var(--red);
-}
-.feedback-description--warning {
-  border-left-color: var(--orange);
-}
-.feedback-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 24px;
-}
-.feedback-actions > :first-child {
-  margin-right: auto;
-}
-.feedback-tray {
-  position: fixed;
-  inset: auto 16px 42px auto;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  overflow: visible;
-}
-.feedback-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 16px;
-}
-.feedback-list button {
-  display: grid;
-  gap: 6px;
-  text-align: left;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text);
-  background: var(--content);
-  cursor: pointer;
-}
-.feedback-list span {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-@media (max-width: 540px) {
-  .feedback-dialog {
-    padding: 16px;
-  }
-  .feedback-actions {
-    margin-top: 16px;
-  }
 }

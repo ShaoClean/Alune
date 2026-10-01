@@ -7,24 +7,29 @@ import { MemoryRouter } from 'react-router-dom';
 import { RepositoryToolbar } from '../src/components/RepositoryToolbar.tsx';
 import { RepositorySwitcher, filterRepositories } from '../src/components/RepositorySwitcher.tsx';
 import { toolbarTier } from '../src/hooks/useToolbarTier.ts';
+import { AluneConfirmProvider } from '../src/components/AluneModal.tsx';
 
 const render = (props = {}) =>
   renderToStaticMarkup(
     createElement(
       MemoryRouter,
       null,
-      createElement(RepositoryToolbar, {
-        repoId: 'fixture',
-        status: null,
-        activePanel: 'changes',
-        syncing: null,
-        tier: 'full',
-        onSelect() {},
-        onSync() {},
-        onRefresh() {},
-        onBranchSwitched() {},
-        ...props,
-      }),
+      createElement(
+        AluneConfirmProvider,
+        null,
+        createElement(RepositoryToolbar, {
+          repoId: 'fixture',
+          status: null,
+          activePanel: 'changes',
+          syncing: null,
+          tier: 'full',
+          onSelect() {},
+          onSync() {},
+          onRefresh() {},
+          onBranchSwitched() {},
+          ...props,
+        }),
+      ),
     ),
   );
 const renderSwitcher = (props = {}) =>
@@ -193,7 +198,10 @@ test('分支胶囊是打开切换菜单的选择器，而不是跳转到分支�
 });
 
 test('分支菜单锚定按钮右下方，不随右侧文件列表横移', () => {
-  const source = readFileSync(new URL('../src/components/BranchPicker.tsx', import.meta.url), 'utf8');
+  const source = readFileSync(
+    new URL('../src/components/BranchPicker.tsx', import.meta.url),
+    'utf8',
+  );
   const popover = source.slice(source.indexOf('<Popover'), source.indexOf('content={'));
   assert.match(popover, /placement="bottomRight"/);
   assert.doesNotMatch(popover, /\balign=|\bmeasure\(/);
@@ -201,7 +209,10 @@ test('分支菜单锚定按钮右下方，不随右侧文件列表横移', () =>
 });
 
 test('推送菜单锚定按钮右下方，不受当前视图的文件列表位置影响', () => {
-  const source = readFileSync(new URL('../src/components/RepositoryToolbar.tsx', import.meta.url), 'utf8');
+  const source = readFileSync(
+    new URL('../src/components/RepositoryToolbar.tsx', import.meta.url),
+    'utf8',
+  );
   const menuId = source.indexOf("id: 'repository-push-menu'");
   assert.ok(menuId >= 0);
   const dropdown = source.slice(source.lastIndexOf('<Dropdown', menuId), menuId);
@@ -212,7 +223,19 @@ test('推送菜单锚定按钮右下方，不受当前视图的文件列表位�
 });
 
 test('窄屏不隐藏也不折叠任何入口，每个视图和操作都只出现一次', () => {
-  const required = ['改动', '文件', '提交历史', '分支', '储藏', '远程', 'PR/MR', '查看关联 Worktrees', '刷新仓库', '拉取', '推送'];
+  const required = [
+    '改动',
+    '文件',
+    '提交历史',
+    '分支',
+    '储藏',
+    '远程',
+    'PR/MR',
+    '查看关联 Worktrees',
+    '刷新仓库',
+    '拉取',
+    '推送',
+  ];
   for (const tier of ['full', 'compact', 'condensed', 'minimal']) {
     const items = buttons(render({ status: status(), tier }));
     for (const label of required)
@@ -236,16 +259,25 @@ test('分支与分支管理合并为一个视图，刷新独立于视图标签',
   const refresh = buttons(html).find((item) => item.label === '刷新仓库');
   assert.match(refresh.attributes, /aria-busy="false"/);
   assert.doesNotMatch(refresh.attributes, /toolbar-button--(nav|active)/);
-  const refreshing = buttons(render({ refreshing: true })).find((item) => item.label === '刷新仓库');
+  const refreshing = buttons(render({ refreshing: true })).find(
+    (item) => item.label === '刷新仓库',
+  );
   assert.match(refreshing.attributes, /aria-busy="true"/);
   assert.match(refreshing.attributes, /aria-disabled="true"/);
-  const source = readFileSync(new URL('../src/components/RepositoryToolbar.tsx', import.meta.url), 'utf8');
+  const source = readFileSync(
+    new URL('../src/components/RepositoryToolbar.tsx', import.meta.url),
+    'utf8',
+  );
   assert.doesNotMatch(source, /EllipsisOutlined|WorktreesPanel|Modal/);
 });
 
 test('视图标签放不下时先收成图标再横向滚动，不用 display: none 隐藏', () => {
   const css = readFileSync(new URL('../src/workspace-layout.css', import.meta.url), 'utf8');
-  const views = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]*repository-toolbar__views[^{}]*)\{([^}]*)\}/g)];
+  const views = [
+    ...css
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .matchAll(/([^{}]*repository-toolbar__views[^{}]*)\{([^}]*)\}/g),
+  ];
   assert.ok(views.length > 0);
   const base = views.find(([, selector]) => selector.trim() === '.repository-toolbar__views');
   assert.match(base[2], /overflow-x: auto/);
@@ -295,8 +327,20 @@ test('未选中仓库时统一入口显示品牌与实际打开数量', () => {
 
 test('仓库搜索覆盖名称、分支、路径、连接名和端点', () => {
   const repositories = [
-    { id: 'a', connectionId: 'dev', name: 'alune', path: '/workspace/alune', currentBranch: 'main' },
-    { id: 'b', connectionId: 'test', name: 'design-system', path: '/workspace/ui', currentBranch: 'feature/theme' },
+    {
+      id: 'a',
+      connectionId: 'dev',
+      name: 'alune',
+      path: '/workspace/alune',
+      currentBranch: 'main',
+    },
+    {
+      id: 'b',
+      connectionId: 'test',
+      name: 'design-system',
+      path: '/workspace/ui',
+      currentBranch: 'feature/theme',
+    },
   ];
   const connections = [
     { id: 'dev', name: '开发服务器', host: 'dev.example.com', username: 'git' },
@@ -309,7 +353,10 @@ test('仓库搜索覆盖名称、分支、路径、连接名和端点', () => {
 });
 
 test('统一导航保留工作区与应用入口，旧侧栏菜单不再参与布局', () => {
-  const switcher = readFileSync(new URL('../src/components/RepositorySwitcher.tsx', import.meta.url), 'utf8');
+  const switcher = readFileSync(
+    new URL('../src/components/RepositorySwitcher.tsx', import.meta.url),
+    'utf8',
+  );
   const layout = readFileSync(new URL('../src/components/Layout.tsx', import.meta.url), 'utf8');
   assert.match(switcher, /浏览全部仓库/);
   assert.match(switcher, /管理远程连接/);

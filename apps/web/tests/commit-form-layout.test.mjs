@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
+import { AluneConfirmProvider } from '../src/components/AluneModal.tsx';
 import { ChangesView, commitDisabled } from '../src/components/ChangesView.tsx';
 
 const render = () =>
@@ -11,7 +12,11 @@ const render = () =>
     createElement(
       MemoryRouter,
       null,
-      createElement(ChangesView, { repoId: 'layout', onRefresh: async () => {} }),
+      createElement(
+        AluneConfirmProvider,
+        null,
+        createElement(ChangesView, { repoId: 'layout', onRefresh: async () => {} }),
+      ),
     ),
   );
 const order = (html, markers) =>

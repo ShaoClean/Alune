@@ -95,14 +95,34 @@ module.exports = async ({ window, git, repo }) => {
     })()`),
       true,
     );
+    // The inbox is a popover rising from the tray: no scrim, the Diff stays open.
     await click('.feedback-tray button');
     await wait(
-      "document.querySelector('.feedback-dialog[open]')?.textContent.includes('通知与仓库说明')",
+      "document.querySelector('#feedback-inbox:not([hidden])')?.textContent.includes('Git 操作未完成')",
     );
+    assert.equal(
+      await execute(
+        "document.querySelector('.feedback-tray button').getAttribute('aria-expanded')",
+      ),
+      'true',
+    );
+    assert.equal(
+      await execute(`(() => {
+      const inbox = document.querySelector('#feedback-inbox'); const rect = inbox.getBoundingClientRect();
+      return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('#feedback-inbox') === inbox;
+    })()`),
+      true,
+    );
+    assert.equal(await execute("document.querySelector('.feedback-dialog').open"), false);
     await execute(
-      "document.querySelector('.feedback-dialog').dispatchEvent(new Event('cancel', { cancelable: true }))",
+      "document.querySelector('#feedback-inbox').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))",
     );
-    await wait("!document.querySelector('.feedback-dialog').open");
+    await wait("document.querySelector('#feedback-inbox').hidden");
+    assert.equal(await execute("Boolean(document.querySelector('.diff-shell--fullscreen'))"), true);
+    assert.equal(
+      await execute("document.activeElement === document.querySelector('.feedback-tray button')"),
+      true,
+    );
     await click('[aria-label="退出全屏查看"]');
     git('config', 'user.name', '');
     await click('[aria-label="刷新仓库"]');
@@ -119,11 +139,17 @@ module.exports = async ({ window, git, repo }) => {
     await wait(
       "!document.querySelector('.diff-shell--fullscreen') && document.querySelector('#git-author-name')",
     );
+    // The dialog rises into place, so poll until the field is the topmost hit.
     assert.equal(
-      await execute(`(() => {
-        const input = document.querySelector('#git-author-name'); const rect = input.getBoundingClientRect();
-        return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === input;
-      })()`),
+      await execute(`new Promise((resolve) => {
+        const started = Date.now(); const check = () => {
+          const input = document.querySelector('#git-author-name'); const rect = input.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+          if (hit === input) return resolve(true);
+          if (Date.now() - started > 3000) return resolve(JSON.stringify({ hit: hit?.outerHTML.slice(0, 80), size: [innerWidth, innerHeight], inputs: document.querySelectorAll('#git-author-name').length, rect, wraps: Array.from(document.querySelectorAll('.a-dlg .ant-modal')).map((node) => [node.className, node.closest('dialog, [popover]')?.className, JSON.stringify(node.getBoundingClientRect())]), close: Array.from(document.querySelectorAll('.ant-modal-close')).map((node) => JSON.stringify(node.getBoundingClientRect())), top: Array.from(document.querySelectorAll(':popover-open, dialog[open]')).map((node) => node.id || node.className) }));
+          setTimeout(check, 30);
+        }; check();
+      })`),
       true,
     );
     assert.equal(await execute("document.querySelector('.feedback-dialog').open"), false);
@@ -148,7 +174,7 @@ module.exports = async ({ window, git, repo }) => {
     await click('.feedback-actions button:last-child');
     await wait("!document.querySelector('.feedback-dialog').open");
     console.log(
-      'Desktop feedback passed: real Git failure, layout/draft stability, copy, focus return, acknowledgement/retry, fullscreen notices and author action, and 390px window.',
+      'Desktop feedback passed: real Git failure, layout/draft stability, copy, focus return, acknowledgement/retry, fullscreen notices, tray inbox and author action, and 390px window.',
     );
   } finally {
     await clipboard.writeText(oldClipboard);

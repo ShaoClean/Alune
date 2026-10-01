@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Popover } from 'antd';
+import { Button, Popover } from 'antd';
 import { LaptopOutlined, BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
 import type { Repository } from '@alune/shared';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,19 @@ import { connectionStatus, connectionStatusLabel } from '../stores/connectionSta
 import { RepositorySwitcher } from './RepositorySwitcher';
 import { StatusButton } from './StatusButton';
 import { useSyncStatusStore } from '../stores/syncStatusStore';
+import { DialogIcon } from './DialogIcons';
+import type { DialogIconName } from './DialogIcons';
+
+/** One status bar notice, drawn with the feedback centre's item styling (L04). */
+export interface StatusNotice {
+  id: string;
+  title: string;
+  description?: string;
+  tone: 'info' | 'warning' | 'danger';
+  icon: DialogIconName;
+  actionLabel?: string;
+  onAction?: () => void;
+}
 
 export function WorkspaceStatusBar({
   repository,
@@ -22,7 +35,7 @@ export function WorkspaceStatusBar({
   repositories: Repository[];
   version: string;
   inert: boolean;
-  notices: string[];
+  notices: StatusNotice[];
   onSettings: () => void;
   onUpdates?: () => void;
 }) {
@@ -116,22 +129,59 @@ export function WorkspaceStatusBar({
                 }
               }}
             >
-              <strong>通知</strong>
+              <div className="feedback-inbox-head">
+                <strong>通知</strong>
+                {notices.length ? (
+                  <span className="dlg-badge is-mono">{notices.length}</span>
+                ) : null}
+              </div>
               {notices.length ? (
-                notices.map((notice) => <p key={notice}>{notice}</p>)
+                <div className="feedback-list">
+                  {notices.map((notice) => (
+                    <div key={notice.id} className="fb-item" data-tone={notice.tone}>
+                      <span className="fb-glyph" aria-hidden="true">
+                        <DialogIcon name={notice.icon} />
+                      </span>
+                      <div className="fb-item-main">
+                        <div className="fb-item-open">
+                          <span className="fb-item-head">
+                            <strong>{notice.title}</strong>
+                          </span>
+                          {notice.description ? (
+                            <span className="fb-item-sub">{notice.description}</span>
+                          ) : null}
+                        </div>
+                        {notice.actionLabel && notice.onAction ? (
+                          <div className="fb-item-actions">
+                            <Button
+                              size="small"
+                              className="dlg-btn-xs"
+                              onClick={() => {
+                                setNotificationOpen(false);
+                                notice.onAction?.();
+                              }}
+                            >
+                              {notice.actionLabel}
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <p>暂无新通知</p>
+                <p className="status-notifications__empty">暂无新通知</p>
               )}
-              {onUpdates && (
+              {onUpdates && !notices.some((notice) => notice.onAction) && (
                 <button
                   type="button"
-                  className="text-button"
+                  className="text-button status-notifications__more"
                   onClick={() => {
                     setNotificationOpen(false);
                     onUpdates();
                   }}
                 >
-                  查看更新
+                  检查更新
                 </button>
               )}
             </section>

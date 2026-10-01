@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
-import { Button, Checkbox, Input, Modal } from 'antd';
+import { Button, Input } from 'antd';
 import { DeleteOutlined, PlusOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { WorktreeInfo } from '@alune/shared';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { AluneModal } from './AluneModal';
+import { DialogIcon } from './DialogIcons';
+import { DialogCard, DialogNote, DialogPath } from './DialogParts';
 
 const errorMessage = (error: any) => error.response?.data?.message || error.message || '读取失败';
+const baseName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() || path;
 
 // Shared by the toolbar popover and the narrow-screen dialog, so both routes list the
 // same worktrees and open them the same way.
@@ -37,11 +41,15 @@ export function WorktreesPanel({
       state.repositories.find((repo) => repo.id === repoId)?.source === 'local' ||
       (state.currentRepo?.id === repoId && state.currentRepo.source === 'local'),
   );
+  const repoName = useRepositoryStore(
+    (state) =>
+      state.repositories.find((repo) => repo.id === repoId)?.name ??
+      (state.currentRepo?.id === repoId ? state.currentRepo.name : undefined),
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [newPath, setNewPath] = useState('');
   const [newBranch, setNewBranch] = useState('');
   const [removing, setRemoving] = useState<WorktreeInfo | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
   const [mutationBusy, setMutationBusy] = useState(false);
   const [mutationError, setMutationError] = useState('');
   const request = useRef(0);
@@ -119,7 +127,7 @@ export function WorktreesPanel({
     }
   };
   const remove = async () => {
-    if (!removing || !confirmed) return;
+    if (!removing) return;
     setMutationBusy(true);
     setMutationError('');
     try {
@@ -241,7 +249,6 @@ export function WorktreesPanel({
                 aria-label={`删除 Worktree ${item.path}`}
                 onClick={() => {
                   setRemoving(item);
-                  setConfirmed(false);
                   setMutationError('');
                 }}
               >
@@ -251,67 +258,147 @@ export function WorktreesPanel({
           </div>
         ))}
       </div>
-      <Modal
-        title="新建本地 Worktree"
+      <AluneModal
         open={createOpen}
-        onCancel={() => {
-          if (!mutationBusy) setCreateOpen(false);
-        }}
-        onOk={() => void create()}
+        size="md"
+        glyph="tree"
+        eyebrow={{ label: 'Worktree', detail: repoName }}
+        title="新建本地 Worktree"
+        description="从当前 HEAD 创建新分支和独立的工作目录。请选择当前仓库之外的目录。"
+        hintVerb="创建"
+        onCancel={() => setCreateOpen(false)}
+        onOk={create}
         confirmLoading={mutationBusy}
         okText="创建并打开"
-        okButtonProps={{ disabled: !newPath || !newBranch.trim() }}
+        busyText="正在创建…"
+        okDisabled={!newPath || !newBranch.trim()}
       >
-        <p className="modal-description">
-          从当前 HEAD 创建新分支和独立工作目录。请选择当前仓库之外的目录。
-        </p>
-        <label className="git-form-label" htmlFor="worktree-path">
-          完整目录路径
+        <label className="dlg-fld" htmlFor="worktree-path">
+          <span className="dlg-fld-label">完整目录路径</span>
+          <Input
+            id="worktree-path"
+            className="dlg-mono-input"
+            data-autofocus
+            autoComplete="off"
+            spellCheck={false}
+            prefix={<DialogIcon name="folder" />}
+            value={newPath}
+            onChange={(event) => setNewPath(event.target.value)}
+          />
         </label>
-        <Input
-          id="worktree-path"
-          value={newPath}
-          onChange={(event) => setNewPath(event.target.value)}
-        />
-        <label className="git-form-label" htmlFor="worktree-branch">
-          新分支名称
+        <label className="dlg-fld" htmlFor="worktree-branch">
+          <span className="dlg-fld-label">新分支名称</span>
+          <Input
+            id="worktree-branch"
+            className="dlg-mono-input"
+            autoComplete="off"
+            spellCheck={false}
+            prefix={<DialogIcon name="branch" />}
+            value={newBranch}
+            onChange={(event) => setNewBranch(event.target.value)}
+            placeholder="feature/new-worktree"
+          />
         </label>
-        <Input
-          id="worktree-branch"
-          value={newBranch}
-          onChange={(event) => setNewBranch(event.target.value)}
-          placeholder="feature/new-worktree"
-        />
+        {newPath.trim() && newBranch.trim() ? (
+          <DialogCard>
+            <div className="dlg-card-row">
+              <span className="dlg-repo-tile" aria-hidden="true">
+                <DialogIcon name="tree" />
+              </span>
+              <div className="dlg-repo-meta">
+                <strong>
+                  {baseName(newPath.trim())} <span className="dlg-badge">新建</span>
+                </strong>
+                <DialogPath path={newPath.trim()} />
+                <span className="dlg-fld-hint is-ok">
+                  <DialogIcon name="branch" />
+                  {newBranch.trim()} · 基于当前 HEAD
+                </span>
+              </div>
+            </div>
+          </DialogCard>
+        ) : null}
         {mutationError && (
-          <p role="alert" className="worktrees-menu__error">
+          <DialogNote tone="danger" role="alert" title="未能创建 Worktree">
             {mutationError}
-          </p>
+          </DialogNote>
         )}
-      </Modal>
-      <Modal
-        title="删除 Worktree 目录？"
+      </AluneModal>
+      <AluneModal
         open={!!removing}
-        onCancel={() => {
-          if (!mutationBusy) setRemoving(null);
-        }}
-        onOk={() => void remove()}
+        level={2}
+        glyph="tree"
+        eyebrow={{ label: 'Worktree', detail: repoName }}
+        levelLabel="删除磁盘目录"
+        title="删除 Worktree 目录？"
+        onCancel={() => setRemoving(null)}
+        onOk={remove}
         confirmLoading={mutationBusy}
         okText="删除目录"
-        okButtonProps={{ danger: true, disabled: !confirmed }}
+        okIcon="trash"
+        busyText="正在删除…"
+        acknowledge="我确认不需要此目录中的文件"
       >
-        <p className="git-path-detail">{removing?.path}</p>
-        <p>
-          将删除磁盘上的工作目录并移除仓库登记，保留分支。存在改动、未跟踪或忽略文件时会拒绝删除。
-        </p>
-        <Checkbox checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)}>
-          我确认不需要此目录中的文件
-        </Checkbox>
-        {mutationError && (
-          <p role="alert" className="worktrees-menu__error">
-            {mutationError}
-          </p>
+        {removing && (
+          <DialogCard>
+            <div className="dlg-card-row">
+              <span className="dlg-repo-tile" aria-hidden="true">
+                <DialogIcon name="tree" />
+              </span>
+              <div className="dlg-repo-meta">
+                <strong>{baseName(removing.path)}</strong>
+                <DialogPath path={removing.path} />
+                {removing.branch || removing.detached ? (
+                  <span className="dlg-fld-hint">
+                    <DialogIcon name="branch" />
+                    {removing.branch || '游离 HEAD · ' + removing.head?.slice(0, 8)}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            <div className="dlg-card-divide">
+              <div className="dlg-ledger">
+                <div data-tone="danger">
+                  <h4>将删除</h4>
+                  <ul>
+                    <li>
+                      <DialogIcon name="folder" />
+                      <span>磁盘上的工作目录</span>
+                    </li>
+                    <li>
+                      <DialogIcon name="link" />
+                      <span>仓库中的 Worktree 登记</span>
+                    </li>
+                  </ul>
+                </div>
+                <div data-tone="success">
+                  <h4>将保留</h4>
+                  <ul>
+                    {removing.branch ? (
+                      <li>
+                        <DialogIcon name="branch" />
+                        <span>分支 {removing.branch}</span>
+                      </li>
+                    ) : null}
+                    <li>
+                      <DialogIcon name="commit" />
+                      <span>已提交的全部内容</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </DialogCard>
         )}
-      </Modal>
+        <DialogNote quiet icon="shield">
+          存在改动、未跟踪或忽略文件时会拒绝删除。请先在此 Worktree 中提交或储藏。
+        </DialogNote>
+        {mutationError && (
+          <DialogNote tone="danger" role="alert" title="未能删除目录">
+            {mutationError}
+          </DialogNote>
+        )}
+      </AluneModal>
     </section>
   );
 }

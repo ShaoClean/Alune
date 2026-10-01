@@ -1,20 +1,61 @@
 import { FeedbackNotice } from '../Feedback';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Empty, Input, Modal, Spin } from 'antd';
-import {
-  DeleteOutlined,
-  EditOutlined,
-  EyeInvisibleOutlined,
-  EyeOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
+import { Alert, Button, Empty, Input, Spin } from 'antd';
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { AccessToken } from '@alune/shared';
 import { accessTokenApi } from '../../api';
 import { useAccessTokensStore } from '../../stores/accessTokensStore';
 import type { TokenReturnTarget } from '../../stores/accessTokensStore';
 import { errorMessage } from '../files-tree';
+import { AluneModal, DialogHints, Kbd } from '../AluneModal';
+import { DialogCard, DialogEmpty, DialogNote } from '../DialogParts';
+import { DialogIcon } from '../DialogIcons';
+
+/** Host plus repository path, with the path emphasised; unparsable targets stay verbatim. */
+function AssociationTarget({ target }: { target: string }) {
+  let host = '';
+  let path = '';
+  try {
+    const url = new URL(target);
+    host = url.host;
+    path = url.pathname.replace(/^\/+|\/+$/g, '');
+  } catch {
+    // Not a URL (for example an scp-style remote); show it as given.
+  }
+  return (
+    <span className="dlg-path" title={target}>
+      {host && path ? (
+        <>
+          {host}/<b>{path}</b>
+        </>
+      ) : (
+        target
+      )}
+    </span>
+  );
+}
+
+/** Shared by the delete confirmation and the associations dialog so both show the same list. */
+function TokenAssociations({ token }: { token: AccessToken }) {
+  return (
+    <DialogCard>
+      <ul className="dlg-list is-scroll" aria-label={`“${token.name}”关联的仓库远端`}>
+        {token.associations.map((a) => (
+          <li className="dlg-list-item" key={`${a.repositoryId}:${a.remote}`}>
+            <DialogIcon name="link" />
+            <div className="dlg-list-main">
+              <strong>
+                {a.repositoryName} · {a.remote}
+              </strong>
+              <AssociationTarget target={a.target} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </DialogCard>
+  );
+}
 
 export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
   const { settings, error, loading, load, accept, choose } = useAccessTokensStore();
@@ -102,21 +143,6 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
     settings?.tokens.filter((token) =>
       token.name.toLowerCase().includes(query.trim().toLowerCase()),
     ) || [];
-  const associations = (token: AccessToken) =>
-    token.associations.length ? (
-      <ul className="token-associations">
-        {token.associations.map((a) => (
-          <li key={`${a.repositoryId}:${a.remote}`}>
-            <strong>
-              {a.repositoryName} · {a.remote}
-            </strong>
-            <span>{a.target}</span>
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <p className="settings-muted">尚未关联仓库。</p>
-    );
   const reloadModal = async () => {
     await load();
     const latest = useAccessTokensStore.getState().settings;
@@ -256,99 +282,133 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
       <p className="settings-field-hint">
         令牌加密保存在此设备。每个仓库需要明确选择，不会自动用于其他仓库。
       </p>
-      <Modal
+      <AluneModal
+        size="md"
+        glyph="key"
+        eyebrow={{ label: '设置', detail: '访问令牌' }}
         title={editor?.token ? '编辑令牌' : '新增令牌'}
+        description="这里只保存配置；实际访问权限会在仓库读取 PR/MR 时检查。"
         open={!!editor}
         onCancel={closeEditor}
-        onOk={() => void save()}
+        onOk={save}
         confirmLoading={busy}
-        cancelButtonProps={{ disabled: busy }}
+        okDisabled={!name.trim() || (replaceValue && !value)}
         okText={!editor?.token && returnTarget ? '保存并返回仓库' : '保存令牌'}
-        cancelText="取消"
+        busyText="正在保存…"
+        hintVerb="保存"
         destroyOnHidden
       >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <fieldset className="settings-fieldset" disabled={busy}>
-            <label className="settings-field">
-              令牌名称
-              <Input
-                autoFocus
-                aria-label="令牌名称"
-                maxLength={50}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="例如：公司 GitLab"
-              />
-            </label>
-            {replaceValue ? (
-              <label className="settings-field">
-                令牌值
-                <Input
-                  aria-label="令牌值"
-                  type={showValue ? 'text' : 'password'}
-                  autoComplete="off"
-                  maxLength={4096}
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  placeholder="输入或粘贴访问令牌"
-                  suffix={
-                    <button
-                      type="button"
-                      className="settings-secret-toggle"
-                      aria-label={showValue ? '隐藏令牌值' : '显示令牌值'}
-                      aria-pressed={showValue}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setShowValue(!showValue);
-                      }}
-                    >
-                      {showValue ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                    </button>
-                  }
-                />
-              </label>
-            ) : (
-              <div className="token-saved-value">
-                <span>令牌值 · 已保存</span>
+        <label className="dlg-fld">
+          <span className="dlg-fld-label">
+            <span>令牌名称</span>
+            <small>最多 50 字</small>
+          </span>
+          <Input
+            data-autofocus
+            aria-label="令牌名称"
+            maxLength={50}
+            autoComplete="off"
+            disabled={busy}
+            prefix={<DialogIcon name="pencil" />}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="例如：公司 GitLab"
+          />
+        </label>
+        {replaceValue ? (
+          <label className="dlg-fld">
+            <span className="dlg-fld-label">
+              <span>令牌值</span>
+            </span>
+            <Input
+              className="dlg-mono-input"
+              aria-label="令牌值"
+              type={showValue ? 'text' : 'password'}
+              autoComplete="off"
+              spellCheck={false}
+              // Unlocking an existing token's value moves focus straight to the new field.
+              autoFocus={!!editor?.token}
+              maxLength={4096}
+              disabled={busy}
+              prefix={<DialogIcon name="key" />}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="输入或粘贴访问令牌"
+              suffix={
+                <button
+                  type="button"
+                  className="dlg-icon-btn"
+                  aria-label={showValue ? '隐藏令牌值' : '显示令牌值'}
+                  aria-pressed={showValue}
+                  disabled={busy}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setShowValue(!showValue);
+                  }}
+                >
+                  <DialogIcon name={showValue ? 'eye-off' : 'eye'} />
+                </button>
+              }
+            />
+            {editor?.token && (
+              <span className="dlg-fld-hint">
+                保存后，{editor.token.associations.length} 个仓库远端关联的新请求会使用新值。
+              </span>
+            )}
+          </label>
+        ) : (
+          <div className="dlg-fld">
+            <span className="dlg-fld-label">
+              <span>令牌值</span>
+              <small>已保存</small>
+            </span>
+            <Input
+              className="dlg-mono-input"
+              aria-label="已保存的令牌值"
+              disabled
+              value="••••••••••••••••"
+              prefix={<DialogIcon name="lock" />}
+              suffix={
                 <Button
-                  disabled={!settings?.secretStorage.available}
+                  size="small"
+                  type="text"
+                  className="dlg-inp-btn"
+                  disabled={busy || !settings?.secretStorage.available}
                   onClick={() => setReplaceValue(true)}
                 >
                   更换令牌值
                 </Button>
-              </div>
+              }
+            />
+            {editor?.token && (
+              <span className="dlg-fld-hint">
+                更换后，{editor.token.associations.length} 个仓库远端关联的新请求会使用新值。
+              </span>
             )}
-            {editor?.token && replaceValue && (
-              <p className="settings-field-hint">
-                保存后，{editor.token.associations.length} 个仓库远端关联的新请求将使用新值。
-              </p>
-            )}
-            <p className="settings-field-hint">
-              保存仅保存配置，实际访问权限会在仓库读取 PR/MR 时检查。
-            </p>
-            <button type="submit" hidden />
-          </fieldset>
-        </form>
+          </div>
+        )}
         {notice && (
-          <Alert
+          <DialogNote
+            tone="warning"
             role="alert"
-            type="warning"
             title={notice}
             action={
-              <Button disabled={busy} onClick={() => void reloadModal()}>
+              <Button size="small" disabled={busy} onClick={() => void reloadModal()}>
                 重新加载
               </Button>
             }
           />
         )}
-      </Modal>
-      <Modal
-        title={`删除令牌“${deletion?.token.name || ''}”`}
+      </AluneModal>
+      <AluneModal
+        level={1}
+        danger
+        tone="warning"
+        size="md"
+        glyph="key"
+        eyebrow={{ label: '设置', detail: '访问令牌' }}
+        title={`删除令牌“${deletion?.token.name || ''}”？`}
+        description="只删除 Alune 保存的配置，不会在 GitHub / GitLab 撤销令牌。"
         open={!!deletion}
         onCancel={() => {
           if (!busy) {
@@ -356,40 +416,75 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
             setNotice('');
           }
         }}
-        onOk={() => void remove()}
+        onOk={remove}
         confirmLoading={busy}
-        cancelButtonProps={{ disabled: busy }}
-        okText="删除令牌及关联"
-        okButtonProps={{ danger: true }}
-        cancelText="取消"
+        okText={deletion?.token.associations.length ? '删除令牌及关联' : '删除令牌'}
+        busyText="正在删除…"
+        hintVerb="删除"
         destroyOnHidden
       >
-        <p>以下仓库远端将解除关联，需要重新选择令牌：</p>
-        {deletion && associations(deletion.token)}
-        <p className="settings-field-hint">
-          仅删除 Alune 保存的配置，不会在 GitHub / GitLab 撤销令牌。
-        </p>
+        {deletion && deletion.token.associations.length ? (
+          <>
+            <p className="dlg-sub">
+              <span>以下仓库远端将解除关联</span>
+              <small>{deletion.token.associations.length}</small>
+            </p>
+            <TokenAssociations token={deletion.token} />
+            <p className="dlg-text is-muted">删除后，这些远端需要重新选择令牌才能读取 PR/MR。</p>
+          </>
+        ) : (
+          <DialogNote quiet>尚未关联仓库，删除不会影响任何远端。</DialogNote>
+        )}
         {notice && (
-          <Alert
+          <DialogNote
+            tone="warning"
             role="alert"
-            type="warning"
             title={notice}
             action={
-              <Button disabled={busy} onClick={() => void reloadModal()}>
+              <Button size="small" disabled={busy} onClick={() => void reloadModal()}>
                 重新加载影响范围
               </Button>
             }
           />
         )}
-      </Modal>
-      <Modal
+      </AluneModal>
+      <AluneModal
+        size="md"
+        glyph="link"
+        eyebrow={{
+          label: '设置',
+          detail: usage?.scope
+            ? `访问令牌 · ${usage.scope.provider === 'github' ? 'GitHub' : 'GitLab'}`
+            : '访问令牌',
+        }}
         title={`“${usage?.name || ''}”的仓库关联`}
+        description={
+          usage?.associations.length ? '以下仓库远端使用此令牌读取和操作 PR/MR。' : undefined
+        }
         open={!!usage}
         onCancel={() => setUsage(null)}
-        footer={<Button onClick={() => setUsage(null)}>关闭</Button>}
+        hints={
+          <DialogHints>
+            <span>
+              <Kbd>Esc</Kbd> 关闭
+            </span>
+          </DialogHints>
+        }
+        footer={
+          <Button autoFocus onClick={() => setUsage(null)}>
+            关闭
+          </Button>
+        }
       >
-        {usage && associations(usage)}
-      </Modal>
+        {usage &&
+          (usage.associations.length ? (
+            <TokenAssociations token={usage} />
+          ) : (
+            <DialogCard>
+              <DialogEmpty>尚未关联仓库。</DialogEmpty>
+            </DialogCard>
+          ))}
+      </AluneModal>
     </div>
   );
 }
