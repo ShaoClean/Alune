@@ -14,6 +14,7 @@ import type {
   Repository,
   RepositoryContext,
   RepositoryStatus,
+  RepositoryAnalyticsEntry,
   RepositoryFilePreview,
   RepositoryTreeListing,
   WorktreeInfo,
@@ -76,6 +77,19 @@ export const connectionApi = {
 
 // Repository APIs
 export const repositoryApi = {
+  analytics: (
+    ids: string[],
+    collect = false,
+    refresh = false,
+    signal?: AbortSignal,
+  ): Promise<RepositoryAnalyticsEntry[]> =>
+    api
+      .post(
+        '/repositories/analytics/summary',
+        { ids, collect, refresh },
+        { signal, timeout: 220000 },
+      )
+      .then((r) => r.data),
   applyAccessToken: (id: string, body: ApplyAccessToken): Promise<AccessTokenSettings> =>
     api.post(`/repositories/${id}/pull-requests/token`, body).then((r) => r.data),
   pullRequestRemotes: (id: string, signal?: AbortSignal): Promise<PullRequestRemote[]> =>

@@ -8,6 +8,7 @@ import './workspace-layout.css';
 import './files.css';
 import './pull-requests.css';
 import './collection-views.css';
+import './repository-overview.css';
 import './theme.css';
 import './dialogs.css';
 import { initializeAppearance } from './appearance';

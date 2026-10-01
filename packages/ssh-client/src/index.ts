@@ -32,3 +32,4 @@ export {
 export type { ProxySnapshot } from './proxy-transport';
 export { GitProxyError } from './proxy-git';
 export { WorkspaceFileActions, validateWorkspaceName } from './workspace-file-actions';
+export { collectRepositoryAnalytics, primaryLanguage } from './repository-analytics';

@@ -59,3 +59,26 @@ test('independent view choices survive reload, list reconciliation and layout re
     connections: 'list',
   });
 });
+
+test('overview persists only for repositories and malformed connection overview falls back to grid', async () => {
+  saved.set(
+    'alune-workspace',
+    JSON.stringify({
+      version: 1,
+      state: { collectionViews: { repositories: 'overview', connections: 'overview' } },
+    }),
+  );
+  await workspace.persist.rehydrate();
+  assert.deepEqual(workspace.getState().collectionViews, {
+    repositories: 'overview',
+    connections: 'grid',
+  });
+  workspace.getState().setCollectionView('connections', 'overview');
+  workspace.getState().setCollectionView('repositories', 'list');
+  workspace.getState().setCollectionView('repositories', 'overview');
+  await workspace.persist.rehydrate();
+  assert.deepEqual(workspace.getState().collectionViews, {
+    repositories: 'overview',
+    connections: 'grid',
+  });
+});
