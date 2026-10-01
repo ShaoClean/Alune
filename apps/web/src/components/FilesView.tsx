@@ -14,7 +14,7 @@ import {
   RightOutlined,
 } from '@ant-design/icons';
 import { DIFF_IMAGE_MAX_BYTES, REPOSITORY_TREE_MAX_ENTRIES } from '@alune/shared';
-import type { RepositoryFilePreview, RepositoryTreeEntry } from '@alune/shared';
+import type { FileStatus, RepositoryFilePreview, RepositoryTreeEntry } from '@alune/shared';
 import { repositoryApi } from '../api';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { FILES_STACKED_WIDTH, FILES_TREE_MAX, FILES_TREE_MIN } from '../stores/workspaceLayout';
@@ -37,6 +37,7 @@ import {
   visibleDirectories,
 } from './files-tree';
 import type { DirectoryState, TreeRow } from './files-tree';
+import { fileDecoration, fileStatusIndex, filesStatusRevision } from './files-git-status';
 
 type FileState =
   | { phase: 'loading'; path: string; stale?: RepositoryFilePreview }
@@ -73,7 +74,17 @@ export function displayText(content: string): { text: string; lines: number; crl
   return { text, lines, crlf };
 }
 
-export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refreshToken?: number }) {
+export function FilesView({
+  repoId,
+  refreshToken = 0,
+  gitFiles,
+}: {
+  repoId: string;
+  refreshToken?: number;
+  gitFiles?: readonly FileStatus[];
+}) {
+  const gitIndex = useMemo(() => fileStatusIndex(gitFiles), [gitFiles]);
+  const gitRevision = useMemo(() => filesStatusRevision(gitFiles), [gitFiles]);
   const snapshot = sessions.get(repoId);
   const savedTreeWidth = useWorkspaceStore((state) => state.layout.filesTreeWidth);
   const updateLayout = useWorkspaceStore((state) => state.updateLayout);
@@ -203,11 +214,14 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
     }
   }, [directories, expanded, loadDirectory]);
 
-  // The toolbar refresh reloads what is on screen and forgets hidden listings.
+  // Refresh visible listings when Git state changes too (new/deleted/renamed
+  // paths), retaining expansion and selection. Identical polls do no extra I/O.
   const seenToken = useRef(refreshToken);
+  const seenGitRevision = useRef(gitRevision);
   useEffect(() => {
-    if (refreshToken === seenToken.current) return;
+    if (refreshToken === seenToken.current && gitRevision === seenGitRevision.current) return;
     seenToken.current = refreshToken;
+    seenGitRevision.current = gitRevision;
     const { directories: known, expanded: open, selected: entry } = current.current;
     const visible = visibleDirectories(known, open);
     setDirectories((state) =>
@@ -215,7 +229,7 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
     );
     for (const path of visible) loadDirectory(path);
     if (entry?.kind === 'file') loadFile(entry.path);
-  }, [refreshToken, loadDirectory, loadFile]);
+  }, [refreshToken, gitRevision, loadDirectory, loadFile]);
 
   useEffect(() => {
     const ready: Record<string, DirectoryState> = {};
@@ -427,6 +441,7 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
                     <TreeItem
                       key={row.entry.path}
                       row={row}
+                      decoration={fileDecoration(gitIndex, row.entry)}
                       selected={selected?.path === row.entry.path}
                       focusable={focusPath === row.entry.path}
                       loading={directories[row.entry.path]?.phase === 'loading'}
@@ -476,8 +491,9 @@ export function FilesView({ repoId, refreshToken = 0 }: { repoId: string; refres
   );
 }
 
-function TreeItem({
+export function TreeItem({
   row,
+  decoration,
   selected,
   focusable,
   loading,
@@ -486,6 +502,7 @@ function TreeItem({
   onOpen,
 }: {
   row: Extract<TreeRow, { type: 'entry' }>;
+  decoration?: ReturnType<typeof fileDecoration>;
   selected: boolean;
   focusable: boolean;
   loading: boolean;
@@ -503,11 +520,12 @@ function TreeItem({
         : entry.kind === 'other'
           ? '特殊文件'
           : undefined;
+  const description = [hint, decoration?.label].filter(Boolean).join('，');
   return (
     <div
       ref={itemRef}
       role="treeitem"
-      className={`files-tree__item files-tree__item--${entry.kind}${selected ? ' files-tree__item--selected' : ''}`}
+      className={`files-tree__item files-tree__item--${entry.kind}${selected ? ' files-tree__item--selected' : ''}${decoration ? ` files-tree__item--git-${decoration.status}${decoration.summary ? ' files-tree__item--git-summary' : ''}` : ''}`}
       style={{ '--level': row.level } as CSSProperties}
       aria-level={row.level}
       aria-posinset={row.position}
@@ -516,9 +534,9 @@ function TreeItem({
       aria-selected={expandable ? undefined : selected}
       aria-busy={loading || undefined}
       aria-invalid={failed || undefined}
-      aria-label={hint ? `${entry.name}，${hint}` : undefined}
+      aria-label={description ? `${entry.name}，${description}` : undefined}
       tabIndex={focusable ? 0 : -1}
-      title={hint ? `${entry.path}\n${hint}` : entry.path}
+      title={description ? `${entry.path}\n${description}` : entry.path}
       onClick={onOpen}
     >
       <span className="files-tree__twisty" aria-hidden="true">
@@ -544,6 +562,11 @@ function TreeItem({
       {entry.kind === 'submodule' && (
         <span className="files-tree__meta" aria-hidden="true">
           子模块
+        </span>
+      )}
+      {decoration && (
+        <span className="files-tree__git-status" aria-hidden="true">
+          {decoration.badge}
         </span>
       )}
     </div>
