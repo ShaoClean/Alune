@@ -53,6 +53,10 @@ module.exports = async ({ window, origin, repositoryId }) => {
     await execute(
       `Array.from(document.querySelectorAll('.repository-switcher-panel button')).find(button => button.getAttribute('aria-label') === ${JSON.stringify(name)}).click()`,
     );
+    // The switcher restores trigger focus on the next animation frame. Let
+    // its close motion finish before a later navigation restores workspace focus.
+    await wait("!document.querySelector('.repository-switcher-panel')?.getClientRects().length");
+    await execute('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
   };
   const dimensions = () =>
     execute(`['.app-sidebar', '.app-tabbar', '.status-bar'].map(selector => {
