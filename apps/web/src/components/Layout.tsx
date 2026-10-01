@@ -2,7 +2,7 @@ import { useFeedbackMessage } from './useFeedbackMessage';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Input } from 'antd';
+import { Button, Input, Tooltip } from 'antd';
 import {
   ApartmentOutlined,
   ArrowLeftOutlined,
@@ -412,14 +412,16 @@ export function Layout() {
                   onClick={() => navigate(workspacePath)}
                 />
               ) : (
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<PlusOutlined />}
-                  aria-label="打开本地仓库"
-                  title="打开本地仓库"
-                  onClick={() => navigate('/repositories?open=local')}
-                />
+                <Tooltip title="打开本地仓库" trigger={['hover', 'focus']} placement="bottom">
+                  <Button
+                    className="workspace-open"
+                    type="text"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    aria-label="打开本地仓库"
+                    onClick={() => navigate('/repositories?open=local')}
+                  />
+                </Tooltip>
               )}
               <PanelToggle
                 side="left"
