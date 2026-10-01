@@ -14,8 +14,25 @@ module.exports = async ({ window }) => {
     }; poll();
   })`);
   const press = async (keyCode) => {
-    window.webContents.sendInputEvent({ type: 'keyDown', keyCode });
-    window.webContents.sendInputEvent({ type: 'keyUp', keyCode });
+    await require('./smoke-window.cjs')(window);
+    await execute(`(() => {
+      window.__dialogKeyReceived = false;
+      window.__dialogKeyListener = (event) => {
+        if (event.key === ${JSON.stringify(keyCode)}) window.__dialogKeyReceived = true;
+      };
+      window.addEventListener('keydown', window.__dialogKeyListener, true);
+    })()`);
+    try {
+      window.webContents.sendInputEvent({ type: 'keyDown', keyCode });
+      await wait('window.__dialogKeyReceived');
+    } finally {
+      window.webContents.sendInputEvent({ type: 'keyUp', keyCode });
+      await execute(`(() => {
+        window.removeEventListener('keydown', window.__dialogKeyListener, true);
+        delete window.__dialogKeyListener;
+        delete window.__dialogKeyReceived;
+      })()`);
+    }
   };
   const shell = 'document.querySelector(\'.a-dlg-shell[data-level="2"]\')';
   const visible = `(${shell}?.closest('.ant-modal-wrap') && getComputedStyle(${shell}.closest('.ant-modal-wrap')).display !== 'none')`;
