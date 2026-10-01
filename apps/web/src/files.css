@@ -587,7 +587,7 @@
   overflow-wrap: anywhere;
 }
 .files-notice code {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text);
 }
 .files-notice .text-button {

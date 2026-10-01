@@ -6,140 +6,8 @@
      .a-dlg-shell  outer tray (AluneModal modalRender)
      .a-dlg-core   .ant-modal-container
      .a-pop        Popover / Popconfirm root, .a-menu Dropdown root
-   Base colours stay in theme.css. Motion only touches transform and opacity.
+   Shared colours and material tokens stay in theme.css. Motion only touches transform and opacity.
    ===================================================================== */
-
-:root {
-  --dlg-font-sans:
-    'Geist Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif,
-    system-ui, sans-serif;
-  --dlg-font-mono: 'Geist Mono Variable', 'DM Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
-  --moon-indigo: #6e86e8;
-  --moon-cyan: #8fe3ee;
-  --cyan: #146c89;
-  --cyan-soft: #e6f4f7;
-  --cyan-line: #a6d2dc;
-
-  --hair: rgb(35 52 102 / 10%);
-  --hair-strong: rgb(35 52 102 / 17%);
-  --dlg-scrim: rgb(22 32 62 / 28%);
-  --dlg-halo-a: rgb(110 134 232 / 24%);
-  --dlg-halo-b: rgb(143 227 238 / 16%);
-  --dlg-shell-bg: rgb(255 255 255 / 58%);
-  --dlg-shell-ring: rgb(35 52 102 / 9%);
-  --dlg-shell-hi: rgb(255 255 255 / 95%);
-  --dlg-core-bg: #ffffff;
-  --dlg-core-ring: rgb(35 52 102 / 8%);
-  --dlg-core-hi: rgb(255 255 255 / 100%);
-  --dlg-foot-bg: #f7f9fd;
-  --dlg-shadow:
-    0 1px 2px rgb(30 45 95 / 5%), 0 14px 32px -14px rgb(30 45 95 / 20%),
-    0 52px 100px -36px rgb(45 66 140 / 34%);
-  --pop-shadow: 0 1px 2px rgb(30 45 95 / 6%), 0 14px 34px -12px rgb(30 45 95 / 24%);
-  --tone-rim-default: rgb(110 134 232 / 60%);
-  --field-bg: #fbfcfe;
-  --field-ring: #d3dcec;
-  --field-ring-hover: #aebbd4;
-  --field-inset: rgb(30 45 95 / 4%);
-  --chip-bg: rgb(65 90 176 / 6%);
-  --chip-ring: rgb(65 90 176 / 13%);
-  --kbd-bg: #ffffff;
-  --kbd-ring: rgb(35 52 102 / 17%);
-  --seg-bg: rgb(35 52 102 / 5%);
-  --seg-thumb: #ffffff;
-  --card-shell: rgb(35 52 102 / 3.5%);
-  --card-core: #ffffff;
-  --code-bg: #f8fafd;
-  --hover-veil: rgb(65 90 176 / 7%);
-  --btn-ghost-ring: rgb(35 52 102 / 17%);
-  --btn-primary-bg: linear-gradient(180deg, #4d67c1 0%, #415ab0 100%);
-  --btn-primary-hover: linear-gradient(180deg, #4560b8 0%, #354b98 100%);
-  --btn-primary-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 18%), 0 1px 2px rgb(30 45 110 / 22%),
-    0 8px 18px -8px rgb(65 90 176 / 55%);
-  --btn-danger-bg: linear-gradient(180deg, #bd4a58 0%, #ad3b49 100%);
-  --btn-danger-hover: linear-gradient(180deg, #b04150 0%, #97303e 100%);
-  --btn-danger-on: #ffffff;
-  --btn-danger-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 18%), 0 1px 2px rgb(110 30 45 / 22%),
-    0 8px 18px -8px rgb(173 59 73 / 50%);
-  --orb-bg: rgb(255 255 255 / 16%);
-  --orb-ring: rgb(255 255 255 / 24%);
-  --sw-off: rgb(35 52 102 / 16%);
-
-  /* Concentric radii: inner = outer - padding. */
-  --shell-pad: 6px;
-  --r-shell: 22px;
-  --r-core: 16px;
-  --r-card: 12px;
-  --r-field: 10px;
-  --r-chip: 7px;
-
-  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-orbit: cubic-bezier(0.55, 0.12, 0.45, 0.88);
-  --t-hover: 140ms;
-  --t-press: 90ms;
-  --t-scrim: 240ms;
-  --t-enter: 360ms;
-  --t-exit: 160ms;
-  --t-pop: 200ms;
-  --t-stagger: 40ms;
-}
-
-:root[data-theme='dark'] {
-  --cyan: #8fe3ee;
-  --cyan-soft: #16313b;
-  --cyan-line: #3d6e7b;
-
-  --hair: rgb(175 198 255 / 10%);
-  --hair-strong: rgb(175 198 255 / 17%);
-  --dlg-scrim: rgb(4 8 20 / 52%);
-  --dlg-halo-a: rgb(110 134 232 / 22%);
-  --dlg-halo-b: rgb(143 227 238 / 9%);
-  --dlg-shell-bg: rgb(175 198 255 / 6%);
-  --dlg-shell-ring: rgb(175 198 255 / 14%);
-  --dlg-shell-hi: rgb(214 228 255 / 16%);
-  --dlg-core-bg: linear-gradient(180deg, #223049 0%, #1c273d 100%);
-  --dlg-core-ring: rgb(175 198 255 / 10%);
-  --dlg-core-hi: rgb(214 228 255 / 9%);
-  --dlg-foot-bg: rgb(10 16 30 / 34%);
-  --dlg-shadow:
-    0 1px 2px rgb(2 6 18 / 40%), 0 22px 48px -18px rgb(2 6 18 / 72%),
-    0 64px 120px -40px rgb(46 66 150 / 42%);
-  --pop-shadow: 0 1px 2px rgb(2 6 18 / 40%), 0 18px 44px -16px rgb(2 6 18 / 72%);
-  --tone-rim-default: rgb(143 227 238 / 50%);
-  --field-bg: rgb(9 15 29 / 42%);
-  --field-ring: rgb(175 198 255 / 17%);
-  --field-ring-hover: rgb(175 198 255 / 30%);
-  --field-inset: rgb(0 0 0 / 14%);
-  --chip-bg: rgb(175 198 255 / 8%);
-  --chip-ring: rgb(175 198 255 / 15%);
-  --kbd-bg: rgb(175 198 255 / 7%);
-  --kbd-ring: rgb(175 198 255 / 19%);
-  --seg-bg: rgb(9 15 29 / 45%);
-  --seg-thumb: #2b3a58;
-  --card-shell: rgb(175 198 255 / 4%);
-  --card-core: rgb(9 15 29 / 32%);
-  --code-bg: rgb(9 15 29 / 48%);
-  --hover-veil: rgb(175 198 255 / 8%);
-  --btn-ghost-ring: rgb(175 198 255 / 21%);
-  --btn-primary-bg: linear-gradient(180deg, #c6d6ff 0%, #a9c1ff 100%);
-  --btn-primary-hover: linear-gradient(180deg, #d6e2ff 0%, #bdd0ff 100%);
-  --btn-primary-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 45%), 0 0 0 1px rgb(175 198 255 / 30%),
-    0 10px 28px -10px rgb(110 134 232 / 75%);
-  --btn-danger-bg: linear-gradient(180deg, #ffc8cf 0%, #ffb0ba 100%);
-  --btn-danger-hover: linear-gradient(180deg, #ffd6db 0%, #ffc0c8 100%);
-  --btn-danger-on: #3b1019;
-  --btn-danger-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 45%), 0 0 0 1px rgb(255 183 192 / 28%),
-    0 10px 28px -10px rgb(255 120 140 / 45%);
-  --orb-bg: rgb(21 30 48 / 10%);
-  --orb-ring: rgb(21 30 48 / 16%);
-  --sw-off: rgb(175 198 255 / 18%);
-}
 
 /* ---------------------------------------------------------------------
    Tones: default (moonlight blue) · info (moon cyan) · success · warning · danger
@@ -202,7 +70,7 @@
 }
 
 /* ---------------------------------------------------------------------
-   Base. Geist is scoped to overlay surfaces; the workspace keeps its fonts (Issue-86).
+   Base. Overlay surfaces share the application font tokens in theme.css.
    --------------------------------------------------------------------- */
 .a-dlg .ant-modal,
 .a-pop,
