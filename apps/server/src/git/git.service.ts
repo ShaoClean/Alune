@@ -17,6 +17,8 @@ import { realpath } from 'node:fs/promises';
 import { ConnectionService } from '../connection/connection.service';
 import { RepositoryService } from '../repository/repository.service';
 import {
+  WorkspaceFileActions,
+  RepositoryFileError,
   GitCommands,
   LocalConnection,
   NewFileDeletion,
@@ -228,6 +230,27 @@ export class GitService implements OnModuleDestroy {
         throw new HttpException(error.message, error.statusCode);
       throw error;
     }
+  }
+
+  async previewWorkspaceFile(id: string, path: string) {
+    const repo = await this.repoService.get(id);
+    try {
+      return await new WorkspaceFileActions(await this.transport(repo)).preview(repo.path, path);
+    } catch (error) {
+      if (error instanceof RepositoryFileError) throw new HttpException(error.message, error.statusCode);
+      throw error;
+    }
+  }
+
+  mutateWorkspaceFile(id: string, path: string, token: string, action: 'delete' | 'rename', name?: string) {
+    return this.write(id, 'workspace-file', async (_git, repo, connection) => {
+      try {
+        return await new WorkspaceFileActions(connection).mutate(repo.path, path, token, action, name);
+      } catch (error) {
+        if (error instanceof RepositoryFileError) throw new HttpException(error.message, error.statusCode);
+        throw error;
+      }
+    });
   }
 
   stage(id: string, files: string[]) {

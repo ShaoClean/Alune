@@ -412,6 +412,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           onSelectFile={handleSelectFile}
           selectedFile={selectedFile}
           onFileChanged={(path) => {
+            setFilesRefresh((value) => value + 1);
             if (selectedFile?.path === path) {
               setSelectedFile(null);
               clearDiff();
@@ -426,6 +427,12 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           key={id}
           repoId={id}
           refreshToken={filesRefresh}
+          onFileChanged={(path) => {
+            if (selectedFile?.path === path) {
+              setSelectedFile(null);
+              clearDiff();
+            }
+          }}
           gitFiles={statusEntry?.data?.files}
         />
       );

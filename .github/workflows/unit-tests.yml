@@ -65,7 +65,7 @@ jobs:
       - run: npm run build -w @alune/ssh-client
         id: build-local-git
       - run: node --test packages/ssh-client/tests/local-connection.test.cjs packages/ssh-client/tests/discard-changes.test.cjs packages/ssh-client/tests/change-entries.test.cjs
-      - run: npm test -w server -- --ci --runInBand local-git.spec.ts
+      - run: npm test -w server -- --ci --runInBand local-git.spec.ts workspace-file.spec.ts
         if: ${{ !cancelled() && steps.build-local-git.outcome == 'success' }}
 
   network-proxy:

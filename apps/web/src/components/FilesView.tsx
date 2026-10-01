@@ -1,3 +1,4 @@
+import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import { FeedbackNotice } from './Feedback';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
@@ -5,7 +6,6 @@ import { Spin } from 'antd';
 import {
   ApiOutlined,
   CopyOutlined,
-  EyeOutlined,
   FileExclamationOutlined,
   FileSearchOutlined,
   LinkOutlined,
@@ -77,10 +77,12 @@ export function displayText(content: string): { text: string; lines: number; crl
 export function FilesView({
   repoId,
   refreshToken = 0,
+  onFileChanged,
   gitFiles,
 }: {
   repoId: string;
   refreshToken?: number;
+  onFileChanged?: (path: string) => void;
   gitFiles?: readonly FileStatus[];
 }) {
   const gitIndex = useMemo(() => fileStatusIndex(gitFiles), [gitFiles]);
@@ -186,6 +188,28 @@ export function FilesView({
     },
     [repoId],
   );
+
+  const fileMenu = useWorkspaceFileMenu(repoId, (path, next) => {
+    onFileChanged?.(path);
+    for (const directory of visibleDirectories(
+      current.current.directories,
+      current.current.expanded,
+    ))
+      loadDirectory(directory);
+    if (current.current.selected?.path === path) {
+      if (next) {
+        setSelected({ ...current.current.selected, path: next, name: fileName(next) });
+        setFocused(next);
+        setDocumentAnchor(null);
+        loadFile(next);
+      } else {
+        fileRequest.current?.abort();
+        fileRequest.current = null;
+        setSelected(null);
+        setFile(null);
+      }
+    }
+  });
 
   // Revalidate a restored tree and preview; stop every request when leaving.
   useEffect(() => {
@@ -392,8 +416,8 @@ export function FilesView({
         <div className="files-tree__header">
           <div className="files-tree__title">
             <span>工作区文件</span>
-            <span className="files-badge" title="只读浏览，不会修改远端文件">
-              <EyeOutlined /> 只读
+            <span className="files-badge" title="右键或 Shift+F10 打开文件操作">
+              文件操作
             </span>
           </div>
           <CommandButton label="折叠全部文件夹" onClick={collapseAll} disabled={!expanded.size}>
@@ -450,6 +474,10 @@ export function FilesView({
                         if (element) items.current.set(row.entry.path, element);
                         else items.current.delete(row.entry.path);
                       }}
+                      menuBindings={fileMenu.bindings(
+                        row.entry.path,
+                        row.entry.kind === 'file' || row.entry.kind === 'symlink',
+                      )}
                       onOpen={() => open(row.entry)}
                     />
                   ) : (
@@ -476,6 +504,7 @@ export function FilesView({
           onChange={(value) => updateLayout({ filesTreeWidth: value })}
         />
       )}
+      {fileMenu.element}
       <FilePreviewPane
         repositoryId={repoId}
         entry={selected}
@@ -500,6 +529,7 @@ export function TreeItem({
   failed,
   itemRef,
   onOpen,
+  menuBindings,
 }: {
   row: Extract<TreeRow, { type: 'entry' }>;
   decoration?: ReturnType<typeof fileDecoration>;
@@ -509,6 +539,7 @@ export function TreeItem({
   failed: boolean;
   itemRef: (element: HTMLDivElement | null) => void;
   onOpen: () => void;
+  menuBindings: ReturnType<ReturnType<typeof useWorkspaceFileMenu>['bindings']>;
 }) {
   const { entry } = row;
   const expandable = isExpandable(entry);
@@ -524,6 +555,7 @@ export function TreeItem({
   return (
     <div
       ref={itemRef}
+      {...menuBindings}
       role="treeitem"
       className={`files-tree__item files-tree__item--${entry.kind}${selected ? ' files-tree__item--selected' : ''}${decoration ? ` files-tree__item--git-${decoration.status}${decoration.summary ? ' files-tree__item--git-summary' : ''}` : ''}`}
       style={{ '--level': row.level } as CSSProperties}
@@ -672,7 +704,7 @@ export function FilePreviewPane({
     return (
       <div className="files-view__preview">
         <FilesNotice icon={<FileSearchOutlined />} title="选择文件以预览">
-          在左侧目录树中选择文件，查看当前工作区中的内容。浏览为只读，不会修改远端文件。
+          在左侧目录树中选择文件以预览内容。右键文件可重命名、删除或复制路径。
         </FilesNotice>
       </div>
     );

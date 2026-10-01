@@ -1,3 +1,4 @@
+import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Tooltip, App } from 'antd';
 import { AlunePopconfirm } from './AlunePopconfirm';
@@ -116,6 +117,8 @@ export function ChangesView({
     skipped: FileStatus[];
   } | null>(null);
   const busy = loading || deletePath !== null || discardAllOpen;
+
+  const fileMenu = useWorkspaceFileMenu(repoId, (path) => onFileChanged?.(path), busy);
 
   const files = status?.files || [];
   const stagedFiles = useMemo(() => files.filter((file: any) => file.staged), [files]);
@@ -290,6 +293,7 @@ export function ChangesView({
       <div
         className={`file-row${selectedFile?.path === file.path && selectedFile?.staged === file.staged ? ' file-row--selected' : ''}`}
         key={`${file.staged}-${file.path}`}
+        {...fileMenu.bindings(file.path, !kind)}
       >
         <button
           type="button"
@@ -642,6 +646,7 @@ export function ChangesView({
           }}
         />
       )}
+      {fileMenu.element}
       {deletePath !== null && (
         <DeleteNewFileDialog
           key={`${repoId}-${deletePath}`}

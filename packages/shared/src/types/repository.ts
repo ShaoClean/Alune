@@ -264,3 +264,13 @@ export interface RemoteInfo {
   fetchUrl: string;
   pushUrl: string;
 }
+
+/** A working-tree operation never updates the Git index. */
+export interface WorkspaceFilePreview {
+  path: string;
+  absolutePath: string;
+  staged: boolean;
+  canModify: boolean;
+  reason?: string;
+  token: string;
+}

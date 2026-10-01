@@ -59,6 +59,13 @@ function attachSftp(session, onSftp) {
         error ? failure(id, error) : sftp.attrs(id, attrs(stat)),
       ),
     );
+    // SFTP v3 RENAME refuses existing destinations (unlike POSIX rename).
+    sftp.on('RENAME', (id, source, destination) =>
+      fs.link(source, destination, (error) => {
+        if (error) return failure(id, error);
+        fs.unlink(source, (error) => error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK));
+      }),
+    );
     sftp.on('REMOVE', (id, filename) =>
       fs.unlink(filename, (error) =>
         error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
