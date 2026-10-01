@@ -116,6 +116,10 @@ for (const [name, colors] of Object.entries({ light, dark }))
       ['orange', 'orange-soft'],
       ['red', 'red-soft'],
       ['purple', 'purple-soft'],
+      // File tree Git labels and badges remain readable when idle or selected.
+      ...['green', 'orange', 'red'].flatMap((fg) =>
+        ['surface-muted', 'surface-hover', 'blue-soft'].map((bg) => [fg, bg]),
+      ),
       ['text', 'code'],
       ['green', 'diff-add'],
       ['red', 'diff-remove'],
@@ -125,6 +129,21 @@ for (const [name, colors] of Object.entries({ light, dark }))
     ];
     for (const [fg, bg] of pairs)
       assert.ok(contrast(colors[fg], colors[bg]) >= 4.5, `${name} ${fg}/${bg}`);
+    const greenHover =
+      '#' +
+      colors['green-soft']
+        .slice(1)
+        .match(/../g)
+        .map((value, index) =>
+          Math.round(
+            parseInt(value, 16) * 0.9 +
+              parseInt(colors.green.slice(1).match(/../g)[index], 16) * 0.1,
+          )
+            .toString(16)
+            .padStart(2, '0'),
+        )
+        .join('');
+    assert.ok(contrast(colors.green, greenHover) >= 4.5, `${name} new file hover`);
     for (const bg of ['surface', 'content', 'sidebar-bg']) {
       assert.ok(contrast(colors.blue, colors[bg]) >= 3, `${name} focus/${bg}`);
       assert.ok(contrast(colors['line-strong'], colors[bg]) >= 3, `${name} control/${bg}`);

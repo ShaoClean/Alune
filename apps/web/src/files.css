@@ -155,6 +155,47 @@
 .files-tree__item--other .files-tree__name {
   color: var(--text-muted);
 }
+/* VS Code Git semantics, using our contrast-tested light/dark palette:
+   additions/untracked/renames/copies green, modifications amber, removals and
+   conflicts red. Badges preserve meaning without relying on color alone. */
+.files-tree__item--git-added,
+.files-tree__item--git-untracked,
+.files-tree__item--git-renamed,
+.files-tree__item--git-copied {
+  --file-git-color: var(--green);
+}
+.files-tree__item--git-modified {
+  --file-git-color: var(--orange);
+}
+.files-tree__item--git-deleted,
+.files-tree__item--git-conflicted {
+  --file-git-color: var(--red);
+}
+.files-tree__item[class*='files-tree__item--git-'] .files-tree__name {
+  color: var(--file-git-color);
+}
+.files-tree__item:is(.files-tree__item--git-added, .files-tree__item--git-untracked):not(
+    .files-tree__item--git-summary
+  ) {
+  background-color: var(--green-soft);
+}
+/* Keep the required green background during hover, selection and focus. */
+.files-tree__item:is(.files-tree__item--git-added, .files-tree__item--git-untracked):not(
+    .files-tree__item--git-summary
+  ):hover {
+  background-color: color-mix(in srgb, var(--green-soft) 90%, var(--green));
+}
+.files-tree__item--selected .files-tree__name {
+  font-weight: 600;
+}
+.files-tree__git-status {
+  flex: 0 0 16px;
+  margin-left: auto;
+  color: var(--file-git-color);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
 .files-tree__meta {
   flex-shrink: 1;
   min-width: 0;

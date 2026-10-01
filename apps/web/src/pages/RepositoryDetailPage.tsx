@@ -421,7 +421,14 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         />
       );
     if (activePanel === 'files')
-      return <FilesView key={id} repoId={id} refreshToken={filesRefresh} />;
+      return (
+        <FilesView
+          key={id}
+          repoId={id}
+          refreshToken={filesRefresh}
+          gitFiles={statusEntry?.data?.files}
+        />
+      );
     if (activePanel === 'pull-requests')
       return <PullRequestsView key={id} repoId={id} refreshToken={pullRequestsRefresh} />;
     if (activePanel === 'history') return <HistoryWorkspace repoId={id} />;
