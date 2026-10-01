@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button, Pagination } from 'antd';
+import { Button, Pagination } from '@alune/ui';
 import { ArrowRightOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { Repository } from '@alune/shared';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { useRepositoryStore } from '../stores/repositoryStore';
 import { buildRepositoryOverview, syncLabel } from '../stores/repositoryOverview';
 import type { OverviewRow, WorkspaceState } from '../stores/repositoryOverview';
 import { useRepositoryAnalytics } from '../hooks/useRepositoryAnalytics';
-import { AluneModal } from './AluneModal';
+import { AluneModal } from '@alune/ui';
 
 const labels: Record<WorkspaceState, string> = { clean: '干净', dirty: '有改动', unknown: '未知' };
 const percent = (value: number, total: number) =>

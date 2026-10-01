@@ -1,0 +1,270 @@
+---
+import SiteLayout from './SiteLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { categories, documents, uiPath } from '../data/ui';
+import type { UIDocument } from '../data/ui';
+import '../styles/ui-docs.css';
+interface Props {
+  doc?: UIDocument;
+  toc?: { id: string; title: string }[];
+}
+const { doc, toc = [] } = Astro.props;
+const index = doc ? documents.indexOf(doc) : -1;
+const previous = index > 0 ? documents[index - 1] : null;
+const next = index >= 0 ? documents[index + 1] : null;
+const searchIndex = documents.map((item) => ({
+  title: item.title,
+  subtitle: item.subtitle,
+  keywords: item.keywords,
+  url: uiPath(item.slug),
+}));
+---
+
+<SiteLayout
+  title={doc ? `${doc.title} · Alune-UI` : 'Alune-UI · 共享组件与设计规范'}
+  description={
+    doc?.description ?? 'Alune 应用与官网共用的真实组件。中文规范、API、隔离式交互示例与贡献指南。'
+  }
+>
+  <Header />
+  <div class="ui-doc-shell">
+    <aside class="ui-sidebar" aria-label="UI 文档导航">
+      <a class="ui-wordmark" href={uiPath()}>
+        Alune<span>UI</span>
+        <small>React 19 · Ant Design 6</small>
+      </a>
+      <div class="ui-search" hidden data-ui-search>
+        <label for="ui-search-input">搜索组件与规范</label>
+        <div class="ui-search-field">
+          <input
+            id="ui-search-input"
+            type="search"
+            role="combobox"
+            aria-label="搜索组件与规范"
+            aria-autocomplete="list"
+            aria-expanded="false"
+            aria-controls="ui-search-results"
+            placeholder="组件名、中文关键词…"
+            autocomplete="off"
+          />
+          <button type="button" id="ui-search-clear" aria-label="清空搜索">
+            ×
+          </button>
+        </div>
+        <ul id="ui-search-results" role="listbox" aria-label="搜索结果" hidden></ul>
+        <p id="ui-search-status" role="status"></p>
+      </div>
+      <button
+        class="ui-nav-toggle"
+        id="ui-nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="ui-sidebar-nav"
+        hidden
+      >
+        浏览文档目录 <span aria-hidden="true">↓</span>
+      </button>
+      <nav id="ui-sidebar-nav">
+        {categories.map((category) => (
+          <section>
+            <h2>{category}</h2>
+            {documents
+              .filter((item) => item.category === category)
+              .sort(
+                (a, b) =>
+                  Number(b.slug === 'getting-started') - Number(a.slug === 'getting-started'),
+              )
+              .map((item) => (
+                <a
+                  href={uiPath(item.slug)}
+                  aria-current={doc?.slug === item.slug ? 'page' : undefined}
+                >
+                  <span>{item.title}</span>
+                  {item.title !== item.subtitle && <small>{item.subtitle}</small>}
+                </a>
+              ))}
+          </section>
+        ))}
+      </nav>
+      <a
+        class="ui-repo-link"
+        href="https://github.com/ShaoClean/Alune/tree/development/packages/ui"
+      >
+        查看共享包源码 ↗
+      </a>
+    </aside>
+    <main class="ui-doc-content" id="main">
+      <nav class="ui-breadcrumb" aria-label="面包屑">
+        <a href={import.meta.env.BASE_URL}>Alune</a>
+        <span aria-hidden="true">/</span>
+        <a href={uiPath()}>UI 文档</a>
+        {doc && (
+          <>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">{doc.title}</span>
+          </>
+        )}
+      </nav>
+      <slot />
+      {doc && (
+        <>
+          <div class="ui-edit-links">
+            <a href={`https://github.com/ShaoClean/Alune/blob/development/${doc.source}`}>
+              查看实现 ↗
+            </a>
+            <a
+              href={`https://github.com/ShaoClean/Alune/edit/development/${doc.guide ? doc.source : 'apps/website/src/pages/ui/[slug].astro'}`}
+            >
+              编辑文档 ↗
+            </a>
+            <a href="https://github.com/ShaoClean/Alune/issues/153">设计与验收</a>
+          </div>
+          <nav class="ui-page-turn" aria-label="前后文档">
+            {previous ? (
+              <a href={uiPath(previous.slug)}>
+                <small>上一篇</small>
+                <span>← {previous.title}</span>
+              </a>
+            ) : (
+              <span />
+            )}
+            {next && (
+              <a href={uiPath(next.slug)}>
+                <small>下一篇</small>
+                <span>{next.title} →</span>
+              </a>
+            )}
+          </nav>
+        </>
+      )}
+    </main>
+    <aside class="ui-toc" aria-label="本页目录">
+      {toc.length > 0 && (
+        <>
+          <p>本页目录</p>
+          <nav>
+            {toc.map((item) => (
+              <a href={`#${item.id}`}>{item.title}</a>
+            ))}
+          </nav>
+        </>
+      )}
+    </aside>
+  </div>
+  <Footer />
+  <script
+    type="application/json"
+    id="ui-search-index"
+    set:html={JSON.stringify(searchIndex).replaceAll('<', '\\u003c')}
+  />
+  <script>
+    const input = document.querySelector<HTMLInputElement>('#ui-search-input')!;
+    const results = document.querySelector<HTMLUListElement>('#ui-search-results')!;
+    const status = document.querySelector<HTMLElement>('#ui-search-status')!;
+    const index = JSON.parse(document.querySelector('#ui-search-index')!.textContent!) as {
+      title: string;
+      subtitle: string;
+      keywords: string[];
+      url: string;
+    }[];
+    document.querySelector<HTMLElement>('[data-ui-search]')!.hidden = false;
+    let selected = -1;
+    const close = () => {
+      results.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+      selected = -1;
+    };
+    const search = () => {
+      const query = input.value.trim().toLocaleLowerCase();
+      results.replaceChildren();
+      selected = -1;
+      input.removeAttribute('aria-activedescendant');
+      if (!query) {
+        close();
+        status.textContent = '';
+        return;
+      }
+      const matches = index.filter((item) =>
+        [item.title, item.subtitle, ...item.keywords].join(' ').toLocaleLowerCase().includes(query),
+      );
+      matches.forEach((item, n) => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.id = `ui-search-option-${n}`;
+        a.href = item.url;
+        a.setAttribute('role', 'option');
+        a.setAttribute('aria-selected', 'false');
+        a.textContent = `${item.title} · ${item.subtitle}`;
+        li.append(a);
+        results.append(li);
+      });
+      results.hidden = !matches.length;
+      input.setAttribute('aria-expanded', String(matches.length > 0));
+      status.textContent = matches.length
+        ? `${matches.length} 项结果，使用方向键选择，Enter 打开。`
+        : '没有结果，请尝试组件名或中文关键词。';
+    };
+    input.addEventListener('input', search);
+    input.addEventListener('keydown', (event) => {
+      const options = Array.from(results.querySelectorAll<HTMLAnchorElement>('[role=option]'));
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+        return;
+      }
+      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && options.length) {
+        event.preventDefault();
+        results.hidden = false;
+        input.setAttribute('aria-expanded', 'true');
+        selected =
+          selected < 0
+            ? event.key === 'ArrowDown'
+              ? 0
+              : options.length - 1
+            : (selected + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+        options.forEach((option, n) =>
+          option.setAttribute('aria-selected', String(n === selected)),
+        );
+        input.setAttribute('aria-activedescendant', options[selected].id);
+        options[selected].scrollIntoView({ block: 'nearest' });
+      }
+      if (event.key === 'Enter' && selected >= 0) {
+        event.preventDefault();
+        location.href = options[selected].href;
+      }
+    });
+    document.querySelector('#ui-search-clear')!.addEventListener('click', () => {
+      input.value = '';
+      search();
+      input.focus();
+    });
+    document.addEventListener('click', (event) => {
+      if (!(event.target as Element).closest('.ui-search')) close();
+    });
+    const toggle = document.querySelector<HTMLButtonElement>('#ui-nav-toggle')!;
+    const nav = document.querySelector<HTMLElement>('#ui-sidebar-nav')!;
+    toggle.hidden = false;
+    document.documentElement.classList.add('ui-enhanced');
+    const closeNav = () => {
+      toggle.setAttribute('aria-expanded', 'false');
+      nav.classList.remove('is-open');
+    };
+    toggle.addEventListener('click', () => {
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(open));
+      nav.classList.toggle('is-open', open);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+        closeNav();
+        toggle.focus();
+      }
+    });
+    nav.addEventListener('click', (event) => {
+      if ((event.target as Element).closest('a')) closeNav();
+    });
+    matchMedia('(min-width: 1000px)').addEventListener('change', closeNav);
+  </script>
+</SiteLayout>

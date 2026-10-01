@@ -1,7 +1,7 @@
-import { FeedbackAlert } from '../FeedbackAlert';
-import { FeedbackNotice } from '../Feedback';
+import { FeedbackAlert } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useState } from 'react';
-import { Button, Input, Select } from 'antd';
+import { Button, Input, Select } from '@alune/ui';
 import { CheckOutlined } from '@ant-design/icons';
 import type { AiSettings, CommitGenerationPreferences } from '@alune/shared';
 import { aiApi, aiError } from '../../api/ai';

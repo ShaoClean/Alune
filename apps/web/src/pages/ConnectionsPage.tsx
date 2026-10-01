@@ -1,9 +1,9 @@
-import { FeedbackNotice } from '../components/FeedbackNotice';
-import { useFeedbackMessage } from '../components/useFeedbackMessage';
+import { FeedbackNotice } from '@alune/ui';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Form, Input } from 'antd';
+import { Button, Form, Input } from '@alune/ui';
 import {
   ApartmentOutlined,
   DeleteOutlined,
@@ -14,14 +14,14 @@ import {
 } from '@ant-design/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
-import { EmptyState, LoadingState, StatusBadge } from '../components/ui';
+import { EmptyState, LoadingState, StatusBadge } from '@alune/ui';
 import { CollectionViewSwitch } from '../components/CollectionViewSwitch';
 import { useWorkspaceStore } from '../stores/workspaceStore';
-import { AluneModal } from '../components/AluneModal';
-import { AlunePopconfirm } from '../components/AlunePopconfirm';
+import { AluneModal } from '@alune/ui';
+import { AlunePopconfirm } from '@alune/ui';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { DialogIcon } from '../components/DialogIcons';
-import { DialogNote, OptionCards } from '../components/DialogParts';
+import { DialogIcon } from '@alune/ui';
+import { DialogNote, OptionCards } from '@alune/ui';
 
 type AuthType = 'password' | 'privateKey' | 'sshAgent';
 

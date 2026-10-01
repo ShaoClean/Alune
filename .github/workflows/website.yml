@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'apps/website/**'
+      - 'packages/ui/**'
       - 'apps/desktop/assets/alune.png'
       - 'package.json'
       - 'package-lock.json'
@@ -13,6 +14,7 @@ on:
     branches: [development]
     paths:
       - 'apps/website/**'
+      - 'packages/ui/**'
       - 'apps/desktop/assets/alune.png'
       - 'package.json'
       - 'package-lock.json'
@@ -37,7 +39,8 @@ jobs:
           node-version: '22.22.0'
           cache: npm
       # The website does not need Electron, native server packages or desktop builds.
-      - run: npm ci --workspace website --include-workspace-root=false
+      - run: npm ci --workspace website --workspace @alune/ui --include-workspace-root=false
+      - run: npm run ui:check
       - run: npm run website:check
       - uses: actions/upload-pages-artifact@v3
         with:

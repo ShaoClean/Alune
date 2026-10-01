@@ -1,6 +1,6 @@
-import { FeedbackAlert } from './FeedbackAlert';
+import { FeedbackAlert } from '@alune/ui';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Button, Input, Segmented, Spin } from 'antd';
+import { Button, Input, Segmented, Spin } from '@alune/ui';
 import type {
   PullRequestActions,
   PullRequestCommentPosition,
@@ -11,9 +11,9 @@ import type {
   PullRequestMutation,
 } from '@alune/shared';
 import { repositoryApi } from '../api';
-import { AluneModal, CheckCard, DialogHints } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
-import { DialogCard, DialogNote } from './DialogParts';
+import { AluneModal, CheckCard, DialogHints } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import { DialogCard, DialogNote } from '@alune/ui';
 import { errorMessage } from './files-tree';
 
 // "https://github.com/team/repo" -> "team/repo" for the dialog eyebrow.

@@ -88,7 +88,10 @@ test('browser first-paint bootstrap handles saved, corrupt, unavailable and desk
   runInNewContext(script, { window: { aluneWorkspace: {} } });
 });
 
-const css = readFileSync(new URL('../src/theme.css', import.meta.url), 'utf8');
+const css = readFileSync(
+  new URL('../../../packages/ui/src/styles/tokens.css', import.meta.url),
+  'utf8',
+);
 const palette = (block) =>
   Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[\da-f]{6})/g)].map((m) => [m[1], m[2]]));
 const darkRule = /:root\[data-theme=['"]dark['"]\]\s*\{([^}]+)\}/.exec(css);

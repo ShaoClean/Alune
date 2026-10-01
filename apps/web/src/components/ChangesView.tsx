@@ -1,9 +1,9 @@
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
-import { FeedbackNotice } from './FeedbackNotice';
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { FeedbackNotice } from '@alune/ui';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Input, Tooltip } from 'antd';
-import { AlunePopconfirm } from './AlunePopconfirm';
+import { Button, Input, Tooltip } from '@alune/ui';
+import { AlunePopconfirm } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
 import { changeActions, changeKindLabel, type FileStatus } from '@alune/shared';
 import {
@@ -26,14 +26,14 @@ import {
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { gitApi } from '../api';
-import { EmptyState, ErrorState, FileIcon, FolderIcon, LoadingState, PanelHeader } from './ui';
+import { EmptyState, ErrorState, FileIcon, FolderIcon, LoadingState, PanelHeader } from '@alune/ui';
 import { EMPTY_DRAFT, useCommitDraftStore } from '../stores/commitDraftStore';
 import { DeleteNewFileDialog } from './DeleteNewFileDialog';
 import { DiscardChangesDialog } from './DiscardChangesDialog';
-import { AluneModal, CheckCard, useAluneConfirm } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
-import type { DialogIconName } from './DialogIcons';
-import { DialogCard, DialogNote, DialogPath, DialogStat, DialogStats } from './DialogParts';
+import { AluneModal, CheckCard, useAluneConfirm } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import type { DialogIconName } from '@alune/ui';
+import { DialogCard, DialogNote, DialogPath, DialogStat, DialogStats } from '@alune/ui';
 import { Sparkles } from './Sparkles';
 import { useCommitGeneration } from '../hooks/useCommitGeneration';
 

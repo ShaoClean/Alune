@@ -6,7 +6,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { useRepositoryStatus, useRepositoryVisibility } from '../hooks/useRepositoryStatus';
-import { StatusBadge } from './ui';
+import { StatusBadge } from '@alune/ui';
 
 export function RepositoryStatusIndicator({
   id,

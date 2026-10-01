@@ -1,10 +1,10 @@
-import { Button, Segmented, Switch } from 'antd';
+import { Button, Segmented, Switch } from '@alune/ui';
 import type { CSSProperties } from 'react';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { CHANGES_MAX, CHANGES_MIN, SIDEBAR_MAX, SIDEBAR_MIN } from '../stores/workspaceLayout';
-import { AluneModal, DialogHints, Kbd } from './AluneModal';
-import { DialogCard } from './DialogParts';
-import { DialogIcon } from './DialogIcons';
+import { AluneModal, DialogHints, Kbd } from '@alune/ui';
+import { DialogCard } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
 
 // The slider skin paints the track up to --fill.
 const fill = (value: number, min: number, max: number) =>

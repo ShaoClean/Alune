@@ -1,8 +1,8 @@
-import { FeedbackAlert } from '../FeedbackAlert';
-import { FeedbackNotice } from '../Feedback';
+import { FeedbackAlert } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
 import { AppearanceSettings } from './AppearanceSettings';
 import { useEffect } from 'react';
-import { Button } from 'antd';
+import { Button } from '@alune/ui';
 import {
   ApartmentOutlined,
   LayoutOutlined,

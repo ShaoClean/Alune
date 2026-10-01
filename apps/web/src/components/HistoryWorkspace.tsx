@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CommitFile, GraphCommit } from '@alune/shared';
-import { Button } from 'antd';
+import { Button } from '@alune/ui';
 import { ArrowLeftOutlined, CloseOutlined } from '@ant-design/icons';
 import { HistoryReference, HistoryView } from './HistoryView';
 import { DiffViewer } from './DiffViewer';
-import { FileIcon, ErrorState } from './ui';
-import { FeedbackNotice } from './Feedback';
+import { FileIcon, ErrorState } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 

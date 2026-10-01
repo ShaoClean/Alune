@@ -1,0 +1,159 @@
+---
+import { Code } from 'astro:components';
+import { examples, sourceFor } from '../../examples/registry';
+interface Props {
+  id: string;
+}
+const { id } = Astro.props;
+const example = examples.find((item) => item.id === id)!;
+const url = `${import.meta.env.BASE_URL}ui/preview/${id}/`;
+const source = sourceFor(id);
+if (!example || !source) throw new Error(`Missing example: ${id}`);
+---
+
+<section class="ui-demo" data-demo={id} aria-label={`${example.title}示例`}>
+  <div class="demo-toolbar">
+    <span class="demo-label">
+      真实示例 <span>TSX</span>
+    </span>
+    <div class="demo-controls" hidden>
+      <label>
+        <span class="sr-only">示例主题</span>
+        <select data-demo-theme aria-label={`${example.title}示例主题`}>
+          <option value="light">浅色</option>
+          <option value="dark">深色</option>
+        </select>
+      </label>
+      <label>
+        <span class="sr-only">示例宽度</span>
+        <select data-demo-width aria-label={`${example.title}示例宽度`}>
+          <option value="100%">自适应</option>
+          <option value="390px">390px</option>
+        </select>
+      </label>
+      <button type="button" data-demo-reset>
+        重置
+      </button>
+    </div>
+    <a data-demo-open href={`${url}?theme=light`} target="_blank" rel="noopener">
+      独立预览 ↗
+    </a>
+  </div>
+  <p class="demo-status" data-demo-status role="status" hidden>
+    正在加载示例…
+  </p>
+  <div class="demo-viewport">
+    <iframe
+      src={`${url}?theme=light`}
+      data-url={url}
+      title={`${example.title}交互预览`}
+      loading="lazy"
+      width="100%"
+      height={example.height}
+    ></iframe>
+  </div>
+  <noscript>
+    <p>运行示例需要 JavaScript。完整 API 与源码仍可阅读。</p>
+  </noscript>
+  <details class="demo-source" open>
+    <summary>查看运行源码</summary>
+    <div class="source-actions">
+      <a
+        href={`https://github.com/ShaoClean/Alune/blob/development/apps/website/src/examples/${id}.tsx`}
+      >
+        源码文件
+      </a>
+      <button data-demo-copy type="button" hidden>
+        复制源码
+      </button>
+      <span data-copy-status role="status"></span>
+    </div>
+    <Code
+      code={source}
+      lang="tsx"
+      themes={{ light: 'github-light', dark: 'github-dark' }}
+      transformers={[
+        {
+          code(node) {
+            // Astro removes the final line ending before highlighting. Restore it so
+            // the displayed and copied source is byte-for-byte the real TSX file.
+            const ending = source.match(/(?:\r\n|\r|\n)$/)?.[0];
+            if (ending) node.children.push({ type: 'text', value: ending });
+          },
+        },
+      ]}
+    />
+  </details>
+</section>
+<script>
+  const demos = document.querySelectorAll<HTMLElement>('[data-demo]');
+  demos.forEach((demo) => {
+    const frame = demo.querySelector<HTMLIFrameElement>('iframe')!;
+    const theme = demo.querySelector<HTMLSelectElement>('[data-demo-theme]')!;
+    const width = demo.querySelector<HTMLSelectElement>('[data-demo-width]')!;
+    const status = demo.querySelector<HTMLElement>('[data-demo-status]')!;
+    const link = demo.querySelector<HTMLAnchorElement>('[data-demo-open]')!;
+    let revision = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    demo.querySelector<HTMLElement>('.demo-controls')!.hidden = false;
+    demo.querySelector<HTMLDetailsElement>('details')!.open = false;
+    status.hidden = false;
+    const fail = () => {
+      status.textContent = '示例加载失败或超时，可点击重置重试。';
+    };
+    const arm = () => {
+      clearTimeout(timer);
+      if (frame.contentDocument?.documentElement.dataset.previewReady === 'true') {
+        status.hidden = true;
+        return;
+      }
+      timer = setTimeout(fail, 15000);
+    };
+    const reload = () => {
+      const url = new URL(frame.dataset.url!, location.origin);
+      url.searchParams.set('theme', theme.value);
+      url.searchParams.set('reset', String(++revision));
+      status.textContent = '正在加载示例…';
+      status.hidden = false;
+      frame.src = url.href;
+      link.href = url.href;
+    };
+    frame.addEventListener('load', arm);
+    frame.addEventListener('error', fail);
+    const receive = (event: MessageEvent) => {
+      if (event.origin !== location.origin || event.source !== frame.contentWindow) return;
+      const data = event.data;
+      if (data?.channel !== 'alune-ui-demo' || data.id !== demo.dataset.demo) return;
+      if (data.type === 'ready') {
+        clearTimeout(timer);
+        status.textContent = '示例已就绪';
+        status.hidden = true;
+      } else if (data.type === 'error') {
+        clearTimeout(timer);
+        fail();
+      }
+    };
+    window.addEventListener('message', receive);
+    // A lazy iframe may have loaded before the outer script initializes.
+    if (frame.contentDocument?.documentElement.dataset.previewReady === 'true')
+      status.hidden = true;
+    theme.addEventListener('change', reload);
+    width.addEventListener('change', () => {
+      frame.style.width = width.value;
+    });
+    demo.querySelector('[data-demo-reset]')!.addEventListener('click', reload);
+    const copy = demo.querySelector<HTMLButtonElement>('[data-demo-copy]')!;
+    copy.hidden = false;
+    copy.addEventListener('click', async () => {
+      const text = demo.querySelector('pre code')?.textContent ?? '';
+      const feedback = demo.querySelector<HTMLElement>('[data-copy-status]')!;
+      try {
+        await navigator.clipboard.writeText(text);
+        feedback.textContent = '已复制';
+      } catch {
+        feedback.textContent = '复制失败，请展开源码手动选择复制。';
+        demo.querySelector<HTMLDetailsElement>('details')!.open = true;
+      }
+    });
+  });
+</script>

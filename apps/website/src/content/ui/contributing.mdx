@@ -1,0 +1,59 @@
+<h2 id="boundaries">组件边界</h2>
+
+共享实现放在 `packages/ui/src/components`，通过 `@alune/ui` 导出。CSS 使用共享 token，不依赖应用状态、路由、API 或 Electron。RemoveRepositoryConfirm 等业务文案包装仍在应用，Diff / 代码阅读器 / 仓库页面继续作为业务页面维护。
+
+`@alune/ui/internal` 是应用兼容和测试使用的上下文入口。新增组件优先使用公开 Provider/hook，不新增直接操作内部上下文的推荐用法。
+
+<h2 id="steps">贡献流程</h2>
+
+1. 确认适用范围，在 `packages/ui/src/components` 新增唯一实现与明确 Props 类型。
+2. 更新 `packages/ui/src/index.ts`，正确区分运行导出与 type 导出，保留原类型与泛型。
+3. 使用 `src/styles` 的语义 token，维护深浅主题、焦点和减少动效。
+4. 在 `apps/website/src/examples` 新增真实 TSX 文件，仅使用模拟数据与本地回调。
+5. 更新 `examples/registry.ts` 与 `data/ui.ts`：唯一 slug、分类、中文用途、英文 API、关键词、实际源码路径与示例 ID。
+6. 执行 API 生成，补齐使用限制、状态与无障碍说明；为新的关键行为增加必要回归测试。
+7. 运行下面检查，验证深层路径、390px、键盘、浮层与源码复制，然后在 PR 中记录证据。
+
+<h2 id="templates">示例与文档模板</h2>
+
+```tsx
+import { Button } from '@alune/ui';
+
+export default function Example() {
+  return <Button aria-label="示例按钮">示例按钮</Button>;
+}
+```
+
+示例由预览宿主组合 AluneUIProvider 与样式。Provider 本身的演示由示例文件单独拥有 Provider，避免叠加状态源。
+
+```ts
+// data/ui.ts 中的 UIDocument 注册项示意
+const document = {
+  slug: 'example-button',
+  title: 'Button',
+  subtitle: '示例按钮',
+  description: '说明实际适用场景。',
+  category: '基础组件',
+  keywords: ['Button', '按钮'],
+  exports: ['Button', 'ButtonProps'],
+  source: 'packages/ui/src/index.ts',
+  examples: ['button'],
+};
+```
+
+注册表的 `exports` 同时覆盖能力与类型，新增导出缺少文档会被覆盖检查发现。静态路径为 `/Alune/ui/<slug>/`，预览为 `/Alune/ui/preview/<id>/`。运行源码与复制源码只有一个文件来源，不能手工维护第二份代码。
+
+<h2 id="checks">持续验收</h2>
+
+```sh
+node apps/website/scripts/ui-api.mjs
+npm run ui:check
+npm test -w web
+npm run build -w web
+npm run website:check
+npm run desktop:build
+```
+
+CI 使用相同检查，UI 改动也触发官网工作流。React / Ant Design 运行时依赖由宿主声明，新增资源或运行时依赖时同步 package.json、锁文件和许可。
+
+Material Icon Theme 图标采用 MIT；Geist 字体采用 SIL Open Font License，许可随 npm 包保留。详细设计与验收截图维护在 GitHub Wiki，实时任务状态在 Issue，使用文档与示例随代码维护。PR 引用 Wiki 修订并区分已通过、失败与未验证项。

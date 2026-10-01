@@ -1,0 +1,72 @@
+---
+import tokens from '../../../../../packages/ui/src/styles/tokens.css?raw';
+const darkRule = /:root\[data-theme='dark'\]\s*\{([\s\S]*?)\}/.exec(tokens)!;
+const parse = (text: string) =>
+  Object.fromEntries(
+    [...text.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((match) => [match[1], match[2].trim()]),
+  );
+const light = parse(tokens.slice(0, darkRule.index));
+const dark = { ...light, ...parse(darkRule[1]) };
+const keys = [
+  'content',
+  'surface',
+  'text',
+  'text-muted',
+  'blue',
+  'green',
+  'orange',
+  'red',
+  'cyan',
+  'purple',
+  'radius-control',
+  'radius-panel',
+  'space-control-gap',
+  'r-shell',
+  'r-core',
+  'r-card',
+  'r-field',
+  'r-chip',
+  'shadow-sm',
+  'shadow-md',
+  'motion-hover',
+  'motion-select',
+  'motion-result',
+  'motion-panel',
+  'motion-wait',
+  't-enter',
+  't-exit',
+];
+---
+
+<div class="api-scroll" tabindex="0" aria-label="主题变量表格，可横向滚动">
+  <table>
+    <thead>
+      <tr>
+        <th>CSS Token</th>
+        <th>浅色</th>
+        <th>深色</th>
+      </tr>
+    </thead>
+    <tbody>
+      {keys.map((key) => (
+        <tr>
+          <td>
+            <code>--{key}</code>
+          </td>
+          <td>
+            {light[key].startsWith('#') && (
+              <span class="token-swatch" style={`background:${light[key]}`} aria-hidden="true" />
+            )}
+            <code>{light[key]}</code>
+          </td>
+          <td>
+            {dark[key].startsWith('#') && (
+              <span class="token-swatch" style={`background:${dark[key]}`} aria-hidden="true" />
+            )}
+            <code>{dark[key]}</code>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

@@ -1,12 +1,12 @@
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from 'antd';
+import { Button } from '@alune/ui';
 import type { DiscardChangesPreview, DiscardChangesResult } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { AluneModal, CheckCard, DialogHints, Kbd } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
-import type { LedgerItem } from './DialogParts';
+import { AluneModal, CheckCard, DialogHints, Kbd } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import type { LedgerItem } from '@alune/ui';
 import {
   DialogCard,
   DialogEmpty,
@@ -16,7 +16,7 @@ import {
   DialogStat,
   DialogStats,
   RepoRow,
-} from './DialogParts';
+} from '@alune/ui';
 
 interface Props {
   repoId: string;

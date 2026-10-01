@@ -18,7 +18,11 @@
       "dependsOn": ["^build"]
     },
     "website#build": {
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "dependsOn": ["^build"]
+    },
+    "@alune/ui#build": {
+      "outputs": []
     }
   }
 }

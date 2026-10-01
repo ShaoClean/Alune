@@ -1,7 +1,7 @@
 import { LOCAL_GROUP_ID, repositoryGroupId } from '../stores/repositorySource';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Dropdown, Input } from 'antd';
+import { Dropdown, Input } from '@alune/ui';
 import type { InputRef, MenuProps } from 'antd';
 import {
   CheckOutlined,

@@ -23,6 +23,8 @@ jobs:
         include:
           - workspace: desktop
             command: npm run desktop:test:unit
+          - workspace: ui
+            command: npm run ui:check
           - workspace: web
             command: npm test -w web
           - workspace: server

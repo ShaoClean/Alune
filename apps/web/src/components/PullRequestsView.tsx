@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Empty, Input, Select, Spin, Tag } from 'antd';
-import { FeedbackNotice } from './Feedback';
+import { Button, Empty, Input, Select, Spin, Tag } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
 import { ExportOutlined, PullRequestOutlined, ReloadOutlined } from '@ant-design/icons';
 import type {
   PullRequestFilter,
@@ -12,7 +12,7 @@ import type {
 } from '@alune/shared';
 import { repositoryApi } from '../api';
 import { errorMessage } from './files-tree';
-import { ErrorState, PanelHeader } from './ui';
+import { ErrorState, PanelHeader } from '@alune/ui';
 import { useAccessTokensStore } from '../stores/accessTokensStore';
 import { PullRequestDetails } from './PullRequestDetails';
 

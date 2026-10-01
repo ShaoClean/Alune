@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Input } from 'antd';
+import { Button, Input } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
 import { repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { AluneModal, DialogHints, Kbd } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
+import { AluneModal, DialogHints, Kbd } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
 import {
   DialogCard,
   DialogNote,
@@ -12,7 +12,7 @@ import {
   DialogStat,
   DialogStats,
   RepoRow,
-} from './DialogParts';
+} from '@alune/ui';
 
 type Inspection = Awaited<ReturnType<typeof repositoryApi.inspectLocal>>;
 

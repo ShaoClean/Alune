@@ -1,0 +1,230 @@
+---
+import { Code } from 'astro:components';
+import UIDocLayout from '../../layouts/UIDocLayout.astro';
+import Demo from '../../components/ui/Demo.astro';
+import ApiTable from '../../components/ui/ApiTable.astro';
+import { documents, uiPath } from '../../data/ui';
+import api from '../../data/ui-api.json';
+import definitions from '../../data/ui-types.json';
+import exportSources from '../../data/ui-exports.json';
+import type { MDXInstance } from 'astro';
+export function getStaticPaths() {
+  return documents.map((doc) => ({ params: { slug: doc.slug }, props: { doc } }));
+}
+const { doc } = Astro.props;
+const guideLoaders = import.meta.glob<MDXInstance<Record<string, unknown>>>(
+  '../../content/ui/*.mdx',
+);
+const guide = doc.guide ? await guideLoaders[`../../content/ui/${doc.guide}.mdx`]() : null;
+const Content = guide?.Content;
+const guideToc: Record<string, { id: string; title: string }[]> = {
+  'getting-started': [
+    { id: 'setup', title: '初始化' },
+    { id: 'connect', title: '最小接入' },
+    { id: 'run', title: '开发与检查' },
+  ],
+  design: [
+    { id: 'tokens', title: '主题变量' },
+    { id: 'materials', title: '字体与材质' },
+    { id: 'motion', title: '动态效果' },
+  ],
+  interaction: [
+    { id: 'states', title: '交互状态' },
+    { id: 'dialogs', title: '风险与确认' },
+    { id: 'a11y', title: '键盘与无障碍' },
+    { id: 'feedback', title: '反馈策略' },
+  ],
+  compositions: [{ id: 'examples', title: '真实组合示例' }],
+  contributing: [
+    { id: 'boundaries', title: '组件边界' },
+    { id: 'steps', title: '贡献流程' },
+    { id: 'templates', title: '示例与文档模板' },
+    { id: 'checks', title: '持续验收' },
+  ],
+  migration: [
+    { id: 'imports', title: '路径映射' },
+    { id: 'provider', title: 'Provider 与样式' },
+    { id: 'retained', title: '业务边界' },
+  ],
+};
+const toc = doc.guide
+  ? guideToc[doc.guide]
+  : [
+      { id: 'usage', title: '使用方式' },
+      { id: 'examples', title: '运行示例' },
+      { id: 'api', title: 'API' },
+      ...doc.exports
+        .filter((name) => !name.endsWith('Props'))
+        .map((name) => ({ id: name, title: name })),
+      { id: 'accessibility', title: '交互与限制' },
+    ];
+const sourceOf = (name: string) =>
+  (exportSources as Record<string, { source: string }>)[name]?.source ?? doc.source;
+const customApi = api as Record<string, unknown>;
+const types = definitions as Record<string, string>;
+const special: Record<string, string> = {
+  AluneUIProvider:
+    '同一文档使用一个根 Provider。宿主解析系统主题与减少动态效果，并在业务布局样式前导入 styles.css；iframe 各自拥有独立 Provider。',
+  AluneModal:
+    'open 由宿主控制。onOk 返回 Promise 时锁定重复提交，拒绝后恢复操作并保留正文；提交成功后的关闭由宿主完成。L0 优先聚焦字段，L1 聚焦确认，L2 聚焦取消。',
+  AlunePopconfirm:
+    '触发元素必须是单个 ReactElement。safe / warning / danger 分别表达局部可恢复移除、提醒与危险操作。批量、较大范围或不可撤销操作使用 L2 弹窗。',
+  AluneConfirmProvider:
+    'AluneUIProvider 已组合这个 Provider。只有自行组合底层上下文的宿主才需要单独使用，避免重复确认承载。',
+  useAluneConfirm:
+    '返回 (options: AluneConfirmOptions) => Promise<boolean>。确认成功为 true，取消为 false；异步 onOk 拒绝时继续停留。需要位于共享 Provider 内。',
+  FeedbackProvider:
+    'AluneUIProvider 已组合一个反馈状态源和中心，不需要再次嵌套。弹窗内失败属于原表单，队列、去重和卸载清理沿用已合入行为。',
+  FeedbackNotice:
+    'source、scope、context 组成身份，eventKey 或内容修订决定是否重新提示。title 清空与 resetOnClear 控制再次提示；在有效作用域内发布，卸载时释放当前来源租约。',
+  FeedbackScope:
+    'active 与父作用域共同决定是否有效。切换到失效作用域会释放来源，不执行过期回调；id 应稳定且能区分不同宿主内容。',
+  FeedbackAlert:
+    '兼容富 React 内容，使用 feedbackText 建立稳定文本身份。当前通过反馈中心展示，组件自身不绘制内联 Alert。',
+  useFeedbackMessage:
+    '返回 error / warning / info / success 四个方法，接收 title: string。方法由当前作用域拥有，StrictMode 或卸载后不留下过期动作。不要用于高频操作的常规成功提示。',
+  feedbackText:
+    '将 ReactNode 中的文字与数字递归归一为字符串，忽略无文字的节点，用于稳定身份；不序列化 React 内部对象。',
+  createFeedbackStore:
+    '返回 Zustand vanilla store。getState() 读取状态，subscribe(listener) 订阅。下表列出状态与方法；应用优先使用 Provider/hook，避免另建第二个全局队列。',
+  PanelToggle:
+    'controls 必须指向真实 DOM 元素，expanded 是受控值。组件提供 aria-keyshortcuts 说明；宿主负责实际快捷键注册与面板显隐。不可用时保留焦点用于说明原因。',
+  CommandButton:
+    'label 提供可访问名称与 Tooltip，children 放入图标。不要仅用色彩或图形表达操作语义。',
+  ErrorState:
+    '默认发布反馈并显示空状态；嵌入独立状态演示时可传 announce=false。onRetry 由宿主重新加载数据，组件不调用业务 API。',
+  FileIcon:
+    '只根据 path 的文件名和扩展名选择 Material Icon Theme 静态资源，不读取文件。图标为装饰内容，文件名由宿主文本表达。',
+  FolderIcon:
+    'variant 支持 folder / repository / link。open 仅影响普通文件夹；图标为装饰内容，配套文本由宿主提供。',
+  DialogIcon:
+    'name 来自 DialogIconName，其他 SVGProps 原样传入。装饰图标使用 aria-hidden；独立操作要给按钮添加名称。',
+  DialogNote:
+    '不传 role 时是确认前的静态后果说明；role=alert/status 时进入反馈。icon 与 quiet 是旧兼容属性，当前不改变静态说明外观。',
+  DialogProgress:
+    'value 是 0～1 的有限比例，并被限制在这个范围；不传或传入非有限数时显示持续等待。label 为辅助进度文字。',
+  OptionCards:
+    '受控单选卡片，保持 options 的 value 类型与 onChange 一致。方向键跳过禁用选项；组 label 必须说明选择的用途。',
+  CheckCard:
+    '受控勾选卡片，onChange 接收 boolean。title 描述需要核对的内容；真正的提交门槛由宿主或 AluneModal acknowledge 管理。',
+};
+const imported = doc.exports.filter(
+  (name) => !(exportSources as Record<string, { type: boolean }>)[name]?.type,
+);
+---
+
+<UIDocLayout doc={doc} toc={toc}>
+  <p class="ui-eyebrow">{doc.category}</p>
+  <h1>{doc.title}</h1>
+  <p class="ui-lead">{doc.description}</p>
+  {Content ? (
+    <Content />
+  ) : (
+    <>
+      <h2 id="usage">使用方式</h2>
+      <p>
+        {special[doc.title] ??
+          `${doc.subtitle}由宿主传入状态和回调，适合在不同应用和文档中复用。先完成快速开始中的 Provider 与样式配置。`}
+      </p>
+      <Code
+        code={`import { ${imported.join(', ')} } from '@alune/ui';`}
+        lang="tsx"
+        themes={{ light: 'github-light', dark: 'github-dark' }}
+      />
+      <p>
+        接入要求见<a href={uiPath('getting-started')}>快速开始</a>，选择依据见
+        <a href={uiPath('interaction')}>交互与无障碍规范</a>。
+      </p>
+    </>
+  )}
+  {doc.examples.length > 0 && (
+    <>
+      <h2 id="examples">运行示例</h2>
+      <p>
+        运行与复制源码来自同一 TSX 文件。浮层、状态和主题独立于文档；所有回调只更新本地模拟数据。
+      </p>
+      {doc.examples.map((id) => (
+        <Demo id={id} />
+      ))}
+    </>
+  )}
+  {!doc.guide && (
+    <>
+      <h2 id="api">API</h2>
+      {doc.antd ? (
+        <>
+          <p>
+            直接转导出 Ant Design 的 {doc.title}，保留原始
+            Props、泛型、复合成员与回调语义。下表列出常用属性；类型取自当前安装版本，默认值沿用 Ant
+            Design 6。
+          </p>
+          <p>AluneUIProvider 统一主题与减少动效；宿主维护受控状态、校验和业务回调。</p>
+          <p>
+            <a href={`https://ant.design/components/${doc.antd}-cn/`}>
+              {doc.title} 完整 API 与默认值 ↗
+            </a>
+          </p>
+          {doc.exports.map((name) => (
+            <section>
+              <h3 id={name}>{name}</h3>
+              {customApi[name] && <ApiTable name={name} />}
+            </section>
+          ))}
+        </>
+      ) : (
+        doc.exports.map((name) => (
+          <section>
+            <h3 id={name}>{name}</h3>
+            {customApi[name] ? (
+              <ApiTable name={name} />
+            ) : types[name] ? (
+              <Code
+                code={types[name]}
+                lang="ts"
+                themes={{ light: 'github-light', dark: 'github-dark' }}
+              />
+            ) : (
+              <p>
+                {special[name] ??
+                  `${name} 是通用组合成员，具体属性见关联 Props 表，运行效果见上方示例。`}
+              </p>
+            )}
+            <p class="ui-member-source">
+              <a href={`https://github.com/ShaoClean/Alune/blob/development/${sourceOf(name)}`}>
+                查看 {name} 实现 ↗
+              </a>
+            </p>
+          </section>
+        ))
+      )}
+      {['toolbar-button', 'status-button'].includes(doc.slug) && (
+        <p>
+          同时支持原生 button 属性与事件，例如 disabled、onClick、children、aria-*。
+          <a href="https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/button">
+            原生按钮属性 ↗
+          </a>
+        </p>
+      )}
+      {doc.slug === 'alune-modal' && (
+        <p>
+          其余继承的 ModalProps（包括
+          open、okText、cancelText、confirmLoading、afterClose、okButtonProps
+          等）保持原行为。已重定义或排除的字段以本页 AluneModalProps 为准。
+          <a href="https://ant.design/components/modal-cn/#api">继承属性完整 API ↗</a>
+        </p>
+      )}
+      <h2 id="accessibility">交互与使用限制</h2>
+      <p>
+        为每个操作提供可访问名称，为输入关联
+        label；使用语义化组件和清晰焦点。不要只靠颜色传达状态，禁用与等待时避免重复执行。
+      </p>
+      <p>
+        {special[doc.title] ??
+          '宿主负责状态、业务操作、错误处理与真实内容。组件不读取业务 store、路由或 Electron。示例中的反馈和等待均为本地模拟。'}
+      </p>
+      <p>
+        键盘、焦点、风险确认与通知策略的完整约定见<a href={uiPath('interaction')}>交互规范</a>。
+      </p>
+    </>
+  )}
+</UIDocLayout>

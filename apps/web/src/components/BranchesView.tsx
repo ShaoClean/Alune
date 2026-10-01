@@ -1,6 +1,6 @@
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input } from 'antd';
+import { Button, Input } from '@alune/ui';
 import {
   EditOutlined,
   MergeCellsOutlined,
@@ -13,10 +13,10 @@ import {
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
 import { useBranchSwitch } from '../hooks/useBranchSwitch';
-import { ErrorState, EmptyState, PanelHeader, StatusBadge } from './ui';
-import { AluneModal } from './AluneModal';
-import { AlunePopconfirm } from './AlunePopconfirm';
-import { DialogIcon } from './DialogIcons';
+import { ErrorState, EmptyState, PanelHeader, StatusBadge } from '@alune/ui';
+import { AluneModal } from '@alune/ui';
+import { AlunePopconfirm } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
 
 function useBranchDialogContext(repoId: string) {
   const branches = useRepositoryStore((state) => state.branches);

@@ -1,16 +1,17 @@
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Input } from 'antd';
+import { Button, Input } from '@alune/ui';
 import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
-import { AlunePopconfirm } from './AlunePopconfirm';
-import { AluneModal, CheckCard, DialogHints, Kbd } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
-import { DialogCard, DialogEmpty, DialogPath } from './DialogParts';
+import { AlunePopconfirm } from '@alune/ui';
+import { AluneModal, CheckCard, DialogHints, Kbd } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import { DialogCard, DialogEmpty, DialogPath } from '@alune/ui';
 import { getNumberedDiffLines } from './diff-lines';
 import type { NumberedDiffLine } from './diff-lines';
-import { ErrorState, EmptyState, formatRelativeDate, PanelHeader } from './ui';
+import { ErrorState, EmptyState, PanelHeader } from '@alune/ui';
+import { formatRelativeDate } from './ui';
 
 interface StashFile {
   path: string;

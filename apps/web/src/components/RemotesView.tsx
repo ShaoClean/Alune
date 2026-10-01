@@ -1,14 +1,14 @@
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { gitApi } from '../api';
 import { useEffect, useRef, useState } from 'react';
-import { Button, Empty, Input, Space, Typography } from 'antd';
+import { Button, Empty, Input, Space, Typography } from '@alune/ui';
 import type { InputRef } from 'antd';
 import { PlusOutlined, CopyOutlined, LinkOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useConnectionStore } from '../stores/connectionStore';
-import { AluneModal } from './AluneModal';
-import { DialogIcon } from './DialogIcons';
-import { ErrorState, PanelHeader } from './ui';
+import { AluneModal } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
+import { ErrorState, PanelHeader } from '@alune/ui';
 
 const URL_PREFIXES = [
   { label: 'GitHub SSH', value: 'git@github.com:' },

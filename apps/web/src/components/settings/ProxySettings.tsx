@@ -1,7 +1,7 @@
-import { FeedbackAlert } from '../FeedbackAlert';
-import { FeedbackNotice } from '../Feedback';
+import { FeedbackAlert } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { Button, Input, Switch, Tag, Select } from 'antd';
+import { Button, Input, Switch, Tag, Select } from '@alune/ui';
 import {
   ApiOutlined,
   CloudServerOutlined,
@@ -20,8 +20,8 @@ import type {
 } from '@alune/shared';
 import { proxyApi, proxyError } from '../../api/proxy';
 import { repositoryApi } from '../../api';
-import { AluneModal } from '../AluneModal';
-import { DialogCard, DialogNote } from '../DialogParts';
+import { AluneModal } from '@alune/ui';
+import { DialogCard, DialogNote } from '@alune/ui';
 
 const draftOf = (settings: NetworkProxyConfig): SaveNetworkProxy => ({
   revision: settings.revision,

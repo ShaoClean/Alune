@@ -1,7 +1,7 @@
-import { FeedbackAlert } from '../FeedbackAlert';
-import { FeedbackNotice } from '../Feedback';
+import { FeedbackAlert } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useState } from 'react';
-import { Button, Empty, Input, Spin } from 'antd';
+import { Button, Empty, Input, Spin } from '@alune/ui';
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { AccessToken } from '@alune/shared';
@@ -9,9 +9,9 @@ import { accessTokenApi } from '../../api';
 import { useAccessTokensStore } from '../../stores/accessTokensStore';
 import type { TokenReturnTarget } from '../../stores/accessTokensStore';
 import { errorMessage } from '../files-tree';
-import { AluneModal, DialogHints, Kbd } from '../AluneModal';
-import { DialogCard, DialogEmpty, DialogNote } from '../DialogParts';
-import { DialogIcon } from '../DialogIcons';
+import { AluneModal, DialogHints, Kbd } from '@alune/ui';
+import { DialogCard, DialogEmpty, DialogNote } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
 
 /** Host plus repository path, with the path emphasised; unparsable targets stay verbatim. */
 function AssociationTarget({ target }: { target: string }) {

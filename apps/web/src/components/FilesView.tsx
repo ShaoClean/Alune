@@ -1,9 +1,9 @@
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
-import { FeedbackAlert } from './FeedbackAlert';
-import { FeedbackNotice } from './Feedback';
+import { FeedbackAlert } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
-import { Spin } from 'antd';
+import { Spin } from '@alune/ui';
 import {
   ApiOutlined,
   CopyOutlined,
@@ -21,7 +21,7 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 import { FILES_STACKED_WIDTH, FILES_TREE_MAX, FILES_TREE_MIN } from '../stores/workspaceLayout';
 import { PanelResizeHandle } from './PanelResizeHandle';
 import { ImagePreview, formatBytes } from './ImageDiffView';
-import { CommandButton, FileIcon, FolderIcon } from './ui';
+import { CommandButton, FileIcon, FolderIcon } from '@alune/ui';
 import { fileLanguage } from './file-language';
 import type { FileLanguage } from './file-language';
 import { CodeView } from './CodeView';

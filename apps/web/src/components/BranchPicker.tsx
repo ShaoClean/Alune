@@ -1,6 +1,6 @@
-import { useFeedbackMessage } from './useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Input, Popover } from 'antd';
+import { Input, Popover } from '@alune/ui';
 import {
   BranchesOutlined,
   CheckOutlined,
@@ -12,7 +12,7 @@ import {
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useBranchSwitch } from '../hooks/useBranchSwitch';
-import { ToolbarButton } from './ToolbarButton';
+import { ToolbarButton } from '@alune/ui';
 import { NewBranchDialog } from './BranchesView';
 
 // The pill is a context selector, so clicking it opens the switch list instead of

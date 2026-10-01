@@ -1,7 +1,7 @@
-import { FeedbackAlert } from '../FeedbackAlert';
-import { FeedbackNotice } from '../Feedback';
+import { FeedbackAlert } from '@alune/ui';
+import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
-import { Button, Input, Switch, Tag, Select } from 'antd';
+import { Button, Input, Switch, Tag, Select } from '@alune/ui';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -16,9 +16,9 @@ import {
 import type { AiModel, AiProvider, AiSettings, SaveAiProvider } from '@alune/shared';
 import { aiApi, aiError } from '../../api/ai';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
-import { AluneModal } from '../AluneModal';
-import { DialogNote } from '../DialogParts';
-import { DialogIcon } from '../DialogIcons';
+import { AluneModal } from '@alune/ui';
+import { DialogNote } from '@alune/ui';
+import { DialogIcon } from '@alune/ui';
 
 const initialProvider = (): SaveAiProvider => ({
   name: '',

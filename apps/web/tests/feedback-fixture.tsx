@@ -1,14 +1,15 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App, Button, ConfigProvider, Input, theme as antTheme } from 'antd';
+import { AluneUIProvider, Button, Input } from '@alune/ui';
 import { useAppearance } from '../src/appearance';
-import { FeedbackProvider, FeedbackNotice, FeedbackScope } from '../src/components/Feedback';
+import { FeedbackNotice, FeedbackScope } from '../src/components/Feedback';
 import { FeedbackAlert } from '../src/components/FeedbackAlert';
 import { AluneModal } from '../src/components/AluneModal';
 import { DialogNote } from '../src/components/DialogParts';
 import { ReviewActionBar } from '../src/components/PullRequestActions';
 import { FilePreviewPane } from '../src/components/FilesView';
 import { useFeedbackMessage } from '../src/components/useFeedbackMessage';
+import '@alune/ui/styles.css';
 import '../src/index.css';
 import '../src/theme.css';
 import '../src/dialogs.css';
@@ -196,17 +197,11 @@ function Fixture() {
   );
 }
 function FixtureApp() {
-  const theme = useAppearance((state) => state.theme);
+  const { theme, reduceMotion } = useAppearance();
   return (
-    <ConfigProvider
-      theme={{ algorithm: theme === 'dark' ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm }}
-    >
-      <App>
-        <FeedbackProvider>
-          <Fixture />
-        </FeedbackProvider>
-      </App>
-    </ConfigProvider>
+    <AluneUIProvider theme={theme} reduceMotion={reduceMotion}>
+      <Fixture />
+    </AluneUIProvider>
   );
 }
 createRoot(document.getElementById('root')!).render(

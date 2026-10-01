@@ -1,0 +1,23 @@
+import TokenTable from '../../components/ui/TokenTable.astro';
+
+<h2 id="tokens">主题变量</h2>
+
+月光主题使用蓝色表达主操作，以青色、绿色、橙色、红色和紫色表达不同语义。文字、焦点与控件边界同时提供足够对比度；状态仍需要文字说明。
+
+下表直接读取 `packages/ui/src/styles/tokens.css`，展示实际浅色与深色值。宿主通过 Provider 切换 `data-theme`；浮层在同一文档中使用相同变量。
+
+<TokenTable />
+
+<h2 id="materials">字体与材质</h2>
+
+正文使用 Geist 与中文系统字体回退，路径、快捷键、代码使用 Geist Mono。字体由宿主加载，组件包没有外部字体网络请求。常规控件保留现有紧凑节奏，控件间距为 `--space-control-gap`；业务面板宽度由各宿主定义。
+
+弹窗采用同心圆角：外壳 `--r-shell`、内层 `--r-core`，边距 `--shell-pad` 为 6px；卡片和输入使用对应半径。阴影、玻璃材质与风险色来自同一套 token，避免在新组件中硬编码第二套主题。
+
+Ant Design Button、Input、Select、Tag 和 Segmented 的配置由 Provider 提供，其他基础组件沿用主题 token。共享样式负责控件外观，工作区尺寸与业务布局由应用 CSS 负责。
+
+<h2 id="motion">动态效果</h2>
+
+悬停、选择、反馈、面板和等待分别使用表中的 `--motion-*` 时长；弹窗进入、退出使用 `--t-enter` / `--t-exit`。以 transform 与 opacity 表达层级和反馈，阅读内容保持稳定。
+
+宿主传入 `reduceMotion`，并考虑系统 `prefers-reduced-motion`。共享 CSS 将可感知动画缩短到 0.01ms、过渡置零，保留浮层库需要的完成事件。焦点应立即清晰显示，不因等待动效而推迟。

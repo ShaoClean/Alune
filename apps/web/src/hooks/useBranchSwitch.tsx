@@ -1,11 +1,12 @@
-import { useFeedbackMessage } from '../components/useFeedbackMessage';
+import { useFeedbackMessage } from '@alune/ui';
 import { useContext, useEffect, useRef, useState } from 'react';
-import { Input } from 'antd';
+import { Input } from '@alune/ui';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
-import { AluneConfirmControl, DialogHints, Kbd, useAluneConfirm } from '../components/AluneModal';
-import { DialogIcon } from '../components/DialogIcons';
-import { OptionCards } from '../components/DialogParts';
+import { DialogHints, Kbd, useAluneConfirm } from '@alune/ui';
+import { AluneConfirmControl } from '@alune/ui/internal';
+import { DialogIcon } from '@alune/ui';
+import { OptionCards } from '@alune/ui';
 
 interface BranchConflictChoice {
   existing: boolean;

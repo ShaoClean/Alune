@@ -1,4 +1,4 @@
-import { FeedbackAlert } from './FeedbackAlert';
+import { FeedbackAlert } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/shared';
 import { repositoryApi } from '../api';

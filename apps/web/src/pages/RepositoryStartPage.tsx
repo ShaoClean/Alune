@@ -1,4 +1,4 @@
-import { Button, Result, Spin } from 'antd';
+import { Button, Result, Spin } from '@alune/ui';
 import { Navigate } from 'react-router-dom';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';

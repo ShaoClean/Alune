@@ -1,7 +1,7 @@
 import { repositorySourceLabel } from '../stores/repositorySource';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
-import { Dropdown, Tooltip } from 'antd';
+import { Dropdown, Tooltip } from '@alune/ui';
 import type { MenuProps } from 'antd';
 import { CloseOutlined, FolderOpenOutlined, PlusOutlined } from '@ant-design/icons';
 import { horizontalPlacement, moveBeforeOrAfter } from '../stores/sidebarOrder';
