@@ -29,6 +29,7 @@ export const discardResultMessage = (result: DiscardChangesResult) =>
 
 export function DiscardChangesDialog({ repoId, onClose }: Props) {
   const { message } = App.useApp();
+  const [open, setOpen] = useState(true);
   const [preview, setPreview] = useState<DiscardChangesPreview | null>(null);
   const [checking, setChecking] = useState(true);
   const [discarding, setDiscarding] = useState(false);
@@ -101,14 +102,14 @@ export function DiscardChangesDialog({ repoId, onClose }: Props) {
       await refresh();
       if (revision.current === current) {
         setDiscarding(false);
-        if (succeeded) onClose();
+        if (succeeded) setOpen(false);
       }
       pending.current = false;
     }
   };
 
   const close = () => {
-    if (!pending.current) onClose();
+    if (!pending.current) setOpen(false);
   };
   const ready = Boolean(preview && preview.tracked + preview.untracked > 0);
   const skipped = preview?.skipped?.length ?? 0;
@@ -133,7 +134,8 @@ export function DiscardChangesDialog({ repoId, onClose }: Props) {
 
   return (
     <AluneModal
-      open
+      open={open}
+      afterClose={onClose}
       level={2}
       glyph="undo"
       eyebrow={{ label: '工作区', detail: preview?.repositoryName }}

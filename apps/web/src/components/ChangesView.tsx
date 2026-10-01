@@ -109,6 +109,7 @@ export function ChangesView({
   const [loading, setLoading] = useState(false);
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const [discardAllOpen, setDiscardAllOpen] = useState(false);
+  const discardAllTrigger = useRef<HTMLButtonElement>(null);
   const [directoryFile, setDirectoryFile] = useState<FileStatus | null>(null);
   const [stagePlan, setStagePlan] = useState<{
     actionable: FileStatus[];
@@ -483,6 +484,7 @@ export function ChangesView({
                 danger
                 icon={<UndoOutlined />}
                 aria-label="放弃所有更改"
+                ref={discardAllTrigger}
                 disabled={busy}
                 onClick={() => setDiscardAllOpen(true)}
               >
@@ -634,7 +636,10 @@ export function ChangesView({
         <DiscardChangesDialog
           key={repoId}
           repoId={repoId}
-          onClose={() => setDiscardAllOpen(false)}
+          onClose={() => {
+            setDiscardAllOpen(false);
+            requestAnimationFrame(() => discardAllTrigger.current?.focus({ preventScroll: true }));
+          }}
         />
       )}
       {deletePath !== null && (

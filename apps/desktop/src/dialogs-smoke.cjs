@@ -47,6 +47,7 @@ module.exports = async ({ window }) => {
   const close = async () => {
     await press('Escape');
     await wait(gone);
+    await wait("document.activeElement?.getAttribute('aria-label') === '放弃所有更改'");
     assert.equal(
       await execute("document.activeElement.getAttribute('aria-label')"),
       '放弃所有更改',

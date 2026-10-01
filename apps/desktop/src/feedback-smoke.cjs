@@ -160,11 +160,15 @@ module.exports = async ({ window, git, repo }) => {
     git('config', 'user.name', originalAuthor);
     await click('[aria-label="刷新仓库"]');
     window.setSize(390, 760);
+    await wait('innerWidth <= 400');
     await wait(
       "document.querySelector('[aria-label=拉取]').getAttribute('aria-disabled') !== 'true'",
     );
     await click('[aria-label="拉取"]');
     await wait("document.querySelector('.feedback-dialog[open]')");
+    await wait(
+      "(() => {const r = document.querySelector('.feedback-dialog').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;})()",
+    );
     assert.equal(
       await execute(
         "(() => {const r = document.querySelector('.feedback-dialog').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;})()",

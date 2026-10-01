@@ -482,7 +482,7 @@
 }
 .a-dlg .ant-modal .ant-modal-close {
   grid-area: 1 / 2;
-  position: static;
+  position: relative;
   margin: 16px 14px 0 0;
 }
 .a-dlg .ant-modal .ant-modal-close::before,
