@@ -116,6 +116,10 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
       );
       await wait(`document.querySelector('.provider-list')?.getClientRects().length > 0`);
       await execute(`Array.from(document.querySelectorAll('.settings-back')).find(button => button.getClientRects().length && !button.closest('[inert]')).click()`);
+      // The next smoke step opens settings again; wait for this return to finish.
+      await wait(
+        "!location.pathname.startsWith('/settings') && document.querySelector('.app-main > .app-content:not([hidden])')?.getClientRects().length > 0",
+      );
       console.log(
         'Desktop narrow settings passed: 390 px provider list/detail, masked key and return to workspace.',
       );

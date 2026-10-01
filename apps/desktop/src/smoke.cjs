@@ -185,7 +185,7 @@ async function openUpdateSettings(window) {
   if (current !== '/settings/updates') {
     const collapsed = await window.webContents.executeJavaScript("document.querySelector('.app-shell--collapsed') !== null");
     await window.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))`);
-    await waitForUI(window, `document.querySelector('.settings-category-nav')`);
+    await waitForUI(window, `Array.from(document.querySelectorAll('.settings-category-nav button')).some(button => button.textContent === '版本更新')`);
     await window.webContents.executeJavaScript(`document.querySelector('.app-tabbar [aria-label="显示设置分类"]')?.click()`);
     await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.settings-category-nav button')).find(button => button.textContent === '版本更新').click()`);
     if (collapsed) await window.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true }))`);
