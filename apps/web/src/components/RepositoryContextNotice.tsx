@@ -1,5 +1,6 @@
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useEffect, useState } from 'react';
-import { App, Input } from 'antd';
+import { Input } from 'antd';
 import { FeedbackNotice } from './Feedback';
 import type { RepositoryContext } from '@alune/shared';
 import { gitApi, repositoryApi } from '../api';
@@ -21,7 +22,7 @@ export function RepositoryContextNotice({
   onRemotes: () => void;
   onRefresh: () => void;
 }) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const [context, setContext] = useState<RepositoryContext | null>(null);
   const [error, setError] = useState('');
   const [authorError, setAuthorError] = useState('');

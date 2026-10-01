@@ -35,7 +35,6 @@
 .settings-main button:focus-visible,
 .commit-ai-bar__model:focus-visible,
 .commit-ai-generate:focus-visible,
-.commit-ai-feedback button:focus-visible,
 .commit-ai-undo:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 3px;
@@ -417,16 +416,6 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.commit-ai-feedback {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.6;
-}
-.commit-ai-feedback button,
 .commit-ai-undo {
   background: transparent;
   border: 0;
@@ -435,9 +424,6 @@
   color: var(--blue);
   font-size: 11px;
   flex-shrink: 0;
-}
-.commit-ai-feedback--error {
-  color: var(--red);
 }
 .commit-ai-undo {
   align-self: flex-start;
@@ -735,18 +721,6 @@
 .proxy-panel .proxy-test-target {
   margin-top: 24px;
 }
-.proxy-test-result {
-  font-size: 12px;
-  line-height: 1.6;
-  margin-top: 10px;
-  overflow-wrap: anywhere;
-}
-.proxy-test-result.is-success {
-  color: var(--green);
-}
-.proxy-test-result.is-error {
-  color: var(--red, #cf3c46);
-}
 .proxy-server {
   display: flex;
   flex-direction: column;
@@ -805,10 +779,6 @@
   .proxy-panel {
     padding: 16px;
   }
-}
-
-.settings-notice {
-  margin: 18px 0;
 }
 
 @container settings (width < 400px) {

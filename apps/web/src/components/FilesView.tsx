@@ -1,4 +1,5 @@
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
+import { FeedbackAlert } from './FeedbackAlert';
 import { FeedbackNotice } from './Feedback';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
@@ -631,51 +632,63 @@ function TreeNotice({
   if (row.notice === 'truncated') {
     const total = state?.listing?.total ?? 0;
     return (
-      <div className="files-tree__notice files-tree__notice--warning" role="none" style={style}>
-        仅显示前 {REPOSITORY_TREE_MAX_ENTRIES.toLocaleString()} 项，共 {total.toLocaleString()} 项。
-      </div>
+      <FeedbackNotice
+        source="directory-limit"
+        context={row.directory}
+        type="warning"
+        title={`仅显示前 ${REPOSITORY_TREE_MAX_ENTRIES.toLocaleString()} 项，共 ${total.toLocaleString()} 项。`}
+      />
     );
   }
   const message = state?.phase === 'error' ? state.message : '无法读取目录';
   return (
-    <div className="files-tree__notice files-tree__notice--error" role="none" style={style}>
-      <span>{message}</span>
-      <button type="button" className="text-button" tabIndex={-1} onClick={onRetry}>
-        重试
-      </button>
-    </div>
+    <FeedbackNotice
+      source="directory-error"
+      context={row.directory}
+      type="error"
+      title={message}
+      actionLabel="重试"
+      onAction={onRetry}
+    />
   );
 }
 
 function FilesNotice({
-  icon,
+  empty = false,
+  context,
   title,
   children,
   tone = 'info',
   action,
 }: {
   icon: ReactNode;
+  empty?: boolean;
+  context?: string;
   title: string;
   children?: ReactNode;
   tone?: 'info' | 'warning' | 'error';
   action?: { label: string; onClick: () => void };
 }) {
-  return (
-    <div
-      className={`files-notice files-notice--${tone}`}
-      role={tone === 'error' ? 'alert' : 'status'}
-    >
-      <div className="files-notice__icon" aria-hidden="true">
-        {icon}
-      </div>
+  return empty ? (
+    <div className="empty-state">
       <h3>{title}</h3>
-      {children && <p>{children}</p>}
-      {action && (
-        <button type="button" className="text-button" onClick={action.onClick}>
-          {action.label}
-        </button>
-      )}
+      <p>{children}</p>
     </div>
+  ) : (
+    <FeedbackAlert
+      context={context}
+      source="file-preview"
+      type={tone}
+      title={title}
+      description={children}
+      action={
+        action && (
+          <button type="button" className="text-button" onClick={action.onClick}>
+            {action.label}
+          </button>
+        )
+      }
+    />
   );
 }
 
@@ -703,7 +716,7 @@ export function FilePreviewPane({
   if (!entry)
     return (
       <div className="files-view__preview">
-        <FilesNotice icon={<FileSearchOutlined />} title="选择文件以预览">
+        <FilesNotice empty icon={<FileSearchOutlined />} title="选择文件以预览">
           在左侧目录树中选择文件以预览内容。右键文件可重命名、删除或复制路径。
         </FilesNotice>
       </div>
@@ -809,13 +822,13 @@ function PreviewBody({
 }) {
   if (entry.kind === 'submodule')
     return (
-      <FilesNotice icon={<ApiOutlined />} title="嵌套仓库或子模块">
+      <FilesNotice context={entry?.path} icon={<ApiOutlined />} title="嵌套仓库或子模块">
         此目录包含独立的 Git 仓库，文件浏览不会进入其中。如需查看，请将其作为仓库单独添加。
       </FilesNotice>
     );
   if (entry.kind === 'symlink' || preview?.kind === 'symlink')
     return (
-      <FilesNotice icon={<LinkOutlined />} title="符号链接">
+      <FilesNotice context={entry?.path} icon={<LinkOutlined />} title="符号链接">
         指向{' '}
         <code>{preview?.kind === 'symlink' ? preview.target : (entry.target ?? '未知目标')}</code>
         。为避免越出仓库，只读浏览不会跟随链接。
@@ -823,7 +836,7 @@ function PreviewBody({
     );
   if (entry.kind === 'other' || preview?.kind === 'other')
     return (
-      <FilesNotice icon={<FileExclamationOutlined />} title="特殊文件">
+      <FilesNotice context={entry?.path} icon={<FileExclamationOutlined />} title="特殊文件">
         这是管道、套接字或设备等特殊文件，不会读取其内容。
       </FilesNotice>
     );
@@ -850,7 +863,7 @@ function PreviewBody({
   switch (preview.kind) {
     case 'text':
       return preview.content === '' ? (
-        <FilesNotice icon={<FileSearchOutlined />} title="空文件">
+        <FilesNotice context={entry?.path} empty icon={<FileSearchOutlined />} title="空文件">
           此文件没有内容。
         </FilesNotice>
       ) : isMarkdownFile(entry.path) && markdownMode === 'preview' ? (
@@ -889,13 +902,18 @@ function PreviewBody({
       );
     case 'binary':
       return (
-        <FilesNotice icon={<FileExclamationOutlined />} title="二进制文件">
+        <FilesNotice context={entry?.path} icon={<FileExclamationOutlined />} title="二进制文件">
           此文件包含二进制内容（{formatBytes(preview.size)}），不提供文本预览。
         </FilesNotice>
       );
     case 'too-large':
       return (
-        <FilesNotice tone="warning" icon={<FileExclamationOutlined />} title="文件过大">
+        <FilesNotice
+          context={entry?.path}
+          tone="warning"
+          icon={<FileExclamationOutlined />}
+          title="文件过大"
+        >
           文件大小为 {formatBytes(preview.size)}，超过
           {preview.limit === DIFF_IMAGE_MAX_BYTES ? '图片' : '文本'}预览上限{' '}
           {formatBytes(preview.limit)}，因此不会读取内容。
@@ -903,7 +921,11 @@ function PreviewBody({
       );
     case 'unsupported-encoding':
       return (
-        <FilesNotice icon={<FileExclamationOutlined />} title="不支持的文本编码">
+        <FilesNotice
+          context={entry?.path}
+          icon={<FileExclamationOutlined />}
+          title="不支持的文本编码"
+        >
           仅预览 UTF-8 以及带 BOM 的 UTF-16 文本。此文件可能使用 GBK
           等其他编码，为避免乱码不作显示。
         </FilesNotice>

@@ -97,13 +97,13 @@ test('late rejected actions cannot resurrect a removed repository or alter its r
   );
 });
 
-test('manual explanations and background failures never enter the modal queue', () => {
+test('persistent explanations and background failures enter the same modal queue', () => {
   const store = createFeedbackStore().getState;
   store().publish(event('shallow', 'r1', { mode: 'manual' }));
   store().publish(event('poll', 'r1', { mode: 'notification' }));
   assert.equal(
-    store().entries.some((e) => e.queued),
-    false,
+    store().entries.every((e) => e.queued),
+    true,
   );
 });
 
@@ -114,14 +114,51 @@ test('a new failed attempt does not inherit the previous attempt busy lock', () 
   assert.equal(store().entries[0].busy, false);
 });
 
-test('an explicit retry promotes a new background failure, while a successful retry clears that intent', async () => {
+test('retry re-arms background failures; only a new revision reopens an acknowledged result', async () => {
   const store = createFeedbackStore().getState;
   store().publish(event('poll', 'r1', { mode: 'notification', onAction: () => {} }));
   await store().run('poll');
   store().publish(event('poll', 'r2', { mode: 'notification' }));
   assert.equal(store().entries[0].queued, true);
   store().acknowledge('poll');
-  store().settle('poll');
-  store().publish(event('poll', 'r3', { mode: 'notification' }));
+  store().publish(event('poll', 'r2', { mode: 'notification' }));
   assert.equal(store().entries[0].queued, false);
+  store().publish(event('poll', 'r3', { mode: 'notification' }));
+  assert.equal(store().entries[0].queued, true);
+});
+
+for (const type of ['error', 'warning', 'success', 'info']) {
+  test(`${type} shares acknowledgement, stable polling identity and ordered delivery`, () => {
+    const store = createFeedbackStore().getState;
+    store().publish(event('progress', 'started-at', { type, description: '1 秒' }));
+    store().acknowledge('progress');
+    store().publish(event('progress', 'started-at', { type, description: '20 秒' }));
+    assert.equal(store().entries[0].queued, false);
+    assert.equal(store().entries[0].description, '20 秒');
+    store().publish(event('progress', 'next-operation', { type }));
+    assert.equal(store().entries[0].queued, true);
+  });
+}
+
+test('moving an acknowledged form error to the page does not announce it again', () => {
+  const store = createFeedbackStore().getState;
+  store().publish(event('review', 'failure', { host: 'form' }));
+  store().acknowledge('review');
+  store().publish(event('review', 'failure'));
+  assert.equal(store().entries[0].queued, false);
+  assert.equal(store().entries[0].host, undefined);
+});
+
+test('a new event from an acknowledged source follows already queued events', () => {
+  const store = createFeedbackStore().getState;
+  store().publish(event('first'));
+  store().acknowledge('first');
+  store().publish(event('second'));
+  store().publish(event('first', 'new-attempt'));
+  assert.deepEqual(
+    store()
+      .entries.filter((entry) => entry.queued)
+      .map((entry) => entry.id),
+    ['second', 'first'],
+  );
 });

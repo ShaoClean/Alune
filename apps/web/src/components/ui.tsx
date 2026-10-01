@@ -1,5 +1,9 @@
+import { useContext } from 'react';
+import { FeedbackContext } from './feedback-context';
+import { ScopeContext } from './FeedbackNotice';
+import { FeedbackAlert } from './FeedbackAlert';
 import type { ReactNode } from 'react';
-import { Alert, Empty, Spin, Tag, Tooltip, Typography } from 'antd';
+import { Empty, Spin, Tag, Tooltip, Typography } from 'antd';
 import typescriptIcon from 'material-icon-theme/icons/typescript.svg';
 import reactTypescriptIcon from 'material-icon-theme/icons/react_ts.svg';
 import javascriptIcon from 'material-icon-theme/icons/javascript.svg';
@@ -94,7 +98,9 @@ export function StatusBadge({
 }) {
   const normalized = status.toLowerCase().replace(/\s+/g, '-');
   return (
-    <span className={`status-badge status-badge--${normalized}${subtle ? ' status-badge--subtle' : ''}`}>
+    <span
+      className={`status-badge status-badge--${normalized}${subtle ? ' status-badge--subtle' : ''}`}
+    >
       <span className="status-badge__dot" />
       {label || status}
     </span>
@@ -205,20 +211,48 @@ export function ErrorState({
   title = '无法加载当前页面',
   description,
   onRetry,
+  announce = true,
 }: {
   title?: string;
   description?: string | null;
   onRetry?: () => void;
+  announce?: boolean;
 }) {
+  const store = useContext(FeedbackContext);
+  const scope = useContext(ScopeContext);
+  const source = `page-error:${title}`;
+  const retry = () => {
+    store?.getState().rearm(JSON.stringify([scope.id, source, undefined]));
+    onRetry?.();
+  };
   return (
-    <Alert
-      className="error-state"
-      type="error"
-      showIcon
-      message={title}
-      description={description || '请检查连接后重试。'}
-      action={onRetry ? <button className="text-button" type="button" onClick={onRetry}>重试</button> : undefined}
-    />
+    <>
+      {announce && (
+        <FeedbackAlert
+          source={source}
+          type="error"
+          title={title}
+          description={description || '请检查连接后重试。'}
+          action={
+            onRetry && (
+              <button className="text-button" type="button" onClick={retry}>
+                重试
+              </button>
+            )
+          }
+        />
+      )}
+      <EmptyState
+        title={title}
+        action={
+          onRetry && (
+            <button className="text-button" type="button" onClick={retry}>
+              重试
+            </button>
+          )
+        }
+      />
+    </>
   );
 }
 
@@ -240,6 +274,13 @@ export function formatBranchName(value?: string) {
 
 export function RefBadge({ value }: { value: string }) {
   const lower = value.toLowerCase();
-  const kind = value === 'HEAD' ? 'head' : lower.startsWith('tag:') ? 'tag' : lower.includes('origin/') || lower.includes('remote') ? 'remote' : 'branch';
+  const kind =
+    value === 'HEAD'
+      ? 'head'
+      : lower.startsWith('tag:')
+        ? 'tag'
+        : lower.includes('origin/') || lower.includes('remote')
+          ? 'remote'
+          : 'branch';
   return <Tag className={`ref-badge ref-badge--${kind}`}>{value.replace(/^tag:\s*/, '')}</Tag>;
 }

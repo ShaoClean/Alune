@@ -1,5 +1,6 @@
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Input, Popover, App } from 'antd';
+import { Input, Popover } from 'antd';
 import {
   BranchesOutlined,
   CheckOutlined,
@@ -31,7 +32,7 @@ export function BranchPicker({
   maxWidth?: number;
   onSwitched: () => void;
 }) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const branches = useRepositoryStore((state) => state.branches);
   const fetchBranches = useRepositoryStore((state) => state.fetchBranches);
   const [open, setOpen] = useState(false);

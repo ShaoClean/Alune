@@ -54,8 +54,7 @@
 .repository-card__metric > .anticon {
   flex-shrink: 0;
 }
-.connection-card__meta,
-.connection-card__error {
+.connection-card__meta {
   overflow-wrap: anywhere;
 }
 .collection-filter-bar {
@@ -146,8 +145,4 @@
 .collection-table .repository-card__actions,
 .collection-table .connection-card__actions {
   flex-wrap: nowrap;
-}
-.collection-table .connection-card__error {
-  margin-top: 5px;
-  line-height: 1.5;
 }

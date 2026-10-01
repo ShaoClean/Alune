@@ -1,3 +1,4 @@
+import { FeedbackAlert } from './FeedbackAlert';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useAppearance } from '../appearance';
@@ -88,19 +89,30 @@ export function CodeView({
   return (
     <>
       {showNotice && notice && (
-        <p className="files-preview__hint" role="status">
-          {notice}
-        </p>
+        <FeedbackAlert
+          source="code-appearance"
+          context={path}
+          type="warning"
+          title={<>{notice}</>}
+        />
       )}
       {language && !highlightable && (
-        <p className="files-preview__hint" role="status">
-          文件超过 {(HIGHLIGHT_MAX_CHARS / 1024).toFixed(1)} KB，已关闭语法高亮以保持流畅。
-        </p>
+        <FeedbackAlert
+          source="code-highlight-size"
+          context={path}
+          type="warning"
+          title={
+            <>文件超过 {(HIGHLIGHT_MAX_CHARS / 1024).toFixed(1)} KB，已关闭语法高亮以保持流畅。</>
+          }
+        />
       )}
       {highlightable && (failed || result.failed) && (
-        <p className="files-preview__hint" role="status">
-          语法高亮加载失败，暂以纯文本显示，仍可选择和复制内容。重新加载应用后可重试。
-        </p>
+        <FeedbackAlert
+          source="code-highlight-error"
+          context={path}
+          type="warning"
+          title={<>语法高亮加载失败，暂以纯文本显示，仍可选择和复制内容。重新加载应用后可重试。</>}
+        />
       )}
       <div
         key={scrollKey ?? path}

@@ -1,6 +1,7 @@
+import { FeedbackAlert } from '../FeedbackAlert';
 import { FeedbackNotice } from '../Feedback';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Empty, Input, Spin } from 'antd';
+import { Button, Empty, Input, Spin } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { AccessToken } from '@alune/shared';
@@ -197,9 +198,9 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
         </div>
       )}
       {settings && !settings.secretStorage.available && (
-        <Alert
+        <FeedbackAlert
+          source="AccessTokenSettings-1"
           type="warning"
-          showIcon
           title="加密存储不可用"
           description={settings.secretStorage.description}
         />

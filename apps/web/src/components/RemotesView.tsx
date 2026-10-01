@@ -1,6 +1,7 @@
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { gitApi } from '../api';
 import { useEffect, useRef, useState } from 'react';
-import { App, Button, Empty, Input, Space, Typography } from 'antd';
+import { Button, Empty, Input, Space, Typography } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined, CopyOutlined, LinkOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -25,7 +26,7 @@ interface Props {
 }
 
 export function RemotesView({ repoId, onRefresh }: Props) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('origin');
   const [url, setUrl] = useState('');

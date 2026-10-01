@@ -1,3 +1,4 @@
+import { FeedbackAlert } from './FeedbackAlert';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button, Segmented } from 'antd';
 import {
@@ -220,10 +221,13 @@ export function DiffViewer({
     if (loading) return <div className="diff-empty">正在加载差异…</div>;
     if (error)
       return (
-        <div className="diff-error">
-          <strong>无法加载差异</strong>
-          <span>{error}</span>
-        </div>
+        <FeedbackAlert
+          source="diff-error"
+          context={filePath}
+          type="error"
+          title="无法加载差异"
+          description={error}
+        />
       );
     if (!hasDiff)
       return (
@@ -244,7 +248,7 @@ export function DiffViewer({
         />
       );
     const notice = diff && getDiffNotice(diff);
-    if (notice) return <div className="diff-empty">{notice}</div>;
+    if (notice) return <FeedbackAlert source="diff-limitation" context={filePath} title={notice} />;
     if (!diff)
       return (
         <ReactDiffViewer

@@ -1,6 +1,7 @@
+import { FeedbackAlert } from '../FeedbackAlert';
 import { FeedbackNotice } from '../Feedback';
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Input, Switch, Tag, Select } from 'antd';
+import { Button, Input, Switch, Tag, Select } from 'antd';
 import {
   ApiOutlined,
   CloudServerOutlined,
@@ -244,13 +245,13 @@ export function ProxySettings() {
   };
   const result = (kind: TestKind) =>
     results[kind] && (
-      <div
-        role="status"
-        className={`proxy-test-result ${results[kind]!.success ? 'is-success' : 'is-error'}`}
-      >
-        {results[kind]!.message}{' '}
-        {results[kind]!.elapsedMs > 0 && <span>· {results[kind]!.elapsedMs} ms</span>}
-      </div>
+      <FeedbackNotice
+        source={`proxy-test:${kind}`}
+        type={results[kind]!.success ? 'success' : 'error'}
+        title={results[kind]!.message}
+        eventKey={results[kind]!}
+        description={results[kind]!.elapsedMs > 0 ? `${results[kind]!.elapsedMs} ms` : undefined}
+      />
     );
   const testsDisabled = busy || dirty || outdated || !saved?.enabled;
   const pendingChanges = saved && draft && dirty ? proxyChanges(saved, draft) : [];
@@ -390,7 +391,7 @@ export function ProxySettings() {
                     </div>
                   )}
                   {draft.credentials.action === 'clear' && (
-                    <p role="status">认证信息将在保存后清除。</p>
+                    <FeedbackAlert source="proxy-auth-clear" title="认证信息将在保存后清除。" />
                   )}
                   {draft.authEnabled &&
                     (draft.credentials.action === 'replace' || !saved.hasCredentials) && (
@@ -461,7 +462,11 @@ export function ProxySettings() {
                     用户名和密码加密保存在此设备。保留认证时无需重新输入；改变代理地址后需重新填写。
                   </p>
                   {!saved.secretStorageAvailable && (
-                    <Alert type="warning" title="设备安全存储不可用，暂时无法保存新的认证信息。" />
+                    <FeedbackAlert
+                      source="ProxySettings-1"
+                      type="warning"
+                      title="设备安全存储不可用，暂时无法保存新的认证信息。"
+                    />
                   )}
                 </fieldset>
               </form>
@@ -472,7 +477,12 @@ export function ProxySettings() {
                 <p className="settings-field-hint">
                   分别验证各条链路，测试只使用已保存且已启用的配置。Git 测试仅读取远程引用。
                 </p>
-                {dirty && <p className="proxy-test-result">有未保存修改，请先保存配置后测试。</p>}
+                {dirty && (
+                  <FeedbackAlert
+                    source="proxy-unsaved"
+                    title="有未保存修改，请先保存配置后测试。"
+                  />
+                )}
                 <label className="settings-field">
                   HTTP 测试地址
                   <Input
@@ -601,7 +611,14 @@ export function ProxySettings() {
                     >
                       {item.pendingReconnect ? '重新连接后生效' : forwardingLabels[item.forwarding]}
                     </Tag>
-                    {item.error && <p className="proxy-test-result is-error">{item.error}</p>}
+                    {item.error && (
+                      <FeedbackAlert
+                        source="proxy-server"
+                        context={item.id}
+                        type="error"
+                        title={item.error}
+                      />
+                    )}
                     {item.activeTasks > 0 && <span>运行中任务：{item.activeTasks}</span>}
                     <Button
                       size="small"

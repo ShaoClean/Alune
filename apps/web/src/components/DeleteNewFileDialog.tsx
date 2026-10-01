@@ -1,5 +1,6 @@
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useEffect, useRef, useState } from 'react';
-import { App, Button } from 'antd';
+import { Button } from 'antd';
 import type { NewFileDeletionPreview } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -18,7 +19,7 @@ const errorMessage = (error: any) =>
   error.response?.data?.message || error.message || '远端文件操作失败';
 
 export function DeleteNewFileDialog({ repoId, path, onClose, onFileChanged }: Props) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const [preview, setPreview] = useState<NewFileDeletionPreview | null>(null);
   const [checking, setChecking] = useState(true);
   const [deleting, setDeleting] = useState(false);

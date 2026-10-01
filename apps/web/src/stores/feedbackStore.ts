@@ -1,13 +1,18 @@
+import type { ReactNode } from 'react';
 import { createStore } from 'zustand/vanilla';
 
 export interface FeedbackEvent {
   id: string;
+  host?: string;
+  content?: ReactNode;
+  actions?: ReactNode;
   scope: string;
   context: string;
   revision: string;
   title: string;
   description?: string;
   type: 'error' | 'warning' | 'info' | 'success';
+  /** Legacy intent controls configuration actions; all modes now enter the modal queue. */
   mode: 'modal' | 'notification' | 'manual';
   actionLabel?: string;
   onAction?: () => void | Promise<unknown>;
@@ -28,17 +33,25 @@ export interface FeedbackEntry extends FeedbackEvent {
 export function createFeedbackStore() {
   let lease = 0;
   const seen = new Map<string, string>();
-  const retries = new Set<string>();
   return createStore<{
     entries: FeedbackEntry[];
+    updatePresentation: (id: string, content?: ReactNode, actions?: ReactNode) => void;
     publish: (event: FeedbackEvent) => number;
     release: (id: string, lease: number) => void;
     acknowledge: (id: string) => void;
     rearm: (id: string) => void;
-    settle: (id: string) => void;
     run: (id: string) => Promise<void>;
   }>((set, get) => ({
     entries: [],
+    updatePresentation(id, content, actions) {
+      const current = get().entries.find((entry) => entry.id === id);
+      if (!current || (current.content === content && current.actions === actions)) return;
+      set({
+        entries: get().entries.map((entry) =>
+          entry === current ? { ...entry, content, actions } : entry,
+        ),
+      });
+    },
     publish(event) {
       const previous = get().entries.find((entry) => entry.id === event.id);
       const fresh = seen.get(event.id) !== event.revision;
@@ -50,15 +63,13 @@ export function createFeedbackStore() {
         lease: ++lease,
         busy: event.busy ?? (fresh ? false : previous?.busy),
         at: fresh || !previous ? Date.now() : previous.at,
-        queued: fresh
-          ? event.mode === 'modal' || (retries.has(event.id) && !event.busy)
-          : previous?.queued || false,
+        queued: fresh || previous?.queued || false,
       };
-      if (!event.busy) retries.delete(event.id);
       set({
-        entries: previous
-          ? get().entries.map((item) => (item.id === event.id ? entry : item))
-          : [...get().entries, entry],
+        entries:
+          previous && !fresh
+            ? get().entries.map((item) => (item.id === event.id ? entry : item))
+            : [...get().entries.filter((item) => item.id !== event.id), entry],
       });
       return entry.lease;
     },
@@ -75,13 +86,9 @@ export function createFeedbackStore() {
     rearm(id) {
       seen.delete(id);
     },
-    settle(id) {
-      retries.delete(id);
-    },
     async run(id) {
       const entry = get().entries.find((item) => item.id === id);
       if (!entry?.onAction || entry.busy) return;
-      retries.add(id);
       get().rearm(id);
       set({
         entries: get().entries.map((item) => (item === entry ? { ...item, busy: true } : item)),

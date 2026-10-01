@@ -1,131 +1,16 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { App, Button, ConfigProvider } from 'antd';
+import { Button, ConfigProvider } from 'antd';
 import { useStore } from 'zustand';
 import { createFeedbackStore } from '../stores/feedbackStore';
-import type { FeedbackEntry, FeedbackEvent } from '../stores/feedbackStore';
+import type { FeedbackEntry } from '../stores/feedbackStore';
 import { DialogHints, Kbd } from './AluneModal';
 import { DialogIcon } from './DialogIcons';
 import type { DialogIconName } from './DialogIcons';
-import { DialogNote } from './DialogParts';
+import { FeedbackContext } from './feedback-context';
 
-const FeedbackContext = createContext<ReturnType<typeof createFeedbackStore> | null>(null);
-const ScopeContext = createContext({ id: 'application', label: 'Alune', active: true });
-const objectKeys = new WeakMap<object, number>();
-let nextKey = 0;
-function revisionKey(value: string | number | object) {
-  if (typeof value !== 'object') return String(value);
-  if (!objectKeys.has(value)) objectKeys.set(value, ++nextKey);
-  return String(objectKeys.get(value));
-}
-
-export function FeedbackScope({
-  id,
-  label,
-  active = true,
-  children,
-}: {
-  id: string;
-  label: string;
-  active?: boolean;
-  children: ReactNode;
-}) {
-  return <ScopeContext.Provider value={{ id, label, active }}>{children}</ScopeContext.Provider>;
-}
-
-export function FeedbackNotice({
-  source,
-  title,
-  description,
-  type = 'error',
-  mode = 'modal',
-  eventKey,
-  context,
-  actionLabel,
-  onAction,
-  busy,
-  icon,
-  actionIcon,
-  resetOnClear = true,
-}: {
-  source: string;
-  title?: string | null;
-  description?: string;
-  type?: FeedbackEvent['type'];
-  mode?: FeedbackEvent['mode'];
-  eventKey?: string | number | object;
-  context?: string;
-  actionLabel?: string;
-  onAction?: () => void | Promise<unknown>;
-  busy?: boolean;
-  /** Glyph for the notice; defaults to the icon for its type. */
-  icon?: DialogIconName;
-  /** Icon in the primary action's orb. */
-  actionIcon?: DialogIconName;
-  resetOnClear?: boolean;
-}) {
-  const store = useContext(FeedbackContext);
-  const scope = useContext(ScopeContext);
-  const { message } = App.useApp();
-  const callback = useRef(onAction);
-  callback.current = onAction;
-  const id = JSON.stringify([scope.id, source, context]);
-  const revision =
-    eventKey === undefined ? JSON.stringify([title, description, type]) : revisionKey(eventKey);
-  const success = useRef('');
-  useEffect(() => {
-    if (!store || !scope.active) return;
-    if (!title) {
-      if (resetOnClear) store.getState().rearm(id);
-      if (!busy) store.getState().settle(id);
-      success.current = '';
-      return;
-    }
-    if (type === 'success') {
-      if (success.current !== revision) void message.success(title);
-      success.current = revision;
-      return;
-    }
-    const owner = store.getState().publish({
-      id,
-      scope: scope.id,
-      context: [scope.label, context].filter(Boolean).join(' · '),
-      title,
-      description,
-      type,
-      mode,
-      revision,
-      actionLabel,
-      busy,
-      icon,
-      actionIcon,
-      onAction: actionLabel ? () => callback.current?.() : undefined,
-    });
-    // React StrictMode replays effects; let a new lease replace the old one first.
-    return () => {
-      queueMicrotask(() => store.getState().release(id, owner));
-    };
-  }, [
-    store,
-    scope.id,
-    scope.label,
-    scope.active,
-    id,
-    title,
-    description,
-    type,
-    mode,
-    revision,
-    actionLabel,
-    busy,
-    icon,
-    actionIcon,
-    resetOnClear,
-    message,
-  ]);
-  return null;
-}
+export { FeedbackNotice, FeedbackScope } from './FeedbackNotice';
 
 export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [store] = useState(createFeedbackStore);
@@ -141,7 +26,12 @@ const TONES = { error: 'danger', warning: 'warning', info: 'info', success: 'suc
 const BUTTONS = { autoInsertSpace: false };
 
 function glyphOf(entry: FeedbackEntry) {
-  return (entry.icon ?? (entry.type === 'info' ? 'info' : 'warning')) as DialogIconName;
+  return (entry.icon ??
+    (entry.type === 'success'
+      ? 'check'
+      : entry.type === 'info'
+        ? 'info'
+        : 'warning')) as DialogIconName;
 }
 
 // Context is 「scope label · detail」; the label heads the eyebrow and the inbox group.
@@ -174,7 +64,8 @@ function since(at: number, now: number) {
 }
 
 function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStore> }) {
-  const entries = useStore(store, (state) => state.entries);
+  const allEntries = useStore(store, (state) => state.entries);
+  const entries = allEntries.filter((entry) => !entry.host);
   const [selected, setSelected] = useState<string | null>(null);
   const [inbox, setInbox] = useState(false);
   const [now, setNow] = useState(Date.now);
@@ -417,7 +308,13 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
           event.stopPropagation();
           close();
         }}
-        onKeyDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            close();
+          }
+        }}
       >
         {current && context ? (
           <div className="feedback-core">
@@ -439,7 +336,7 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
               </button>
             </header>
             <div className="feedback-body">
-              {current.description ? (
+              {current.description && !current.content ? (
                 <div
                   className={
                     current.type === 'error'
@@ -457,11 +354,11 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
                   <time dateTime={new Date(current.at).toISOString()}>{clock(current.at)}</time>
                 </span>
               </div>
-              {current.mode !== 'modal' ? (
-                <DialogNote quiet>
-                  这类提示不会自动弹出，只留在托盘里；问题解决后自动移除。
-                </DialogNote>
-              ) : null}
+              {current.content && (
+                <div id="feedback-description" className="feedback-description">
+                  {current.content}
+                </div>
+              )}
               {copyStatus && copyStatus !== '已复制' ? (
                 <p className="dlg-text is-muted" role="status">
                   {copyStatus}
@@ -484,6 +381,14 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
                 </p>
               )}
               <div className="a-dlg-actions">
+                {current.actions && (
+                  <div
+                    className="feedback-custom-actions"
+                    onClickCapture={() => store.getState().rearm(current.id)}
+                  >
+                    {current.actions}
+                  </div>
+                )}
                 {manual ? (
                   <Button type="text" onClick={close}>
                     稍后

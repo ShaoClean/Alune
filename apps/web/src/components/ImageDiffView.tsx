@@ -1,3 +1,4 @@
+import { FeedbackAlert } from './FeedbackAlert';
 import { useEffect, useState } from 'react';
 import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/shared';
 import { repositoryApi } from '../api';
@@ -74,9 +75,14 @@ export function ImagePreview({
         {state.phase === 'loading' && <p className="image-diff-pane__notice">正在读取图片…</p>}
         {state.phase === 'absent' && <p className="image-diff-pane__notice">{state.message}</p>}
         {(state.phase === 'error' || decodeFailed) && (
-          <p className="image-diff-pane__notice image-diff-pane__notice--error" role="alert">
-            {state.phase === 'error' ? state.message : '图片无法解码，可能已损坏或格式不受支持。'}
-          </p>
+          <FeedbackAlert
+            source="image-preview"
+            context={`${label} · ${alt}`}
+            type="error"
+            title={
+              state.phase === 'error' ? state.message : '图片无法解码，可能已损坏或格式不受支持。'
+            }
+          />
         )}
         {src && !decodeFailed && (
           <img

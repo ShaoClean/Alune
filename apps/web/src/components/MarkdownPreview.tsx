@@ -1,3 +1,4 @@
+import { FeedbackAlert } from './FeedbackAlert';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -204,13 +205,14 @@ export const MarkdownPreview = memo(function MarkdownPreview({
 
   return (
     <article ref={root} className="markdown-preview" aria-label="Markdown 预览" tabIndex={0}>
-      {notice && (
-        <p className="markdown-preview__notice" role="status">
-          {notice}
-        </p>
-      )}
+      {notice && <FeedbackAlert source="markdown-link" context={path} type="info" title={notice} />}
       {content.length > MARKDOWN_PREVIEW_MAX_CHARS ? (
-        <p role="status">Markdown 内容较大，已暂停渲染。请切换到「源码」查看完整内容。</p>
+        <FeedbackAlert
+          source="markdown-limit"
+          context={path}
+          type="warning"
+          title="Markdown 内容较大，已暂停渲染。请切换到「源码」查看完整内容。"
+        />
       ) : !content.trim() ? (
         <p role="status">此文件只有空白内容。</p>
       ) : (

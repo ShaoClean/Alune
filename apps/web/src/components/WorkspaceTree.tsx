@@ -1,3 +1,4 @@
+import { FeedbackNotice } from './FeedbackNotice';
 import { LOCAL_GROUP_ID, repositoryGroupId } from '../stores/repositorySource';
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
@@ -267,16 +268,13 @@ export function WorkspaceTree({
           }}
         >
           {listError ? (
-            <div className="tree-empty" role="alert">
-              仓库列表加载失败{' '}
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => void fetchRepositories()}
-              >
-                重试
-              </button>
-            </div>
+            <FeedbackNotice
+              source="repository-list"
+              title="仓库列表加载失败"
+              description={listError}
+              actionLabel="重试"
+              onAction={fetchRepositories}
+            />
           ) : (
             !listLoaded && (
               <div className="tree-empty" role="status">

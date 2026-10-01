@@ -1,6 +1,7 @@
+import { FeedbackAlert } from '../FeedbackAlert';
 import { FeedbackNotice } from '../Feedback';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Input, Switch, Tag, Select } from 'antd';
+import { Button, Input, Switch, Tag, Select } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -420,7 +421,11 @@ function ProviderForm({
             )}
           </div>
           {!settings.secretStorage.available && (
-            <Alert type="info" showIcon title={settings.secretStorage.description} />
+            <FeedbackAlert
+              source="ProviderSettings-1"
+              type="info"
+              title={settings.secretStorage.description}
+            />
           )}
           <label htmlFor="provider-test-model" className="settings-field">
             测试模型
@@ -566,10 +571,9 @@ function ProviderForm({
           <p className="settings-muted">尚未添加模型。可获取模型列表，或手动输入准确模型 ID。</p>
         )}
         {defaultModelCleared && (
-          <Alert
-            className="settings-notice"
+          <FeedbackAlert
+            source="ProviderSettings-2"
             type="warning"
-            showIcon
             title="保存后将清空默认提交模型"
             description="默认服务商或模型已停用，或默认模型已删除、更改 ID。请在保存后前往“提交生成”重新选择。"
           />

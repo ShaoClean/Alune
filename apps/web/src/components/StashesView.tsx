@@ -1,5 +1,6 @@
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Input, App } from 'antd';
+import { Button, Input } from 'antd';
 import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { gitApi } from '../api';
@@ -167,7 +168,7 @@ interface Props {
 }
 
 export function StashesView({ repoId, onRefresh }: Props) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const { stashes, fetchStashes, error, errorPanel } = useRepositoryStore();
   const repoName = useRepositoryStore(
     (state) => state.repositories.find((repo) => repo.id === repoId)?.name,

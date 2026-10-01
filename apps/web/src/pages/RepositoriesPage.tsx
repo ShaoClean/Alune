@@ -1,3 +1,4 @@
+import { useFeedbackMessage } from '../components/useFeedbackMessage';
 import { OpenLocalRepository } from '../components/OpenLocalRepository';
 import { RemoveRepositoryConfirm } from '../components/AlunePopconfirm';
 import {
@@ -7,7 +8,7 @@ import {
 } from '../stores/repositorySource';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Input, Select, Space, App } from 'antd';
+import { Button, Input, Select, Space } from 'antd';
 import {
   BranchesOutlined,
   DeleteOutlined,
@@ -30,7 +31,7 @@ import { DialogCard, DialogEmpty, DialogPath, DialogProgress } from '../componen
 const pathName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() || path;
 
 export function RepositoriesPage() {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const groupId = searchParams.get('connectionId') || undefined;

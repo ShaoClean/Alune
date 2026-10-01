@@ -1,7 +1,9 @@
+import { FeedbackNotice } from '../components/FeedbackNotice';
+import { useFeedbackMessage } from '../components/useFeedbackMessage';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Form, Input, App } from 'antd';
+import { Button, Form, Input } from 'antd';
 import {
   ApartmentOutlined,
   DeleteOutlined,
@@ -9,7 +11,6 @@ import {
   LinkOutlined,
   PlusOutlined,
   ReloadOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
@@ -83,7 +84,7 @@ const normalizePort = (value: unknown) => {
 };
 
 export function ConnectionsPage() {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const navigate = useNavigate();
   const view = useWorkspaceStore((state) => state.collectionViews.connections);
   const {
@@ -125,7 +126,6 @@ export function ConnectionsPage() {
     try {
       const result = await testConnection(id);
       if (result.success) message.success('连接成功');
-      else message.error(result.error || '连接失败');
     } catch (err: any) {
       message.error(err.message || '连接失败');
     } finally {
@@ -288,9 +288,12 @@ export function ConnectionsPage() {
                           {host}
                         </span>
                         {statuses[connection.id]?.error && (
-                          <div className="connection-card__error">
-                            <WarningOutlined /> {statuses[connection.id].error}
-                          </div>
+                          <FeedbackNotice
+                            source="connection-status"
+                            context={connection.name}
+                            type="error"
+                            title={statuses[connection.id].error}
+                          />
                         )}
                       </td>
                       <td>{authLabel(connection.authType)}</td>
@@ -328,9 +331,12 @@ export function ConnectionsPage() {
                 </div>
                 {renderActions(connection)}
                 {info?.error && (
-                  <div className="connection-card__error">
-                    <WarningOutlined /> {info.error}
-                  </div>
+                  <FeedbackNotice
+                    source="connection-status"
+                    context={connection.name}
+                    type="error"
+                    title={info.error}
+                  />
                 )}
               </article>
             );

@@ -1,7 +1,8 @@
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Input, App, notification } from 'antd';
+import { Button, Input } from 'antd';
 import {
   ApartmentOutlined,
   ArrowLeftOutlined,
@@ -31,7 +32,7 @@ const navItems = [
 ];
 
 export function Layout() {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const navigate = useNavigate();
   const location = useLocation();
   const isSettings = location.pathname.startsWith('/settings');
@@ -109,27 +110,6 @@ export function Layout() {
   const [repositoryQuery, setRepositoryQuery] = useState('');
   const updates = useDesktopUpdates();
   const { state: updateState, isDesktop } = updates;
-  const [notifications, notificationContext] = notification.useNotification();
-  const notifiedVersion = useRef<string | null>(null);
-  useEffect(() => {
-    if (
-      updateState?.status === 'available' &&
-      updateState.background &&
-      updateState.latestVersion !== notifiedVersion.current
-    ) {
-      notifiedVersion.current = updateState.latestVersion;
-      notifications.info({
-        title: `Alune v${updateState.latestVersion} 可用`,
-        description: '新版本已发布，可查看更新说明并下载安装。',
-        actions: (
-          <Button type="primary" size="small" onClick={() => openSettings('updates')}>
-            查看更新
-          </Button>
-        ),
-        duration: 8,
-      });
-    }
-  }, [updateState, notifications, openSettings]);
   const { connections, statuses, fetchConnections } = useConnectionStore();
   useConnectionStatusSync();
   const {
@@ -319,7 +299,20 @@ export function Layout() {
 
   return (
     <>
-      {notificationContext}
+      <FeedbackNotice
+        source="update-available"
+        type="info"
+        mode="manual"
+        title={
+          updateState?.status === 'available' && updateState.background
+            ? `Alune v${updateState.latestVersion} 可用`
+            : null
+        }
+        eventKey={updateState?.latestVersion ?? undefined}
+        description="新版本已发布，可查看更新说明并下载安装。"
+        actionLabel="查看更新"
+        onAction={() => openSettings('updates')}
+      />
       <FeedbackNotice
         source="workspace-storage"
         title={storageError ? '无法保存外观与工作区设置' : null}
