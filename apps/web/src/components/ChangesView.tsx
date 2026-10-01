@@ -1,6 +1,8 @@
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
+import { FeedbackNotice } from './FeedbackNotice';
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Input, Tooltip, App } from 'antd';
+import { Button, Input, Tooltip } from 'antd';
 import { AlunePopconfirm } from './AlunePopconfirm';
 import { useNavigate } from 'react-router-dom';
 import { changeActions, changeKindLabel, type FileStatus } from '@alune/shared';
@@ -89,7 +91,7 @@ export function ChangesView({
   selectedFile,
   onFileChanged,
 }: Props) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const confirm = useAluneConfirm();
   const navigate = useNavigate();
   const origin = useRef<string | null>(repoId);
@@ -671,6 +673,7 @@ export function ChangesView({
         {!status ? (
           entry?.phase === 'error' ? (
             <ErrorState
+              announce={false}
               title="无法读取仓库状态"
               description={entry.error}
               onRetry={() => void refreshStatus()}
@@ -754,28 +757,22 @@ export function ChangesView({
           </Tooltip>
           <span className="commit-ai-bar__hint">{GENERATION_SCOPE}</span>
         </div>
-        {ai.generating ? (
-          <div className="commit-ai-feedback" role="status">
-            <span>正在根据已暂存改动生成…</span>
-            <button type="button" onClick={() => ai.cancel()}>
-              取消
-            </button>
-          </div>
-        ) : (
-          ai.feedback && (
-            <div
-              className={`commit-ai-feedback${ai.feedback.error ? ' commit-ai-feedback--error' : ''}`}
-              role={ai.feedback.error ? 'alert' : 'status'}
-            >
-              <span>{ai.feedback.message}</span>
-              {ai.feedback.error && (
-                <button type="button" disabled={busy} onClick={() => void ai.generate()}>
-                  重试
-                </button>
-              )}
-            </div>
-          )
-        )}
+        <FeedbackNotice
+          source="commit-generation-progress"
+          type="info"
+          title={ai.generating ? '正在根据已暂存改动生成…' : null}
+          actionLabel="取消"
+          onAction={() => ai.cancel()}
+        />
+        <FeedbackNotice
+          source="commit-generation-result"
+          type={ai.feedback?.error ? 'error' : 'success'}
+          title={ai.feedback?.message}
+          eventKey={ai.feedback ?? undefined}
+          actionLabel={ai.feedback?.error ? '重试' : undefined}
+          onAction={() => ai.generate()}
+          busy={busy}
+        />
         {ai.undo && !ai.generating && (
           <button type="button" className="commit-ai-undo" onClick={ai.undoGeneration}>
             <UndoOutlined /> 撤销生成

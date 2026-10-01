@@ -1,5 +1,6 @@
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input, App } from 'antd';
+import { Button, Input } from 'antd';
 import {
   EditOutlined,
   MergeCellsOutlined,
@@ -108,7 +109,7 @@ interface Props {
 }
 
 export function BranchesView({ repoId, onRefresh }: Props) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const { branches, fetchBranches, error, errorPanel } = useRepositoryStore();
   // P02 reads the working tree so the merge prompt states the real number of changes.
   const changedFiles = useRepositoryStore(

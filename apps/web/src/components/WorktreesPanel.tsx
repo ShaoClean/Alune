@@ -1,3 +1,4 @@
+import { FeedbackNotice } from './FeedbackNotice';
 import { useEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
 import { Button, Input } from 'antd';
@@ -185,16 +186,14 @@ export function WorktreesPanel({
       )}
       {loading && <p role="status">正在读取 Worktree…</p>}
       {error && (
-        <div className="worktrees-menu__error" role="alert">
-          <span>{error}</span>
-          <Button
-            size="small"
-            disabled={loading || opening !== null}
-            onClick={() => void refresh()}
-          >
-            重试
-          </Button>
-        </div>
+        <FeedbackNotice
+          source="worktrees-load"
+          type="error"
+          title={error}
+          actionLabel="重试"
+          busy={loading || opening !== null}
+          onAction={refresh}
+        />
       )}
       {items && !items.some((item) => !item.isCurrent) && (
         <p className="worktrees-menu__empty">暂无其他关联 worktree</p>

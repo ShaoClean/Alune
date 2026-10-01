@@ -349,19 +349,6 @@
 .worktree-option > .worktree-option__warning {
   color: var(--orange);
 }
-.worktrees-menu__error {
-  color: var(--red);
-}
-.worktrees-menu__error {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-control-gap);
-  margin: 10px 0;
-  overflow-wrap: anywhere;
-}
-.worktrees-menu__error .ant-btn {
-  align-self: flex-start;
-}
 .workspace-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 4px var(--changes-width, 320px);

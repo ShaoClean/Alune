@@ -1,7 +1,8 @@
+import { FeedbackAlert } from '../FeedbackAlert';
 import { FeedbackNotice } from '../Feedback';
 import { AppearanceSettings } from './AppearanceSettings';
 import { useEffect } from 'react';
-import { Alert, Button } from 'antd';
+import { Button } from 'antd';
 import {
   ApartmentOutlined,
   LayoutOutlined,
@@ -107,9 +108,9 @@ export function SettingsCenter({
               invoke={updates.invoke}
             />
           ) : (
-            <Alert
+            <FeedbackAlert
+              source="SettingsCenter-1"
               type="info"
-              showIcon
               title="当前运行方式不支持更新"
               description="请使用已安装的正式桌面应用。Linux 需要运行 AppImage；开发环境不连接更新源。"
             />

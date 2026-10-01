@@ -1,3 +1,4 @@
+import { useFeedbackMessage } from '../components/useFeedbackMessage';
 import type { RepositoryContext } from '@alune/shared';
 import { RepositoryContextNotice } from '../components/RepositoryContextNotice';
 import { GitOperationNotice } from '../components/GitOperationNotice';
@@ -5,7 +6,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Button, App, Input, Select } from 'antd';
+import { Button, Input, Select } from 'antd';
 import { AluneModal, DialogHints, Kbd, useAluneConfirm } from '../components/AluneModal';
 import { DialogIcon } from '../components/DialogIcons';
 import { DialogCard, DialogNote, RepoRow } from '../components/DialogParts';
@@ -15,7 +16,6 @@ import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { BranchesView } from '../components/BranchesView';
-import { RepositoryStatusIndicator } from '../components/RepositoryStatusIndicator';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { ChangesView } from '../components/ChangesView';
 import { DiffViewer } from '../components/DiffViewer';
@@ -49,7 +49,7 @@ export function RepositoryDetailPage() {
 }
 
 function RepositoryWorkspace({ id }: { id: string | undefined }) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const confirm = useAluneConfirm();
   const navigate = useNavigate();
   const location = useLocation();
@@ -474,7 +474,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         onRemotes={() => selectPanel('remotes')}
         onRefresh={() => void handleRefresh()}
       />
-      <GitOperationNotice repoId={id!} onFinished={() => void handleRefresh()} />
+      <GitOperationNotice key={id} repoId={id!} onFinished={() => void handleRefresh()} />
       <FeedbackNotice
         source="git-sync"
         title={syncError ? 'Git 操作未完成' : null}
@@ -589,17 +589,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         }
       >
         <div className="workspace-center">
-          {!status && (
-            <div className="repository-status-notice" role="status">
-              <RepositoryStatusIndicator id={id!} />
-              {statusEntry?.error && <span>{statusEntry.error}</span>}
-              {statusFailed && (
-                <button type="button" className="text-button" onClick={() => void fetchStatus(id!)}>
-                  重试状态
-                </button>
-              )}
-            </div>
-          )}
           {hasInspector ? (
             <aside className="workspace-panel workspace-panel--detail" aria-label="仓库详情">
               {compact && (

@@ -1,3 +1,5 @@
+import { useId } from 'react';
+import { FeedbackAlert } from './FeedbackAlert';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { DialogIcon } from './DialogIcons';
 import type { DialogIconName } from './DialogIcons';
@@ -128,11 +130,9 @@ export function DialogLedger({
 
 export function DialogNote({
   tone = 'info',
-  icon,
   title,
   children,
   action,
-  quiet,
   role,
 }: {
   tone?: Tone;
@@ -143,24 +143,25 @@ export function DialogNote({
   quiet?: boolean;
   role?: 'alert' | 'status';
 }) {
-  const glyph =
-    icon ??
-    (tone === 'danger' || tone === 'warning' ? 'warning' : tone === 'success' ? 'check' : 'info');
+  const source = useId();
+  if (role === 'alert' || role === 'status')
+    return (
+      <FeedbackAlert
+        source={`dialog-note:${source}`}
+        title={title}
+        description={children}
+        action={action}
+        type={tone === 'danger' ? 'error' : tone}
+      />
+    );
+  // Static safety and consequence explanations are part of the dialog's body.
+  // They are not asynchronous feedback and must remain visible before consent.
   return (
-    <div className={quiet ? 'dlg-note is-quiet' : 'dlg-note'} data-tone={tone} role={role}>
-      <DialogIcon name={glyph} />
-      <div>
-        {title ? <strong>{title}</strong> : null}
-        {children ? (
-          typeof children === 'string' ? (
-            <p className={title ? 'dlg-note-sub' : undefined}>{children}</p>
-          ) : (
-            children
-          )
-        ) : null}
-      </div>
-      {action ?? null}
-    </div>
+    <section className="dlg-explanation" data-tone={tone}>
+      {title && <strong>{title}</strong>}
+      {children && <div>{children}</div>}
+      {action}
+    </section>
   );
 }
 

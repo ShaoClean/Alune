@@ -200,6 +200,7 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
                 />
                 {commitFilesError ? (
                   <ErrorState
+                    announce={false}
                     title="无法读取提交文件"
                     description="请重试读取此提交的文件变更。"
                     onRetry={() => void fetchCommitFiles(repoId, selected.hash)}

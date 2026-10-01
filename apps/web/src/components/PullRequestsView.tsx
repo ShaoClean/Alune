@@ -349,7 +349,11 @@ function RemotePullRequests({
           </p>
         )}
         {credential.token !== null && (
-          <p role="status">正在使用仅本次输入的令牌，已保存的仓库关联保持不变。</p>
+          <FeedbackNotice
+            source="pr-session-token"
+            type="info"
+            title="正在使用仅本次输入的令牌，已保存的仓库关联保持不变。"
+          />
         )}
       </div>
       <FeedbackNotice
@@ -455,6 +459,7 @@ function RemotePullRequests({
             )}
             {!data && error && !loading && (
               <ErrorState
+                announce={false}
                 title="无法读取 PR/MR"
                 description="可重试，或检查此远端的访问令牌。"
                 onRetry={() => setRetry((value) => value + 1)}
@@ -576,6 +581,7 @@ export function PullRequestsView({
       />
       {!loaded && error && !loading && (
         <ErrorState
+          announce={false}
           title="无法读取远端列表"
           description={error}
           onRetry={() => setRefresh((value) => value + 1)}

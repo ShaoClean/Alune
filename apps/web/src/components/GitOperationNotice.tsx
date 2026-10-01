@@ -1,6 +1,6 @@
+import { FeedbackNotice } from './FeedbackNotice';
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useEffect, useRef, useState } from 'react';
-import { App, Button } from 'antd';
-import { LoadingOutlined } from '@ant-design/icons';
 import { gitApi } from '../api';
 
 const labels: Record<string, string> = {
@@ -28,7 +28,7 @@ export function GitOperationNotice({
   repoId: string;
   onFinished: () => void;
 }) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const [operation, setOperation] = useState<{
     kind: string;
     startedAt: number;
@@ -64,28 +64,24 @@ export function GitOperationNotice({
   }, [repoId]);
   if (!operation) return null;
   return (
-    <div className="git-operation-notice" role="status">
-      <LoadingOutlined />
-      <span>
-        {labels[operation.kind] || 'Git 操作'} ·{' '}
-        {Math.max(1, Math.floor((Date.now() - operation.startedAt) / 1000))} 秒
-      </span>
-      <Button
-        size="small"
-        disabled={cancelling || operation.cancelling}
-        onClick={async () => {
-          setCancelling(true);
-          try {
-            await gitApi.cancel(repoId);
-          } catch (error: any) {
-            setCancelling(false);
-            message.error(error.message);
-          }
-        }}
-      >
-        {cancelling || operation.cancelling ? '正在取消…' : '取消操作'}
-      </Button>
-      <small>取消后请刷新；已完成的步骤会保留。</small>
-    </div>
+    <FeedbackNotice
+      source="git-operation"
+      context={repoId}
+      type="info"
+      title={`${labels[operation.kind] || 'Git 操作'}进行中`}
+      eventKey={operation.startedAt}
+      description={`${Math.max(1, Math.floor((Date.now() - operation.startedAt) / 1000))} 秒。取消后请刷新；已完成的步骤会保留。`}
+      actionLabel={cancelling || operation.cancelling ? '正在取消…' : '取消操作'}
+      busy={cancelling || operation.cancelling}
+      onAction={async () => {
+        setCancelling(true);
+        try {
+          await gitApi.cancel(repoId);
+        } catch (error: any) {
+          setCancelling(false);
+          message.error(error.message);
+        }
+      }}
+    />
   );
 }

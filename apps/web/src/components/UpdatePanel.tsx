@@ -1,5 +1,6 @@
+import { FeedbackAlert } from './FeedbackAlert';
 import { FeedbackNotice } from './Feedback';
-import { Alert, Button, Progress, Space, Spin, Typography } from 'antd';
+import { Button, Progress, Space, Spin, Typography } from 'antd';
 import { CloudDownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { DesktopUpdates, UpdateState } from '../types/desktop-updates';
 import { ReleaseNotes } from './ReleaseNotes';
@@ -235,13 +236,19 @@ export function UpdatePanelContent({
               </div>
             )}
           </div>
-          <div role="status" aria-live="polite">
-            {labels[state.status]}
-          </div>
+          <FeedbackNotice
+            source="update-status"
+            type={
+              state.status === 'downloaded' || state.status === 'not-available' ? 'success' : 'info'
+            }
+            title={!state.error && state.supported ? labels[state.status] : null}
+            eventKey={`${state.currentVersion}:${state.latestVersion}:${state.status}`}
+            resetOnClear={false}
+          />
           {!state.supported && (
-            <Alert
+            <FeedbackAlert
+              source="UpdatePanel-1"
               type="info"
-              showIcon
               title="当前运行方式不支持更新"
               description="请使用已安装的正式桌面应用。Linux 需要运行 AppImage；开发环境不连接更新源。"
             />

@@ -1,5 +1,6 @@
+import { FeedbackAlert } from './FeedbackAlert';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Alert, Button, Input, Segmented, Spin } from 'antd';
+import { Button, Input, Segmented, Spin } from 'antd';
 import type {
   PullRequestActions,
   PullRequestCommentPosition,
@@ -64,6 +65,7 @@ export function useReviewActions(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [feedbackVersion, setFeedbackVersion] = useState(0);
   const [posted, setPosted] = useState<PullRequestDiscussion[]>([]);
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
@@ -92,6 +94,7 @@ export function useReviewActions(
       } catch (failure) {
         if (current()) {
           setActions(undefined);
+          setFeedbackVersion((value) => value + 1);
           setError(errorMessage(failure, '无法读取操作权限，请重试。'));
         }
         return undefined;
@@ -143,6 +146,7 @@ export function useReviewActions(
         if (alive.current) setDraft(emptyDraft());
       }
       if (alive.current) {
+        setFeedbackVersion((value) => value + 1);
         setNotice(
           action === 'comment'
             ? '评论已发表。'
@@ -155,6 +159,7 @@ export function useReviewActions(
       return true;
     } catch (failure) {
       if (alive.current) {
+        setFeedbackVersion((value) => value + 1);
         setError(errorMessage(failure, '提交失败，草稿已保留，请重试。'));
         onChanged();
       }
@@ -166,6 +171,7 @@ export function useReviewActions(
   };
   return {
     actions,
+    feedbackVersion,
     loading,
     error,
     notice,
@@ -255,15 +261,45 @@ export function ReviewActionBar({
         </Button>
         {review.loading && <Spin size="small" aria-label="正在检查操作权限" />}
       </div>
-      {review.actions?.merge.reason && (
-        <p className="pull-request-muted">合并：{review.actions.merge.reason}</p>
+      {(review.actions?.merge.reason ||
+        review.actions?.close.reason ||
+        review.actions?.comment.reason) && (
+        <FeedbackAlert
+          source="review-permissions"
+          type="warning"
+          title="PR/MR 操作权限受限"
+          description={
+            [
+              ...new Set(
+                [
+                  review.actions?.merge.reason,
+                  review.actions?.close.reason,
+                  review.actions?.comment.reason,
+                ].filter(Boolean),
+              ),
+            ].join('\n') +
+            (review.actions?.comment.reason === '请配置有写入权限的访问令牌。'
+              ? '\n请返回 PR/MR 列表，选择具有写入权限的令牌并点击「应用到此仓库」，然后重新打开文件变动。'
+              : '')
+          }
+        />
       )}
-      {review.actions?.close.reason &&
-        review.actions.close.reason !== review.actions?.merge.reason && (
-          <p className="pull-request-muted">关闭：{review.actions.close.reason}</p>
-        )}
-      {review.error && <Alert type="error" showIcon title={review.error} />}
-      {review.notice && <Alert type="success" showIcon title={review.notice} />}
+      {review.error && !confirm && (
+        <FeedbackAlert
+          source="review-error"
+          eventKey={review.feedbackVersion}
+          type="error"
+          title={review.error}
+        />
+      )}
+      {review.notice && (
+        <FeedbackAlert
+          source="review-success"
+          eventKey={review.feedbackVersion}
+          type="success"
+          title={review.notice}
+        />
+      )}
       <AluneModal
         open={!!confirm}
         level={isClose ? 2 : 1}
@@ -382,9 +418,12 @@ export function ReviewActionBar({
               </DialogNote>
             )}
             {review.error && (
-              <DialogNote tone="danger" role="alert" title={isClose ? '关闭未完成' : '合并未完成'}>
-                {review.error}
-              </DialogNote>
+              <FeedbackAlert
+                source="review-error"
+                eventKey={review.feedbackVersion}
+                type="error"
+                title={review.error}
+              />
             )}
             {isClose && (
               <CheckCard
@@ -451,10 +490,8 @@ export function ReviewCommentComposer({
             maxLength={60000}
             placeholder="支持 Markdown。评论将直接发布到托管平台。"
           />
-          {reason && (
-            <p className="pull-request-muted" role="status">
-              {reason}
-            </p>
+          {stale && reason && (
+            <FeedbackAlert source="review-comment-permission" type="warning" title={reason} />
           )}
           <div className="pull-request-actions__buttons">
             <Button
@@ -479,7 +516,6 @@ export function ReviewCommentComposer({
               </Button>
             )}
           </div>
-          {review.error && <Alert type="error" showIcon title={review.error} />}
         </>
       )}
     </form>

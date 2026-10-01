@@ -214,6 +214,7 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
           </div>
         ) : logError ? (
           <ErrorState
+            announce={false}
             title="无法读取提交历史"
             description={logError}
             onRetry={() => void fetchLog(repoId)}

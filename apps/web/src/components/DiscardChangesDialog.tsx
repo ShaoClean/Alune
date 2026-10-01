@@ -1,5 +1,6 @@
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useEffect, useRef, useState } from 'react';
-import { App, Button } from 'antd';
+import { Button } from 'antd';
 import type { DiscardChangesPreview, DiscardChangesResult } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -28,7 +29,7 @@ export const discardResultMessage = (result: DiscardChangesResult) =>
   (result.unknown ? `；${result.unknown} 个文件的结果无法确认` : '');
 
 export function DiscardChangesDialog({ repoId, onClose }: Props) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const [open, setOpen] = useState(true);
   const [preview, setPreview] = useState<DiscardChangesPreview | null>(null);
   const [checking, setChecking] = useState(true);

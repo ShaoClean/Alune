@@ -1,5 +1,7 @@
+import { FeedbackScope } from './FeedbackNotice';
+import { FeedbackAlert } from './FeedbackAlert';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Empty, Select, Spin, Tabs, Tag } from 'antd';
+import { Button, Empty, Select, Spin, Tabs, Tag } from 'antd';
 import { ArrowLeftOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
 import type {
   PullRequestDetailQuery,
@@ -73,17 +75,25 @@ function usePages<T>(
 }
 
 function LoadState({
+  context,
   loading,
   error,
   retry,
 }: {
+  context: string;
   loading: boolean;
   error?: string;
   retry: () => void;
 }) {
   if (error)
     return (
-      <Alert type="error" showIcon title={error} action={<Button onClick={retry}>重试</Button>} />
+      <FeedbackAlert
+        source="pr-resource"
+        context={context}
+        type="error"
+        title={error}
+        action={<Button onClick={retry}>重试</Button>}
+      />
     );
   if (loading)
     return (
@@ -171,37 +181,33 @@ export function ReviewLineGuidance({
   revision?: string;
   fileNotice?: string;
 }) {
-  if (fileNotice) return <Alert type="info" showIcon title="此 Diff 不完整，暂不支持定位评论。" />;
+  if (fileNotice) return null;
   if (review.pending)
-    return <Alert type="info" showIcon title="正在执行 Review 操作，暂时无法选择行号。" />;
+    return (
+      <FeedbackAlert
+        source="PullRequestDetails-3"
+        type="info"
+        title="正在执行 Review 操作，暂时无法选择行号。"
+      />
+    );
   if (review.loading)
-    return <Alert type="info" showIcon title="正在检查评论权限，暂时无法选择行号。" />;
-  if (review.error && !review.actions)
     return (
-      <Alert
-        type="error"
-        showIcon
-        title={`评论权限检查失败：${review.error}`}
-        action={<Button onClick={() => void review.load()}>重试</Button>}
+      <FeedbackAlert
+        source="PullRequestDetails-4"
+        type="info"
+        title="正在检查评论权限，暂时无法选择行号。"
       />
     );
-  if (!revision || !review.actions?.comment.allowed) {
-    const reason =
-      review.actions?.comment.reason ||
-      (!revision ? '平台尚未提供完整的代码版本，请稍后刷新。' : '请刷新操作权限后重试。');
+  if (review.error && !review.actions) return null;
+  if (!review.actions?.comment.allowed) return null;
+  if (!revision)
     return (
-      <Alert
+      <FeedbackAlert
+        source="review-revision"
         type="warning"
-        showIcon
-        title={`评论不可用：${reason}`}
-        description={
-          reason === '请配置有写入权限的访问令牌。'
-            ? '请返回 PR/MR 列表，选择具有写入权限的令牌并点击「应用到此仓库」，然后重新打开文件变动。'
-            : undefined
-        }
+        title="平台尚未提供完整的代码版本，请稍后刷新。"
       />
     );
-  }
   return (
     <p className="pull-request-muted">
       点击新行或旧行的行号评论；按住 Shift 点击另一行选择连续多行。选区须在同一 Diff 区块、同一侧。
@@ -301,9 +307,9 @@ function Files({
   return (
     <div className="pull-request-files">
       {(notice || resource.notice || missing) && (
-        <Alert
+        <FeedbackAlert
+          source="PullRequestDetails-7"
           type="warning"
-          showIcon
           title={
             notice ||
             resource.notice ||
@@ -311,7 +317,7 @@ function Files({
           }
         />
       )}
-      <LoadState {...resource} />
+      <LoadState context="files" {...resource} />
       {!resource.loading && !resource.error && !resource.items.length && (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有可展示的变动文件" />
       )}
@@ -344,11 +350,26 @@ function Files({
             {file.previousPath && file.previousPath !== file.path && (
               <p className="pull-request-muted">原路径：{file.previousPath}</p>
             )}
-            {file.notice && <Alert type="info" showIcon title={file.notice} />}
+            {file.notice && (
+              <FeedbackAlert
+                source="PullRequestDetails-8"
+                context={file.path}
+                type="info"
+                title={file.notice}
+                description="此 Diff 不完整，暂不支持定位评论。"
+              />
+            )}
             {file.patch && (
               <>
                 <ReviewLineGuidance review={review} revision={revision} fileNotice={file.notice} />
-                {selectionError && <Alert type="warning" showIcon title={selectionError} />}
+                {selectionError && (
+                  <FeedbackAlert
+                    source="PullRequestDetails-9"
+                    context={file.path}
+                    type="warning"
+                    title={selectionError}
+                  />
+                )}
                 <PullRequestPatch
                   patch={file.patch}
                   selection={
@@ -546,7 +567,7 @@ function Discussions({
   return (
     <section className="pull-request-discussions" aria-label={title}>
       <h3>{title}</h3>
-      <LoadState {...resource} />
+      <LoadState context={kind} {...resource} />
       {!resource.loading && !resource.error && !threads.length && (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={`暂无${title}`} />
       )}
@@ -597,7 +618,10 @@ function DetailContent({
     heading.current?.focus();
   }, []);
   return (
-    <>
+    <FeedbackScope
+      id={JSON.stringify([repoId, query.provider, query.target, query.number])}
+      label={`PR/MR ${query.number}`}
+    >
       <header className="pull-request-detail__header">
         <h2 tabIndex={-1} ref={heading}>
           {summary?.title || 'PR/MR 详情'}{' '}
@@ -632,9 +656,10 @@ function DetailContent({
           </>
         )}
       </header>
-      <LoadState {...resource} />
+      <LoadState context="detail" {...resource} />
       <ReviewActionBar review={review} query={query} summary={summary} />
       <Tabs
+        destroyOnHidden
         activeKey={tab}
         onChange={onTabChange}
         items={[
@@ -719,7 +744,7 @@ function DetailContent({
           },
         ]}
       />
-    </>
+    </FeedbackScope>
   );
 }
 

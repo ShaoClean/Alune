@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { App } from 'antd';
+import { FeedbackContext } from '../src/components/feedback-context.ts';
+import { createFeedbackStore } from '../src/stores/feedbackStore.ts';
 import { gitApi } from '../src/api/index.ts';
 import { useRepositoryStore } from '../src/stores/repositoryStore.ts';
 import { useBranchSwitch } from '../src/hooks/useBranchSwitch.tsx';
@@ -11,9 +12,12 @@ import { AluneConfirmContext } from '../src/components/AluneModal.tsx';
 function setup(t, run, confirm = () => false) {
   const events = [];
   t.mock.method(gitApi, 'switchBranch', run);
-  t.mock.method(App, 'useApp', () => ({
-    message: { success: (value) => events.push(value), error: (value) => events.push(value) },
-  }));
+  const feedback = createFeedbackStore();
+  const publish = feedback.getState().publish;
+  t.mock.method(feedback.getState(), 'publish', (event) => {
+    events.push(event.title);
+    return publish(event);
+  });
   t.mock.method(useRepositoryStore, 'getState', () => ({
     fetchBranches: async (id) => events.push(`branches:${id}`),
     fetchLog: async (id) => events.push(`log:${id}`),
@@ -27,7 +31,11 @@ function setup(t, run, confirm = () => false) {
     React.createElement(
       AluneConfirmContext.Provider,
       { value: { confirm } },
-      React.createElement(Probe),
+      React.createElement(
+        FeedbackContext.Provider,
+        { value: feedback },
+        React.createElement(Probe),
+      ),
     ),
   );
   return { hook, events };

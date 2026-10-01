@@ -1,6 +1,7 @@
+import { useFeedbackMessage } from './useFeedbackMessage';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent } from 'react';
-import { App, Button, Dropdown, Input } from 'antd';
+import { Button, Dropdown, Input } from 'antd';
 import type { WorkspaceFilePreview } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -41,7 +42,7 @@ export function useWorkspaceFileMenu(repoId: string, onChanged: Change, disabled
       s.repositories.find((r) => r.id === repoId) ||
       (s.currentRepo?.id === repoId ? s.currentRepo : undefined),
   );
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const active = dialog?.target || target;
   const session = useRef(0);
 
@@ -272,7 +273,7 @@ function WorkspaceFileDialog({
   const [failure, setFailure] = useState('');
   const lock = useRef(false);
   const mounted = useRef(true);
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   useEffect(() => {
     mounted.current = true;
     return () => {

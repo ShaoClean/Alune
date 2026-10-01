@@ -1,5 +1,6 @@
+import { useFeedbackMessage } from '../components/useFeedbackMessage';
 import { useContext, useEffect, useRef, useState } from 'react';
-import { App, Input } from 'antd';
+import { Input } from 'antd';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { AluneConfirmControl, DialogHints, Kbd, useAluneConfirm } from '../components/AluneModal';
@@ -69,7 +70,7 @@ export function BranchConflictFields({
 
 // Both branch entry points use the same conflict choices and refresh behavior.
 export function useBranchSwitch(repoId: string, onSwitched: () => void) {
-  const { message } = App.useApp();
+  const message = useFeedbackMessage();
   const confirm = useAluneConfirm();
   const pending = useRef(false);
   const [switching, setSwitching] = useState<string | null>(null);

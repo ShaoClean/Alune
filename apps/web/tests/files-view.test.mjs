@@ -195,7 +195,10 @@ test('语法高亮生成 React 元素而不是 HTML 字符串，未知语法返�
   assert.match(markup, /<span class="token keyword"[^>]*>const<\/span>/);
   assert.match(markup, /<span class="token number"[^>]*>42<\/span>/);
   // Content inside a comment is escaped text, never parsed markup.
-  assert.match(markup, /<span class="token comment"[^>]*>\/\/ &lt;b&gt;not html&lt;\/b&gt;<\/span>/);
+  assert.match(
+    markup,
+    /<span class="token comment"[^>]*>\/\/ &lt;b&gt;not html&lt;\/b&gt;<\/span>/,
+  );
   assert.ok(tokens.some((token) => isValidElement(token)));
   assert.equal(highlight('anything', 'brainfuck'), null);
 });
@@ -342,81 +345,29 @@ test('抽出共享图片预览后，图片差异仍按变更前后分栏显示',
   assert.match(plain, /class="image-diff-pane__label"><span>工作区版本/);
 });
 
-test('二进制、过大和不支持的编码都有明确说明', () => {
-  const binary = renderPreview({
-    entry: entry('build.bin'),
-    file: readyFile('build.bin', { kind: 'binary', size: 4096 }),
-  });
-  assert.match(binary, /二进制文件/);
-  assert.match(binary, /4\.0 KB/);
-
-  const hugeText = renderPreview({
-    entry: entry('huge.log'),
-    file: readyFile('huge.log', {
-      kind: 'too-large',
-      size: 3 * 1024 * 1024,
-      limit: REPOSITORY_TEXT_PREVIEW_MAX_BYTES,
-    }),
-  });
-  assert.match(hugeText, /文件过大/);
-  assert.match(hugeText, /文本预览上限/);
-  assert.match(hugeText, /3\.00 MB/);
-  assert.match(hugeText, /files-notice--warning/);
-
-  const hugeImage = renderPreview({
-    entry: entry('photo.jpg'),
-    file: readyFile('photo.jpg', {
-      kind: 'too-large',
-      size: 9 * 1024 * 1024,
-      limit: DIFF_IMAGE_MAX_BYTES,
-    }),
-  });
-  assert.match(hugeImage, /图片预览上限/);
-
-  const gbk = renderPreview({
-    entry: entry('gbk.txt'),
-    file: readyFile('gbk.txt', { kind: 'unsupported-encoding', size: 20 }),
-  });
-  assert.match(gbk, /不支持的文本编码/);
-  assert.match(gbk, /GBK/);
-});
-
-test('符号链接、子模块和特殊文件不读取内容，只说明原因', () => {
-  const link = renderPreview({
-    entry: entry('latest', 'symlink', { target: 'apps/web' }),
-    file: null,
-  });
-  assert.match(link, /符号链接/);
-  assert.match(link, /<code>apps\/web<\/code>/);
-  assert.match(link, /不会跟随链接/);
-
-  // A file that turned into a link on the server is reported the same way.
-  const changed = renderPreview({
-    entry: entry('config.json'),
-    file: readyFile('config.json', { kind: 'symlink', target: '../shared/config.json' }),
-  });
-  assert.match(changed, /<code>\.\.\/shared\/config\.json<\/code>/);
-
-  assert.match(
-    renderPreview({ entry: entry('vendor', 'submodule'), file: null }),
-    /嵌套仓库或子模块/,
-  );
-  assert.match(renderPreview({ entry: entry('fifo', 'other'), file: null }), /特殊文件/);
-});
-
-test('读取失败按状态码区分，且都可以重试', () => {
-  const failed = (status, message) =>
-    renderPreview({
+test('能力限制和读取失败不在文件正文中插入横条（弹窗行为由 feedback-browser 验证）', () => {
+  for (const [path, preview] of [
+    ['build.bin', { kind: 'binary', size: 4096 }],
+    [
+      'huge.log',
+      { kind: 'too-large', size: 3 * 1024 * 1024, limit: REPOSITORY_TEXT_PREVIEW_MAX_BYTES },
+    ],
+    ['photo.jpg', { kind: 'too-large', size: 9 * 1024 * 1024, limit: DIFF_IMAGE_MAX_BYTES }],
+    ['gbk.txt', { kind: 'unsupported-encoding', size: 20 }],
+    ['link', { kind: 'symlink', target: '../shared' }],
+  ]) {
+    const html = renderPreview({ entry: entry(path), file: readyFile(path, preview) });
+    assert.match(html, /文件预览/);
+    assert.doesNotMatch(html, /files-notice|role="alert"|ant-alert/);
+  }
+  for (const status of [404, 403, undefined]) {
+    const html = renderPreview({
       entry: entry('a.txt'),
-      file: { phase: 'error', path: 'a.txt', status, message },
+      file: { phase: 'error', path: 'a.txt', status, message: 'failure' },
     });
-  const missing = failed(404, 'Path not found');
-  assert.match(missing, /文件不存在/);
-  assert.match(missing, /Path not found/);
-  assert.match(missing, /role="alert"/);
-  assert.match(missing, />重试</);
-  assert.match(failed(403, 'EACCES'), /没有读取权限/);
-  assert.match(failed(undefined, 'socket hang up'), /无法读取文件/);
+    assert.doesNotMatch(html, /failure|role="alert"|ant-alert/);
+    assert.match(html, /a.txt/);
+  }
 });
 
 test('首次读取显示加载状态，刷新时保留旧内容并标记忙碌', () => {
@@ -441,8 +392,8 @@ test('超大文本关闭语法高亮并提示原因', () => {
   const html = renderToStaticMarkup(
     createElement(CodeView, { path: 'big.ts', text, lines: 1, language: fileLanguage('big.ts') }),
   );
-  assert.match(html, /已关闭语法高亮/);
-  assert.match(html, /256\.0 KB/);
+  assert.doesNotMatch(html, /已关闭语法高亮|files-preview__hint/);
+  assert.ok(html.includes(text));
   const small = renderToStaticMarkup(
     createElement(CodeView, {
       path: 'small.ts',

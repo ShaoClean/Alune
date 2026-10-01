@@ -1,3 +1,5 @@
+import { useStore } from 'zustand';
+import { FeedbackContext, FeedbackHostContext, emptyFeedbackStore } from './feedback-context';
 import {
   createContext,
   useCallback,
@@ -234,6 +236,44 @@ export function AluneModal({
   classNames,
   ...rest
 }: AluneModalProps) {
+  const feedbackStore = useContext(FeedbackContext) ?? emptyFeedbackStore;
+  const hostId = useId();
+  const feedbackHost = useMemo(() => ({ id: hostId, active: Boolean(open) }), [hostId, open]);
+  const feedback = useStore(feedbackStore, (state) =>
+    state.entries.find((entry) => entry.host === hostId && entry.queued),
+  );
+  const dismissFeedback = () => {
+    if (feedback) feedbackStore.getState().acknowledge(feedback.id);
+  };
+  useEffect(() => {
+    if (open) return;
+    for (const entry of feedbackStore.getState().entries) {
+      if (entry.host === hostId) feedbackStore.getState().release(entry.id, entry.lease);
+    }
+  }, [open, feedbackStore, hostId]);
+  useEffect(
+    () => () => {
+      queueMicrotask(() => {
+        if (document.querySelector(`[data-feedback-host="${CSS.escape(hostId)}"]`)) return;
+        for (const entry of feedbackStore.getState().entries) {
+          if (entry.host === hostId) feedbackStore.getState().release(entry.id, entry.lease);
+        }
+      });
+    },
+    [feedbackStore, hostId],
+  );
+  const feedbackRef = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (feedback) {
+      if (!returnFocus.current && document.activeElement instanceof HTMLElement)
+        returnFocus.current = document.activeElement;
+      feedbackRef.current?.focus({ preventScroll: true });
+    } else if (returnFocus.current) {
+      if (returnFocus.current.isConnected) returnFocus.current.focus({ preventScroll: true });
+      returnFocus.current = null;
+    }
+  }, [feedback?.id]);
   const reduceMotion = useAppearance((state) => state.reduceMotion);
   const titleId = useId();
   const descriptionId = useId();
@@ -256,7 +296,11 @@ export function AluneModal({
   }, [asksAcknowledgement]);
 
   const isDanger = danger ?? level === 2;
-  const mergedTone = tone ?? (isDanger ? 'danger' : 'default');
+  const mergedTone = feedback
+    ? feedback.type === 'error'
+      ? 'danger'
+      : feedback.type
+    : (tone ?? (isDanger ? 'danger' : 'default'));
   const {
     loading: okLoading,
     disabled: okPropDisabled,
@@ -283,8 +327,8 @@ export function AluneModal({
     }
   }, [onOk]);
 
-  const latest = useRef({ level, busy, okBlocked, submit });
-  latest.current = { level, busy, okBlocked, submit };
+  const latest = useRef({ level, busy, okBlocked: okBlocked || !!feedback, submit });
+  latest.current = { level, busy, okBlocked: okBlocked || !!feedback, submit };
 
   // rc-dialog focuses the dialog element after its motion ends unless focus is
   // already inside, so the level's default focus is applied as soon as the
@@ -347,6 +391,12 @@ export function AluneModal({
     // Focus is chosen once per opening; later prop changes must not steal it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEffect(() => {
+    const dialog = shellRef.current?.closest('[role="dialog"], [role="alertdialog"]');
+    if (feedback || description) dialog?.setAttribute('aria-describedby', descriptionId);
+    else dialog?.removeAttribute('aria-describedby');
+  }, [feedback?.id, description, descriptionId]);
 
   const width = typeof size === 'number' ? size + SHELL_PADDING : WIDTHS[size] + SHELL_PADDING;
   const showLevel = levelLabel !== false && (levelLabel !== undefined || level === 2);
@@ -458,98 +508,162 @@ export function AluneModal({
     .join(' ');
 
   return (
-    <ConfigProvider button={DIALOG_BUTTON_CONFIG}>
-      <MotionProvider motion>
-        <Modal
-          {...rest}
-          open={open}
-          centered
-          width={width}
-          title={heading}
-          footer={footerNode}
-          onCancel={() => {
-            if (!busy) onCancel?.();
-          }}
-          confirmLoading={busy}
-          mask={{ blur: true }}
-          closable={{ closeIcon: <DialogIcon name="x" />, disabled: busy, 'aria-label': '关闭' }}
-          transitionName="alune-dlg"
-          maskTransitionName="alune-scrim"
-          classNames={{
-            ...semanticClassNames,
-            root: ['a-dlg', semanticClassNames.root].filter(Boolean).join(' '),
-            mask: ['a-dlg-scrim', semanticClassNames.mask].filter(Boolean).join(' '),
-            container: ['a-dlg-core', semanticClassNames.container].filter(Boolean).join(' '),
-            header: ['a-dlg-head', semanticClassNames.header].filter(Boolean).join(' '),
-            body: bodyClass,
-            footer: ['a-dlg-foot', semanticClassNames.footer].filter(Boolean).join(' '),
-          }}
-          modalRender={(node) => (
-            <MotionProvider motion={!reduceMotion}>
-              <div
-                ref={shellRef}
-                className="a-dlg-shell"
-                data-tone={mergedTone === 'default' ? undefined : mergedTone}
-                data-level={level}
-              >
-                {node}
-              </div>
-            </MotionProvider>
-          )}
-        >
-          {children}
-          {typedConfirm ? (
-            <label className="dlg-fld">
-              <span className="dlg-fld-label">
-                <span>
-                  {typedConfirm.label ?? (
-                    <>
-                      输入 <code>{typedConfirm.value}</code> 以确认
-                    </>
+    <FeedbackHostContext.Provider value={feedbackHost}>
+      <ConfigProvider button={DIALOG_BUTTON_CONFIG}>
+        <MotionProvider motion>
+          <Modal
+            {...rest}
+            open={open}
+            centered
+            width={width}
+            title={
+              feedback ? (
+                <div className="a-dlg-heading">
+                  <span className="a-dlg-glyph" aria-hidden="true">
+                    <DialogIcon
+                      name={
+                        feedback.type === 'success'
+                          ? 'check'
+                          : feedback.type === 'info'
+                            ? 'info'
+                            : 'warning'
+                      }
+                    />
+                  </span>
+                  <div className="a-dlg-titles">
+                    <p className="a-dlg-eyebrow">{feedback.context}</p>
+                    <h2 className="a-dlg-title" id={titleId}>
+                      {feedback.title}
+                    </h2>
+                  </div>
+                </div>
+              ) : (
+                heading
+              )
+            }
+            footer={
+              feedback ? (
+                <div className="a-dlg-actions">
+                  {feedback.actions && (
+                    <div onClickCapture={() => feedbackStore.getState().rearm(feedback.id)}>
+                      {feedback.actions}
+                    </div>
                   )}
-                </span>
-                <small>区分大小写</small>
-              </span>
-              <Input
-                className="dlg-mono-input"
-                value={typed}
-                placeholder={typedConfirm.placeholder ?? typedConfirm.value}
-                prefix={typedConfirm.icon ? <DialogIcon name={typedConfirm.icon} /> : undefined}
-                autoComplete="off"
-                spellCheck={false}
-                disabled={busy}
-                // Only a diverging prefix turns the ring red, so typing in progress stays calm.
-                status={
-                  typedMismatch && !typedConfirm.value.startsWith(typedValue) ? 'error' : undefined
-                }
-                aria-invalid={typedMismatch || undefined}
-                onChange={(event) => setTyped(event.target.value)}
-              />
-              {typedMismatch ? (
-                <span className="dlg-fld-hint is-error" role="status">
-                  <DialogIcon name="warning" />
-                  {typedConfirm.mismatch ?? '输入内容不一致'}
-                </span>
-              ) : typedMatch ? (
-                <span className="dlg-fld-hint is-ok" role="status">
-                  <DialogIcon name="check" />
-                  {typedConfirm.match ?? '输入一致'}
-                </span>
+                  {feedback.actionLabel && (
+                    <Button
+                      loading={feedback.busy}
+                      onClick={() => void feedbackStore.getState().run(feedback.id)}
+                    >
+                      {feedback.actionLabel}
+                    </Button>
+                  )}
+                  <Button ref={feedbackRef} onClick={dismissFeedback}>
+                    返回
+                  </Button>
+                </div>
+              ) : (
+                footerNode
+              )
+            }
+            onCancel={() => {
+              if (feedback) dismissFeedback();
+              else if (!busy) onCancel?.();
+            }}
+            confirmLoading={busy}
+            mask={{ blur: true }}
+            closable={{
+              closeIcon: <DialogIcon name="x" />,
+              disabled: !feedback && busy,
+              'aria-label': feedback ? '关闭提示' : '关闭',
+            }}
+            transitionName="alune-dlg"
+            maskTransitionName="alune-scrim"
+            classNames={{
+              ...semanticClassNames,
+              root: ['a-dlg', semanticClassNames.root].filter(Boolean).join(' '),
+              mask: ['a-dlg-scrim', semanticClassNames.mask].filter(Boolean).join(' '),
+              container: ['a-dlg-core', semanticClassNames.container].filter(Boolean).join(' '),
+              header: ['a-dlg-head', semanticClassNames.header].filter(Boolean).join(' '),
+              body: bodyClass,
+              footer: ['a-dlg-foot', semanticClassNames.footer].filter(Boolean).join(' '),
+            }}
+            modalRender={(node) => (
+              <MotionProvider motion={!reduceMotion}>
+                <div
+                  ref={shellRef}
+                  data-feedback-host={open ? hostId : undefined}
+                  className="a-dlg-shell"
+                  data-tone={mergedTone === 'default' ? undefined : mergedTone}
+                  data-level={level}
+                >
+                  {node}
+                </div>
+              </MotionProvider>
+            )}
+          >
+            {feedback && (
+              <div className="feedback-description" id={descriptionId} role="status">
+                {feedback.content || feedback.description}
+              </div>
+            )}
+            <div className="a-dlg-form-content" hidden={!!feedback}>
+              {children}
+              {typedConfirm ? (
+                <label className="dlg-fld">
+                  <span className="dlg-fld-label">
+                    <span>
+                      {typedConfirm.label ?? (
+                        <>
+                          输入 <code>{typedConfirm.value}</code> 以确认
+                        </>
+                      )}
+                    </span>
+                    <small>区分大小写</small>
+                  </span>
+                  <Input
+                    className="dlg-mono-input"
+                    value={typed}
+                    placeholder={typedConfirm.placeholder ?? typedConfirm.value}
+                    prefix={typedConfirm.icon ? <DialogIcon name={typedConfirm.icon} /> : undefined}
+                    autoComplete="off"
+                    spellCheck={false}
+                    disabled={busy}
+                    // Only a diverging prefix turns the ring red, so typing in progress stays calm.
+                    status={
+                      typedMismatch && !typedConfirm.value.startsWith(typedValue)
+                        ? 'error'
+                        : undefined
+                    }
+                    aria-invalid={typedMismatch || undefined}
+                    onChange={(event) => setTyped(event.target.value)}
+                  />
+                  {typedMismatch ? (
+                    <span className="dlg-fld-hint is-error" role="status">
+                      <DialogIcon name="warning" />
+                      {typedConfirm.mismatch ?? '输入内容不一致'}
+                    </span>
+                  ) : typedMatch ? (
+                    <span className="dlg-fld-hint is-ok" role="status">
+                      <DialogIcon name="check" />
+                      {typedConfirm.match ?? '输入一致'}
+                    </span>
+                  ) : null}
+                </label>
               ) : null}
-            </label>
-          ) : null}
-          {acknowledge !== undefined ? (
-            <CheckCard
-              tone="danger"
-              checked={acknowledged}
-              disabled={busy}
-              onChange={setAcknowledged}
-              title={acknowledge}
-            />
-          ) : null}
-        </Modal>
-      </MotionProvider>
-    </ConfigProvider>
+              {acknowledge !== undefined ? (
+                <CheckCard
+                  tone="danger"
+                  checked={acknowledged}
+                  disabled={busy}
+                  onChange={setAcknowledged}
+                  title={acknowledge}
+                />
+              ) : null}
+            </div>
+          </Modal>
+        </MotionProvider>
+      </ConfigProvider>
+    </FeedbackHostContext.Provider>
   );
 }
 

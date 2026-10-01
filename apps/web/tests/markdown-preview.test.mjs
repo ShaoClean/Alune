@@ -94,13 +94,13 @@ test('empty, whitespace, large and failed Markdown retain clear states and compl
   assert.match(pane(''), /空文件/);
   assert.match(pane(' \n\t'), /此文件只有空白内容/);
   const large = `# ${'x'.repeat(MARKDOWN_PREVIEW_MAX_CHARS)}`;
-  assert.match(pane(large), /请切换到「源码」查看完整内容/);
+  assert.doesNotMatch(pane(large), /请切换到「源码」查看完整内容/);
   assert.ok(pane(large, { markdownMode: 'source' }).includes(large));
-  assert.match(
+  assert.doesNotMatch(
     pane('', { file: { phase: 'error', path: 'README.MD', status: 403, message: 'denied' } }),
     /没有读取权限/,
   );
-  assert.match(
+  assert.doesNotMatch(
     pane('', {
       file: {
         phase: 'ready',

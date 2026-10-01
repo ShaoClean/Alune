@@ -1,6 +1,7 @@
+import { FeedbackAlert } from '../FeedbackAlert';
 import { FeedbackNotice } from '../Feedback';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Input, Select } from 'antd';
+import { Button, Input, Select } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import type { AiSettings, CommitGenerationPreferences } from '@alune/shared';
 import { aiApi, aiError } from '../../api/ai';
@@ -53,7 +54,8 @@ export function CommitSettings({
         <fieldset disabled={busy} className="settings-fieldset">
           <h2>默认模型</h2>
           {!providers.length && (
-            <Alert
+            <FeedbackAlert
+              source="CommitSettings-1"
               type="info"
               title="尚无已启用的模型"
               description={
@@ -156,9 +158,9 @@ export function CommitSettings({
                 : 'Describe the main changes and their purpose when a body is useful.'}
             </p>
           </div>
-          <Alert
+          <FeedbackAlert
+            source="CommitSettings-2"
             type="info"
-            showIcon
             title="仅已暂存改动"
             description="暂存差异将发送给你选择的 AI 服务商。二进制文件仅提供变更信息；超过 96 KiB 时请减少暂存范围。生成后可编辑、撤销，由你主动提交。"
           />

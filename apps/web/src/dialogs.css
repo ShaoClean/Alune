@@ -2608,3 +2608,10 @@
     animation: none !important;
   }
 }
+
+/* Feedback occupies the existing dialog; hidden forms stay mounted with drafts intact. */
+.a-dlg-form-content:not([hidden]) { display: contents; }
+.a-dlg-form-content[hidden] { display: none !important; }
+.dlg-explanation { color: var(--text-muted); line-height: 1.6; overflow-wrap: anywhere; }
+.dlg-explanation strong { color: var(--text); }
+.dlg-explanation p { margin: 6px 0; }
