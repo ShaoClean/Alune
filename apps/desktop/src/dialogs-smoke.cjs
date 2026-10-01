@@ -9,7 +9,7 @@ module.exports = async ({ window }) => {
     execute(`new Promise((resolve, reject) => {
     const started = Date.now(); const poll = () => {
       if (${condition}) return resolve(true);
-      if (Date.now() - started > 8000) return reject(Error('Dialogs smoke: ' + ${JSON.stringify(condition)}));
+      if (Date.now() - started > 8000) return reject(Error('Dialogs smoke: ' + ${JSON.stringify(condition)} + ' | active=' + document.activeElement?.outerHTML.slice(0, 500)));
       setTimeout(poll, 20);
     }; poll();
   })`);
@@ -92,9 +92,7 @@ module.exports = async ({ window }) => {
       `(${JSON.stringify(originalMotion)} === null) ? delete document.documentElement.dataset.reducedMotion : (document.documentElement.dataset.reducedMotion = ${JSON.stringify(originalMotion)})`,
     );
   try {
-    window.show();
-    window.focus();
-    await wait('document.hasFocus()');
+    await require('./smoke-window.cjs')(window);
     await wait(
       'document.querySelector(\'[aria-label="放弃所有更改"]\') && !document.querySelector(\'[aria-label="放弃所有更改"]\').disabled',
     );
@@ -135,7 +133,11 @@ module.exports = async ({ window }) => {
     for (let step = 0; step < 8; step += 1) {
       await execute('window.__dialogTabTarget = document.activeElement');
       await press('Tab');
-      await wait('document.activeElement !== window.__dialogTabTarget');
+      // Native key dispatch can expose <body> between blur and the next focus
+      // event. Wait for a real destination, then assert it is inside the dialog.
+      await wait(`document.activeElement !== window.__dialogTabTarget &&
+        document.activeElement !== document.body &&
+        document.activeElement !== document.documentElement`);
       assert.equal(
         await execute(`${shell}.closest('.ant-modal-wrap').contains(document.activeElement)`),
         true,

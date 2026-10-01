@@ -59,9 +59,7 @@ module.exports = async ({ window, git, repo }) => {
       '保留草稿',
     );
     // Keep the smoke window visible for subsequent animation-frame/drag checks.
-    window.show();
-    window.focus();
-    await wait('document.hasFocus()');
+    await require('./smoke-window.cjs')(window);
     // Observe the Unicode payload while still calling the real browser API.
     // Windows CI clipboard synchronization can rewrite non-ANSI characters.
     await execute(`(() => {
