@@ -6,8 +6,8 @@ export default function Example() {
   const [result, setResult] = useState('');
   const [busy, setBusy] = useState(false);
   return (
-    <>
-      <label>
+    <div className="example example--narrow">
+      <label className="example-row">
         <Switch aria-label="模拟提交失败" checked={failure} onChange={setFailure} /> 模拟失败
       </label>
       <Form
@@ -21,7 +21,6 @@ export default function Example() {
           setResult(failure ? '保存失败，请保留输入并重试。' : `已保存：${values.name}`);
           setBusy(false);
         }}
-        style={{ maxWidth: 360 }}
       >
         <Form.Item
           name="name"
@@ -38,7 +37,9 @@ export default function Example() {
           保存配置
         </Button>
       </Form>
-      <p role="status">{result}</p>
-    </>
+      <p className="example-status" role="status">
+        {result}
+      </p>
+    </div>
   );
 }

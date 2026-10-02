@@ -1,0 +1,218 @@
+/* Layout belongs to the documentation host, not the shared component package. */
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--content);
+  color: var(--text);
+  font: 14px/1.6 var(--font-sans);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+main {
+  display: grid;
+  align-items: center;
+  min-height: 100dvh;
+  padding: 32px;
+  overflow-wrap: anywhere;
+}
+
+main > astro-island {
+  min-width: 0;
+}
+
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 640px;
+  margin-inline: auto;
+}
+
+.example--narrow {
+  max-width: 400px;
+}
+
+.example--centered {
+  align-items: center;
+  text-align: center;
+}
+
+.example-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.example-group + .example-group {
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.example-title {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.example-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 0;
+}
+
+.example-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+.example-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.example-setting {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding-block: 8px;
+  font-size: 13px;
+}
+
+.example-status {
+  display: block;
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.example-status:empty {
+  display: none;
+}
+
+.example-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.example-icon-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 12px;
+}
+
+.example-icon-item > :is(img, svg) {
+  flex-shrink: 0;
+}
+
+.example-panel {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.example-panel-body {
+  padding: 24px;
+}
+
+.example-panel > .empty-state {
+  min-height: 200px;
+  padding: 24px;
+}
+
+.example-panel > .loading-state {
+  min-height: 140px;
+}
+
+.example-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: 24px;
+  color: var(--text-muted);
+}
+
+.example-code {
+  max-width: 100%;
+  margin: 0;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--code-bg);
+  font: 12px/1.7 var(--font-mono);
+}
+
+.example-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+noscript {
+  display: block;
+  padding: 24px;
+}
+
+@media (max-width: 560px) {
+  .example-icon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  main {
+    padding: 24px 18px;
+  }
+
+  .example {
+    gap: 20px;
+  }
+
+  .example-panel-body {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 340px) {
+  .example-icon-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

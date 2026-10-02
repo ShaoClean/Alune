@@ -2,6 +2,7 @@
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '@alune/ui/styles.css';
+import '../../../styles/ui-examples.css';
 import DemoRoot from '../../../examples/DemoRoot';
 import { examples } from '../../../examples/registry';
 export function getStaticPaths() {
@@ -37,47 +38,3 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     </noscript>
   </body>
 </html>
-<style is:global>
-  html,
-  body {
-    margin: 0;
-    min-height: 100%;
-    background: var(--content);
-    color: var(--text);
-    font-family: var(--font-sans);
-  }
-  main {
-    padding: 24px;
-    overflow-wrap: anywhere;
-  }
-  main > .ant-space,
-  main > label,
-  main > output,
-  main > span {
-    margin-block: 8px;
-  }
-  main > label {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-  }
-  main > label,
-  main > output {
-    margin-right: 12px;
-  }
-  main > p {
-    line-height: 1.6;
-  }
-  main > input,
-  main > textarea {
-    margin-bottom: 12px;
-  }
-  main pre {
-    max-width: 100%;
-    overflow: auto;
-  }
-  noscript {
-    display: block;
-    padding: 24px;
-  }
-</style>

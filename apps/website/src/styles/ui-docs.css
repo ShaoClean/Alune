@@ -12,7 +12,7 @@
   top: 110px;
   max-height: calc(100dvh - 135px);
   overflow-y: auto;
-  padding: 4px 16px 24px 0;
+  padding: 4px 12px 24px 4px;
   scrollbar-width: thin;
 }
 .ui-wordmark {
@@ -47,18 +47,27 @@
   color: var(--muted);
   margin: 0 0 10px;
   letter-spacing: 0.08em;
+  padding-inline: 10px;
 }
 .ui-sidebar nav a {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  margin-inline: -10px;
-  border-radius: 6px;
+  margin-block: 3px;
+  border-radius: 8px;
   font-size: 12px;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 }
 .ui-sidebar nav a:hover {
   background: var(--shell);
+  color: var(--accent);
+}
+.ui-sidebar nav a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .ui-sidebar nav a[aria-current='page'] {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
@@ -128,6 +137,7 @@
   display: block;
   padding: 10px;
   font-size: 12px;
+  border-radius: 6px;
 }
 .ui-search ul a:hover,
 .ui-search ul a[aria-selected='true'] {

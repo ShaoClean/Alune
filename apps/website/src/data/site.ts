@@ -14,7 +14,6 @@ export const site = {
   proxy: `${repository}/blob/development/docs/network-proxy.md`,
   changelog: `${repository}/issues/97`,
   feedback: `${repository}/issues/new/choose`,
-  screenshotSource: `${repository}/wiki/README-Screenshots-v0.5.0`,
 };
 export const navigation = [
   { href: '#workspaces', label: '工作区' },

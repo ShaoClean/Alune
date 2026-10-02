@@ -4,8 +4,9 @@ import { AlunePopconfirm, Button, Space } from '@alune/ui';
 export default function Example() {
   const [result, setResult] = useState('');
   return (
-    <>
-      <Space wrap>
+    <div className="example">
+      <h2 className="example-title">安全、警告与危险操作</h2>
+      <Space wrap size="middle">
         {(['safe', 'warning', 'danger'] as const).map((tone) => (
           <AlunePopconfirm
             key={tone}
@@ -20,7 +21,9 @@ export default function Example() {
           </AlunePopconfirm>
         ))}
       </Space>
-      <p role="status">{result}</p>
-    </>
+      <p className="example-status" role="status">
+        {result}
+      </p>
+    </div>
   );
 }
