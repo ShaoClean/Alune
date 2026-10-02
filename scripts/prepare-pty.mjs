@@ -7,7 +7,14 @@ import path from 'node:path';
 if (process.platform !== 'win32') {
   const directory = process.argv[2] || process.cwd();
   const require = createRequire(path.join(directory, 'package.json'));
-  const root = path.dirname(require.resolve('node-pty/package.json'));
+  let root;
+  try {
+    root = path.dirname(require.resolve('node-pty/package.json'));
+  } catch (error) {
+    // Website-only workspace installs intentionally omit server/native packages.
+    if (error.code !== 'MODULE_NOT_FOUND') throw error;
+    process.exit(0);
+  }
   for (const candidate of [
     path.join(root, 'build/Release/spawn-helper'),
     path.join(root, `prebuilds/${process.platform}-${process.arch}/spawn-helper`),
