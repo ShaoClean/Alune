@@ -219,7 +219,8 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               : index === 5
                 ? '@@ -0,0 +1 @@\n+new'
                 : control.layoutStress
-                  ? '@@ -1,160 +1,160 @@\n' +
+                  ? patch +
+                    '\n@@ -50,160 +51,160 @@\n' +
                     Array.from({ length: 160 }, (_, line) => ` const value${line} = ${line};`).join(
                       '\n',
                     )
