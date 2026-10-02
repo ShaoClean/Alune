@@ -158,63 +158,73 @@ async function createTerminalFixture({
     token,
     webRoot: path.resolve(__dirname, '../../web/dist'),
   });
-  const repositories = app.get(RepositoryService);
-  const connections = app.get(ConnectionService);
-  const repo = await repositories.addLocal(
-    seed(
-      process.platform === 'win32'
-        ? 'local 中文 space'
-        : "local 中文 ' $(echo UNSAFE) ; space",
-    ),
-  );
-  const worktreePath = path.join(root, 'worktree 中文');
-  execFileSync('git', [
-    '-C',
-    repo.path,
-    'worktree',
-    'add',
-    '-q',
-    '-b',
-    'topic',
-    worktreePath,
-  ]);
-  const worktree = await repositories.openWorktree(
-    repo.id,
-    fs.realpathSync(worktreePath),
-  );
   const remotes = [];
-  const remoteRepos = [];
-  if (ssh)
-    for (const name of ['ssh-a', 'ssh-b']) {
-      const remote = await terminalSSH(name);
-      remotes.push(remote);
-      const config = await connections.create(remote.options);
-      remoteRepos.push(
-        await repositories.add(config.id, seed(name + " 中文 ' ; space")),
-      );
-    }
-  const address = app.getHttpServer().address();
-  return {
-    app,
-    root,
-    token,
-    repo,
-    worktree,
-    remotes,
-    remoteRepos,
-    repositories,
-    connections,
-    registry: app.get(TerminalRegistry),
-    url: `http://127.0.0.1:${address.port}`,
-    async close() {
-      await app.close();
-      for (const remote of remotes) await remote.close();
-      fs.rmSync(root, { recursive: true, force: true });
-      if (originalShell === undefined) delete process.env.SHELL;
-      else process.env.SHELL = originalShell;
-      if (originalPrompt === undefined) delete process.env.PS1;
-      else process.env.PS1 = originalPrompt;
-    },
+  const close = async () => {
+    await app.close();
+    for (const remote of remotes) await remote.close();
+    fs.rmSync(root, { recursive: true, force: true });
+    if (originalShell === undefined) delete process.env.SHELL;
+    else process.env.SHELL = originalShell;
+    if (originalPrompt === undefined) delete process.env.PS1;
+    else process.env.PS1 = originalPrompt;
   };
+  try {
+    const repositories = app.get(RepositoryService);
+    const connections = app.get(ConnectionService);
+    const repo = await repositories.addLocal(
+      seed(
+        process.platform === 'win32'
+          ? 'local 中文 space'
+          : "local 中文 ' $(echo UNSAFE) ; space",
+      ),
+    );
+    const worktreePath = path.join(root, 'worktree 中文');
+    execFileSync('git', [
+      '-C',
+      repo.path,
+      'worktree',
+      'add',
+      '-q',
+      '-b',
+      'topic',
+      worktreePath,
+    ]);
+    // Use the exact Git-listed path, like the UI does (Git uses / on Windows).
+    const listed = await repositories.getWorktrees(repo.id);
+    const selectedWorktree = listed.find((item) => item.branch === 'topic');
+    if (!selectedWorktree) throw new Error('Fixture Worktree was not listed');
+    const worktree = await repositories.openWorktree(
+      repo.id,
+      selectedWorktree.path,
+    );
+    const remoteRepos = [];
+    if (ssh)
+      for (const name of ['ssh-a', 'ssh-b']) {
+        const remote = await terminalSSH(name);
+        remotes.push(remote);
+        const config = await connections.create(remote.options);
+        remoteRepos.push(
+          await repositories.add(config.id, seed(name + " 中文 ' ; space")),
+        );
+      }
+    const address = app.getHttpServer().address();
+    return {
+      app,
+      root,
+      token,
+      repo,
+      worktree,
+      remotes,
+      remoteRepos,
+      repositories,
+      connections,
+      registry: app.get(TerminalRegistry),
+      url: `http://127.0.0.1:${address.port}`,
+      close,
+    };
+  } catch (error) {
+    await close();
+    throw error;
+  }
 }
 module.exports = { createTerminalFixture, terminalSSH };
