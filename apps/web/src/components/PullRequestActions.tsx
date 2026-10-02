@@ -1,6 +1,6 @@
 import { FeedbackAlert } from '@alune/ui';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Button, Input, Segmented, Spin } from '@alune/ui';
+import { Button, Dropdown, Input, Segmented, Spin } from '@alune/ui';
 import type {
   PullRequestActions,
   PullRequestCommentPosition,
@@ -228,27 +228,59 @@ export function ReviewActionBar({
   const marker = query.provider === 'github' ? '#' : '!';
   const methodLabelId = useId();
   const selectedMethod = view?.snapshot.mergeMethods.find((item) => item.value === method);
+  const mergeStatus = review.loading
+    ? '正在检查操作权限'
+    : review.actions?.merge.allowed
+      ? '可以合并'
+      : review.actions
+        ? '暂不可合并'
+        : '无法读取操作权限';
   return (
     <section className="pull-request-actions" aria-label="Review 操作">
+      <div className="pull-request-actions__status" role="status">
+        <DialogIcon name={review.actions?.merge.allowed ? 'check' : 'shield'} />
+        <span>{mergeStatus}</span>
+      </div>
       <div className="pull-request-actions__buttons">
         <Button
           type="primary"
+          icon={<DialogIcon name="merge" />}
+          title={review.actions?.merge.reason || mergeStatus}
           disabled={review.loading || review.pending || !review.actions?.merge.allowed}
           onClick={() => void open('merge')}
         >
           合并
         </Button>
-        <Button
-          danger
-          disabled={review.loading || review.pending || !review.actions?.close.allowed}
-          onClick={() => void open('close')}
+        <Dropdown
+          trigger={['click']}
+          placement="bottomRight"
+          menu={{
+            items: [
+              { key: 'refresh', label: '刷新操作权限', icon: <DialogIcon name="refresh" /> },
+              { type: 'divider' },
+              {
+                key: 'close',
+                label: '关闭 PR/MR',
+                danger: true,
+                disabled: !review.actions?.close.allowed,
+                icon: <DialogIcon name="archive" />,
+              },
+            ],
+            onClick: ({ key }) => {
+              if (key === 'close') void open('close');
+              else void review.load();
+            },
+          }}
+          disabled={review.loading || review.pending}
         >
-          关闭 PR/MR
-        </Button>
-        <Button disabled={review.loading || review.pending} onClick={() => void review.load()}>
-          刷新操作权限
-        </Button>
-        {review.loading && <Spin size="small" aria-label="正在检查操作权限" />}
+          <Button
+            type="text"
+            icon={review.loading ? <Spin size="small" /> : <DialogIcon name="dots" />}
+            aria-label="更多审阅操作"
+            title="更多审阅操作"
+            disabled={review.loading || review.pending}
+          />
+        </Dropdown>
       </div>
       {(review.actions?.merge.reason ||
         review.actions?.close.reason ||
@@ -268,7 +300,7 @@ export function ReviewActionBar({
               ),
             ].join('\n') +
             (review.actions?.comment.reason === '请配置有写入权限的访问令牌。'
-              ? '\n请返回 PR/MR 列表，选择具有写入权限的令牌并点击「应用到此仓库」，然后重新打开文件变动。'
+              ? '\n请返回 PR/MR 列表，展开「访问设置」，选择具有写入权限的令牌并点击「应用到此仓库」，然后重新打开文件变动。'
               : '')
           }
         />
@@ -444,61 +476,64 @@ export function ReviewCommentComposer({
         void review.submit('comment');
       }}
     >
-      <h3>
-        {inline && p
-          ? `${p.path} · ${p.side === 'LEFT' ? '旧行' : '新行'} ${p.startLine}${p.endLine !== p.startLine ? `–${p.endLine}` : ''}`
-          : '发表评论'}
-      </h3>
-      {!inline && p ? (
-        <p>
-          已有代码评论草稿，请到「文件变动」继续，或
-          <Button
-            type="link"
-            disabled={review.pending}
-            onClick={() => review.select(undefined, review.actions?.revision || '')}
-          >
-            改为 Overview 评论
-          </Button>
-        </p>
-      ) : (
-        <>
-          <Input.TextArea
-            aria-label={inline ? '代码评论内容' : 'Overview 评论内容'}
-            value={review.draft.body}
-            disabled={review.pending}
-            onChange={(event) => review.updateBody(event.target.value)}
-            autoSize={{ minRows: 3, maxRows: 12 }}
-            maxLength={60000}
-            placeholder="支持 Markdown。评论将直接发布到托管平台。"
-          />
-          {stale && reason && (
-            <FeedbackAlert source="review-comment-permission" type="warning" title={reason} />
-          )}
-          <div className="pull-request-actions__buttons">
+      <div className="pull-request-composer__core">
+        <h3>
+          {inline && p
+            ? `${p.path} · ${p.side === 'LEFT' ? '旧行' : '新行'} ${p.startLine}${p.endLine !== p.startLine ? `–${p.endLine}` : ''}`
+            : '发表评论'}
+        </h3>
+        {!inline && p ? (
+          <p>
+            已有代码评论草稿，请到「文件变动」继续，或
             <Button
-              type="primary"
-              htmlType="submit"
-              loading={review.pending}
-              disabled={
-                review.loading ||
-                !review.actions?.comment.allowed ||
-                !!stale ||
-                !review.draft.body.trim()
-              }
+              type="link"
+              disabled={review.pending}
+              onClick={() => review.select(undefined, review.actions?.revision || '')}
             >
-              发表评论
+              改为 Overview 评论
             </Button>
-            {inline && (
-              <Button
-                disabled={review.pending}
-                onClick={() => review.select(undefined, review.actions?.revision || '')}
-              >
-                取消选区，保留正文
-              </Button>
+          </p>
+        ) : (
+          <>
+            <Input.TextArea
+              aria-label={inline ? '代码评论内容' : 'Overview 评论内容'}
+              value={review.draft.body}
+              disabled={review.pending}
+              onChange={(event) => review.updateBody(event.target.value)}
+              autoSize={{ minRows: 3, maxRows: 12 }}
+              maxLength={60000}
+              placeholder="支持 Markdown。评论将直接发布到托管平台。"
+            />
+            {stale && reason && (
+              <FeedbackAlert source="review-comment-permission" type="warning" title={reason} />
             )}
-          </div>
-        </>
-      )}
+            <div className="pull-request-actions__buttons">
+              <span className="pull-request-composer__hint">支持 Markdown</span>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={review.pending}
+                disabled={
+                  review.loading ||
+                  !review.actions?.comment.allowed ||
+                  !!stale ||
+                  !review.draft.body.trim()
+                }
+              >
+                发表评论
+              </Button>
+              {inline && (
+                <Button
+                  disabled={review.pending}
+                  onClick={() => review.select(undefined, review.actions?.revision || '')}
+                >
+                  取消选区，保留正文
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </form>
   );
 }

@@ -32,7 +32,16 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
     calls: [],
     states: {},
     notes: {},
+    layoutStress: false,
   };
+  const title = (fallback) =>
+    control.layoutStress
+      ? '在狭窄工作区审阅跨平台兼容性变更，保留评论草稿并清晰展示长标题、分支和文件路径'
+      : fallback;
+  const branch = (number) =>
+    control.layoutStress
+      ? `feature/${number}/preserve-review-context-and-drafts-across-narrow-workspace-panels`
+      : `feature/${number}`;
   globalThis.fetch = async (input, options) => {
     const url = new URL(String(input));
     if (!['api.github.com', 'gitlab.example.com', 'gitlab.com'].includes(url.hostname))
@@ -143,7 +152,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
         more = false;
       if (!kind) {
         const common = {
-          title: `在应用内查看变动与讨论 · ${number}`,
+          title: title(`在应用内查看变动与讨论 · ${number}`),
           draft: number === 94,
           updated_at: date,
         };
@@ -155,8 +164,8 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               merged_at: number === 89 ? date : null,
               user: { login: 'alune-contributor' },
               head: {
-                label: `contributor:feature/${number}`,
-                ref: `feature/${number}`,
+                label: `contributor:${branch(number)}`,
+                ref: branch(number),
                 sha: 'a'.repeat(40),
               },
               base: { ref: 'development', sha: 'b'.repeat(40) },
@@ -180,7 +189,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
                 base_sha: 'b'.repeat(40),
                 start_sha: 'c'.repeat(40),
               },
-              source_branch: `feature/${number}`,
+              source_branch: branch(number),
               target_branch: 'main',
               description:
                 number === 94
@@ -205,7 +214,16 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
                         ? 'src/added.ts'
                         : `src/modules/very-long-review-context-path/file-${index}.ts`;
           const filePatch =
-            index === 4 ? '@@ -1 +0,0 @@\n-old' : index === 5 ? '@@ -0,0 +1 @@\n+new' : patch;
+            index === 4
+              ? '@@ -1 +0,0 @@\n-old'
+              : index === 5
+                ? '@@ -0,0 +1 @@\n+new'
+                : control.layoutStress
+                  ? '@@ -1,160 +1,160 @@\n' +
+                    Array.from({ length: 160 }, (_, line) => ` const value${line} = ${line};`).join(
+                      '\n',
+                    )
+                  : patch;
           return github
             ? {
                 filename: name,
@@ -313,8 +331,10 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               : []),
           ]
         : [{ number: 76, title: '分页加载更多协作记录', state: 'open', draft: false }];
-    for (const item of items)
+    for (const item of items) {
       item.state = control.states[`${url.host}:${item.number}`] || item.state;
+      item.title = title(item.title);
+    }
     const data = items
       .filter((item) => all || item.state === 'open')
       .map((item) =>
@@ -324,7 +344,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               state: item.state === 'merged' ? 'closed' : item.state,
               merged_at: item.state === 'merged' ? '2026-09-26T08:00:00Z' : null,
               user: { login: 'alune-contributor' },
-              head: { label: `contributor:feature/${item.number}` },
+              head: { label: `contributor:${branch(item.number)}` },
               base: { ref: 'development', sha: 'b'.repeat(40) },
               mergeable: true,
               mergeable_state: 'clean',
@@ -335,7 +355,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               iid: item.number,
               state: item.state === 'open' ? 'opened' : item.state,
               author: { username: 'alune-contributor' },
-              source_branch: `feature/${item.number}`,
+              source_branch: branch(item.number),
               target_branch: 'main',
               updated_at: '2026-09-26T08:00:00Z',
             },
@@ -366,6 +386,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
     if (Number.isInteger(body.delay)) control.delay = body.delay;
     if ('delayNumber' in body) control.delayNumber = body.delayNumber;
     if (typeof body.failPath === 'string') control.failPath = body.failPath;
+    if (typeof body.layoutStress === 'boolean') control.layoutStress = body.layoutStress;
     if (body.resetCalls) control.calls.length = 0;
     res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(control));
   });

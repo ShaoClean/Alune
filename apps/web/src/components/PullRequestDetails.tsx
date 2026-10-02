@@ -3,8 +3,8 @@ import { useDiffHighlight } from './useDiffHighlight';
 import { FeedbackScope } from '@alune/ui';
 import { FeedbackAlert } from '@alune/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Empty, Select, Spin, Tabs, Tag } from '@alune/ui';
-import { ArrowLeftOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
+import type { ReactNode } from 'react';
+import { Button, DialogIcon, Empty, FileIcon, Select, Spin, Tabs, Tag } from '@alune/ui';
 import type {
   PullRequestDetailQuery,
   PullRequestDetail,
@@ -23,6 +23,7 @@ import { pullRequestDiffLines, pullRequestRange } from '@alune/shared';
 import { ReviewActionBar, ReviewCommentComposer, useReviewActions } from './PullRequestActions';
 import type { ReviewActions } from './PullRequestActions';
 import { MarkdownContent } from './ReleaseNotes';
+import { PullRequestBranches, PullRequestStatus } from './PullRequestPresentation';
 
 // Match a result to its loader as well as aborting it, so changing identity never paints stale data.
 function useResource<T>(load: (signal: AbortSignal) => Promise<T>) {
@@ -340,7 +341,7 @@ function Files({
       )}
       {file && (
         <div className="pull-request-files__layout">
-          <nav className="pull-request-files__list" aria-label="变动文件">
+          <nav className="pull-request-files__list" aria-label="变动文件" tabIndex={0}>
             <p>
               已加载 {resource.items.length}
               {expectedCount != null ? ` / ${expectedCount}` : ''} 个文件
@@ -353,15 +354,25 @@ function Files({
                 onClick={() => onFileChange(item.path)}
                 title={item.path}
               >
-                <span>{item.path}</span>
+                <span className="pull-request-file-name">
+                  <FileIcon path={item.path} />
+                  {item.path}
+                </span>
                 <FileStats file={item} />
               </button>
             ))}
             <More {...resource} />
           </nav>
-          <article className="pull-request-files__diff" aria-label={`Diff ${file.path}`}>
+          <article
+            className="pull-request-files__diff"
+            aria-label={`Diff ${file.path}`}
+            tabIndex={0}
+          >
             <header>
-              <strong>{file.path}</strong>
+              <strong>
+                <FileIcon path={file.path} />
+                {file.path}
+              </strong>
               <FileStats file={file} />
             </header>
             {file.previousPath && file.previousPath !== file.path && (
@@ -460,62 +471,67 @@ const reviewStates: Record<string, string> = {
 export function DiscussionThread({ thread }: { thread: PullRequestDiscussion }) {
   return (
     <article className="pull-request-thread" aria-label="讨论串">
-      {thread.resolved !== undefined && (
-        <Tag color={thread.resolved ? 'green' : 'orange'}>
-          {thread.resolved ? '已解决' : '未解决'}
-        </Tag>
-      )}
-      {thread.comments.map((note, index) => (
-        <section
-          className="pull-request-comment"
-          key={note.id}
-          aria-label={`来自 ${note.author} 的评论`}
-        >
-          <header>
-            <strong>{note.author}</strong>
-            {note.createdAt && (
-              <time dateTime={note.createdAt}>
-                {new Date(note.createdAt).toLocaleString('zh-CN', { hour12: false })}
-              </time>
+      <div className="pull-request-thread__core">
+        {thread.resolved !== undefined && (
+          <Tag color={thread.resolved ? 'green' : 'orange'}>
+            {thread.resolved ? '已解决' : '未解决'}
+          </Tag>
+        )}
+        {thread.comments.map((note, index) => (
+          <section
+            className="pull-request-comment"
+            key={note.id}
+            aria-label={`来自 ${note.author} 的评论`}
+          >
+            <header>
+              <span className="pull-request-avatar" aria-hidden="true">
+                {note.author.slice(0, 1).toUpperCase()}
+              </span>
+              <strong>{note.author}</strong>
+              {note.createdAt && (
+                <time dateTime={note.createdAt}>
+                  {new Date(note.createdAt).toLocaleString('zh-CN', { hour12: false })}
+                </time>
+              )}
+              {note.system && <Tag>系统记录</Tag>}
+              {note.reviewState && <Tag>{reviewStates[note.reviewState] || note.reviewState}</Tag>}
+              {(note.replyTo || index > 0) && (
+                <span>{note.replyTo ? `回复评论 #${note.replyTo}` : '回复'}</span>
+              )}
+            </header>
+            {note.context && (
+              <div className="pull-request-comment__context">
+                <p>
+                  <code>{note.context.path}</code>
+                  {note.context.oldPath &&
+                    note.context.oldPath !== note.context.path &&
+                    `（原路径 ${note.context.oldPath}）`}
+                  {note.context.startLine &&
+                    ` · 起始${note.context.startSide === 'LEFT' ? '旧' : '新'}行 ${note.context.startLine}`}
+                  {note.context.oldLine && ` · 旧行 ${note.context.oldLine}`}
+                  {note.context.newLine && ` · 新行 ${note.context.newLine}`}
+                  {!note.context.oldLine && !note.context.newLine && ' · 文件级评论或行号不可用'}
+                  {note.context.outdated && <Tag>旧版本代码</Tag>}
+                </p>
+                {note.context.notice && <p className="pull-request-muted">{note.context.notice}</p>}
+                {note.context.patch && (
+                  <details>
+                    <summary>查看评论的代码上下文</summary>
+                    <PullRequestPatch patch={note.context.patch} filePath={note.context.path} />
+                  </details>
+                )}
+              </div>
             )}
-            {note.system && <Tag>系统记录</Tag>}
-            {note.reviewState && <Tag>{reviewStates[note.reviewState] || note.reviewState}</Tag>}
-            {(note.replyTo || index > 0) && (
-              <span>{note.replyTo ? `回复评论 #${note.replyTo}` : '回复'}</span>
-            )}
-          </header>
-          {note.context && (
-            <div className="pull-request-comment__context">
-              <p>
-                <code>{note.context.path}</code>
-                {note.context.oldPath &&
-                  note.context.oldPath !== note.context.path &&
-                  `（原路径 ${note.context.oldPath}）`}
-                {note.context.startLine &&
-                  ` · 起始${note.context.startSide === 'LEFT' ? '旧' : '新'}行 ${note.context.startLine}`}
-                {note.context.oldLine && ` · 旧行 ${note.context.oldLine}`}
-                {note.context.newLine && ` · 新行 ${note.context.newLine}`}
-                {!note.context.oldLine && !note.context.newLine && ' · 文件级评论或行号不可用'}
-                {note.context.outdated && <Tag>旧版本代码</Tag>}
-              </p>
-              {note.context.notice && <p className="pull-request-muted">{note.context.notice}</p>}
-              {note.context.patch && (
-                <details>
-                  <summary>查看评论的代码上下文</summary>
-                  <PullRequestPatch patch={note.context.patch} filePath={note.context.path} />
-                </details>
+            <div className="release-notes pull-request-markdown">
+              {note.body.trim() ? (
+                <MarkdownContent text={note.body} />
+              ) : (
+                <p className="pull-request-muted">无评论正文</p>
               )}
             </div>
-          )}
-          <div className="release-notes pull-request-markdown">
-            {note.body.trim() ? (
-              <MarkdownContent text={note.body} />
-            ) : (
-              <p className="pull-request-muted">无评论正文</p>
-            )}
-          </div>
-        </section>
-      ))}
+          </section>
+        ))}
+      </div>
     </article>
   );
 }
@@ -605,6 +621,8 @@ function DetailContent({
   onTabChange,
   refresh,
   onChanged,
+  navigation,
+  tools,
 }: {
   repoId: string;
   query: PullRequestDetailQuery;
@@ -613,6 +631,8 @@ function DetailContent({
   onTabChange: (tab: string) => void;
   refresh: number;
   onChanged: () => void;
+  navigation: ReactNode;
+  tools: ReactNode;
 }) {
   const load = useCallback(
     (signal: AbortSignal) => repositoryApi.pullRequestDetail(repoId, query, signal),
@@ -641,42 +661,43 @@ function DetailContent({
       label={`PR/MR ${query.number}`}
     >
       <header className="pull-request-detail__header">
-        <h2 tabIndex={-1} ref={heading}>
-          {summary?.title || 'PR/MR 详情'}{' '}
-          <span>
-            {query.provider === 'github' ? '#' : '!'}
-            {query.number}
-          </span>
-        </h2>
-        {summary && (
-          <>
+        <div className="pull-request-detail__navigation" role="group" aria-label="返回与切换请求">
+          {navigation}
+        </div>
+        <div className="pull-request-detail__summary">
+          <div className="pull-request-detail__heading">
+            <h2 tabIndex={-1} ref={heading} title={summary?.title}>
+              {summary?.title || 'PR/MR 详情'}
+            </h2>
+            {summary && <PullRequestStatus state={summary.state} />}
+            {summary?.draft && <Tag>草稿</Tag>}
+          </div>
+          {summary && (
             <div className="pull-request-detail__meta">
-              <Tag
-                color={
-                  summary.state === 'merged'
-                    ? 'purple'
-                    : summary.state === 'open'
-                      ? 'green'
-                      : 'default'
-                }
+              <span className="pull-request-detail__author">
+                <DialogIcon name="user" />
+                {summary.author}
+              </span>
+              <PullRequestBranches {...summary} />
+              <time
+                dateTime={summary.updatedAt}
+                title={new Date(summary.updatedAt).toLocaleString('zh-CN', { hour12: false })}
               >
-                {{ open: '开放中', closed: '已关闭', merged: '已合并' }[summary.state]}
-              </Tag>
-              {summary.draft && <Tag>草稿</Tag>}
-              <span>{summary.author}</span>
-              <time dateTime={summary.updatedAt}>
-                更新于 {new Date(summary.updatedAt).toLocaleString('zh-CN', { hour12: false })}
+                更新于 {new Date(summary.updatedAt).toLocaleDateString('zh-CN')}
               </time>
             </div>
-            <p className="pull-request-detail__branches">
-              {summary.sourceBranch || '已删除分支'} → {summary.targetBranch || '未知分支'}
-            </p>
-          </>
-        )}
+          )}
+        </div>
+        <div className="pull-request-detail__tools">
+          <div className="pull-request-detail__utilities" role="group" aria-label="查看与刷新">
+            {tools}
+          </div>
+          <ReviewActionBar review={review} query={query} summary={summary} />
+        </div>
       </header>
       <LoadState context="detail" {...resource} />
-      <ReviewActionBar review={review} query={query} summary={summary} />
       <Tabs
+        className="pull-request-detail__tabs"
         destroyOnHidden
         activeKey={tab}
         onChange={onTabChange}
@@ -685,17 +706,19 @@ function DetailContent({
             key: 'overview',
             label: '概览',
             children: (
-              <>
+              <div className="pull-request-overview">
                 {detail && (
-                  <div className="release-notes pull-request-markdown pull-request-description">
-                    {detail.description.trim() ? (
-                      <MarkdownContent text={detail.description} />
-                    ) : (
-                      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无描述" />
-                    )}
-                  </div>
+                  <section className="pull-request-description" aria-label="合并请求描述">
+                    <h3>描述</h3>
+                    <div className="release-notes pull-request-markdown">
+                      {detail.description.trim() ? (
+                        <MarkdownContent text={detail.description} />
+                      ) : (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无描述" />
+                      )}
+                    </div>
+                  </section>
                 )}
-                <ReviewCommentComposer review={review} />
                 <Discussions
                   key={`overview:${refresh}`}
                   posted={review.posted}
@@ -704,11 +727,13 @@ function DetailContent({
                   kind="comments"
                   title={query.provider === 'github' ? '评论' : '评论与代码讨论'}
                 />
-              </>
+                <ReviewCommentComposer review={review} />
+              </div>
             ),
           },
           {
             key: 'files',
+            className: 'pull-request-files-tab',
             label: `文件变动${detail?.fileCount != null ? ` (${detail.fileCount})` : ''}`,
             children: detail && (
               <Files
@@ -729,7 +754,7 @@ function DetailContent({
             key: 'discussions',
             label: '评论与讨论',
             children: (
-              <>
+              <div className="pull-request-discussion-view">
                 <Discussions
                   key={`comments:${refresh}`}
                   posted={review.posted}
@@ -757,7 +782,7 @@ function DetailContent({
                     />
                   </>
                 )}
-              </>
+              </div>
             ),
           },
         ]}
@@ -805,31 +830,54 @@ export function PullRequestDetails({
   const url = `${remote.webUrl}/${provider === 'github' ? 'pull' : '-/merge_requests'}/${number}`;
   return (
     <div className="pull-request-detail" aria-label="PR/MR 详情">
-      <div className="pull-request-detail__toolbar">
-        <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
-          返回列表
-        </Button>
-        <Select
-          aria-label="切换 PR/MR"
-          value={number}
-          onChange={onOpen}
-          options={(item ? items : [{ number, title: '当前条目' }, ...items]).map((entry) => ({
-            value: entry.number,
-            label: `${provider === 'github' ? '#' : '!'}${entry.number} ${entry.title}`,
-          }))}
-        />
-        <Button
-          icon={<ReloadOutlined />}
-          aria-label="刷新详情"
-          onClick={() => setRefresh((value) => value + 1)}
-        >
-          刷新详情
-        </Button>
-        <a href={url} target="_blank" rel="noopener noreferrer">
-          <ExportOutlined /> 在浏览器中打开
-        </a>
-      </div>
       <DetailContent
+        navigation={
+          <>
+            <Button
+              type="text"
+              icon={<DialogIcon name="arrow-right" className="pull-request-back-icon" />}
+              onClick={onBack}
+              aria-label="返回列表"
+              title="返回列表"
+            />
+            <Select
+              variant="borderless"
+              aria-label="切换 PR/MR"
+              value={number}
+              onChange={onOpen}
+              labelRender={() => `${provider === 'github' ? '#' : '!'}${number}`}
+              popupMatchSelectWidth={360}
+              options={(item ? items : [{ number, title: '当前条目' }, ...items]).map((entry) => ({
+                value: entry.number,
+                label: `${provider === 'github' ? '#' : '!'}${entry.number} ${entry.title}`,
+              }))}
+            />
+          </>
+        }
+        tools={
+          <>
+            <Button
+              type="text"
+              icon={<DialogIcon name="refresh" />}
+              aria-label="刷新详情"
+              title="刷新详情"
+              onClick={() => setRefresh((value) => value + 1)}
+            >
+              <span className="pull-request-detail__utility-label">刷新</span>
+            </Button>
+            <a
+              className="pull-request-detail__external"
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="在浏览器中打开"
+              title="在浏览器中打开"
+            >
+              <DialogIcon name="arrow-up-right" />
+              <span className="pull-request-detail__utility-label">浏览器</span>
+            </a>
+          </>
+        }
         refresh={refreshToken + refresh}
         onChanged={() => {
           setRefresh((value) => value + 1);
