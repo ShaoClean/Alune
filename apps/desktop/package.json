@@ -12,7 +12,8 @@
     "test:worktrees": "node scripts/test-worktrees.mjs",
     "test:repository-session": "node scripts/test-repository-session.mjs",
     "test:code-appearance": "node scripts/test-code-appearance.mjs",
-    "test:proxy": "node scripts/test-proxy.mjs"
+    "test:proxy": "node scripts/test-proxy.mjs",
+    "test:notifications": "node scripts/test-notifications.mjs"
   },
   "devDependencies": {
     "server": "*",

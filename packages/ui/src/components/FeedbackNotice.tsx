@@ -37,6 +37,7 @@ export function FeedbackNotice({
   description,
   type = 'error',
   mode = 'modal',
+  autoOpen,
   eventKey,
   context,
   actionLabel,
@@ -55,6 +56,7 @@ export function FeedbackNotice({
   description?: string;
   type?: FeedbackEvent['type'];
   mode?: FeedbackEvent['mode'];
+  autoOpen?: boolean;
   eventKey?: string | number | object;
   context?: string;
   actionLabel?: string;
@@ -93,6 +95,7 @@ export function FeedbackNotice({
       description,
       type,
       mode,
+      autoOpen,
       revision,
       actionLabel,
       busy,
@@ -114,6 +117,7 @@ export function FeedbackNotice({
     description,
     type,
     mode,
+    autoOpen,
     revision,
     actionLabel,
     busy,
@@ -145,6 +149,7 @@ export type FeedbackNoticeProps = {
   description?: string;
   type?: FeedbackEvent['type'];
   mode?: FeedbackEvent['mode'];
+  autoOpen?: boolean;
   eventKey?: string | number | object;
   context?: string;
   actionLabel?: string;

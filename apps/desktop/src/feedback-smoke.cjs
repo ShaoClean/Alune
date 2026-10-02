@@ -22,11 +22,15 @@ module.exports = async ({ window, git, repo }) => {
   // layout shift caused by the feedback dialog; keep the exact bounds assertion.
   // Read the bounds in the same renderer task as the idle check so a polling
   // response cannot insert/remove the notice between checking and measuring.
-  const idleLayoutBounds = () => wait(`
+  const idleLayoutBounds = () =>
+    wait(
+      `
     !document.querySelector('.git-operation-notice') &&
     document.querySelector('[aria-label="刷新仓库"]')?.getAttribute('aria-busy') === 'false' &&
     document.querySelector('[aria-label="拉取"]')?.getAttribute('aria-disabled') === 'false'
-  `, "document.querySelector('.workspace-body').getBoundingClientRect().toJSON()");
+  `,
+      "document.querySelector('.workspace-body').getBoundingClientRect().toJSON()",
+    );
   const originalSize = window.getSize();
   const oldClipboard = await clipboard.readText();
   const originalAuthor = git('config', 'user.name').trim();
@@ -50,10 +54,7 @@ module.exports = async ({ window, git, repo }) => {
     await wait(
       "document.querySelector('.feedback-dialog[open]')?.textContent.includes('Git 操作未完成')",
     );
-    assert.deepEqual(
-      await idleLayoutBounds(),
-      bounds,
-    );
+    assert.deepEqual(await idleLayoutBounds(), bounds);
     assert.equal(
       await execute("document.querySelector('[aria-label=提交摘要]').value"),
       '保留草稿',
@@ -102,7 +103,9 @@ module.exports = async ({ window, git, repo }) => {
     await execute(
       "document.querySelector('[aria-label=拉取]').click(); document.querySelector('[aria-label=全屏查看差异]').click()",
     );
-    await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('Git 操作未完成')");
+    await wait(
+      "document.querySelector('.feedback-dialog[open]')?.textContent.includes('Git 操作未完成')",
+    );
     assert.equal(await execute("document.querySelectorAll('dialog:modal').length"), 2);
     assert.equal(
       await execute(
@@ -115,22 +118,22 @@ module.exports = async ({ window, git, repo }) => {
     );
     await wait("!document.querySelector('.feedback-dialog').open");
     assert.equal(await execute("document.querySelectorAll('dialog:modal').length"), 1);
-    await wait("document.querySelector('.diff-shell--fullscreen .feedback-tray:popover-open')");
+    await wait("document.querySelector('.diff-shell--fullscreen .status-button--feedback')");
     assert.equal(
       await execute(`(() => {
-      const tray = document.querySelector('.feedback-tray'); const rect = tray.getBoundingClientRect();
-      return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('.feedback-tray') === tray;
+      const trigger = document.querySelector('.status-button--feedback'); const rect = trigger.getBoundingClientRect();
+      return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('.status-button--feedback') === trigger;
     })()`),
       true,
     );
-    // The inbox is a popover rising from the tray: no scrim, the Diff stays open.
-    await click('.feedback-tray button');
+    // The unified inbox rises from the status bar; the Diff stays open.
+    await click('.status-button--feedback');
     await wait(
-      "document.querySelector('#feedback-inbox:not([hidden])')?.textContent.includes('Git 操作未完成')",
+      "document.querySelector('#feedback-inbox:popover-open')?.textContent.includes('Git 操作未完成')",
     );
     assert.equal(
       await execute(
-        "document.querySelector('.feedback-tray button').getAttribute('aria-expanded')",
+        "document.querySelector('.status-button--feedback').getAttribute('aria-expanded')",
       ),
       'true',
     );
@@ -145,10 +148,12 @@ module.exports = async ({ window, git, repo }) => {
     await execute(
       "document.querySelector('#feedback-inbox').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))",
     );
-    await wait("document.querySelector('#feedback-inbox').hidden");
+    await wait("!document.querySelector('#feedback-inbox:popover-open')");
     assert.equal(await execute("Boolean(document.querySelector('.diff-shell--fullscreen'))"), true);
     assert.equal(
-      await execute("document.activeElement === document.querySelector('.feedback-tray button')"),
+      await execute(
+        "document.activeElement === document.querySelector('.status-button--feedback')",
+      ),
       true,
     );
     await click('[aria-label="退出全屏查看"]');
@@ -159,13 +164,17 @@ module.exports = async ({ window, git, repo }) => {
     );
     // CI may have already shown this notice before the fixture set an author.
     // Acknowledge a fresh dialog; otherwise exercise the retained inbox entry.
-    if (await execute("document.querySelector('.feedback-dialog[open]')?.textContent.includes('提交前需要设置作者')")) {
+    if (
+      await execute(
+        "document.querySelector('.feedback-dialog[open]')?.textContent.includes('提交前需要设置作者')",
+      )
+    ) {
       await click('.feedback-dialog [aria-label="关闭提示"]');
       await wait("!document.querySelector('.feedback-dialog[open]')");
     }
     await click('[aria-label="全屏查看差异"]');
-    await wait("document.querySelector('.diff-shell--fullscreen .feedback-tray:popover-open')");
-    await click('.feedback-tray button');
+    await wait("document.querySelector('.diff-shell--fullscreen .status-button--feedback')");
+    await click('.status-button--feedback');
     await execute(
       "Array.from(document.querySelectorAll('.feedback-list button')).find(button => button.textContent.includes('提交前需要设置作者')).click()",
     );
@@ -199,7 +208,9 @@ module.exports = async ({ window, git, repo }) => {
       "document.querySelector('[aria-label=拉取]').getAttribute('aria-disabled') !== 'true'",
     );
     await click('[aria-label="拉取"]');
-    await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('Git 操作未完成')");
+    await wait(
+      "document.querySelector('.feedback-dialog[open]')?.textContent.includes('Git 操作未完成')",
+    );
     await wait(
       "(() => {const r = document.querySelector('.feedback-dialog').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;})()",
     );
@@ -212,7 +223,7 @@ module.exports = async ({ window, git, repo }) => {
     await click('.feedback-dialog [aria-label="关闭提示"]');
     await wait("!document.querySelector('.feedback-dialog').open");
     console.log(
-      'Desktop feedback passed: real Git failure, layout/draft stability, copy, focus return, acknowledgement/retry, fullscreen notices, tray inbox and author action, and 390px window.',
+      'Desktop feedback passed: real Git failure, layout/draft stability, copy, focus return, acknowledgement/retry, fullscreen notices, unified status bar inbox and author action, and 390px window.',
     );
   } finally {
     await clipboard.writeText(oldClipboard);

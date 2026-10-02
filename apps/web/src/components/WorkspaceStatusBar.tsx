@@ -1,33 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button, Popover } from '@alune/ui';
-import { LaptopOutlined, BellOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
+import { LaptopOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
 import type { Repository } from '@alune/shared';
 import { useNavigate } from 'react-router-dom';
 import { useConnectionStore } from '../stores/connectionStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { RepositorySwitcher } from './RepositorySwitcher';
-import { StatusButton } from '@alune/ui';
+import { FeedbackStatusButton, StatusButton } from '@alune/ui';
 import { useSyncStatusStore } from '../stores/syncStatusStore';
-import { DialogIcon } from '@alune/ui';
-import type { DialogIconName } from '@alune/ui';
-
-/** One status bar notice, drawn with the feedback centre's item styling (L04). */
-export interface StatusNotice {
-  id: string;
-  title: string;
-  description?: string;
-  tone: 'info' | 'warning' | 'danger';
-  icon: DialogIconName;
-  actionLabel?: string;
-  onAction?: () => void;
-}
 
 export function WorkspaceStatusBar({
   repository,
   repositories,
   version,
   inert,
-  notices,
   onSettings,
   onUpdates,
 }: {
@@ -35,7 +20,6 @@ export function WorkspaceStatusBar({
   repositories: Repository[];
   version: string;
   inert: boolean;
-  notices: StatusNotice[];
   onSettings: () => void;
   onUpdates?: () => void;
 }) {
@@ -54,9 +38,6 @@ export function WorkspaceStatusBar({
   const connections = useConnectionStore((state) => state.connections);
   const statuses = useConnectionStore((state) => state.statuses);
   const connection = connections.find((item) => item.id === repository?.connectionId);
-  const [notificationOpen, setNotificationOpen] = useState(false);
-  const notificationTrigger = useRef<HTMLButtonElement>(null);
-  const notificationPanel = useRef<HTMLElement>(null);
   const info = connection ? statuses[connection.id] : undefined;
   const state = connectionStatus(info);
   const local = repository?.source === 'local';
@@ -108,95 +89,7 @@ export function WorkspaceStatusBar({
             {local ? '本机执行' : connection?.name || '远程连接'}
           </span>
         </StatusButton>
-        <Popover
-          trigger="click"
-          placement="topRight"
-          open={notificationOpen}
-          onOpenChange={setNotificationOpen}
-          afterOpenChange={(open) => {
-            if (open) notificationPanel.current?.focus();
-          }}
-          content={
-            <section
-              ref={notificationPanel}
-              tabIndex={-1}
-              className="status-notifications"
-              aria-label="通知"
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  setNotificationOpen(false);
-                  notificationTrigger.current?.focus();
-                }
-              }}
-            >
-              <div className="feedback-inbox-head">
-                <strong>通知</strong>
-                {notices.length ? (
-                  <span className="dlg-badge is-mono">{notices.length}</span>
-                ) : null}
-              </div>
-              {notices.length ? (
-                <div className="feedback-list">
-                  {notices.map((notice) => (
-                    <div key={notice.id} className="fb-item" data-tone={notice.tone}>
-                      <span className="fb-glyph" aria-hidden="true">
-                        <DialogIcon name={notice.icon} />
-                      </span>
-                      <div className="fb-item-main">
-                        <div className="fb-item-open">
-                          <span className="fb-item-head">
-                            <strong>{notice.title}</strong>
-                          </span>
-                          {notice.description ? (
-                            <span className="fb-item-sub">{notice.description}</span>
-                          ) : null}
-                        </div>
-                        {notice.actionLabel && notice.onAction ? (
-                          <div className="fb-item-actions">
-                            <Button
-                              size="small"
-                              className="dlg-btn-xs"
-                              onClick={() => {
-                                setNotificationOpen(false);
-                                notice.onAction?.();
-                              }}
-                            >
-                              {notice.actionLabel}
-                            </Button>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="status-notifications__empty">暂无新通知</p>
-              )}
-              {onUpdates && !notices.some((notice) => notice.onAction) && (
-                <button
-                  type="button"
-                  className="text-button status-notifications__more"
-                  onClick={() => {
-                    setNotificationOpen(false);
-                    onUpdates();
-                  }}
-                >
-                  检查更新
-                </button>
-              )}
-            </section>
-          }
-        >
-          <StatusButton
-            ref={notificationTrigger}
-            label="通知"
-            tooltip={notices.length ? `通知 · ${notices.length} 条` : '通知 · 暂无新通知'}
-            aria-expanded={notificationOpen}
-          >
-            <BellOutlined />
-            {notices.length > 0 && <span className="status-bar__notice-dot" />}
-          </StatusButton>
-        </Popover>
+        <FeedbackStatusButton onUpdates={onUpdates} />
       </div>
     </footer>
   );

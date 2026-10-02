@@ -36,6 +36,77 @@ const updateActions = (state: UpdateState | null) => ({
   ),
 });
 
+/** One application-wide update source, including errors raised after leaving settings. */
+export function DesktopUpdateFeedback({
+  state,
+  error,
+  invoke,
+  onUpdates,
+}: {
+  state: UpdateState | null;
+  error: string | null;
+  invoke: Invoke;
+  onUpdates: () => void;
+}) {
+  const { busy, ready } = updateActions(state);
+  const failure = error || state?.error?.message;
+  const available = state?.status === 'available';
+  const title = failure
+    ? error
+      ? '无法连接桌面更新服务'
+      : '版本更新未完成'
+    : state?.supported && state.status !== 'idle'
+      ? available
+        ? `Alune v${state.latestVersion} 可用`
+        : labels[state.status]
+      : null;
+  const action = error
+    ? 'getState'
+    : ready
+      ? 'install'
+      : state?.error?.action === 'download'
+        ? 'download'
+        : 'check';
+  return (
+    <FeedbackNotice
+      source="desktop-update"
+      title={title}
+      description={failure || (available ? '新版本已发布，可查看更新说明并下载安装。' : undefined)}
+      type={
+        failure
+          ? 'error'
+          : state?.status === 'downloaded' || state?.status === 'not-available'
+            ? 'success'
+            : 'info'
+      }
+      mode={failure ? 'modal' : 'manual'}
+      icon="download"
+      autoOpen={Boolean(failure || (available && state?.background))}
+      eventKey={
+        failure
+          ? `${error || state?.revision}`
+          : `${state?.currentVersion}:${state?.latestVersion}:${state?.status}`
+      }
+      resetOnClear={false}
+      actionLabel={
+        failure
+          ? error
+            ? '重新连接'
+            : ready
+              ? '重启安装'
+              : action === 'download'
+                ? '重新下载'
+                : '检查更新'
+          : available || state?.status === 'downloaded'
+            ? '查看更新'
+            : undefined
+      }
+      onAction={failure ? () => invoke(action) : onUpdates}
+      busy={busy}
+    />
+  );
+}
+
 function OrbButton({
   icon,
   children,
@@ -211,13 +282,7 @@ export function UpdatePanelContent({
   const { busy, ready, canDownload } = updateActions(state);
   return (
     <div className="update-panel" data-testid="update-panel">
-      <FeedbackNotice
-        source="update-bridge"
-        title={error ? '无法连接桌面更新服务' : null}
-        description={error || undefined}
-        actionLabel="重新连接"
-        onAction={() => invoke('getState')}
-      />
+      {error && <Typography.Paragraph type="danger">{error}</Typography.Paragraph>}
       {!state ? (
         <Spin tip="正在读取版本信息">
           <div style={{ minHeight: 80 }} />
@@ -236,15 +301,9 @@ export function UpdatePanelContent({
               </div>
             )}
           </div>
-          <FeedbackNotice
-            source="update-status"
-            type={
-              state.status === 'downloaded' || state.status === 'not-available' ? 'success' : 'info'
-            }
-            title={!state.error && state.supported ? labels[state.status] : null}
-            eventKey={`${state.currentVersion}:${state.latestVersion}:${state.status}`}
-            resetOnClear={false}
-          />
+          <Typography.Text type="secondary" role="status">
+            {labels[state.status]}
+          </Typography.Text>
           {!state.supported && (
             <FeedbackAlert
               source="UpdatePanel-1"
@@ -253,20 +312,6 @@ export function UpdatePanelContent({
               description="请使用已安装的正式桌面应用。Linux 需要运行 AppImage；开发环境不连接更新源。"
             />
           )}
-          <FeedbackNotice
-            source="update-result"
-            title={state.error ? '版本更新未完成' : null}
-            description={state.error?.message}
-            mode={state.background ? 'notification' : 'modal'}
-            eventKey={state.revision}
-            actionLabel={
-              ready ? '重启安装' : state.error?.action === 'download' ? '重新下载' : '检查更新'
-            }
-            onAction={() =>
-              invoke(ready ? 'install' : state.error?.action === 'download' ? 'download' : 'check')
-            }
-            busy={busy}
-          />
           {state.progress && (
             <div>
               <Progress percent={Math.floor(state.progress.percent)} />

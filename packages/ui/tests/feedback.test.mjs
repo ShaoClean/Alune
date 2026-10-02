@@ -107,6 +107,41 @@ test('persistent explanations and background failures enter the same modal queue
   );
 });
 
+test('inbox-only updates share source identity without interrupting or duplicating the modal queue', () => {
+  const store = createFeedbackStore().getState;
+  const first = store().publish(event('update', 'v1', { type: 'info', autoOpen: false }));
+  store().publish(event('storage'));
+  store().publish(event('update', 'v1', { type: 'info', autoOpen: false, description: '新说明' }));
+  store().release('update', first);
+  assert.equal(store().entries.length, 2);
+  assert.equal(store().entries.find((entry) => entry.id === 'update').description, '新说明');
+  assert.deepEqual(
+    store()
+      .entries.filter((entry) => entry.queued)
+      .map((entry) => entry.id),
+    ['storage'],
+  );
+  store().publish(event('update', 'v2', { type: 'info', autoOpen: false }));
+  assert.equal(store().entries.length, 2);
+  assert.equal(store().entries.find((entry) => entry.id === 'update').queued, false);
+});
+
+test('an inbox action failure still announces the error and preserves its retry action', async () => {
+  const store = createFeedbackStore().getState;
+  store().publish(
+    event('update', 'v1', {
+      autoOpen: false,
+      onAction: () => {
+        throw new Error('离线');
+      },
+    }),
+  );
+  await store().run('update');
+  assert.equal(store().entries[0].queued, true);
+  assert.equal(store().entries[0].description, '离线');
+  assert.equal(store().entries[0].busy, false);
+});
+
 test('a new failed attempt does not inherit the previous attempt busy lock', () => {
   const store = createFeedbackStore().getState;
   store().publish(event('retry', 'r1', { busy: true }));

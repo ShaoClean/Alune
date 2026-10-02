@@ -24,6 +24,7 @@ import { PanelToggle } from '@alune/ui';
 import { SIDEBAR_MIN } from '../stores/workspaceLayout';
 import { WorkspaceStatusBar } from './WorkspaceStatusBar';
 import { FeedbackNotice, FeedbackScope } from '@alune/ui';
+import { DesktopUpdateFeedback } from './UpdatePanel';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 
 const navItems = [
@@ -299,19 +300,11 @@ export function Layout() {
 
   return (
     <>
-      <FeedbackNotice
-        source="update-available"
-        type="info"
-        mode="manual"
-        title={
-          updateState?.status === 'available' && updateState.background
-            ? `Alune v${updateState.latestVersion} 可用`
-            : null
-        }
-        eventKey={updateState?.latestVersion ?? undefined}
-        description="新版本已发布，可查看更新说明并下载安装。"
-        actionLabel="查看更新"
-        onAction={() => openSettings('updates')}
+      <DesktopUpdateFeedback
+        state={updateState}
+        error={updates.bridgeError}
+        invoke={updates.invoke}
+        onUpdates={() => openSettings('updates')}
       />
       <FeedbackNotice
         source="workspace-storage"
@@ -552,32 +545,6 @@ export function Layout() {
           repositories={openRepositories}
           version={`v${updateState?.currentVersion || __APP_VERSION__}`}
           inert={compact && mobileNavOpen}
-          notices={[
-            ...(storageError
-              ? [
-                  {
-                    id: 'storage',
-                    title: '设置未能保存',
-                    description: storageError,
-                    tone: 'warning' as const,
-                    icon: 'warning' as const,
-                  },
-                ]
-              : []),
-            ...(updateState?.status === 'available'
-              ? [
-                  {
-                    id: 'update',
-                    title: `Alune v${updateState.latestVersion} 可用`,
-                    description: '新版本已发布，可查看更新说明并下载安装。',
-                    tone: 'info' as const,
-                    icon: 'download' as const,
-                    actionLabel: isDesktop ? '查看更新' : undefined,
-                    onAction: isDesktop ? () => openSettings('updates') : undefined,
-                  },
-                ]
-              : []),
-          ]}
           onSettings={() => openSettings()}
           onUpdates={isDesktop ? () => openSettings('updates') : undefined}
         />

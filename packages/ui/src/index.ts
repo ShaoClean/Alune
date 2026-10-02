@@ -51,7 +51,7 @@ export type {
   DialogProgressProps,
   OptionCardsProps,
 } from './components/DialogParts';
-export { FeedbackProvider } from './components/Feedback';
+export { FeedbackProvider, FeedbackStatusButton } from './components/Feedback';
 export type { FeedbackProviderProps } from './components/Feedback';
 export { feedbackText, FeedbackAlert } from './components/FeedbackAlert';
 export type { FeedbackAlertProps } from './components/FeedbackAlert';

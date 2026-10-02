@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, ConfigProvider } from 'antd';
 import { useStore } from 'zustand';
@@ -9,6 +9,7 @@ import { DialogHints, Kbd } from './AluneModal';
 import { DialogIcon } from './DialogIcons';
 import type { DialogIconName } from './DialogIcons';
 import { FeedbackContext } from './feedback-context';
+import { StatusButton } from './StatusButton';
 
 export { FeedbackNotice, FeedbackScope } from './FeedbackNotice';
 
@@ -16,14 +17,59 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [store] = useState(createFeedbackStore);
   return (
     <FeedbackContext.Provider value={store}>
-      {children}
-      <FeedbackCenter store={store} />
+      <FeedbackCenter store={store}>{children}</FeedbackCenter>
     </FeedbackContext.Provider>
   );
 }
 
 const TONES = { error: 'danger', warning: 'warning', info: 'info', success: 'success' } as const;
 const BUTTONS = { autoInsertSpace: false };
+
+const FeedbackCenterContext = createContext<{
+  inbox: boolean;
+  entries: FeedbackEntry[];
+  viewed: ReadonlySet<string>;
+  trigger: RefObject<HTMLButtonElement | null>;
+  fullscreenLayer: Element | null;
+  toggle: (onUpdates?: () => void) => void;
+} | null>(null);
+
+/** The only inbox trigger; in a fullscreen Diff it moves into that view's status bar. */
+export function FeedbackStatusButton({ onUpdates }: { onUpdates?: () => void }) {
+  const center = useContext(FeedbackCenterContext);
+  if (!center) return null;
+  const { entries, viewed, trigger, inbox, fullscreenLayer, toggle } = center;
+  const unread = entries.filter((entry) => !viewed.has(`${entry.id}:${entry.revision}`)).length;
+  const button = (
+    <StatusButton
+      ref={trigger}
+      label={`通知与提示（${entries.length} 条，${unread} 条未读）`}
+      tooltip={
+        entries.length
+          ? `通知与提示 · ${entries.length} 条，${unread} 条未读`
+          : '通知与提示 · 暂无通知'
+      }
+      className="status-button--feedback"
+      aria-expanded={inbox}
+      aria-controls="feedback-inbox"
+      aria-haspopup="dialog"
+      onClick={() => toggle(onUpdates)}
+    >
+      <DialogIcon name="bell" />
+      {entries.length > 0 && <span className="status-bar__notice-count">{entries.length}</span>}
+      {unread > 0 && <span className="status-bar__notice-dot" aria-hidden="true" />}
+    </StatusButton>
+  );
+  return fullscreenLayer
+    ? createPortal(
+        <footer className="status-bar feedback-fullscreen-status" aria-label="差异状态栏">
+          <span>差异预览</span>
+          <div className="status-bar__right">{button}</div>
+        </footer>,
+        fullscreenLayer,
+      )
+    : button;
+}
 
 function glyphOf(entry: FeedbackEntry) {
   return (entry.icon ??
@@ -63,7 +109,13 @@ function since(at: number, now: number) {
   });
 }
 
-function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStore> }) {
+function FeedbackCenter({
+  store,
+  children,
+}: {
+  store: ReturnType<typeof createFeedbackStore>;
+  children: ReactNode;
+}) {
   const allEntries = useStore(store, (state) => state.entries);
   const entries = allEntries.filter((entry) => !entry.host);
   const [selected, setSelected] = useState<string | null>(null);
@@ -73,15 +125,16 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
   const [blocked, setBlocked] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [fullscreenLayer, setFullscreenLayer] = useState<Element | null>(null);
+  const [updatesAction, setUpdatesAction] = useState<(() => void) | undefined>();
   const dialog = useRef<HTMLDialogElement>(null);
-  const tray = useRef<HTMLDivElement>(null);
-  const trayButton = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const inboxTrigger = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const current =
     entries.find((item) => item.id === selected) || entries.find((item) => item.queued);
   const queue = entries.filter((item) => item.queued);
   const open = !blocked && Boolean(current);
-  const showTray = entries.length > 0 && !open && !blocked;
+  const showInbox = inbox && !open && !blocked;
   useEffect(() => setCopyStatus(''), [current?.id, current?.revision]);
   useEffect(() => {
     if (!open || !current) return;
@@ -95,7 +148,7 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
           (node) => node.getClientRects().length > 0 && getComputedStyle(node).display !== 'none',
         ),
       );
-      setFullscreenLayer(document.querySelector('dialog:modal:not(.feedback-dialog)'));
+      setFullscreenLayer(document.querySelector('dialog.diff-shell:modal'));
     };
     const observer = new MutationObserver(check);
     observer.observe(document.body, {
@@ -109,14 +162,15 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
   }, []);
   useLayoutEffect(() => {
     const node = dialog.current;
-    const trayNode = tray.current;
+    const panelNode = panel.current;
     let restore = false;
+    const active = document.activeElement;
+    if (!showInbox) panelNode?.hidePopover();
     if (open && node && !node.open) {
-      const active = document.activeElement;
-      // Opening from the inbox hides the tray, so return to its button instead.
+      // Detail hides the inbox; return to the persistent status bar trigger.
       previousFocus.current =
-        active && trayNode?.contains(active)
-          ? trayButton.current
+        active && panelNode?.contains(active)
+          ? inboxTrigger.current
           : active instanceof HTMLElement
             ? active
             : null;
@@ -128,23 +182,58 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
       node.close();
       restore = true;
     }
-    // A fresh node after the portal moves (e.g. into a fullscreen Diff) is
-    // shown again so it sits above that layer in the top layer.
-    if (!showTray) trayNode?.hidePopover();
-    else if (trayNode && !trayNode.matches(':popover-open')) trayNode.showPopover();
     if (restore && previousFocus.current?.isConnected)
       previousFocus.current.focus({ preventScroll: true });
-  }, [open, showTray, fullscreenLayer]);
+  }, [open, showInbox, fullscreenLayer]);
+  useLayoutEffect(() => {
+    const node = panel.current;
+    const trigger = inboxTrigger.current;
+    if (!showInbox || !node || !trigger) return;
+    node.showPopover();
+    const position = () => {
+      const anchor = trigger.getBoundingClientRect();
+      // Layout sizes stay stable while the opening animation transforms the panel.
+      const panelWidth = node.offsetWidth;
+      const panelHeight = node.offsetHeight;
+      const width = document.documentElement.clientWidth;
+      const height = document.documentElement.clientHeight;
+      node.style.left = `${Math.max(8, Math.min(anchor.right - panelWidth, width - panelWidth - 8))}px`;
+      node.style.top = `${Math.max(8, Math.min(anchor.top - panelHeight - 8, height - panelHeight - 8))}px`;
+    };
+    position();
+    (node.querySelector<HTMLButtonElement>('.fb-item-open') ?? node).focus({ preventScroll: true });
+    const observer = new ResizeObserver(position);
+    observer.observe(node);
+    observer.observe(trigger);
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', position, true);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', position, true);
+      node.hidePopover();
+    };
+  }, [showInbox, fullscreenLayer]);
+  useLayoutEffect(() => {
+    // A successful retry can remove the focused row while the inbox remains open.
+    if (showInbox && document.activeElement === document.body)
+      panel.current?.focus({ preventScroll: true });
+  }, [entries, showInbox]);
   useEffect(() => {
     if (selected && !entries.some((entry) => entry.id === selected)) setSelected(null);
   }, [entries, selected]);
   useEffect(() => {
-    if (!showTray) setInbox(false);
-  }, [showTray]);
+    if (open || blocked) setInbox(false);
+  }, [open, blocked]);
+  useEffect(() => setInbox(false), [fullscreenLayer]);
   useEffect(() => {
     if (!inbox) return;
     const dismiss = (event: PointerEvent) => {
-      if (!tray.current?.contains(event.target as Node)) setInbox(false);
+      if (
+        !panel.current?.contains(event.target as Node) &&
+        !inboxTrigger.current?.contains(event.target as Node)
+      )
+        setInbox(false);
     };
     document.addEventListener('pointerdown', dismiss, true);
     return () => document.removeEventListener('pointerdown', dismiss, true);
@@ -159,22 +248,20 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
       // inert boundary before opening a form or view.
       if (fullscreenLayer instanceof HTMLDialogElement) fullscreenLayer.close();
       if (entry.id === current?.id) close();
+      store.getState().acknowledge(entry.id);
+      setViewed((seen) => new Set(seen).add(`${entry.id}:${entry.revision}`));
       setInbox(false);
     }
     void store.getState().run(entry.id);
   };
-  const openInbox = () => {
+  const openInbox = (onUpdates?: () => void) => {
     setNow(Date.now());
+    setUpdatesAction(() => onUpdates);
     setInbox(true);
-    requestAnimationFrame(() =>
-      tray.current
-        ?.querySelector<HTMLButtonElement>('.fb-item-open')
-        ?.focus({ preventScroll: true }),
-    );
   };
   const closeInbox = () => {
     setInbox(false);
-    trayButton.current?.focus({ preventScroll: true });
+    inboxTrigger.current?.focus({ preventScroll: true });
   };
   const errors = entries.some((entry) => entry.type === 'error');
   const groups = entries.reduce<{ label: string; entries: FeedbackEntry[] }[]>((list, entry) => {
@@ -187,55 +274,62 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
   const context = current ? splitContext(current.context) : null;
   const position = current?.queued ? queue.indexOf(current) + 1 : 0;
   const manual = current?.mode === 'manual';
-  if (typeof document === 'undefined') return null;
+  if (typeof document === 'undefined') return children;
   return (
-    <ConfigProvider button={BUTTONS}>
-      {createPortal(
-        <div
-          ref={tray}
-          popover="manual"
-          className="feedback-tray"
-          data-tone={errors ? 'danger' : undefined}
-          onKeyDown={(event) => {
-            if (event.key !== 'Escape' || !inbox) return;
-            // Keep a fullscreen Diff open underneath.
-            event.preventDefault();
-            event.stopPropagation();
-            closeInbox();
-          }}
-        >
-          <button
-            ref={trayButton}
-            type="button"
-            className="feedback-tray-button"
-            aria-expanded={inbox}
-            aria-controls="feedback-inbox"
-            aria-label={`查看提示（${entries.length} 条）`}
-            onClick={() => (inbox ? setInbox(false) : openInbox())}
-          >
-            <DialogIcon name="bell" />
-            <span>提示</span>
-            <span className="feedback-tray-dots" aria-hidden="true">
-              {entries.slice(0, 5).map((entry) => (
-                <i key={entry.id} data-tone={TONES[entry.type]} />
-              ))}
-            </span>
-            <span className="feedback-tray-count">{entries.length}</span>
-          </button>
+    <FeedbackCenterContext.Provider
+      value={{
+        inbox: showInbox,
+        entries,
+        viewed,
+        trigger: inboxTrigger,
+        fullscreenLayer,
+        toggle: (onUpdates) => (inbox ? closeInbox() : openInbox(onUpdates)),
+      }}
+    >
+      {children}
+      <ConfigProvider button={BUTTONS}>
+        {createPortal(
           <div
+            ref={panel}
+            popover="manual"
             id="feedback-inbox"
             className="feedback-inbox a-pop"
             role="dialog"
-            aria-label="提示"
-            hidden={!inbox}
+            aria-label="通知与提示"
+            tabIndex={-1}
+            data-tone={errors ? 'danger' : undefined}
+            onBlur={(event) => {
+              if (
+                event.relatedTarget &&
+                !event.currentTarget.contains(event.relatedTarget as Node) &&
+                !inboxTrigger.current?.contains(event.relatedTarget as Node)
+              )
+                setInbox(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape' || !inbox) return;
+              // Keep a fullscreen Diff open underneath.
+              event.preventDefault();
+              event.stopPropagation();
+              closeInbox();
+            }}
           >
             <div className="feedback-inbox-core">
               <div className="feedback-inbox-head">
-                <strong>提示</strong>
+                <strong>通知与提示</strong>
                 <span className="dlg-badge is-mono">{entries.length}</span>
+                <button
+                  type="button"
+                  className="dlg-icon-btn"
+                  aria-label="关闭通知与提示"
+                  onClick={closeInbox}
+                >
+                  <DialogIcon name="x" />
+                </button>
               </div>
-              <p className="feedback-inbox-lead">按仓库分组；问题解决或重试成功后自动移除。</p>
+              <p className="feedback-inbox-lead">按来源分组；问题解决或重试成功后自动移除。</p>
               <div className="feedback-list">
+                {!entries.length && <p className="feedback-inbox-empty">暂无通知与提示</p>}
                 {groups.map((group) => (
                   <section key={group.label} className="feedback-group" aria-label={group.label}>
                     <p className="feedback-group-label">{group.label}</p>
@@ -293,158 +387,176 @@ function FeedbackCenter({ store }: { store: ReturnType<typeof createFeedbackStor
                   </section>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>,
-        fullscreenLayer || document.body,
-      )}
-      <dialog
-        ref={dialog}
-        className="feedback-dialog"
-        data-tone={current ? TONES[current.type] : undefined}
-        aria-labelledby="feedback-title"
-        aria-describedby={current?.description ? 'feedback-description' : undefined}
-        onCancel={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          close();
-        }}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            close();
-          }
-        }}
-      >
-        {current && context ? (
-          <div className="feedback-core">
-            <header className="feedback-heading">
-              <span className="a-dlg-glyph" aria-hidden="true">
-                <DialogIcon name={glyphOf(current)} />
-              </span>
-              <div className="a-dlg-titles">
-                <p className="a-dlg-eyebrow">
-                  <b>{context.label}</b>
-                  {context.detail ? <span>{context.detail}</span> : null}
-                </p>
-                <h2 id="feedback-title" className="a-dlg-title">
-                  {current.title}
-                </h2>
-              </div>
-              <button type="button" className="dlg-icon-btn" aria-label="关闭提示" onClick={close}>
-                <DialogIcon name="x" />
-              </button>
-            </header>
-            <div className="feedback-body">
-              {current.description && !current.content ? (
-                <div
-                  className={
-                    current.type === 'error'
-                      ? 'feedback-description is-mono'
-                      : 'feedback-description'
-                  }
-                  id="feedback-description"
+              {updatesAction && !entries.some((entry) => entry.actionLabel === '查看更新') && (
+                <button
+                  type="button"
+                  className="text-button feedback-inbox-more"
+                  onClick={() => {
+                    if (fullscreenLayer instanceof HTMLDialogElement) fullscreenLayer.close();
+                    setInbox(false);
+                    updatesAction();
+                  }}
                 >
-                  {current.description}
-                </div>
-              ) : null}
-              <div className="feedback-context">
-                <span className="dlg-badge is-mono">
-                  <DialogIcon name="clock" />
-                  <time dateTime={new Date(current.at).toISOString()}>{clock(current.at)}</time>
-                </span>
-              </div>
-              {current.content && (
-                <div id="feedback-description" className="feedback-description">
-                  {current.content}
-                </div>
+                  检查更新
+                </button>
               )}
-              {copyStatus && copyStatus !== '已复制' ? (
-                <p className="dlg-text is-muted" role="status">
-                  {copyStatus}
-                </p>
-              ) : null}
             </div>
-            <footer className="feedback-actions">
-              {position && queue.length > 1 ? (
-                <DialogHints>
-                  <b className="feedback-queue">
-                    {position} / {queue.length}
-                  </b>
-                  · 关闭后显示下一条
-                </DialogHints>
-              ) : manual && current.actionLabel ? (
-                <DialogHints>操作前会先关闭此提示</DialogHints>
-              ) : (
-                <p className="a-dlg-hints is-kbd">
-                  <Kbd>Esc</Kbd> 关闭并标为已读
-                </p>
-              )}
-              <div className="a-dlg-actions">
-                {current.actions && (
+          </div>,
+          fullscreenLayer || document.body,
+        )}
+        <dialog
+          ref={dialog}
+          className="feedback-dialog"
+          data-tone={current ? TONES[current.type] : undefined}
+          aria-labelledby="feedback-title"
+          aria-describedby={current?.description ? 'feedback-description' : undefined}
+          onCancel={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            close();
+          }}
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              close();
+            }
+          }}
+        >
+          {current && context ? (
+            <div className="feedback-core">
+              <header className="feedback-heading">
+                <span className="a-dlg-glyph" aria-hidden="true">
+                  <DialogIcon name={glyphOf(current)} />
+                </span>
+                <div className="a-dlg-titles">
+                  <p className="a-dlg-eyebrow">
+                    <b>{context.label}</b>
+                    {context.detail ? <span>{context.detail}</span> : null}
+                  </p>
+                  <h2 id="feedback-title" className="a-dlg-title">
+                    {current.title}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  className="dlg-icon-btn"
+                  aria-label="关闭提示"
+                  onClick={close}
+                >
+                  <DialogIcon name="x" />
+                </button>
+              </header>
+              <div className="feedback-body">
+                {current.description && !current.content ? (
                   <div
-                    className="feedback-custom-actions"
-                    onClickCapture={() => store.getState().rearm(current.id)}
+                    className={
+                      current.type === 'error'
+                        ? 'feedback-description is-mono'
+                        : 'feedback-description'
+                    }
+                    id="feedback-description"
                   >
-                    {current.actions}
+                    {current.description}
+                  </div>
+                ) : null}
+                <div className="feedback-context">
+                  <span className="dlg-badge is-mono">
+                    <DialogIcon name="clock" />
+                    <time dateTime={new Date(current.at).toISOString()}>{clock(current.at)}</time>
+                  </span>
+                </div>
+                {current.content && (
+                  <div id="feedback-description" className="feedback-description">
+                    {current.content}
                   </div>
                 )}
-                {manual ? (
-                  <Button type="text" onClick={close}>
-                    稍后
-                  </Button>
-                ) : (
-                  <Button
-                    icon={<DialogIcon name={copyStatus === '已复制' ? 'check' : 'copy'} />}
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(
-                          [current.context, clock(current.at), current.title, current.description]
-                            .filter(Boolean)
-                            .join('\n'),
-                        );
-                        setCopyStatus('已复制');
-                      } catch {
-                        setCopyStatus('无法复制，请选择提示文本手动复制。');
-                      }
-                    }}
-                  >
-                    {copyStatus === '已复制' ? '已复制' : '复制文本'}
-                  </Button>
-                )}
-                {current.actionLabel ? (
-                  <Button
-                    type="primary"
-                    className={current.busy ? 'has-orb is-busy' : 'has-orb'}
-                    aria-busy={current.busy || undefined}
-                    onClick={() => {
-                      if (!current.busy) run(current);
-                    }}
-                  >
-                    <span>{current.actionLabel}</span>
-                    <span className="dlg-orb" aria-hidden="true">
-                      {current.busy ? (
-                        <span className="dlg-moonload" />
-                      ) : (
-                        <DialogIcon
-                          name={
-                            (current.actionIcon ??
-                              (manual ? 'arrow-right' : 'refresh')) as DialogIconName
-                          }
-                        />
-                      )}
-                    </span>
-                  </Button>
-                ) : (
-                  <Button onClick={close}>关闭</Button>
-                )}
+                {copyStatus && copyStatus !== '已复制' ? (
+                  <p className="dlg-text is-muted" role="status">
+                    {copyStatus}
+                  </p>
+                ) : null}
               </div>
-            </footer>
-          </div>
-        ) : null}
-      </dialog>
-    </ConfigProvider>
+              <footer className="feedback-actions">
+                {position && queue.length > 1 ? (
+                  <DialogHints>
+                    <b className="feedback-queue">
+                      {position} / {queue.length}
+                    </b>
+                    · 关闭后显示下一条
+                  </DialogHints>
+                ) : manual && current.actionLabel ? (
+                  <DialogHints>操作前会先关闭此提示</DialogHints>
+                ) : (
+                  <p className="a-dlg-hints is-kbd">
+                    <Kbd>Esc</Kbd> 关闭并标为已读
+                  </p>
+                )}
+                <div className="a-dlg-actions">
+                  {current.actions && (
+                    <div
+                      className="feedback-custom-actions"
+                      onClickCapture={() => store.getState().rearm(current.id)}
+                    >
+                      {current.actions}
+                    </div>
+                  )}
+                  {manual ? (
+                    <Button type="text" onClick={close}>
+                      稍后
+                    </Button>
+                  ) : (
+                    <Button
+                      icon={<DialogIcon name={copyStatus === '已复制' ? 'check' : 'copy'} />}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(
+                            [current.context, clock(current.at), current.title, current.description]
+                              .filter(Boolean)
+                              .join('\n'),
+                          );
+                          setCopyStatus('已复制');
+                        } catch {
+                          setCopyStatus('无法复制，请选择提示文本手动复制。');
+                        }
+                      }}
+                    >
+                      {copyStatus === '已复制' ? '已复制' : '复制文本'}
+                    </Button>
+                  )}
+                  {current.actionLabel ? (
+                    <Button
+                      type="primary"
+                      className={current.busy ? 'has-orb is-busy' : 'has-orb'}
+                      aria-busy={current.busy || undefined}
+                      onClick={() => {
+                        if (!current.busy) run(current);
+                      }}
+                    >
+                      <span>{current.actionLabel}</span>
+                      <span className="dlg-orb" aria-hidden="true">
+                        {current.busy ? (
+                          <span className="dlg-moonload" />
+                        ) : (
+                          <DialogIcon
+                            name={
+                              (current.actionIcon ??
+                                (manual ? 'arrow-right' : 'refresh')) as DialogIconName
+                            }
+                          />
+                        )}
+                      </span>
+                    </Button>
+                  ) : (
+                    <Button onClick={close}>关闭</Button>
+                  )}
+                </div>
+              </footer>
+            </div>
+          ) : null}
+        </dialog>
+      </ConfigProvider>
+    </FeedbackCenterContext.Provider>
   );
 }
 

@@ -75,8 +75,10 @@ const special: Record<string, string> = {
     '返回 (options: AluneConfirmOptions) => Promise<boolean>。确认成功为 true，取消为 false；异步 onOk 拒绝时继续停留。需要位于共享 Provider 内。',
   FeedbackProvider:
     'AluneUIProvider 已组合一个反馈状态源和中心，不需要再次嵌套。弹窗内失败属于原表单，队列、去重和卸载清理沿用已合入行为。',
+  FeedbackStatusButton:
+    '在同一个 Provider 的状态栏内放置一个通知与提示入口，展示数量和未读状态。onUpdates?: () => void 由宿主提供，用于打开更新设置。',
   FeedbackNotice:
-    'source、scope、context 组成身份，eventKey 或内容修订决定是否重新提示。title 清空与 resetOnClear 控制再次提示；在有效作用域内发布，卸载时释放当前来源租约。',
+    'source、scope、context 组成身份，eventKey 或内容修订决定是否重新提示。autoOpen=false 时仅进入通知中心；title 清空与 resetOnClear 控制再次提示。在有效作用域内发布，卸载时释放当前来源租约。',
   FeedbackScope:
     'active 与父作用域共同决定是否有效。切换到失效作用域会释放来源，不执行过期回调；id 应稳定且能区分不同宿主内容。',
   FeedbackAlert:

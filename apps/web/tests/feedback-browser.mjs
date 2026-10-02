@@ -76,7 +76,7 @@ export async function runFeedbackChecks(
   await p.press('button[aria-label="关闭提示"]', 'Escape');
   await p.click('#tick');
   await p.click('#tick');
-  assert.equal(await p.evaluate(() => document.querySelector('dialog').open), false);
+  assert.equal(await p.evaluate(() => document.querySelector('.feedback-dialog').open), false);
   assert.equal(await p.evaluate(() => document.querySelector('#tick-value').textContent), '2');
   await p.click('#switch');
   await p.waitForFunction(

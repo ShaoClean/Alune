@@ -3,6 +3,7 @@ import {
   Button,
   FeedbackScope,
   FeedbackNotice,
+  FeedbackStatusButton,
   FeedbackAlert,
   useFeedbackMessage,
   Switch,
@@ -19,6 +20,9 @@ export default function Example() {
       <FeedbackScope id="example" label="示例项目" active={active}>
         <FeedbackActions />
       </FeedbackScope>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+        <FeedbackStatusButton />
+      </div>
     </>
   );
 }
@@ -26,6 +30,7 @@ function FeedbackActions() {
   const [revision, setRevision] = useState(0);
   const [failure, setFailure] = useState(false);
   const [rich, setRich] = useState(false);
+  const [notice, setNotice] = useState(0);
   const message = useFeedbackMessage();
   return (
     <>
@@ -48,7 +53,15 @@ function FeedbackActions() {
           并发队列
         </Button>
         <Button onClick={() => setRich((v) => !v)}>切换富文本反馈</Button>
+        <Button onClick={() => setNotice((n) => n + 1)}>发送仅入中心的通知</Button>
       </Space>
+      <FeedbackNotice
+        source="background"
+        title={notice ? '后台检查已完成' : null}
+        type="info"
+        autoOpen={false}
+        eventKey={notice}
+      />
       <FeedbackNotice
         source="load"
         title={failure ? '示例加载失败' : null}
