@@ -320,6 +320,7 @@ function TerminalPanel({
     });
   };
   const copy = async (text: string) => {
+    if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -428,6 +429,11 @@ function TerminalPanel({
                   : (index + (event.key === 'ArrowRight' ? 1 : -1) + group.length) % group.length;
             event.preventDefault();
             store.select(group[next]);
+            requestAnimationFrame(() =>
+              document
+                .querySelector<HTMLButtonElement>('.terminal-tab.is-active [role="tab"]')
+                ?.focus(),
+            );
           }}
         >
           {group.map((session, index) => (

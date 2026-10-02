@@ -166,7 +166,11 @@ function ensureRuntime(id: string): Runtime {
     if (event.isComposing) return true;
     if (event.type === 'keydown' && event.ctrlKey && event.shiftKey && event.key === 'F6') {
       event.preventDefault();
-      document.querySelector<HTMLButtonElement>('[data-terminal-new]')?.focus();
+      document
+        .querySelector<HTMLButtonElement>(
+          '[data-terminal-new]:not(:disabled), .terminal-heading button[aria-label="全部终端会话"]',
+        )
+        ?.focus();
       return false;
     }
     if (event.ctrlKey && event.code === 'Backquote') return false;
