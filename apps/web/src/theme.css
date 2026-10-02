@@ -146,3 +146,88 @@
     --content: #151e30;
   }
 }
+
+/* Code preferences are scoped to text surfaces, outside the Diff toolbar/image view. */
+.code-diff {
+  color: var(--code-foreground);
+  background: var(--code-background);
+  --diff-add: var(--code-diff-added);
+  --diff-remove: var(--code-diff-removed);
+  --diff-meta: var(--code-gutter);
+}
+.code-diff :is(.diff-unified-view, .diff-split-view, table) {
+  color: var(--code-foreground);
+  background: var(--code-background);
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size);
+  line-height: 1.65;
+  font-variant-ligatures: none;
+  tab-size: 4;
+}
+.code-diff :is(code, pre) {
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size);
+}
+.code-diff :is(.diff-code-row, .diff-split-cell) {
+  color: var(--code-foreground);
+  border-color: var(--code-selection);
+}
+.code-diff .diff-split-cell--context {
+  background: var(--code-background);
+}
+.code-diff .diff-split-cell--empty {
+  background: var(--code-gutter);
+}
+.code-diff :is(.diff-line-number, .pull-request-patch__number) {
+  color: var(--code-lineNumber);
+  background: var(--code-gutter);
+  font-size: var(--code-font-size);
+  border-color: var(--code-selection);
+}
+.code-diff .diff-code-row {
+  grid-template-columns: var(--diff-gutter-width) var(--diff-gutter-width) minmax(0, 1fr);
+}
+.code-diff .diff-split-cell {
+  grid-template-columns: var(--diff-gutter-width) minmax(0, 1fr);
+}
+.code-diff
+  :is(
+    .diff-code-row--meta,
+    .diff-split-row--meta,
+    .diff-split-labels,
+    .pull-request-patch__meta,
+    th
+  ) {
+  color: var(--code-lineNumber);
+  background: var(--code-gutter);
+  border-color: var(--code-selection);
+}
+.code-diff :is(.diff-code-row--meta, .diff-split-row--meta) {
+  display: block;
+}
+.code-diff .diff-split-cell--add code::before {
+  color: var(--syntax-inserted);
+}
+.code-diff .diff-split-cell--remove code::before {
+  color: var(--syntax-deleted);
+}
+.code-diff ::selection {
+  background: var(--code-selection);
+}
+.code-diff .pull-request-patch__selected td {
+  background: var(--code-selection);
+}
+.code-diff .pull-request-patch__selected {
+  box-shadow: inset 3px 0 var(--code-foreground);
+}
+.code-diff .pull-request-patch__number button:is(:hover, :focus-visible):not(:disabled) {
+  color: var(--code-foreground);
+  outline-color: var(--code-foreground);
+}
+.code-diff pre {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  line-height: 1.65;
+}

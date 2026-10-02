@@ -1,45 +1,14 @@
 import { FeedbackAlert } from '@alune/ui';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
-import { useAppearance } from '../appearance';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useWorkspaceStore } from '../stores/workspaceStore';
-import { codeAppearanceStyle, resolveCodeTheme } from '../stores/codeAppearance';
+import { useCodeTheme } from './useCodeTheme';
 import type { FileLanguage } from './file-language';
 
-// Prism turns every token into an element; beyond this keep readable plain text.
-export const HIGHLIGHT_MAX_CHARS = 256 * 1024;
-// Returning from settings restores reading position, independently for each repository/file.
-const scrollPositions = new Map<string, { top: number; left: number }>();
-let highlighterModule: Promise<typeof import('./syntax-highlight')> | undefined;
-const loadHighlighter = () =>
-  (highlighterModule ??= import('./syntax-highlight').catch((error) => {
-    highlighterModule = undefined;
-    throw error;
-  }));
+import { HIGHLIGHT_MAX_CHARS, useHighlighter } from './useHighlighter';
+export { HIGHLIGHT_MAX_CHARS } from './useHighlighter';
 
-function useHighlighter(enabled: boolean, path: string) {
-  const [module, setModule] = useState<Awaited<ReturnType<typeof loadHighlighter>> | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    if (!enabled || module) return;
-    let active = true;
-    loadHighlighter().then(
-      (loaded) => {
-        if (active) {
-          setModule(loaded);
-          setFailed(false);
-        }
-      },
-      () => {
-        if (active) setFailed(true);
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [enabled, module, path]);
-  return { module, failed };
-}
+// Returning from settings restores reading position for each repository/file.
+const scrollPositions = new Map<string, { top: number; left: number }>();
 
 export function CodeView({
   path,
@@ -64,14 +33,8 @@ export function CodeView({
       container.current.scrollLeft = position.left;
     }
   }, [scrollKey]);
-  const mode = useAppearance((state) => state.theme);
-  const preferences = useWorkspaceStore((state) => state.codeAppearance);
+  const { theme, style } = useCodeTheme();
   const notice = useWorkspaceStore((state) => state.codeAppearanceNotice);
-  const theme = resolveCodeTheme(preferences, mode);
-  const style = useMemo(
-    () => codeAppearanceStyle(preferences, theme) as CSSProperties,
-    [preferences, theme],
-  );
   const highlightable = Boolean(language) && text.length <= HIGHLIGHT_MAX_CHARS;
   const { module: highlighter, failed } = useHighlighter(highlightable, path);
   const result = useMemo(() => {

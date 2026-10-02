@@ -1,3 +1,5 @@
+import { useCodeTheme } from './useCodeTheme';
+import { useDiffHighlight } from './useDiffHighlight';
 import { FeedbackScope } from '@alune/ui';
 import { FeedbackAlert } from '@alune/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -106,19 +108,25 @@ function LoadState({
 
 export function PullRequestPatch({
   patch,
+  filePath,
   selection,
   onSelect,
   disabled = false,
 }: {
   patch: string;
+  filePath?: string;
   selection?: PullRequestCommentPosition;
   onSelect?: (side: 'LEFT' | 'RIGHT', line: number, extend: boolean) => void;
   disabled?: boolean;
 }) {
   const lines = useMemo(() => pullRequestDiffLines(patch), [patch]);
+  const { theme, style } = useCodeTheme();
+  const highlighted = useDiffHighlight(lines, patch.length, filePath);
   return (
     <div
-      className="pull-request-patch"
+      className="pull-request-patch code-diff"
+      style={style}
+      data-code-theme={theme.id}
       tabIndex={0}
       role="region"
       aria-label="文件 Diff，可横向滚动"
@@ -162,7 +170,16 @@ export function PullRequestPatch({
                 );
               })}
               <td>
-                <code>{row.text || ' '}</code>
+                <code>
+                  {row.kind === 'meta' ? (
+                    row.text || ' '
+                  ) : (
+                    <>
+                      {row.text.slice(0, 1)}
+                      {highlighted.tokens[index] ?? row.text.slice(1)}
+                    </>
+                  )}
+                </code>
               </td>
             </tr>
           ))}
@@ -372,6 +389,7 @@ function Files({
                 )}
                 <PullRequestPatch
                   patch={file.patch}
+                  filePath={file.path}
                   selection={
                     review.draft.position?.path === file.path ? review.draft.position : undefined
                   }
@@ -484,7 +502,7 @@ export function DiscussionThread({ thread }: { thread: PullRequestDiscussion }) 
               {note.context.patch && (
                 <details>
                   <summary>查看评论的代码上下文</summary>
-                  <PullRequestPatch patch={note.context.patch} />
+                  <PullRequestPatch patch={note.context.patch} filePath={note.context.path} />
                 </details>
               )}
             </div>

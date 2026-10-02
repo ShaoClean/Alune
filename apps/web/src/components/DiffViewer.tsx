@@ -1,5 +1,5 @@
 import { FeedbackAlert } from '@alune/ui';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Segmented } from '@alune/ui';
 import {
   CloseOutlined,
@@ -10,6 +10,11 @@ import {
 } from '@ant-design/icons';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { getNumberedDiffLines, getDiffNotice, getImageDiffKind } from './diff-lines';
+import type { CSSProperties, ReactNode } from 'react';
+import { useCodeTheme } from './useCodeTheme';
+import { useDiffHighlight } from './useDiffHighlight';
+import { HIGHLIGHT_MAX_CHARS, useHighlighter } from './useHighlighter';
+import { fileLanguage } from './file-language';
 import type { NumberedDiffLine } from './diff-lines';
 import { ImageDiffView } from './ImageDiffView';
 import type { DiffImageOptions } from '@alune/shared';
@@ -44,16 +49,22 @@ type SplitCellKind = 'context' | 'add' | 'remove' | 'empty';
 
 interface SplitDiffRow {
   meta?: string;
-  left?: string;
-  right?: string;
+  left?: ReactNode;
+  right?: ReactNode;
   leftKind?: SplitCellKind;
   rightKind?: SplitCellKind;
   oldLine?: number;
   newLine?: number;
 }
 
-function getSplitDiffRows(diff: string): SplitDiffRow[] {
-  const lines = getNumberedDiffLines(diff);
+function getSplitDiffRows(
+  lines: NumberedDiffLine[],
+  tokens: Array<ReactNode[] | undefined>,
+): SplitDiffRow[] {
+  const contentByLine = new Map(
+    lines.map((line, index) => [line, tokens[index] ?? line.text.slice(1)]),
+  );
+  const content = (line: NumberedDiffLine) => contentByLine.get(line);
   const rows: SplitDiffRow[] = [];
 
   for (let index = 0; index < lines.length; ) {
@@ -78,8 +89,8 @@ function getSplitDiffRows(diff: string): SplitDiffRow[] {
       const rowCount = Math.max(removed.length, added.length);
       for (let row = 0; row < rowCount; row += 1) {
         rows.push({
-          left: removed[row]?.text.slice(1) || '',
-          right: added[row]?.text.slice(1) || '',
+          left: removed[row] ? content(removed[row]) : '',
+          right: added[row] ? content(added[row]) : '',
           oldLine: removed[row]?.oldLine,
           newLine: added[row]?.newLine,
           leftKind: removed[row] === undefined ? 'empty' : 'remove',
@@ -98,7 +109,7 @@ function getSplitDiffRows(diff: string): SplitDiffRow[] {
       added.forEach((value) =>
         rows.push({
           left: '',
-          right: value.text.slice(1),
+          right: content(value),
           newLine: value.newLine,
           leftKind: 'empty',
           rightKind: 'add',
@@ -107,7 +118,7 @@ function getSplitDiffRows(diff: string): SplitDiffRow[] {
       continue;
     }
 
-    const context = line.text.slice(1);
+    const context = tokens[index] ?? line.text.slice(1);
     rows.push({
       left: context,
       right: context,
@@ -138,6 +149,35 @@ export function DiffViewer({
   imageRequest,
   error,
 }: Props) {
+  const { theme, style } = useCodeTheme();
+  const lines = useMemo(() => getNumberedDiffLines(diff ?? ''), [diff]);
+  const highlighted = useDiffHighlight(lines, diff?.length ?? 0, filePath);
+  const gutterWidth = `${Math.max(4, String(lines.reduce((max, line) => Math.max(max, line.oldLine ?? 0, line.newLine ?? 0), 0)).length + 1)}ch`;
+  const language = fileLanguage(filePath ?? title ?? '');
+  const rawHighlightable =
+    !diff && Boolean(language) && oldCode.length + newCode.length <= HIGHLIGHT_MAX_CHARS;
+  const { module: highlighter } = useHighlighter(rawHighlightable, filePath ?? '');
+  const rawTokens = useMemo(() => {
+    const result = new Map<string, string>();
+    if (rawHighlightable && highlighter && language) {
+      try {
+        for (const source of [oldCode, newCode]) {
+          const highlightedLines = highlighter.highlightLinesHTML(source, language.id);
+          source.split('\n').forEach((line, index) => result.set(line, highlightedLines[index]));
+        }
+      } catch {
+        /* Keep readable plain text if tokenization fails. */
+      }
+    }
+    return result;
+  }, [rawHighlightable, highlighter, language, oldCode, newCode]);
+  const imageKind = diff && repoId && filePath ? getImageDiffKind(diff, filePath) : null;
+  const textDiff =
+    !loading &&
+    !error &&
+    !imageKind &&
+    Boolean(diff || oldCode || newCode) &&
+    !(diff && getDiffNotice(diff));
   const preferredMode = useWorkspaceStore((state) => state.layout.diffMode);
   const [mode, setMode] = useState<'unified' | 'split'>(
     splitView === undefined ? preferredMode : splitView ? 'split' : 'unified',
@@ -160,8 +200,7 @@ export function DiffViewer({
     bodyRef.current?.scrollTo({ top: 0, left: 0 });
   }, [comparisonKey, mode, title]);
 
-  const renderUnifiedDiff = (value: string) => {
-    const lines = getNumberedDiffLines(value);
+  const renderUnifiedDiff = () => {
     return (
       <div className="diff-unified-view" aria-label="统一差异">
         {lines.map(({ text: line, kind, oldLine, newLine }, index) => {
@@ -178,7 +217,16 @@ export function DiffViewer({
                   </span>
                 </>
               )}
-              <code>{line}</code>
+              <code>
+                {kind === 'meta' ? (
+                  line
+                ) : (
+                  <>
+                    {line.slice(0, 1)}
+                    {highlighted.tokens[index] ?? line.slice(1)}
+                  </>
+                )}
+              </code>
             </div>
           );
         })}
@@ -186,19 +234,19 @@ export function DiffViewer({
     );
   };
 
-  const renderSplitDiff = (value: string) => (
+  const renderSplitDiff = () => (
     <div className="diff-split-view" aria-label="分栏差异">
       <div className="diff-split-labels">
         <span>原版本</span>
         <span>修改后</span>
       </div>
-      {getSplitDiffRows(value).map((row, index) =>
+      {getSplitDiffRows(lines, highlighted.tokens).map((row, index) =>
         row.meta !== undefined ? (
           <div className="diff-split-row diff-split-row--meta" key={`${index}-${row.meta}`}>
             <span>{row.meta}</span>
           </div>
         ) : (
-          <div className="diff-split-row" key={`${index}-${row.left}-${row.right}`}>
+          <div className="diff-split-row" key={index}>
             <span className={`diff-split-cell diff-split-cell--${row.leftKind}`}>
               <span className="diff-line-number" aria-hidden="true">
                 {row.oldLine}
@@ -237,7 +285,6 @@ export function DiffViewer({
             : '当前比较没有差异，请刷新仓库状态。'}
         </div>
       );
-    const imageKind = diff && repoId && filePath ? getImageDiffKind(diff, filePath) : null;
     if (diff && imageKind && repoId && filePath)
       return (
         <ImageDiffView
@@ -252,30 +299,57 @@ export function DiffViewer({
     if (!diff)
       return (
         <ReactDiffViewer
+          renderContent={
+            rawHighlightable && highlighter && language
+              ? (source) => {
+                  try {
+                    return (
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html:
+                            rawTokens.get(source) ??
+                            highlighter.highlightLineHTML(source, language.id),
+                        }}
+                      />
+                    );
+                  } catch {
+                    return <span>{source}</span>;
+                  }
+                }
+              : undefined
+          }
           styles={{
+            contentText: {
+              fontFamily: 'var(--code-font-family)',
+              fontSize: 'var(--code-font-size)',
+              lineHeight: '1.65',
+              padding: 0,
+              background: 'transparent',
+            },
+            gutter: { fontFamily: 'var(--code-font-family)', fontSize: 'var(--code-font-size)' },
             variables: {
               light: {
-                diffViewerBackground: 'var(--code)',
-                diffViewerColor: 'var(--text)',
-                addedBackground: 'var(--diff-add)',
-                addedColor: 'var(--green)',
-                removedBackground: 'var(--diff-remove)',
-                removedColor: 'var(--red)',
-                wordAddedBackground: 'var(--green-line)',
-                wordRemovedBackground: 'var(--red-line)',
-                addedGutterBackground: 'var(--diff-add)',
-                removedGutterBackground: 'var(--diff-remove)',
-                gutterBackground: 'var(--code)',
-                gutterBackgroundDark: 'var(--surface-muted)',
-                gutterColor: 'var(--text-muted)',
-                addedGutterColor: 'var(--green)',
-                removedGutterColor: 'var(--red)',
-                codeFoldBackground: 'var(--diff-meta)',
-                codeFoldContentColor: 'var(--blue)',
-                emptyLineBackground: 'var(--surface-muted)',
-                diffViewerTitleBackground: 'var(--surface)',
-                diffViewerTitleColor: 'var(--text)',
-                diffViewerTitleBorderColor: 'var(--line)',
+                diffViewerBackground: 'var(--code-background)',
+                diffViewerColor: 'var(--code-foreground)',
+                addedBackground: 'var(--code-diff-added)',
+                addedColor: 'var(--code-foreground)',
+                removedBackground: 'var(--code-diff-removed)',
+                removedColor: 'var(--code-foreground)',
+                wordAddedBackground: 'var(--code-diff-wordAdded)',
+                wordRemovedBackground: 'var(--code-diff-wordRemoved)',
+                addedGutterBackground: 'var(--code-diff-added)',
+                removedGutterBackground: 'var(--code-diff-removed)',
+                gutterBackground: 'var(--code-gutter)',
+                gutterBackgroundDark: 'var(--code-gutter)',
+                gutterColor: 'var(--code-lineNumber)',
+                addedGutterColor: 'var(--code-foreground)',
+                removedGutterColor: 'var(--code-foreground)',
+                codeFoldBackground: 'var(--code-gutter)',
+                codeFoldContentColor: 'var(--code-lineNumber)',
+                emptyLineBackground: 'var(--code-gutter)',
+                diffViewerTitleBackground: 'var(--code-gutter)',
+                diffViewerTitleColor: 'var(--code-foreground)',
+                diffViewerTitleBorderColor: 'var(--code-selection)',
               },
             },
           }}
@@ -288,7 +362,7 @@ export function DiffViewer({
         />
       );
 
-    return mode === 'split' ? renderSplitDiff(diff) : renderUnifiedDiff(diff);
+    return mode === 'split' ? renderSplitDiff() : renderUnifiedDiff();
   };
 
   return (
@@ -360,7 +434,14 @@ export function DiffViewer({
           )}
         </div>
       </div>
-      <div className="diff-shell__body" ref={bodyRef}>
+      <div
+        className={`diff-shell__body${textDiff ? ' code-diff' : ''}`}
+        ref={bodyRef}
+        style={
+          textDiff ? ({ ...style, '--diff-gutter-width': gutterWidth } as CSSProperties) : undefined
+        }
+        data-code-theme={textDiff ? theme.id : undefined}
+      >
         {renderDiffContent()}
       </div>
     </dialog>

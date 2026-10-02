@@ -65,9 +65,12 @@ module.exports = async ({ window, origin, token }) => {
         await execute("getComputedStyle(document.querySelector('.token.keyword')).color"),
         'rgb(136, 57, 239)',
       );
+      // Repository notices can take focus after loading; dismiss before testing text selection.
+      await execute('document.querySelector(\'button[aria-label="关闭提示"]\')?.click()');
+      await wait('!document.querySelector(\'button[aria-label="关闭提示"]\')');
       await execute(`(() => {
         window.codeNode = document.querySelector('.files-code'); window.codeNode.scrollTop = 120;
-        const token = document.querySelector('.files-code .token.keyword'); const range = document.createRange(); range.selectNodeContents(token);
+        const token = document.querySelector('.files-code .token.keyword'); window.selectedCodeToken = token; const range = document.createRange(); range.selectNodeContents(token);
         getSelection().removeAllRanges(); getSelection().addRange(range);
       })()`);
       nativeTheme.themeSource = 'dark';
@@ -77,6 +80,12 @@ module.exports = async ({ window, origin, token }) => {
       assert.equal(
         await execute(
           'window.codeNode === document.querySelector(".files-code") && window.codeNode.scrollTop === 120',
+        ),
+        true,
+      );
+      assert.equal(
+        await execute(
+          "window.selectedCodeToken === document.querySelector('.files-code .token.keyword')",
         ),
         true,
       );
