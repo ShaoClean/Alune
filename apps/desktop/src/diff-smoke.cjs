@@ -44,6 +44,18 @@ module.exports = async ({ window, origin, token, backend }) => {
     await click('.feedback-dialog [aria-label="关闭提示"]');
     await waitFor("!document.querySelector('.feedback-dialog[open]')");
   };
+  const assertQuietCompletion = async (text) => {
+    assert.equal(
+      await execute("Boolean(document.querySelector('.feedback-dialog[open]'))"),
+      false,
+      'Successful staging must not open a feedback dialog',
+    );
+    assert.equal(
+      await execute(`Boolean(document.querySelector('.feedback-list')?.textContent.includes(${JSON.stringify(text)}))`),
+      false,
+      'Successful staging must not add a completion notification',
+    );
+  };
   const preview = (file, staged = false) =>
     click(`button[aria-label="查看差异 ${file}（${staged ? '已暂存' : '未暂存'}）"]`);
   const file = '子目录/新增 文件.ts';
@@ -148,7 +160,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     await click('[aria-label="显示右侧面板"]');
     await click(`button[aria-label="暂存 ${file}"]`);
     await waitFor("document.querySelector('.diff-shell__title')?.textContent.includes('已暂存')");
-    await acknowledge('1 项改动已暂存');
+    await assertQuietCompletion('1 项改动已暂存');
     edited = true;
     await click('[aria-label="刷新仓库"]');
     await waitFor(
@@ -175,7 +187,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     await waitFor(
       "document.querySelector('.diff-split-cell--add')?.textContent.includes('desktop second') && !document.querySelector('.diff-split-cell--remove')",
     );
-    await acknowledge('1 项改动已取消暂存');
+    await assertQuietCompletion('1 项改动已取消暂存');
     for (const [name, feedback] of [
       ['empty.txt', '新增空文件'],
       ['binary.dat', '二进制文件'],
