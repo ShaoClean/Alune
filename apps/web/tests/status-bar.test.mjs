@@ -204,7 +204,9 @@ test('分支菜单锚定按钮右下方，不随右侧文件列表横移', () =>
   );
   const popover = source.slice(source.indexOf('<Popover'), source.indexOf('content={'));
   assert.match(popover, /placement="bottomRight"/);
-  assert.doesNotMatch(popover, /\balign=|\bmeasure\(/);
+  // Viewport overflow adjustment may shift the popup, but must not replace its
+  // trigger anchor with measured file-list coordinates or custom offsets.
+  assert.doesNotMatch(popover, /\b(?:points|offset|targetOffset)\s*:|\bmeasure\(/);
   assert.doesNotMatch(source, /useMenuAlign|#workspace-list/);
 });
 
