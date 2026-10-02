@@ -3,7 +3,7 @@
 ## 使用与开发
 
 - [下载安装与快速上手](../README.md#下载安装)
-- [工作区使用说明](workspace.md)：布局、快捷键、Diff、提交历史与 Worktree
+- [工作区使用说明](workspace.md)：布局、快捷键、Diff、提交历史、PR/MR、Worktree 与仓库终端
 - [桌面端说明](desktop.md)：安装条件、版本更新、数据目录与迁移
 - [AI 设置说明](ai-settings.md)：服务商、模型、密钥和提交生成
 - [网络代理](network-proxy.md)：代理配置、生效时机、远端 Git 转发与连接测试

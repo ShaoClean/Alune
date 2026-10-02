@@ -2,6 +2,7 @@
 import Icon from '../components/Icon.astro';
 import Screenshot from '../components/Screenshot.astro';
 import history from '../assets/screenshots/history.png';
+import pullRequests from '../assets/screenshots/pull-requests.png';
 import { site } from '../data/site';
 ---
 
@@ -23,9 +24,7 @@ import { site } from '../data/site';
         />
       </div>
     </div>
-    <figcaption class="caption">
-      提交图随滚动继续加载，选择提交后在下方检查差异。
-    </figcaption>
+    <figcaption class="caption">提交图随滚动继续加载，选择提交后在下方检查差异。</figcaption>
   </figure>
   <div class="collaboration-details">
     <article data-reveal>
@@ -41,14 +40,25 @@ import { site } from '../data/site';
     <article data-reveal>
       <Icon name="layers" />
       <div>
-        <h3>PR 与 MR，在工作区里阅读</h3>
+        <h3>PR 与 MR，在工作区里审阅</h3>
         <p>
           查看 GitHub PR、GitLab MR 的详情、文件 Diff、评论和代码讨论。支持 HTTPS 自建
-          GitLab，私有仓库可配置访问令牌。
+          GitLab；配置访问令牌后，可按权限发表评论、合并或关闭请求。
         </p>
       </div>
     </article>
   </div>
+  <figure data-reveal class="history-figure">
+    <div class="shell">
+      <div class="core">
+        <Screenshot
+          image={pullRequests}
+          alt="PR/MR 详情：在应用内阅读合并请求描述、分支信息、文件变动与评论讨论"
+        />
+      </div>
+    </div>
+    <figcaption class="caption">从描述到差异与讨论，审阅上下文留在同一个工作区。</figcaption>
+  </figure>
   <a class="text-link" href={site.workspace}>
     查看分支与协作说明 <Icon name="arrow" />
   </a>

@@ -27,25 +27,27 @@ npm run website:preview
 - `src/styles/motion.css`：首屏文案分步入场、工作区截图与背景光晕显现、卡片悬停和按钮／链接反馈。
 - `src/scripts/motion.ts`：通过 IntersectionObserver 和 Web Animations API 实现区块首次滚动显现、下载卡片错峰入场与截图切换过渡；不引入动画库或逐帧滚动监听。默认增加展示动效，系统启用减少动态效果时跳过动画，并立即取消正在播放的过渡。内容默认可见，禁用 JS 或动画 API 不可用时仍可阅读。
 - 主题默认跟随系统，可手动选择浅色、深色并在本机保存。`?theme=light` / `?theme=dark` 可用于预览；手动切换后移除预览参数。
-- 无 JavaScript 时，内容、下载、导航、系统主题仍可用，两张改动区截图按顺序展示。
+- 无 JavaScript 时，内容、下载、导航、系统主题仍可用，改动、文件与终端截图按顺序展示。
 - Geist / Geist Mono 字体通过 Fontsource 构建并自托管，中文使用系统字体回退；图标来自 Tabler Icons（MIT）。随站点发布的许可文本位于 `public/third-party-licenses.txt`。
 
 视觉参考：[UI-Dialogs 独立 HTML](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-118/dialog-design/ui-design.html)，2026-09-30 基线 SHA-256 `97f51ecebcfceb42cb950cff1a326568827a592ddee2b4542fffeaec3ea34a33`。这是视觉规则的官网适配，参考附件中的弹窗提案不代表已发布产品行为。
 
 ## 文案、截图与品牌资产
 
-文案按 [README](../../README.md)、[工作区说明](../../docs/workspace.md) 和稳定版核验，初始核对版本为 v0.5.2。新增描述时注意：SSH Worktree 仅支持发现和打开；代码阅读主题不影响 Diff；AI 是可选功能，会把已暂存差异发给所配置的服务；代理覆盖范围见网络代理文档。
+文案按 [README](../../README.md)、[工作区说明](../../docs/workspace.md) 和稳定版核验，当前核对版本为 v0.7.0。新增描述时注意：SSH Worktree 仅支持发现和打开；代码主题、字体和字号同时用于文件与文本 Diff；AI 是可选功能，会把已暂存差异发给所配置的服务；代理覆盖范围见网络代理文档。
 
-`src/assets/screenshots/` 的五张 PNG 均直接来自 [README-Screenshots-v0.5.0](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.5.0)，下载原址为 `https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.5.0/<文件名>.png`：
+`src/assets/screenshots/` 的七张 PNG 均直接来自 [README-Screenshots-v0.7.0](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.7.0)，下载原址为 `https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.7.0/<文件名>.png`：
 
-| 文件                                         | 展示内容           |
-| -------------------------------------------- | ------------------ |
-| `workspace-light.png` / `workspace-dark.png` | Diff、暂存与提交   |
-| `repositories.png`                           | 本机／SSH 仓库列表 |
-| `files.png`                                  | 文件阅读和代码主题 |
-| `history.png`                                | 提交历史与分支图   |
+| 文件                                         | 展示内容                    |
+| -------------------------------------------- | --------------------------- |
+| `workspace-light.png` / `workspace-dark.png` | Diff、暂存与提交            |
+| `repositories.png`                           | 本机／SSH 仓库列表          |
+| `files.png`                                  | 文件阅读和代码主题          |
+| `history.png`                                | 提交历史与分支图            |
+| `terminal.png`                               | 仓库终端与实际 Git 命令输出 |
+| `pull-requests.png`                          | PR/MR 应用内审阅            |
 
-截图对应 v0.5.0（`e86dc78d3b675084743f59c940f2ab1aafbe1ad5`），使用临时仓库、本机测试 SSH 服务和演示数据，展示网页界面，桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
+截图对应 v0.7.0（界面代码基线 `c322bbb`），使用临时仓库、本机测试 SSH 服务和演示数据，展示真实网页界面；PR/MR 托管平台响应为测试数据，终端使用认证隔离服务与真实演示仓库。桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
 
 头像源图为 `apps/desktop/assets/alune.png`，官网的 `public/favicon.png`（64px）、`public/brand.png`（144px）、`public/og-image.png`（1200×630）由以下命令派生：
 
