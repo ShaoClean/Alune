@@ -16,6 +16,7 @@ jobs:
   terminals:
     name: PTY 与原生包 (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +32,7 @@ jobs:
       - run: npm ci
       - run: npm run desktop:build
       - name: 会话隔离、SSH、退出与背压
+        timeout-minutes: 3
         run: node --test apps/server/test/terminal.integration.cjs
       - run: npm run pack -w desktop
       - name: 原生包终端、输入、保留输出与关闭确认
