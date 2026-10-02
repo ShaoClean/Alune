@@ -1,8 +1,7 @@
 import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
-import { Button, Input } from '@alune/ui';
-import { DeleteOutlined, PlusOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Button, Dropdown, Input, Tooltip } from '@alune/ui';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { WorktreeInfo } from '@alune/shared';
 import { gitApi, repositoryApi } from '../api';
@@ -51,6 +50,8 @@ export function WorktreesPanel({
   const [newPath, setNewPath] = useState('');
   const [newBranch, setNewBranch] = useState('');
   const [removing, setRemoving] = useState<WorktreeInfo | null>(null);
+  const [menuPath, setMenuPath] = useState<string | null>(null);
+  const moreButtons = useRef(new Map<string, HTMLElement>());
   const [mutationBusy, setMutationBusy] = useState(false);
   const [mutationError, setMutationError] = useState('');
   const request = useRef(0);
@@ -143,6 +144,128 @@ export function WorktreesPanel({
     }
   };
 
+  const currentItems = items?.filter((item) => item.isCurrent) ?? [];
+  const otherItems = items?.filter((item) => !item.isCurrent) ?? [];
+  const renderEntry = (item: WorktreeInfo) => {
+    const label = item.bare
+      ? '裸仓库'
+      : item.detached
+        ? '游离 HEAD · ' + (item.head?.slice(0, 8) || '未知提交')
+        : item.branch || '未命名分支';
+    const canRemove = local && !item.isCurrent && !item.bare && !item.locked && !item.prunable;
+
+    return (
+      <Tooltip
+        key={item.path}
+        title={
+          <>
+            <div>{label}</div>
+            <div>{item.path}</div>
+          </>
+        }
+        mouseEnterDelay={0.5}
+        open={menuPath === item.path ? false : undefined}
+      >
+        <li
+          className={`worktree-entry${item.isCurrent ? ' worktree-entry--current' : ''}`}
+          aria-current={item.isCurrent ? 'true' : undefined}
+        >
+          <button
+            type="button"
+            className="worktree-option"
+            disabled={item.isCurrent || item.bare || opening !== null || mutationBusy}
+            aria-label={(item.isCurrent ? '当前 Worktree ' : '打开 Worktree ') + item.path}
+            onClick={() => void openWorktree(item)}
+          >
+            <span className="worktree-option__icon">
+              <DialogIcon name={item.bare ? 'folder' : item.detached ? 'commit' : 'branch'} />
+            </span>
+            <span className="worktree-option__copy">
+              <strong className="worktree-option__name">{label}</strong>
+              <span className="worktree-option__path">{item.path}</span>
+              {item.bare && <span className="worktree-option__note">没有可查看改动的工作目录</span>}
+              {item.locked && (
+                <span className="worktree-option__note">
+                  <DialogIcon name="lock" />
+                  已锁定{item.lockedReason ? ' · ' + item.lockedReason : ''}
+                </span>
+              )}
+              {item.prunable && (
+                <span className="worktree-option__note worktree-option__warning">
+                  <DialogIcon name="warning" />
+                  目录可能失效{item.prunableReason ? ' · ' + item.prunableReason : ''}
+                </span>
+              )}
+            </span>
+            {item.isCurrent ? (
+              <span className="worktree-option__current">
+                <DialogIcon name="check" />
+              </span>
+            ) : opening === item.path ? (
+              <span className="worktree-option__opening" role="status">
+                正在打开…
+              </span>
+            ) : !item.bare ? (
+              <span className="worktree-option__open" aria-hidden="true">
+                <DialogIcon name="arrow-up-right" />
+              </span>
+            ) : null}
+          </button>
+          {canRemove && (
+            <Dropdown
+              trigger={['click']}
+              placement="bottomRight"
+              autoFocus
+              open={menuPath === item.path}
+              onOpenChange={(value) => setMenuPath(value ? item.path : null)}
+              menu={{
+                'aria-label': `${label} 的 Worktree 操作`,
+                selectable: false,
+                onKeyDown: (event) => {
+                  if (event.key === 'Escape') {
+                    event.stopPropagation();
+                    setMenuPath(null);
+                    moreButtons.current.get(item.path)?.focus();
+                  }
+                },
+                items: [
+                  {
+                    key: 'remove',
+                    label: '删除目录…',
+                    icon: <DialogIcon name="trash" />,
+                    danger: true,
+                  },
+                ],
+                onClick: () => {
+                  moreButtons.current.get(item.path)?.focus();
+                  setMenuPath(null);
+                  setRemoving(item);
+                  setMutationError('');
+                },
+              }}
+            >
+              <Button
+                ref={(node) => {
+                  if (node) moreButtons.current.set(item.path, node);
+                  else moreButtons.current.delete(item.path);
+                }}
+                className="worktree-entry__more"
+                type="text"
+                size="small"
+                icon={<DialogIcon name="dots" />}
+                disabled={mutationBusy || opening !== null}
+                aria-label={`Worktree 更多操作 ${item.path}`}
+                title="更多操作"
+                aria-haspopup="menu"
+                aria-expanded={menuPath === item.path}
+              />
+            </Dropdown>
+          )}
+        </li>
+      </Tooltip>
+    );
+  };
+
   return (
     <section
       ref={panelRef}
@@ -150,41 +273,59 @@ export function WorktreesPanel({
       className="worktrees-menu"
       aria-label="关联 Worktree"
       onKeyDown={(event) => {
-        if (event.key === 'Escape') {
+        if (
+          event.key === 'Escape' &&
+          !event.defaultPrevented &&
+          !menuPath &&
+          !createOpen &&
+          !removing
+        ) {
           event.stopPropagation();
           onDismiss();
         }
       }}
     >
       <div className="worktrees-menu__heading">
-        <strong>关联 Worktree</strong>
-        <Button
-          type="text"
-          size="small"
-          icon={<ReloadOutlined />}
-          aria-label="刷新 Worktree 列表"
-          loading={loading}
-          disabled={opening !== null}
-          onClick={() => void refresh()}
-        />
+        <div className="worktrees-menu__title">
+          <strong>关联 Worktree</strong>
+          <span title={repoName}>
+            {repoName ? `${repoName} · ` : ''}
+            {local ? '本地仓库' : 'SSH 仓库'}
+          </span>
+        </div>
+        <div className="worktrees-menu__actions">
+          <Button
+            type="text"
+            size="small"
+            icon={<DialogIcon name="refresh" />}
+            aria-label="刷新 Worktree 列表"
+            title="刷新列表"
+            loading={loading}
+            disabled={opening !== null || mutationBusy}
+            onClick={() => void refresh()}
+          />
+          {local && (
+            <Button
+              type="primary"
+              size="small"
+              icon={<DialogIcon name="plus" />}
+              aria-label="新建本地 Worktree"
+              disabled={mutationBusy || opening !== null}
+              onClick={() => {
+                setMutationError('');
+                setCreateOpen(true);
+              }}
+            >
+              新建
+            </Button>
+          )}
+        </div>
       </div>
-      <p className="worktrees-menu__hint">
-        在独立标签页打开，并加入仓库列表。关闭标签页会保留目录。
-      </p>
-      {local && (
-        <Button
-          block
-          icon={<PlusOutlined />}
-          disabled={mutationBusy}
-          onClick={() => {
-            setMutationError('');
-            setCreateOpen(true);
-          }}
-        >
-          新建本地 Worktree
-        </Button>
+      {loading && (
+        <p className="worktrees-menu__empty" role="status">
+          正在读取 Worktree…
+        </p>
       )}
-      {loading && <p role="status">正在读取 Worktree…</p>}
       {error && (
         <FeedbackNotice
           source="worktrees-load"
@@ -195,68 +336,28 @@ export function WorktreesPanel({
           onAction={refresh}
         />
       )}
-      {items && !items.some((item) => !item.isCurrent) && (
-        <p className="worktrees-menu__empty">暂无其他关联 worktree</p>
+      {!!currentItems.length && (
+        <div className="worktrees-menu__current">
+          <h3 className="worktrees-menu__label">当前工作区</h3>
+          <ul>{currentItems.map(renderEntry)}</ul>
+        </div>
       )}
-      <div className="worktrees-menu__list">
-        {items?.map((item) => (
-          <div className="worktree-entry" key={item.path}>
-            <button
-              type="button"
-              className="worktree-option"
-              key={item.path}
-              disabled={item.isCurrent || item.bare || opening !== null || mutationBusy}
-              aria-label={'打开 Worktree ' + item.path}
-              onClick={() => void openWorktree(item)}
-            >
-              <span className="worktree-option__heading">
-                <strong>
-                  {item.bare
-                    ? '裸仓库'
-                    : item.detached
-                      ? '游离 HEAD · ' + item.head?.slice(0, 8)
-                      : item.branch || '未命名分支'}
-                </strong>
-                <small>
-                  {item.isCurrent ? (
-                    '当前'
-                  ) : opening === item.path ? (
-                    '正在打开…'
-                  ) : (
-                    <ExportOutlined />
-                  )}
-                </small>
-              </span>
-              <span className="worktree-option__path">{item.path}</span>
-              {item.bare && <small>没有可查看改动的工作目录</small>}
-              {item.locked && (
-                <small>已锁定{item.lockedReason ? ' · ' + item.lockedReason : ''}</small>
-              )}
-              {item.prunable && (
-                <small className="worktree-option__warning">
-                  目录可能失效{item.prunableReason ? ' · ' + item.prunableReason : ''}
-                </small>
-              )}
-            </button>
-            {local && !item.isCurrent && !item.bare && !item.locked && !item.prunable && (
-              <Button
-                size="small"
-                danger
-                type="text"
-                icon={<DeleteOutlined />}
-                disabled={mutationBusy || !!opening}
-                aria-label={`删除 Worktree ${item.path}`}
-                onClick={() => {
-                  setRemoving(item);
-                  setMutationError('');
-                }}
-              >
-                删除目录
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
+      {items && (
+        <div className="worktrees-menu__others">
+          <h3 className="worktrees-menu__label">
+            其他工作区 <span>{otherItems.length}</span>
+          </h3>
+          {otherItems.length ? (
+            <ul className="worktrees-menu__list">{otherItems.map(renderEntry)}</ul>
+          ) : (
+            <p className="worktrees-menu__empty">暂无其他关联 worktree</p>
+          )}
+        </div>
+      )}
+      <p className="worktrees-menu__hint">
+        <DialogIcon name="info" />
+        <span>在独立标签页打开并加入仓库列表，关闭标签保留目录。</span>
+      </p>
       <AluneModal
         open={createOpen}
         size="md"
