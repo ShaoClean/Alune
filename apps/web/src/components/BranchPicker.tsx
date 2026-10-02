@@ -89,7 +89,6 @@ export function BranchPicker({
     setCreatingBranch(name);
     try {
       await gitApi.createBranch(repoId, name, true);
-      message.success(`分支“${name}”已创建并切换`);
       if (!mounted.current) return;
       setCreating(false);
       setNewBranch('');

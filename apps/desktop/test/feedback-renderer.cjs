@@ -55,6 +55,8 @@ app.whenReady().then(async () => {
   };
   try {
     const { runFeedbackChecks } = await import('../../web/tests/feedback-browser.mjs');
+    const { runQuietSuccessChecks } = await import('../../web/tests/quiet-success-browser.mjs');
+    console.log('静默成功反馈:', JSON.stringify(await runQuietSuccessChecks(page)));
     console.log('Electron feedback:', JSON.stringify(await runFeedbackChecks(page)));
     const { runNotificationChecks } = await import('../../web/tests/notification-browser.mjs');
     console.log(

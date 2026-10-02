@@ -113,7 +113,6 @@ export function ConnectionsPage() {
   const handleAdd = async (values: ConnectionFormValues) => {
     try {
       await addConnection(values);
-      message.success('连接已添加');
       setModalVisible(false);
       form.resetFields();
     } catch (err: any) {
@@ -124,8 +123,7 @@ export function ConnectionsPage() {
   const handleTest = async (id: string) => {
     setTestLoading(id);
     try {
-      const result = await testConnection(id);
-      if (result.success) message.success('连接成功');
+      await testConnection(id);
     } catch (err: any) {
       message.error(err.message || '连接失败');
     } finally {
@@ -136,7 +134,6 @@ export function ConnectionsPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteConnection(id);
-      message.success('连接已移除');
     } catch (err: any) {
       message.error(err.message || '移除连接失败');
     }

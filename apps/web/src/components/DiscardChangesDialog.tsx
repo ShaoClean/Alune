@@ -85,8 +85,7 @@ export function DiscardChangesDialog({ repoId, onClose }: Props) {
         includeUntracked ? 'all' : 'tracked',
       );
       succeeded = result.success;
-      if (result.success) message.success(discardResultMessage(result));
-      else if (revision.current === current) {
+      if (!result.success && revision.current === current) {
         setError(`${discardResultMessage(result)}。${result.error || '请重新读取状态后确认。'}`);
       }
     } catch (error: any) {

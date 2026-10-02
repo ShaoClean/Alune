@@ -1,7 +1,7 @@
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import { FeedbackNotice } from '@alune/ui';
 import { useFeedbackMessage } from '@alune/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Tooltip } from '@alune/ui';
 import { AlunePopconfirm } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
@@ -120,6 +120,28 @@ export function ChangesView({
   } | null>(null);
   const busy = loading || deletePath !== null || discardAllOpen;
 
+  const panel = useRef<HTMLElement>(null);
+  const actionFocus = useRef<{
+    element: HTMLElement;
+    nextLabel: string;
+    scrollTop: number;
+  } | null>(null);
+  useLayoutEffect(() => {
+    const saved = actionFocus.current;
+    if (loading || !saved || !panel.current) return;
+    actionFocus.current = null;
+    // Do not steal focus if the user moved elsewhere while Git was running.
+    if (document.activeElement !== document.body && document.activeElement !== saved.element)
+      return;
+    const buttons = Array.from(panel.current.querySelectorAll<HTMLButtonElement>('button'));
+    const target = saved.element.isConnected
+      ? saved.element
+      : buttons.find((button) => button.getAttribute('aria-label') === saved.nextLabel) ||
+        panel.current.querySelector<HTMLInputElement>('input[aria-label="筛选改动文件"]');
+    target?.focus({ preventScroll: true });
+    const content = panel.current.querySelector('.changes-content');
+    if (content) content.scrollTop = saved.scrollTop;
+  }, [loading]);
   const fileMenu = useWorkspaceFileMenu(repoId, (path) => onFileChanged?.(path), busy);
 
   const files = status?.files || [];
@@ -142,13 +164,24 @@ export function ChangesView({
   const runFileAction = async (action: 'stage' | 'unstage', paths: string[]) => {
     if (busy) return;
     ai.cancel('暂存内容正在变化，请在操作完成后重新生成。');
+    const element = document.activeElement;
+    if (element instanceof HTMLElement && panel.current?.contains(element)) {
+      const label = element.getAttribute('aria-label');
+      actionFocus.current = {
+        element,
+        nextLabel:
+          paths.length === 1 && label === `${action === 'stage' ? '暂存' : '取消暂存'} ${paths[0]}`
+            ? `${action === 'stage' ? '取消暂存' : '暂存'} ${paths[0]}`
+            : action === 'stage'
+              ? '全部取消暂存'
+              : '全部暂存',
+        scrollTop: panel.current.querySelector('.changes-content')?.scrollTop || 0,
+      };
+    }
     setLoading(true);
     try {
       await gitApi[action](repoId, paths);
       await fetchStatus(repoId, true);
-      message.success(
-        action === 'stage' ? `${paths.length} 项改动已暂存` : `${paths.length} 项改动已取消暂存`,
-      );
     } catch (err: any) {
       message.error(err.message || 'Git 操作失败');
     } finally {
@@ -243,7 +276,6 @@ export function ChangesView({
           if (origin.current !== repoId) return;
           setDirectoryFile(null);
           await fetchStatus(repoId, true);
-          message.success('已添加本地忽略规则');
         } catch (error: any) {
           message.error(error.message || '无法忽略此目录');
         } finally {
@@ -259,7 +291,6 @@ export function ChangesView({
     try {
       await gitApi.checkout(repoId, [path]);
       await fetchStatus(repoId, true);
-      message.success(`已丢弃 ${path} 的改动`);
     } catch (err: any) {
       message.error(err.message || '无法丢弃此文件的改动');
     } finally {
@@ -279,7 +310,6 @@ export function ChangesView({
       await gitApi.commit(repoId, draft.message.trim(), draft.description.trim() || undefined);
       clearSubmittedDraft(repoId, draft);
       await fetchStatus(repoId, true);
-      message.success('提交已创建');
     } catch (err: any) {
       message.error(err.message || '提交失败');
     } finally {
@@ -500,6 +530,7 @@ export function ChangesView({
             <Button
               type="text"
               size="small"
+              aria-label={staged ? '全部取消暂存' : '全部暂存'}
               disabled={
                 busy ||
                 !groupFiles.some((file) => changeActions(file)[staged ? 'unstage' : 'stage'])
@@ -522,7 +553,7 @@ export function ChangesView({
     ) : null;
 
   return (
-    <section className="workspace-panel changes-panel">
+    <section ref={panel} className="workspace-panel changes-panel">
       {directoryFile && (
         <AluneModal
           open
@@ -715,7 +746,7 @@ export function ChangesView({
           aria-label="提交摘要"
           placeholder="摘要 · 描述这次改动"
           value={draft.message}
-          disabled={busy}
+          readOnly={busy}
           onChange={(event) => updateDraft(repoId, { message: event.target.value })}
           suffix={
             <Tooltip title={ai.generating ? '正在生成提交信息' : '生成提交信息'}>
@@ -735,7 +766,7 @@ export function ChangesView({
           aria-label="提交描述"
           placeholder="描述（可选）"
           value={draft.description}
-          disabled={busy}
+          readOnly={busy}
           onChange={(event) => updateDraft(repoId, { description: event.target.value })}
           rows={2}
         />
@@ -766,7 +797,7 @@ export function ChangesView({
         />
         <FeedbackNotice
           source="commit-generation-result"
-          type={ai.feedback?.error ? 'error' : 'success'}
+          type={ai.feedback?.error ? 'error' : 'info'}
           title={ai.feedback?.message}
           eventKey={ai.feedback ?? undefined}
           actionLabel={ai.feedback?.error ? '重试' : undefined}

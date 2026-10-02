@@ -67,7 +67,6 @@ export function DeleteNewFileDialog({ repoId, path, onClose, onFileChanged }: Pr
     try {
       await gitApi.deleteNewFile(repoId, path, preview.token);
       succeeded = true;
-      message.success(`已删除 ${path}`);
     } catch (error) {
       if (mounted.current) {
         setError(errorMessage(error));

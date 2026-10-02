@@ -64,7 +64,6 @@ export function useReviewActions(
   const [actions, setActions] = useState<PullRequestActions>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [feedbackVersion, setFeedbackVersion] = useState(0);
   const [posted, setPosted] = useState<PullRequestDiscussion[]>([]);
   const [pending, setPending] = useState(false);
@@ -136,7 +135,6 @@ export function useReviewActions(
     pendingRef.current = true;
     setPending(true);
     setError('');
-    setNotice('');
     try {
       const result = await repositoryApi.mutatePullRequest(repoId, attempt.current.query);
       if (action === 'comment') {
@@ -146,14 +144,6 @@ export function useReviewActions(
         if (alive.current) setDraft(emptyDraft());
       }
       if (alive.current) {
-        setFeedbackVersion((value) => value + 1);
-        setNotice(
-          action === 'comment'
-            ? '评论已发表。'
-            : action === 'merge'
-              ? '已合并。'
-              : '已关闭，代码未合入目标分支。',
-        );
         onChanged();
       }
       return true;
@@ -174,7 +164,6 @@ export function useReviewActions(
     feedbackVersion,
     loading,
     error,
-    notice,
     posted,
     pending,
     load,
@@ -290,14 +279,6 @@ export function ReviewActionBar({
           eventKey={review.feedbackVersion}
           type="error"
           title={review.error}
-        />
-      )}
-      {review.notice && (
-        <FeedbackAlert
-          source="review-success"
-          eventKey={review.feedbackVersion}
-          type="success"
-          title={review.notice}
         />
       )}
       <AluneModal

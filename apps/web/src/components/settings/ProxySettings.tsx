@@ -180,10 +180,6 @@ export function ProxySettings() {
     setNotice(undefined);
     try {
       accept(await proxyApi.save(draft));
-      setNotice({
-        error: false,
-        text: '代理配置已保存。本机新请求立即生效，已有 SSH 连接需手动重新连接。',
-      });
       void proxyApi
         .connections()
         .then(setServers)

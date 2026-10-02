@@ -196,13 +196,6 @@ export function StashesView({ repoId, onRefresh }: Props) {
     setLoading(true);
     try {
       await gitApi[action](repoId, index);
-      message.success(
-        action === 'stashPop'
-          ? '储藏已弹出'
-          : action === 'stashApply'
-            ? '储藏已应用'
-            : '储藏已删除',
-      );
       await refresh();
     } catch (err: any) {
       message.error(err.message || '储藏操作失败');
@@ -218,7 +211,6 @@ export function StashesView({ repoId, onRefresh }: Props) {
       await gitApi.stash(repoId, stashMessage.trim() || undefined, includeUntracked);
       setStashMessage('');
       setStashModalVisible(false);
-      message.success('改动已储藏');
       await refresh();
     } catch (err: any) {
       message.error(err.message || '无法创建储藏');
