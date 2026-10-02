@@ -2666,14 +2666,6 @@ body,
   font-size: 12px;
   tab-size: 4;
 }
-.worktree-entry {
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 4px;
-}
-.worktree-entry .worktree-option {
-  width: 100%;
-  border-bottom: 0;
-}
 .branch-row__actions {
   flex-wrap: wrap;
 }
