@@ -1,3 +1,5 @@
+import { TerminalWorkspace } from './TerminalWorkspace';
+import { useTerminalStore } from '../stores/terminalState';
 import { useFeedbackMessage } from '@alune/ui';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
@@ -33,13 +35,15 @@ const navItems = [
 ];
 
 export function Layout() {
+  const terminalVisible = useTerminalStore((state) => state.visible);
   const message = useFeedbackMessage();
   const navigate = useNavigate();
   const location = useLocation();
   const isSettings = location.pathname.startsWith('/settings');
   const [rightPanelAvailable, setRightPanelAvailable] = useState(true);
   const [repositoryToolbarSlot, setRepositoryToolbarSlot] = useState<HTMLDivElement | null>(null);
-  const outlet = useOutlet({ setRightPanelAvailable, repositoryToolbarSlot });
+  const [terminalSlot, setTerminalSlot] = useState<HTMLDivElement | null>(null);
+  const outlet = useOutlet({ setRightPanelAvailable, repositoryToolbarSlot, setTerminalSlot });
   const workspaceOutlet = useRef(outlet);
   const workspaceFocus = useRef<HTMLElement | null>(null);
   const lastWorkspacePath = useRef('/repositories');
@@ -175,7 +179,13 @@ export function Layout() {
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || !(event.metaKey || event.ctrlKey)) return;
+      if (
+        event.isComposing ||
+        event.defaultPrevented ||
+        event.altKey ||
+        !(event.metaKey || event.ctrlKey)
+      )
+        return;
       if (event.key === ',') {
         event.preventDefault();
         openSettings();
@@ -299,6 +309,11 @@ export function Layout() {
 
   return (
     <>
+      <TerminalWorkspace
+        slot={isSettings ? null : terminalSlot}
+        repository={activeRepository}
+        switching={currentRepo?.id !== workspaceRepositoryId}
+      />
       <DesktopUpdateFeedback
         state={updateState}
         error={updates.bridgeError}
@@ -374,10 +389,17 @@ export function Layout() {
           {!isSettings && activeRepositoryId && (
             <PanelToggle
               side="right"
-              expanded={rightPanelAvailable && !layout.changesCollapsed}
+              expanded={
+                rightPanelAvailable && !layout.changesCollapsed && !(compact && terminalVisible)
+              }
               disabled={!rightPanelAvailable}
               controls="workspace-list"
-              onClick={() => updateLayout({ changesCollapsed: !layout.changesCollapsed })}
+              onClick={() => {
+                if (compact && terminalVisible) {
+                  useTerminalStore.setState({ visible: false });
+                  updateLayout({ changesCollapsed: false });
+                } else updateLayout({ changesCollapsed: !layout.changesCollapsed });
+              }}
             />
           )}
         </div>

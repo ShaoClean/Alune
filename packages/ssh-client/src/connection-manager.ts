@@ -423,6 +423,76 @@ export class SSHConnection extends EventEmitter {
     });
   }
 
+  // Long-lived PTYs do not occupy the short Git/SFTP queue. They still count
+  // as active tasks, preventing a proxy reconnect from dropping live shells.
+  openTerminal(
+    cwd: string,
+    cols: number,
+    rows: number,
+    signal: AbortSignal,
+  ): Promise<ClientChannel> {
+    const client = this._ensureConnected();
+    signal.throwIfAborted();
+    if (!cwd.startsWith('/') || cwd.includes('\0')) throw new Error('终端需要有效的绝对启动目录。');
+    const command =
+      'cd -P "$1" || exit 125; shell=${SHELL:-/bin/sh}; ' +
+      '[ -x "$shell" ] || { printf "无法执行登录 shell\\n" >&2; exit 126; }; exec "$shell" -i';
+    const release = this.holdTask();
+    return new Promise((resolve, reject) => {
+      let cancelled = false;
+      let stream: ClientChannel | undefined;
+      const cleanup = () => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', abort);
+      };
+      const abort = () => {
+        cancelled = true;
+        cleanup();
+        release();
+        stream?.close();
+        reject(signal.reason || new Error('终端创建已取消。'));
+      };
+      const timer = setTimeout(() => {
+        cancelled = true;
+        cleanup();
+        release();
+        reject(new Error('SSH 终端启动超时。'));
+      }, 30_000);
+      signal.addEventListener('abort', abort, { once: true });
+      try {
+        client.exec(
+          `/bin/sh -c ${quotePosixArgument(command)} alune ${quotePosixArgument(cwd)}`,
+          { pty: { term: 'xterm-256color', cols, rows, width: 0, height: 0 } },
+          (error, channel) => {
+            cleanup();
+            if (error) {
+              release();
+              reject(error);
+              return;
+            }
+            stream = channel;
+            channel.once('close', release);
+            channel.on('error', () => {});
+            if (cancelled || signal.aborted) {
+              channel.resume();
+              channel.stderr.resume();
+              channel.close();
+              release();
+              return;
+            }
+            channel.pause();
+            channel.stderr.pause();
+            resolve(channel);
+          },
+        );
+      } catch (error) {
+        cleanup();
+        release();
+        reject(error);
+      }
+    });
+  }
+
   async execCommandStream(
     command: string,
     callbacks: StreamCallbacks,

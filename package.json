@@ -3,7 +3,7 @@
   "version": "0.6.1",
   "private": true,
   "scripts": {
-    "prepare": "node scripts/install-hooks.mjs",
+    "prepare": "node scripts/install-hooks.mjs && node scripts/prepare-pty.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
     "commitlint": "commitlint --config commitlint.config.cjs",
     "lint:commits": "node scripts/lint-commits.mjs",

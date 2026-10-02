@@ -100,8 +100,11 @@ export class RepositoryController {
   }
 
   @Delete(':id')
-  async delete(@Param('id', ParseUUIDPipe) id: string) {
-    return this.repoService.delete(id);
+  async delete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body?: { terminalSessionIds?: string[] },
+  ) {
+    return this.repoService.delete(id, body?.terminalSessionIds);
   }
 
   @Post(':id/pin')

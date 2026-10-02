@@ -21,6 +21,8 @@ import {
 import type { RepositoryStatus } from '@alune/shared';
 import { ToolbarButton } from '@alune/ui';
 import { WorktreesMenu } from './WorktreesMenu';
+import { CodeOutlined } from '@ant-design/icons';
+import { useTerminalStore } from '../stores/terminalState';
 import { BranchPicker } from './BranchPicker';
 import { useToolbarTier } from '../hooks/useToolbarTier';
 import { syncLabel } from '../stores/syncStatusStore';
@@ -134,6 +136,7 @@ export function RepositoryToolbar({
   tier?: 'full' | 'compact' | 'condensed' | 'minimal';
 }) {
   const detectedTier = useToolbarTier();
+  const terminalVisible = useTerminalStore((state) => state.visible);
   const tier = forcedTier || detectedTier;
   const [pushOpen, setPushOpen] = useState(false);
   const pushTrigger = useRef<HTMLButtonElement>(null);
@@ -250,6 +253,18 @@ export function RepositoryToolbar({
       <span className="repository-toolbar__divider" aria-hidden="true" />
 
       <div className="repository-toolbar__actions">
+        <ToolbarButton
+          variant="icon"
+          label="终端"
+          tooltip="显示 / 收起终端 · Ctrl+`"
+          data-terminal-toggle
+          active={terminalVisible}
+          aria-expanded={terminalVisible}
+          aria-controls="repository-terminal"
+          onClick={() => useTerminalStore.getState().toggle()}
+        >
+          <CodeOutlined />
+        </ToolbarButton>
         <ToolbarButton
           variant="icon"
           label="刷新仓库"

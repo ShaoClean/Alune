@@ -31,36 +31,64 @@ for (const name of ['shared', 'ssh-client']) {
   const manifest = await readJSON(path.join(root, `packages/${name}/package.json`));
   delete manifest.devDependencies;
   delete manifest.scripts;
-  await writeFile(path.join(target, `packages/${name}/package.json`), JSON.stringify(manifest, null, 2));
+  await writeFile(
+    path.join(target, `packages/${name}/package.json`),
+    JSON.stringify(manifest, null, 2),
+  );
 }
-await writeFile(path.join(target, 'package.json'), JSON.stringify({
-  name: 'alune-desktop',
-  version: rootPackage.version,
-  description: 'Alune 本地与 SSH Git 工作区',
-  author: 'Alune',
-  private: true,
-  main: 'main.cjs',
-  dependencies: {
-    ...server.dependencies,
-    ...desktopPackage.dependencies,
-    '@alune/shared': 'file:packages/shared',
-    '@alune/ssh-client': 'file:packages/ssh-client',
-  },
-  devDependencies: { electron: rootPackage.devDependencies.electron },
-}, null, 2));
+await writeFile(
+  path.join(target, 'package.json'),
+  JSON.stringify(
+    {
+      name: 'alune-desktop',
+      version: rootPackage.version,
+      description: 'Alune 本地与 SSH Git 工作区',
+      author: 'Alune',
+      private: true,
+      main: 'main.cjs',
+      dependencies: {
+        ...server.dependencies,
+        ...desktopPackage.dependencies,
+        '@alune/shared': 'file:packages/shared',
+        '@alune/ssh-client': 'file:packages/ssh-client',
+      },
+      devDependencies: { electron: rootPackage.devDependencies.electron },
+    },
+    null,
+    2,
+  ),
+);
 
 function run(command, args) {
-  const result = spawnSync(command, args, { cwd: target, stdio: 'inherit', shell: process.platform === 'win32' });
+  const result = spawnSync(command, args, {
+    cwd: target,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status || 1);
 }
 // Install and rebuild inside the staged app: the web server's Node ABI stays intact.
-run('npm', ['install', '--omit=dev', '--omit=optional', '--ignore-scripts', '--install-links', '--workspaces=false', '--no-audit', '--no-fund']);
+run('npm', [
+  'install',
+  '--omit=dev',
+  '--omit=optional',
+  '--ignore-scripts',
+  '--install-links',
+  '--workspaces=false',
+  '--no-audit',
+  '--no-fund',
+]);
 run(process.execPath, [
   path.join(root, 'node_modules/@electron/rebuild/lib/cli.js'),
   '--force',
-  '--only', 'better-sqlite3',
-  '--types', 'prod',
-  '--version', rootPackage.devDependencies.electron,
-  '--module-dir', target,
+  '--only',
+  'better-sqlite3,node-pty',
+  '--types',
+  'prod',
+  '--version',
+  rootPackage.devDependencies.electron,
+  '--module-dir',
+  target,
 ]);
+run(process.execPath, [path.join(root, 'scripts/prepare-pty.mjs'), target]);

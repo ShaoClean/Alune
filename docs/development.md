@@ -80,4 +80,24 @@ CI 对本地 Git 集成测试使用 macOS、Windows、Linux 三个平台。测�
 
 批量放弃更改使用 Git 2.23+ 的 `restore --worktree` 保留暂存区；未跟踪文件仅在确认包含它们时直接删除，不进入回收站。构建上述工作区后，运行 `node apps/web/tests/discard-changes-fixture.cjs` 可验证确认范围、筛选、取消、部分失败及 Diff 刷新。fixture 输出界面 URL 和独立的本机测试控制地址，所有文件和数据库均位于临时目录，退出时清理；设计与验收记录见 [Issue-109](https://github.com/ShaoClean/Alune/wiki/Issue-109)。
 
+### 仓库终端验证
+
+终端模块默认禁用；桌面启动时使用随机 Bearer token 开启。嵌入式认证服务通过 `startServer({ token, ... })` 明确开启，不能仅以绑定回环地址或 CORS 代替认证。终端命名空间 `/terminal` 每条连接独立拥有会话；断线会销毁其 PTY，重连不恢复进程。
+
+```sh
+npm run build -w @alune/shared
+npm run build -w @alune/ssh-client
+npm run build -w server
+npm test -w server -- --runInBand terminal.service.spec.ts
+node --test apps/server/test/terminal.integration.cjs
+npm run desktop:build
+npm run test:terminals -w desktop
+npm run pack -w desktop
+npm run test:terminals -w desktop -- --packaged
+```
+
+测试使用临时 SQLite 与 Git 仓库；POSIX 环境另启动两个回环 SSH 服务，以真实 PTY 验证认证、特殊路径、输入/resize、隔离、关闭、断线和背压。Windows 集成测试验证 ConPTY；跨平台原生包任务见 `.github/workflows/terminal-tests.yml`。桌面测试覆盖真实输入、保留输出、退出码、L2 关闭确认与取消窗口关闭。系统 IME 和辅助技术需补充人工验收。
+
+`prepare` 会修复 node-pty 1.1.0 中 macOS 预编译 `spawn-helper` 的执行权限。桌面暂存目录独立重建 SQLite 与 node-pty，后者完整解包到 asar 外；不会改动开发服务器的 Node ABI。
+
 [返回项目首页](../README.md) · [文档索引](README.md)

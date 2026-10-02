@@ -18,6 +18,7 @@ import type {
 import { ProxyService } from '../proxy/proxy.service';
 import type { ProxyConnectionStatus } from '@alune/shared';
 import { EventsGateway } from '../events/events.gateway';
+import { TerminalRegistry } from '../terminal/terminal-registry';
 
 @Injectable()
 export class ConnectionService implements OnModuleDestroy {
@@ -31,6 +32,7 @@ export class ConnectionService implements OnModuleDestroy {
     @Inject('DATABASE') private db: Database.Database,
     private events: EventsGateway,
     @Optional() private proxy?: ProxyService,
+    @Optional() private terminals?: TerminalRegistry,
   ) {
     this._initTable();
     // SSH activity is the single source of truth for the status shown in the UI.
@@ -157,7 +159,8 @@ export class ConnectionService implements OnModuleDestroy {
     };
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, terminalSessionIds?: string[]): Promise<void> {
+    this.terminals?.remove({ connectionId: id }, terminalSessionIds);
     this.pool.removeConnection(id);
     this.statuses.delete(id);
     this.db.prepare('DELETE FROM connections WHERE id = ?').run(id);

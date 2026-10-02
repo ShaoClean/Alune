@@ -6,3 +6,4 @@ export * from './pull-requests';
 export * from './access-tokens';
 export * from './proxy';
 export * from './repository-analytics';
+export * from './terminal';
