@@ -65,3 +65,87 @@ export function highlight(code: string, language: string): ReactNode[] | null {
   const grammar = Prism.languages[language];
   return grammar ? render(Prism.tokenize(code, grammar)) : null;
 }
+
+// Tokenize a complete hunk side before splitting it, preserving multiline tokens.
+// Each leaf keeps its inherited token style even when a comment/string spans rows.
+function tokenLines(code: string, language: string) {
+  const grammar = Prism.languages[language];
+  if (!grammar) return null;
+  type Segment = { text: string; classes: string[]; style: Record<string, string> };
+  const lines: Segment[][] = [[]];
+  function visit(stream: Stream, classes: string[] = [], style: Record<string, string> = {}) {
+    for (const token of stream) {
+      if (typeof token === 'string') {
+        token.split('\n').forEach((text, index) => {
+          if (index) lines.push([]);
+          if (text) lines[lines.length - 1].push({ text, classes, style });
+        });
+      } else {
+        const aliases = token.alias ? ([] as string[]).concat(token.alias) : [];
+        visit(
+          Array.isArray(token.content) ? token.content : [token.content],
+          [...classes, token.type, ...aliases],
+          { ...style, ...prismTokenStyle(token.type, aliases) },
+        );
+      }
+    }
+  }
+  visit(Prism.tokenize(code, grammar));
+  return lines;
+}
+
+export function highlightLines(code: string, language: string): ReactNode[][] | null {
+  return (
+    tokenLines(code, language)?.map((line) =>
+      line.map((segment, key) =>
+        segment.classes.length
+          ? createElement(
+              'span',
+              {
+                key,
+                className: ['token', ...segment.classes].join(' '),
+                style: segment.style,
+              },
+              segment.text,
+            )
+          : segment.text,
+      ),
+    ) ?? null
+  );
+}
+
+const escapeHTML = (text: string) =>
+  text.replace(
+    /[&<>"']/g,
+    (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!,
+  );
+
+// Keep literal ampersands in their own text segment. The diff library decodes
+// entities in sequential passes; otherwise source like '&quot;' is decoded twice
+// for offset counting and can truncate the highlighted line.
+const escapeCode = (text: string) => escapeHTML(text).replaceAll('&amp;', '<span>&amp;</span>');
+
+// react-diff-viewer needs escaped HTML to compose word-change marks with syntax.
+// File text is escaped here; tags and CSS are produced solely from our token map.
+export function highlightLinesHTML(code: string, language: string): string[] {
+  const lines = tokenLines(code, language);
+  if (!lines) return code.split('\n').map(escapeCode);
+  return lines.map((line) =>
+    line
+      .map(({ text, classes, style }) => {
+        if (!classes.length) return escapeCode(text);
+        const css = Object.entries(style)
+          .map(
+            ([key, value]) =>
+              `${key.replace(/[A-Z]/g, (char) => '-' + char.toLowerCase())}:${value}`,
+          )
+          .join(';');
+        return `<span class="${escapeHTML(['token', ...classes].join(' '))}" style="${escapeHTML(css)}">${escapeCode(text)}</span>`;
+      })
+      .join(''),
+  );
+}
+
+export function highlightLineHTML(code: string, language: string): string {
+  return highlightLinesHTML(code, language).join('\n');
+}

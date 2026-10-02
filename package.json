@@ -24,6 +24,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "desktop:test:unit": "npm run test:unit -w desktop",
     "desktop:test:worktrees": "npm run desktop:build && npm run test:worktrees -w desktop",
+    "desktop:test:diff-theme": "npm run desktop:build && npm run test:diff-theme -w desktop",
     "desktop:test:code-appearance": "npm run desktop:build && npm run test:code-appearance -w desktop",
     "website:dev": "npm run dev -w website",
     "website:build": "npm run build -w website",

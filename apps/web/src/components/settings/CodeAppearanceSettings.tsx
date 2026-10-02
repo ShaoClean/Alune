@@ -88,7 +88,7 @@ export function CodeAppearanceSettings() {
         </Button>
       </div>
       <p className="settings-field-hint">
-        应用于本地与 SSH 仓库的文件阅读，修改即时生效并保存在本设备。
+        应用于本地与 SSH 仓库的文件阅读和文本 Diff，修改即时生效并保存在本设备。
       </p>
       <FeedbackNotice
         source="code-appearance-recovery"

@@ -109,6 +109,18 @@ export function codeAppearanceStyle(
     '--code-font-size': `${readCodeFontSize(preferences.fontSize)}px`,
   };
   for (const [key, color] of Object.entries(theme.colors)) style[`--code-${key}`] = color;
+  // Blend semantic colors into the selected editor surface; imported VS Code
+  // diff colors take precedence and may include alpha. No application tokens leak in.
+  for (const [key, group, amount] of [
+    ['added', 'inserted', 12],
+    ['removed', 'deleted', 12],
+    ['wordAdded', 'inserted', 26],
+    ['wordRemoved', 'deleted', 26],
+  ] as const) {
+    style[`--code-diff-${key}`] =
+      theme.diff?.[key] ??
+      `color-mix(in srgb, ${theme.tokens[group].color} ${amount}%, ${theme.colors.background})`;
+  }
   for (const [group, token] of Object.entries(theme.tokens)) {
     style[`--syntax-${group}`] = token.color;
     style[`--syntax-${group}-style`] = token.italic ? 'italic' : 'normal';

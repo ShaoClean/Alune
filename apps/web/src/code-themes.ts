@@ -26,6 +26,14 @@ export interface TokenStyle {
   underline: boolean;
   strikethrough: boolean;
 }
+export const DIFF_COLOR_KEYS = {
+  'diffEditor.insertedLineBackground': 'added',
+  'diffEditor.removedLineBackground': 'removed',
+  'diffEditor.insertedTextBackground': 'wordAdded',
+  'diffEditor.removedTextBackground': 'wordRemoved',
+} as const;
+export type DiffColor = (typeof DIFF_COLOR_KEYS)[keyof typeof DIFF_COLOR_KEYS];
+
 export interface CodeTheme {
   id: string;
   name: string;
@@ -38,6 +46,7 @@ export interface CodeTheme {
     lineNumber: string;
     selection: string;
   };
+  diff?: Partial<Record<DiffColor, string>>;
   tokens: Record<TokenGroup, TokenStyle>;
 }
 
@@ -294,6 +303,11 @@ export function importCodeTheme(
     if (!isThemeColor(colors[key])) throw new Error(`${key} 需要使用十六进制颜色（如 #1e1e2e）。`);
     theme.colors[target] = colors[key];
   }
+  for (const [key, target] of Object.entries(DIFF_COLOR_KEYS)) {
+    if (colors[key] === undefined) continue;
+    if (!isThemeColor(colors[key])) throw new Error(`${key} 需要使用十六进制颜色。`);
+    (theme.diff ??= {})[target] = colors[key];
+  }
   theme.colors.gutter =
     (colors['editorGutter.background'] as string | undefined) ?? theme.colors.background;
   let ignoredRules = value.semanticTokenColors === undefined ? 0 : 1;
@@ -376,6 +390,15 @@ export function readCustomCodeTheme(value: unknown): CodeTheme | null {
     ]),
   );
   if (!Object.values(colors).every(isThemeColor)) return null;
+  const diff: CodeTheme['diff'] = {};
+  if (value.diff !== undefined) {
+    if (!isRecord(value.diff)) return null;
+    for (const key of Object.values(DIFF_COLOR_KEYS)) {
+      if (value.diff[key] === undefined) continue;
+      if (!isThemeColor(value.diff[key])) return null;
+      diff[key] = value.diff[key];
+    }
+  }
   const tokens: Partial<Record<TokenGroup, TokenStyle>> = {};
   for (const group of TOKEN_GROUPS) {
     const style = value.tokens[group];
@@ -401,6 +424,7 @@ export function readCustomCodeTheme(value: unknown): CodeTheme | null {
     source: value.source,
     mode: value.mode,
     colors: colors as CodeTheme['colors'],
+    ...(value.diff !== undefined ? { diff } : {}),
     tokens: tokens as CodeTheme['tokens'],
   };
 }
