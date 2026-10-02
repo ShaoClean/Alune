@@ -8,25 +8,30 @@ export default function Example() {
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
   return (
-    <>
+    <div className="example example--narrow">
+      <h2 className="example-title">风险等级与提交状态</h2>
       <Radio.Group
         aria-label="风险等级"
         value={level}
         onChange={(e) => setLevel(e.target.value)}
         options={[0, 1, 2].map((value) => ({ value, label: `L${value}` }))}
       />
-      <label>
+      <label className="example-row">
         <Switch aria-label="模拟异步失败" checked={failure} onChange={setFailure} /> 模拟异步失败
       </label>
-      <Button
-        onClick={() => {
-          setError('');
-          setOpen(true);
-        }}
-      >
-        打开弹窗
-      </Button>
-      <p role="status">{result}</p>
+      <div className="example-row">
+        <Button
+          onClick={() => {
+            setError('');
+            setOpen(true);
+          }}
+        >
+          打开弹窗
+        </Button>
+      </div>
+      <p className="example-status" role="status">
+        {result}
+      </p>
       <AluneModal
         open={open}
         title={level === 2 ? '放弃示例更改？' : '保存示例配置'}
@@ -54,6 +59,6 @@ export default function Example() {
           </DialogNote>
         )}
       </AluneModal>
-    </>
+    </div>
   );
 }

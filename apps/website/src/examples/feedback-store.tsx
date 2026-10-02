@@ -6,7 +6,7 @@ export default function Example() {
   const [entries, setEntries] = useState(store.getState().entries);
   useEffect(() => store.subscribe((state) => setEntries(state.entries)), [store]);
   return (
-    <>
+    <div className="example">
       <p>
         {feedbackText(
           <span>
@@ -14,11 +14,10 @@ export default function Example() {
           </span>,
         )}
       </p>
-      <Button
-        onClick={() =>
-          store
-            .getState()
-            .publish({
+      <div className="example-row">
+        <Button
+          onClick={() =>
+            store.getState().publish({
               id: 'sample',
               scope: 'demo',
               context: '模拟项目',
@@ -27,19 +26,20 @@ export default function Example() {
               type: 'error',
               mode: 'modal',
             })
-        }
-      >
-        发布同一修订
-      </Button>
-      <Button onClick={() => store.getState().acknowledge('sample')}>标为已读</Button>
-      <Button onClick={() => store.getState().rearm('sample')}>允许再次提示</Button>
-      <pre>
+          }
+        >
+          发布同一修订
+        </Button>
+        <Button onClick={() => store.getState().acknowledge('sample')}>标为已读</Button>
+        <Button onClick={() => store.getState().rearm('sample')}>允许再次提示</Button>
+      </div>
+      <pre className="example-code">
         {JSON.stringify(
           entries.map(({ id, queued, title }) => ({ id, queued, title })),
           null,
           2,
         )}
       </pre>
-    </>
+    </div>
   );
 }

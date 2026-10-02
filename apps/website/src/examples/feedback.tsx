@@ -13,17 +13,17 @@ import {
 export default function Example() {
   const [active, setActive] = useState(true);
   return (
-    <>
-      <label>
+    <div className="example">
+      <label className="example-row">
         <Switch aria-label="启用反馈作用域" checked={active} onChange={setActive} /> 启用作用域
       </label>
       <FeedbackScope id="example" label="示例项目" active={active}>
         <FeedbackActions />
       </FeedbackScope>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+      <div className="example-footer">
         <FeedbackStatusButton />
       </div>
-    </>
+    </div>
   );
 }
 function FeedbackActions() {
@@ -33,8 +33,8 @@ function FeedbackActions() {
   const [notice, setNotice] = useState(0);
   const message = useFeedbackMessage();
   return (
-    <>
-      <Space wrap>
+    <div className="example-stack">
+      <Space wrap size="middle">
         <Button
           onClick={() => {
             setFailure(true);
@@ -85,6 +85,6 @@ function FeedbackActions() {
           }
         />
       )}
-    </>
+    </div>
   );
 }

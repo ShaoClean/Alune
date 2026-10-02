@@ -9,8 +9,8 @@ const components = Object.fromEntries(
     .filter(([key]) => !key.endsWith('/DemoRoot.tsx'))
     .map(([key, loader]) => [key, lazy(loader)]),
 );
-function report(id: string, type: 'ready' | 'error') {
-  window.parent.postMessage({ channel: 'alune-ui-demo', id, type }, window.location.origin);
+function report(id: string, type: 'ready' | 'error' | 'resize', height?: number) {
+  window.parent.postMessage({ channel: 'alune-ui-demo', id, type, height }, window.location.origin);
 }
 class DemoError extends Component<{ id: string; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -32,6 +32,31 @@ function Ready({ id, children }: { id: string; children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.previewReady = 'true';
     report(id, 'ready');
+    const example = document.querySelector<HTMLElement>('.example');
+    const main = document.querySelector('main');
+    if (!example || !main) return;
+    // Measure content instead of the viewport so resizing the iframe cannot
+    // create a feedback loop. Portals retain the host's minimum preview height.
+    const resize = () => {
+      const style = getComputedStyle(main);
+      report(
+        id,
+        'resize',
+        Math.ceil(
+          example.getBoundingClientRect().height +
+            parseFloat(style.paddingTop) +
+            parseFloat(style.paddingBottom),
+        ),
+      );
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(example);
+    window.addEventListener('resize', resize);
+    resize();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', resize);
+    };
   }, [id]);
   return children;
 }

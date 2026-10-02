@@ -45,7 +45,7 @@ npm run website:preview
 | `files.png`                                  | 文件阅读和代码主题 |
 | `history.png`                                | 提交历史与分支图   |
 
-截图对应 v0.5.0（`e86dc78d3b675084743f59c940f2ab1aafbe1ad5`），使用临时仓库、本机测试 SSH 服务和演示数据，展示网页界面，桌面窗口边框与系统对话框以实际平台为准。页面为这些图片提供版本说明和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
+截图对应 v0.5.0（`e86dc78d3b675084743f59c940f2ab1aafbe1ad5`），使用临时仓库、本机测试 SSH 服务和演示数据，展示网页界面，桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
 
 头像源图为 `apps/desktop/assets/alune.png`，官网的 `public/favicon.png`（64px）、`public/brand.png`（144px）、`public/og-image.png`（1200×630）由以下命令派生：
 
@@ -84,6 +84,8 @@ UI 修改后应复核首屏入场、滚动显现、截图切换和交互反馈�
 公开入口：[UI 文档](https://shaoclean.github.io/Alune/ui/)。`src/data/ui.ts` 的 UIDocument 注册表驱动分类、导航、搜索与静态路径，`src/content/ui` 存放中文 MDX 指南，`src/styles/ui-docs.css` 负责文档布局。组件 API 由 `scripts/ui-api.mjs` 从真实 TypeScript 定义生成，新增能力会由覆盖检查校验。
 
 `src/examples/*.tsx` 是运行与源码展示的唯一来源，示例 ID 在 `src/examples/registry.ts` 注册；`DemoRoot.tsx` 是运行宿主。文档路径为 `/Alune/ui/<slug>/`，独立预览为 `/Alune/ui/preview/<id>/`。iframe 支持主题、390px、重置和独立打开，来源消息只接受同源且匹配当前 iframe 的通知。正文、API 和完整源码在无 JavaScript 时可阅读。
+
+示例使用 `src/styles/ui-examples.css` 的文档专用布局：统一展示宽度、分组、字段间距和图标网格，兼容深浅主题与窄屏。`example-*` 类只负责示例排版，不属于 `@alune/ui` 组件 API；移植示例时可替换为应用自己的布局样式。
 
 ```sh
 node apps/website/scripts/ui-api.mjs

@@ -10,13 +10,18 @@ export default function Example({
 }) {
   return (
     <AluneUIProvider theme={theme} reduceMotion={reduceMotion}>
-      <Space wrap>
-        <Button type="primary">保存</Button>
-        <Button>取消</Button>
-        <span>
+      <div className="example example--narrow">
+        <section className="example-group">
+          <h2 className="example-title">主题中的控件</h2>
+          <Space wrap size="middle">
+            <Button type="primary">保存</Button>
+            <Button>取消</Button>
+          </Space>
+        </section>
+        <p className="example-status">
           主题：{theme} · 减少动效：{String(reduceMotion)}
-        </span>
-      </Space>
+        </p>
+      </div>
     </AluneUIProvider>
   );
 }

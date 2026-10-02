@@ -131,6 +131,8 @@ if (!example || !source) throw new Error(`Missing example: ${id}`);
       } else if (data.type === 'error') {
         clearTimeout(timer);
         fail();
+      } else if (data.type === 'resize' && Number.isFinite(data.height) && data.height > 0) {
+        frame.style.height = `${Math.max(Number(frame.height), Math.min(data.height, 4000))}px`;
       }
     };
     window.addEventListener('message', receive);
