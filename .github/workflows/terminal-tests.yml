@@ -2,7 +2,7 @@ name: 仓库终端
 
 on:
   push:
-    branches: ['**']
+    branches: [development]
   pull_request:
 
 permissions:
@@ -30,10 +30,11 @@ jobs:
           node-version: '22.22.0'
           cache: npm
       - run: npm ci
-      - run: npm run desktop:build
+      - run: npx turbo build --filter=server
       - name: 会话隔离、SSH、退出与背压
         timeout-minutes: 3
         run: node --test apps/server/test/terminal.integration.cjs
+      - run: npm run desktop:build
       - run: npm run pack -w desktop
       - name: 原生包终端、输入、保留输出与关闭确认
         if: runner.os != 'Linux'
