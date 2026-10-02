@@ -274,7 +274,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           options?.tags,
         );
       else await gitApi[operation](id, options?.remote, options?.branch);
-      message.success(`${label}完成`);
       await handleRefresh(true);
     } catch (err: any) {
       setSyncError(err.message || `${label}失败`);

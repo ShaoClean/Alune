@@ -44,7 +44,7 @@ const conflict = {
   response: { data: { code: 'LOCAL_BRANCH_EXISTS', localName: 'demo', message: '名称冲突' } },
 };
 
-test('remote success reports actual local name, refreshes data, and ignores duplicate clicks', async (t) => {
+test('远程分支切换静默刷新数据，并忽略重复点击', async (t) => {
   let complete;
   let calls = 0;
   const { hook, events } = setup(t, (...args) => {
@@ -59,7 +59,7 @@ test('remote success reports actual local name, refreshes data, and ignores dupl
   assert.equal(calls, 1);
   complete({ branch: 'tracking-name' });
   await operation;
-  assert.deepEqual(events, ['已切换到“tracking-name”', 'branches:repo', 'log:repo', 'refresh']);
+  assert.deepEqual(events, ['branches:repo', 'log:repo', 'refresh']);
 });
 
 for (const choice of ['existing', 'create', 'cancel']) {

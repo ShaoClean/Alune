@@ -126,7 +126,6 @@ export function useWorkspaceFileMenu(repoId: string, onChanged: Change, disabled
       await navigator.clipboard.writeText(
         relative ? target.path : absoluteWorkspacePath(repo!.path, target.path),
       );
-      message.success(relative ? '已复制相对路径' : '已复制路径');
     } catch (error) {
       message.error(`复制失败：${reason(error)}`);
     }
@@ -305,7 +304,6 @@ function WorkspaceFileDialog({
       );
       next = result.newPath;
       succeeded = true;
-      message.success(deleting ? `已删除 ${path}` : `已重命名为 ${next}`);
     } catch (error) {
       if (mounted.current) setFailure(reason(error));
     } finally {

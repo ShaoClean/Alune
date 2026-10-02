@@ -1,4 +1,3 @@
-import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import { Input } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
@@ -22,7 +21,6 @@ export function RepositoryContextNotice({
   onRemotes: () => void;
   onRefresh: () => void;
 }) {
-  const message = useFeedbackMessage();
   const [context, setContext] = useState<RepositoryContext | null>(null);
   const [error, setError] = useState('');
   const [authorError, setAuthorError] = useState('');
@@ -64,7 +62,6 @@ export function RepositoryContextNotice({
       setAuthorOpen(false);
       setRetry((value) => value + 1);
       onRefresh();
-      message.success('此仓库的提交作者已保存');
     } catch (failure: any) {
       setAuthorError(failure.message);
     } finally {

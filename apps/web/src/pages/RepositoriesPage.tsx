@@ -121,7 +121,6 @@ export function RepositoriesPage() {
     setAddingPath(path);
     try {
       await addRepository(connectionId, path);
-      message.success('仓库已添加');
       void fetchRepositories(connectionId);
     } catch (err: any) {
       message.error(err.message || '添加仓库失败');
@@ -133,7 +132,6 @@ export function RepositoriesPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteRepository(id);
-      message.success('仓库已移除');
     } catch (err: any) {
       message.error(err.message || '移除仓库失败');
     }

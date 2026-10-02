@@ -47,7 +47,6 @@ export function RemotesView({ repoId, onRefresh }: Props) {
       setUrl('');
       await fetchRemotes(repoId);
       onRefresh?.();
-      message.success('远程已添加');
     } catch (error: any) {
       message.error(error.message);
     } finally {

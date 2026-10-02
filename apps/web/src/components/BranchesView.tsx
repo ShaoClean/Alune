@@ -150,7 +150,6 @@ export function BranchesView({ repoId, onRefresh }: Props) {
     setLoading(true);
     try {
       await gitApi.createBranch(repoId, newBranchName.trim(), true);
-      message.success(`分支“${newBranchName.trim()}”已创建并切换`);
       setCreateModalVisible(false);
       setNewBranchName('');
       await refresh();
@@ -165,7 +164,6 @@ export function BranchesView({ repoId, onRefresh }: Props) {
     setLoading(true);
     try {
       await gitApi.deleteBranch(repoId, name);
-      message.success(`分支“${name}”已删除`);
       await refresh();
     } catch (err: any) {
       message.error(err.message || '无法删除分支');
@@ -181,7 +179,6 @@ export function BranchesView({ repoId, onRefresh }: Props) {
       await gitApi.renameBranch(repoId, renaming, rename.trim());
       setRenameOpen(false);
       await refresh();
-      message.success('分支已重命名');
     } catch (error: any) {
       message.error(error.message);
     } finally {
@@ -192,7 +189,6 @@ export function BranchesView({ repoId, onRefresh }: Props) {
     setLoading(true);
     try {
       await gitApi.merge(repoId, name);
-      message.success('合并完成');
     } catch (error: any) {
       message.error(error.message);
     } finally {

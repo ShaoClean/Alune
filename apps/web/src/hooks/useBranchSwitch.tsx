@@ -86,8 +86,7 @@ export function useBranchSwitch(repoId: string, onSwitched: () => void) {
     try {
       while (true) {
         try {
-          const result = await gitApi.switchBranch(repoId, target, localName, targetRemote);
-          message.success(`已切换到“${result.branch}”`);
+          await gitApi.switchBranch(repoId, target, localName, targetRemote);
           const store = useRepositoryStore.getState();
           await Promise.all([store.fetchBranches(repoId), store.fetchLog(repoId)]);
           onSwitched();

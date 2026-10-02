@@ -290,7 +290,6 @@ export function Layout() {
 
     try {
       await deleteRepository(repo.id);
-      message.success(`已移除仓库“${repo.name}”`);
       if (isActive)
         navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
     } catch (err: any) {

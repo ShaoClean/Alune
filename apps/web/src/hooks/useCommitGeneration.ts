@@ -66,14 +66,10 @@ export function useCommitGeneration(repoId: string, stagedSignature: string, sta
       if (controller.current !== active || active.signal.aborted) return;
       controller.current = null;
       if (result.configRevision !== useAiSettingsStore.getState().settings?.revision) return;
-      if (
-        useCommitDraftStore.getState().applyGeneration(repoId, ticket, {
-          message: result.message,
-          description: result.description,
-        })
-      ) {
-        setFeedback({ error: false, message: '已填入提交信息，可编辑后提交。' });
-      }
+      useCommitDraftStore.getState().applyGeneration(repoId, ticket, {
+        message: result.message,
+        description: result.description,
+      });
     } catch (error) {
       if (controller.current === active && !active.signal.aborted)
         setFeedback({ error: true, message: aiError(error) });

@@ -42,7 +42,7 @@ export function CodeAppearanceSettings() {
   } = useWorkspaceStore();
   const [fontDraft, setFontDraft] = useState(preferences.fontFamily);
   const [example, setExample] = useState<keyof typeof examples>('example.ts');
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(
+  const [feedback, setFeedback] = useState<{ type: 'warning' | 'error'; text: string } | null>(
     null,
   );
   const [importing, setImporting] = useState(false);
@@ -57,10 +57,11 @@ export function CodeAppearanceSettings() {
     try {
       if (file.size > MAX_THEME_BYTES) throw new Error('主题文件不能超过 1 MB。');
       const result = importCodeTheme(await file.text(), file.name);
-      setFeedback({
-        type: 'success',
-        text: `已安装「${result.name}」。${result.mode === mode ? '可在代码主题中选择。' : `此主题适用于${result.mode === 'dark' ? '深色' : '浅色'}外观，切换 Alune 外观后可选择。`}${result.ignoredRules ? '部分配色规则不在支持范围内，预览以实际显示为准。' : ''}`,
-      });
+      if (result.ignoredRules)
+        setFeedback({
+          type: 'warning',
+          text: `已安装「${result.name}」，但部分配色规则不在支持范围内，预览以实际显示为准。`,
+        });
     } catch (error) {
       setFeedback({
         type: 'error',

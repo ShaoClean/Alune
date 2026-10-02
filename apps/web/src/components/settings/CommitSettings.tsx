@@ -16,7 +16,7 @@ export function CommitSettings({
 }) {
   const [draft, setDraft] = useState(settings.commit);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<{ error: boolean; message: string } | null>(null);
+  const [notice, setNotice] = useState<{ message: string } | null>(null);
   useEffect(() => setDraft(settings.commit), [settings.revision]);
   const providers = settings.providers.filter((p) => p.enabled && p.models.some((m) => m.enabled));
   const models =
@@ -30,9 +30,8 @@ export function CommitSettings({
     setNotice(null);
     try {
       useAiSettingsStore.getState().accept(await aiApi.saveCommit(draft, settings.revision));
-      setNotice({ error: false, message: '提交生成设置已保存。' });
     } catch (error) {
-      setNotice({ error: true, message: aiError(error) });
+      setNotice({ message: aiError(error) });
     } finally {
       setBusy(false);
     }
@@ -174,13 +173,11 @@ export function CommitSettings({
       {notice && (
         <FeedbackNotice
           source="commit-settings-result"
-          type={notice.error ? 'error' : 'success'}
-          title={notice.error ? '提交生成设置保存失败' : notice.message}
-          description={
-            notice.error ? `${notice.message}\n重新加载会放弃尚未保存的设置修改。` : undefined
-          }
+          type="error"
+          title="提交生成设置保存失败"
+          description={`${notice.message}\n重新加载会放弃尚未保存的设置修改。`}
           eventKey={notice}
-          actionLabel={notice.error ? '重新加载设置' : undefined}
+          actionLabel="重新加载设置"
           onAction={async () => {
             await useAiSettingsStore.getState().load();
             if (!useAiSettingsStore.getState().error) setNotice(null);

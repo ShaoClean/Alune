@@ -198,7 +198,6 @@ function ProviderForm({
         );
         if (created) onCreated(created.id);
       }
-      setNotice({ error: false, message: '配置已保存。' });
     } catch (error) {
       setNotice({ error: true, message: aiError(error) });
     } finally {
@@ -217,10 +216,6 @@ function ProviderForm({
         const result = await aiApi.models(provider.id, settings.revision, controller.signal);
         if (controller.signal.aborted) return;
         accept(result);
-        setNotice({
-          error: false,
-          message: '模型列表已更新。新发现的模型默认停用，手动配置及已有启用状态已保留。',
-        });
       } else {
         const result = await aiApi.test(
           provider.id,
@@ -493,7 +488,7 @@ function ProviderForm({
             active.current?.abort();
             active.current = null;
             setBusy(null);
-            setNotice({ error: false, message: '已取消操作。' });
+            setNotice(null);
           }}
         >
           取消请求
