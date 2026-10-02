@@ -191,4 +191,40 @@ describe('RepositoryService registration and remote status', () => {
     expect(list).not.toHaveBeenCalled();
     expect(await service.list()).toHaveLength(1);
   });
+
+  it('caches verified identity across restart and keeps registry reads offline', async () => {
+    const repo = await service.add('host-a', '/fixture/alune');
+    jest.spyOn(GitCommands.prototype, 'status').mockResolvedValue(status);
+    const kind = jest.spyOn(GitWorktrees.prototype, 'kind').mockResolvedValue('linked');
+    expect(await service.getStatus(repo.id)).toEqual({ ...status, worktreeKind: 'linked' });
+    service = new RepositoryService(db, { ensureConnected } as unknown as ConnectionService);
+    ensureConnected.mockClear();
+    expect((await service.list())[0].worktreeKind).toBe('linked');
+    expect(ensureConnected).not.toHaveBeenCalled();
+    kind.mockRejectedValueOnce(new Error('identity unavailable'));
+    expect(await service.getStatus(repo.id)).toEqual(status);
+    expect((await service.get(repo.id)).worktreeKind).toBe('linked');
+    kind.mockResolvedValueOnce('main');
+    await service.getStatus(repo.id);
+    expect((await service.get(repo.id)).worktreeKind).toBe('main');
+  });
+
+  it('bounds optional identity without failing status or caching late results', async () => {
+    jest.useFakeTimers();
+    const repo = await service.add('host-a', '/fixture/alune');
+    jest.spyOn(GitCommands.prototype, 'status').mockResolvedValue(status);
+    const late = deferred<'linked'>();
+    let signal: AbortSignal | undefined;
+    jest.spyOn(GitWorktrees.prototype, 'kind').mockImplementation((_, value) => {
+      signal = value;
+      return late.promise;
+    });
+    const pending = service.getStatus(repo.id);
+    await jest.advanceTimersByTimeAsync(1500);
+    expect(await pending).toEqual(status);
+    expect(signal?.aborted).toBe(true);
+    late.resolve('linked');
+    await jest.advanceTimersByTimeAsync(1);
+    expect((await service.get(repo.id)).worktreeKind).toBeUndefined();
+  });
 });

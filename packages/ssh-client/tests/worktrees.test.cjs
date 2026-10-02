@@ -51,6 +51,9 @@ test('real SSH discovers siblings and isolates staged, unstaged, untracked diffs
   });
   const worktrees = new GitWorktrees(remote.connection);
   const git = new GitCommands(remote.connection);
+  assert.equal(await worktrees.kind(fixture.repo), 'main');
+  assert.equal(await worktrees.kind(fixture.feature), 'linked');
+  assert.equal(await worktrees.kind(fixture.detached), 'linked');
   const list = await worktrees.list(fixture.feature);
   assert.equal(list.length, 4);
   assert.equal(list.find((item) => item.isCurrent).branch, 'feature/worktrees');
@@ -137,6 +140,7 @@ test('a sole worktree is current, subdirectories/aliases resolve, and read failu
   fs.mkdirSync(path.join(fixture.repo, 'sub'));
   const reader = new GitWorktrees(fixture.connection);
   for (const directory of [fixture.repo, alias, path.join(fixture.repo, 'sub')]) {
+    assert.equal(await reader.kind(directory), 'main');
     const list = await reader.list(directory);
     assert.equal(list.length, 1);
     assert.equal(list[0].isCurrent, true);

@@ -19,6 +19,7 @@ import { RemoveRepositoryConfirm } from './AlunePopconfirm';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { canMoveTreeItem, orderItems } from '../stores/sidebarOrder';
 import type { Placement, TreeItem } from '../stores/sidebarOrder';
+import { repositoryPathLabels, worktreeKindLabel } from '../stores/repositoryLabels';
 
 interface Connection {
   id: string;
@@ -65,6 +66,7 @@ export function WorkspaceTree({
   const pointerY = useRef<number | null>(null);
 
   const search = query.trim().toLowerCase();
+  const pathLabels = repositoryPathLabels(repositories);
   const groups = orderItems([{ id: LOCAL_GROUP_ID, name: '本机' }, ...connections], connectionOrder)
     .map((connection) => ({
       ...connection,
@@ -332,6 +334,10 @@ export function WorkspaceTree({
                 </div>
                 <div id={childrenId} className="tree-group__repositories" hidden={!open}>
                   {connection.repositories.map((repo) => {
+                    const kindLabel = worktreeKindLabel(repo.worktreeKind);
+                    const accessibleName = [repo.name, kindLabel, repo.path]
+                      .filter(Boolean)
+                      .join(' · ');
                     const repoItem: TreeItem = {
                       kind: 'repository',
                       id: repo.id,
@@ -345,16 +351,26 @@ export function WorkspaceTree({
                         onDragOver={(event) => dragOver(event, repoItem)}
                         onDrop={(event) => drop(event, repoItem)}
                       >
-                        {sortHandle(repoItem, connection.repositories, repo.name)}
+                        {sortHandle(repoItem, connection.repositories, accessibleName)}
                         <button
                           type="button"
                           className="tree-node__action"
+                          title={accessibleName}
+                          aria-label={accessibleName}
                           onClick={() => onOpenRepository(repo)}
                           aria-current={activeId === repo.id ? 'page' : undefined}
                         >
                           <BranchesOutlined className="tree-node__icon" />
-                          <span className="tree-node__label" title={repo.path}>
-                            {repo.name}
+                          <span className="tree-node__repository">
+                            <span className="tree-node__label">{repo.name}</span>
+                            {kindLabel && (
+                              <span
+                                className={`tree-node__worktree tree-node__worktree--${repo.worktreeKind}`}
+                              >
+                                {kindLabel}
+                              </span>
+                            )}
+                            <span className="tree-node__path">{pathLabels.get(repo.id)}</span>
                           </span>
                           <RepositoryStatusIndicator id={repo.id} compact />
                         </button>
@@ -366,7 +382,7 @@ export function WorkspaceTree({
                           <button
                             type="button"
                             className="tree-node__delete"
-                            aria-label={`删除 ${repo.name}`}
+                            aria-label={`删除 ${accessibleName}`}
                             aria-busy={deletingRepositoryId === repo.id}
                             title="删除仓库登记"
                             disabled={Boolean(deletingRepositoryId)}

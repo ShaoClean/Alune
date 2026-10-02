@@ -89,3 +89,14 @@ test('out-of-order Diff and status never overwrite the active worktree', async (
   assert.equal(store.getState().status.branch, 'feature');
   assert.equal(store.getState().diff, 'feature diff');
 });
+
+test('verified identity survives list refresh and optional identity read failure', async () => {
+  await store.getState().fetchRepositories();
+  repositoryApi.status = async () => ({ branch: '', files: [], ahead: 0, behind: 0, worktreeKind: 'linked' });
+  await store.getState().fetchStatus(parent.id);
+  await store.getState().fetchRepositories();
+  assert.equal(store.getState().repositories[0].worktreeKind, 'linked');
+  repositoryApi.status = async () => ({ branch: '', files: [], ahead: 0, behind: 0 });
+  await store.getState().fetchStatus(parent.id);
+  assert.equal(store.getState().repositories[0].worktreeKind, 'linked');
+});

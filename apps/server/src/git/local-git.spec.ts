@@ -142,6 +142,23 @@ describe('local repositories with real Git and SQLite', () => {
     );
   });
 
+  it('identifies main, linked and detached worktrees using real Git and persists their identities', async () => {
+    await seed();
+    const feature = join(root, 'feature');
+    const detached = join(root, 'detached');
+    git('worktree', 'add', '-qb', 'feature', feature);
+    git('worktree', 'add', '-q', '--detach', detached);
+    const selected = (await repos.getWorktrees(id)).find((item) => item.branch === 'feature')!;
+    const linked = await repos.openWorktree(id, selected.path);
+    const headless = await repos.addLocal(detached);
+    for (const [target, expected] of [[id, 'main'], [linked.id, 'linked'], [headless.id, 'linked']]) {
+      const { body } = await request(app.getHttpServer()).get(`/repositories/${target}/status`).expect(200);
+      expect(body.worktreeKind).toBe(expected);
+      expect((await repos.get(target)).worktreeKind).toBe(expected);
+      if (target === headless.id) expect(body.branch).toBe('');
+    }
+  });
+
   it('opens subdirectories idempotently, isolates SSH identities, and validates invalid inputs through HTTP', async () => {
     mkdirSync(join(path, 'src'));
     expect((await repos.addLocal(join(path, 'src'))).id).toBe(id);

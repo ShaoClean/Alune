@@ -2,7 +2,7 @@ import { runGit } from './repository-transport';
 import type { RepositoryTransport } from './repository-transport';
 import { normalizeRepositoryPath } from './repository-path';
 import { promisify } from 'util';
-import type { WorktreeInfo } from '@alune/shared';
+import type { WorktreeInfo, WorktreeKind } from '@alune/shared';
 import { isWindowsPath } from './git-shell';
 
 // Do not trim: whitespace and newlines can be part of a worktree's path.
@@ -51,6 +51,22 @@ export function parseWorktrees(output: string): WorktreeInfo[] {
 
 export class GitWorktrees {
   constructor(private connection: RepositoryTransport) {}
+
+  async kind(path: string, signal?: AbortSignal): Promise<WorktreeKind> {
+    // A linked worktree has its own Git directory inside the shared common dir.
+    // Separate reads preserve literal newlines in paths; branch names are irrelevant.
+    const directories = await Promise.all(
+      ['--git-dir', '--git-common-dir'].map(async (flag) =>
+        worktreePathKey(
+          (await this.read(path, ['rev-parse', '--path-format=absolute', flag], signal)).replace(
+            /\r?\n$/,
+            '',
+          ),
+        ),
+      ),
+    );
+    return directories[0] === directories[1] ? 'main' : 'linked';
+  }
 
   private async read(path: string, args: string[], signal?: AbortSignal): Promise<string> {
     signal?.throwIfAborted();
