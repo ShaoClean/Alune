@@ -100,6 +100,16 @@
     animation: moonrise 280ms var(--ease) backwards;
   }
   @media (hover: hover) and (pointer: fine) {
+    [data-screenshot-tilt] > .shell {
+      transform: perspective(1400px) translateY(0) rotateX(0deg) rotateY(0deg) scale(1);
+      transition: transform 650ms var(--ease);
+    }
+    [data-screenshot-tilt] > .shell[data-tilt-active] {
+      transform: perspective(1400px) translateY(-6px)
+        rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) scale(1.015);
+      transition-duration: 180ms;
+      will-change: transform;
+    }
     .platform:hover,
     .reading:hover {
       transform: translateY(-5px);
