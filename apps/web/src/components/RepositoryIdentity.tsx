@@ -60,7 +60,16 @@ export function RepositoryIdentityTooltip({
   return (
     <Tooltip
       open={open && !disabled}
-      onOpenChange={setOpen}
+      onOpenChange={(next) => {
+        // A focus trap may briefly visit a background tab before restoring focus.
+        // Its tooltip must not sit above the dialog in the Escape handler stack.
+        const modalOpen =
+          next &&
+          Array.from(document.querySelectorAll('dialog[open], [aria-modal="true"]')).some(
+            (dialog) => dialog.getClientRects().length > 0,
+          );
+        setOpen(next && !modalOpen);
+      }}
       trigger={['hover', 'focus']}
       mouseEnterDelay={0.4}
       placement="bottomLeft"
