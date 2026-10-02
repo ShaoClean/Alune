@@ -22,6 +22,7 @@ const statusSummary = (data?: RepositoryStatus) =>
         ahead: data.ahead,
         behind: data.behind,
         isDirty: data.files.length > 0,
+        ...(data.worktreeKind ? { worktreeKind: data.worktreeKind } : {}),
       }
     : {};
 const errorMessage = (error: any) => error.response?.data?.message || error.message || '请求失败';

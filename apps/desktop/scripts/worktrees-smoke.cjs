@@ -51,6 +51,11 @@ module.exports = async ({ window, origin, token }) => {
     'document.querySelectorAll("[role=tab]").length === 2 && document.body.textContent.includes("feature-new.txt")',
   );
   const targetId = (await evaluate('location.pathname')).split('/').pop();
+  await wait('document.querySelectorAll(".tree-node__worktree").length === 2');
+  assert.deepEqual(
+    await evaluate('[...document.querySelectorAll(".tree-node__worktree")].map(el => el.textContent).sort()'),
+    ['主工作区', '关联工作区'],
+  );
   assert.notEqual(targetId, repo.id);
   assert.equal((await request('/repositories')).length, 2);
   await click('button[aria-label="查看差异 tracked.txt（已暂存）"]');
@@ -73,7 +78,7 @@ module.exports = async ({ window, origin, token }) => {
   await wait('location.pathname.endsWith(' + JSON.stringify(targetId) + ')');
   assert.equal(await evaluate('document.querySelectorAll("[role=tab]").length'), 2);
   await click('.repository-tab:last-child .repository-tab__close');
-  await wait('document.querySelectorAll("[role=tab]").length === 1');
+  await wait('document.querySelectorAll("[role=tab]").length === 1 && document.querySelector(".worktrees-trigger")');
   assert.equal((await request('/repositories')).length, 2);
   await click('.worktrees-trigger');
   await wait('document.querySelectorAll(".worktree-option").length === 4');
@@ -81,6 +86,11 @@ module.exports = async ({ window, origin, token }) => {
     '[...document.querySelectorAll(".worktree-option")].find(el => el.textContent.includes("游离 HEAD")).click()',
   );
   await wait('document.querySelector(".branch-pill__name")?.textContent.includes("游离 HEAD")');
+  await wait('document.querySelectorAll(".tree-node__worktree--linked").length === 2');
+  assert.equal(
+    await evaluate('new Set([...document.querySelectorAll(".tree-node__path")].map(el => el.textContent)).size'),
+    3,
+  );
   window.setSize(320, 800);
   await wait('innerWidth === 320');
   await click('.worktrees-trigger');

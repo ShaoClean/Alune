@@ -1149,6 +1149,58 @@
   background: var(--blue-soft);
   border-color: transparent;
 }
+.tree-node--repo {
+  align-items: flex-start;
+  gap: 4px;
+  padding-left: 5px;
+}
+.tree-node--repo > .tree-node__action {
+  display: grid;
+  grid-template-columns: 13px minmax(0, 1fr) 14px;
+  gap: 3px 6px;
+  padding-block: 3px;
+}
+.tree-node--repo .tree-node__icon {
+  grid-column: 1;
+  grid-row: 1;
+}
+.tree-node--repo .repository-status {
+  grid-column: 3;
+  grid-row: 1;
+}
+.tree-node__repository {
+  display: contents;
+}
+.tree-node__repository > .tree-node__label {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  color: var(--text);
+}
+.tree-node__worktree {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.tree-node__worktree--linked {
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+.tree-node__path {
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
 .tree-sort-handle {
   opacity: 0;
 }

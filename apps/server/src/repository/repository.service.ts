@@ -183,6 +183,9 @@ export class RepositoryService {
         `);
       })();
     }
+    if (!columns.some((column) => column.name === 'worktree_kind')) {
+      this.db.exec('ALTER TABLE repositories ADD COLUMN worktree_kind TEXT');
+    }
   }
 
   private fromRow(row: any): Repository {
@@ -192,6 +195,9 @@ export class RepositoryService {
       ...(row.connection_id ? { connectionId: row.connection_id } : {}),
       name: row.name,
       path: row.path,
+      ...(row.worktree_kind === 'main' || row.worktree_kind === 'linked'
+        ? { worktreeKind: row.worktree_kind }
+        : {}),
     };
   }
 
@@ -462,7 +468,17 @@ export class RepositoryService {
       const conn = await this.connection(repo);
       // A connection may finish after this request's deadline. Do not start Git then.
       controller.signal.throwIfAborted();
-      return new GitCommands(conn).status(repo.path, controller.signal);
+      const [status, worktreeKind] = await Promise.all([
+        new GitCommands(conn).status(repo.path, controller.signal),
+        this.readWorktreeKind(repo, conn, controller.signal),
+      ]);
+      controller.signal.throwIfAborted();
+      if (worktreeKind) {
+        this.db
+          .prepare('UPDATE repositories SET worktree_kind = ? WHERE id = ?')
+          .run(worktreeKind, id);
+      }
+      return { ...status, ...(worktreeKind ? { worktreeKind } : {}) };
     })();
     const request = Promise.race([work, timeout]).finally(() => {
       clearTimeout(timer);
@@ -470,6 +486,34 @@ export class RepositoryService {
     });
     this.statusRequests.set(id, request);
     return request;
+  }
+
+  private async readWorktreeKind(
+    repo: Repository,
+    connection: RepositoryTransport,
+    parentSignal: AbortSignal,
+  ) {
+    const controller = new AbortController();
+    const signal = AbortSignal.any([parentSignal, controller.signal]);
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        resolve(undefined);
+      }, 1500);
+    });
+    try {
+      // Optional identity must not turn a successful Git status into an error.
+      return await Promise.race([
+        new GitWorktrees(connection)
+          .kind(repo.path, signal)
+          .catch(() => undefined),
+        timeout,
+      ]);
+    } finally {
+      clearTimeout(timer!);
+      controller.abort();
+    }
   }
 
   async getLog(id: string, options?: LogOptions) {

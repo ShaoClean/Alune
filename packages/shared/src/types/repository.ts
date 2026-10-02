@@ -1,9 +1,12 @@
+export type WorktreeKind = 'main' | 'linked';
+
 export interface Repository {
   id: string;
   source?: 'local' | 'ssh';
   connectionId?: string;
   name: string;
   path: string;
+  worktreeKind?: WorktreeKind;
   currentBranch?: string;
   ahead?: number;
   behind?: number;
@@ -12,6 +15,7 @@ export interface Repository {
 }
 
 export interface RepositoryStatus {
+  worktreeKind?: WorktreeKind;
   branch: string;
   ahead: number;
   behind: number;
