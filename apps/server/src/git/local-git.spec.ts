@@ -148,7 +148,8 @@ describe('local repositories with real Git and SQLite', () => {
     const detached = join(root, 'detached');
     git('worktree', 'add', '-qb', 'feature', feature);
     git('worktree', 'add', '-q', '--detach', detached);
-    const linked = await repos.openWorktree(id, feature);
+    const selected = (await repos.getWorktrees(id)).find((item) => item.branch === 'feature')!;
+    const linked = await repos.openWorktree(id, selected.path);
     const headless = await repos.addLocal(detached);
     for (const [target, expected] of [[id, 'main'], [linked.id, 'linked'], [headless.id, 'linked']]) {
       const { body } = await request(app.getHttpServer()).get(`/repositories/${target}/status`).expect(200);
