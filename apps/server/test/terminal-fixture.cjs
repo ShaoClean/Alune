@@ -159,10 +159,12 @@ async function createTerminalFixture({
     webRoot: path.resolve(__dirname, '../../web/dist'),
   });
   const remotes = [];
+  const database = app.get('DATABASE');
   const close = async () => {
     await app.close();
+    if (database.open) database.close();
     for (const remote of remotes) await remote.close();
-    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     if (originalShell === undefined) delete process.env.SHELL;
     else process.env.SHELL = originalShell;
     if (originalPrompt === undefined) delete process.env.PS1;
