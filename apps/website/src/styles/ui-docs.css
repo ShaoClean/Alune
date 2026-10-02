@@ -200,6 +200,26 @@
 .ui-doc-content p {
   margin: 12px 0;
 }
+.ui-doc-content > table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin: 18px 0 26px;
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: left;
+}
+.ui-doc-content > table th,
+.ui-doc-content > table td {
+  padding: 12px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--hair);
+  overflow-wrap: anywhere;
+}
+.ui-doc-content > table th {
+  background: var(--shell);
+  font-weight: 550;
+}
 .ui-doc-content p a,
 .ui-doc-content li a {
   color: var(--accent);
