@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import DiffPackage from 'react-diff-viewer-continued';
 import {
   highlightLines,
   highlightLinesHTML,
@@ -57,7 +58,7 @@ test('HTML adapter escapes file content and retains multiline styles for the wor
   assert.match(lines[1], /syntax-comment/);
   assert.match(lines[2], /&lt;img/);
   assert.doesNotMatch(lines[2], /<img/);
-  assert.equal(highlightLineHTML('<script>&', 'unknown'), '&lt;script&gt;&amp;');
+  assert.equal(highlightLineHTML('<script>&', 'unknown'), '&lt;script&gt;<span>&amp;</span>');
   assert.match(html(highlightLines(code, 'typescript')[2]), /&lt;img/);
 });
 
@@ -116,4 +117,38 @@ test('Git C-quoted non-ASCII file names retain their language suffix', () => {
 -const value = 1;
 +const value = 2;`);
   assert.match(html(highlightDiffLines(lines, undefined, highlightLines).at(-1)), /syntax-keyword/);
+});
+
+test('real word diff composition preserves literal entities and escaped markup without truncation', () => {
+  const Viewer = DiffPackage.default ?? DiffPackage;
+  const viewer = new Viewer({});
+  viewer.styles = { wordDiff: 'word', wordAdded: 'added', wordRemoved: 'removed' };
+  viewer.shouldHighlightWordDiff = () => true;
+  const decode = (text) =>
+    text.replace(
+      /&(amp|lt|gt|quot|#39);/g,
+      (_, entity) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" })[entity],
+    );
+  for (const source of [
+    'const text = "&quot; &nbsp; &#39; &#x27; &amp; &lt; &gt;";',
+    'const html = "<img src=x onerror=alert(1)>&";',
+    'const escaped = "&amp;quot; &amp;amp; 中文";',
+  ]) {
+    const result = html(
+      viewer.renderWordDiff(
+        [
+          { value: source.slice(0, 6), type: 0 },
+          { value: source.slice(6), type: 1 },
+        ],
+        (text) =>
+          createElement('span', {
+            dangerouslySetInnerHTML: { __html: highlightLineHTML(text, 'typescript') },
+          }),
+      ),
+    );
+    assert.equal(decode(result.replace(/<[^>]+>/g, '')), source);
+    assert.match(result, /<ins/);
+    assert.match(result, /syntax-string/);
+    assert.doesNotMatch(result, /<img/);
+  }
 });

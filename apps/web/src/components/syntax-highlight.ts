@@ -120,22 +120,27 @@ const escapeHTML = (text: string) =>
     (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!,
   );
 
+// Keep literal ampersands in their own text segment. The diff library decodes
+// entities in sequential passes; otherwise source like '&quot;' is decoded twice
+// for offset counting and can truncate the highlighted line.
+const escapeCode = (text: string) => escapeHTML(text).replaceAll('&amp;', '<span>&amp;</span>');
+
 // react-diff-viewer needs escaped HTML to compose word-change marks with syntax.
 // File text is escaped here; tags and CSS are produced solely from our token map.
 export function highlightLinesHTML(code: string, language: string): string[] {
   const lines = tokenLines(code, language);
-  if (!lines) return code.split('\n').map(escapeHTML);
+  if (!lines) return code.split('\n').map(escapeCode);
   return lines.map((line) =>
     line
       .map(({ text, classes, style }) => {
-        if (!classes.length) return escapeHTML(text);
+        if (!classes.length) return escapeCode(text);
         const css = Object.entries(style)
           .map(
             ([key, value]) =>
               `${key.replace(/[A-Z]/g, (char) => '-' + char.toLowerCase())}:${value}`,
           )
           .join(';');
-        return `<span class="${escapeHTML(['token', ...classes].join(' '))}" style="${escapeHTML(css)}">${escapeHTML(text)}</span>`;
+        return `<span class="${escapeHTML(['token', ...classes].join(' '))}" style="${escapeHTML(css)}">${escapeCode(text)}</span>`;
       })
       .join(''),
   );
