@@ -37,7 +37,13 @@ module.exports = async ({ window, origin, token, backend }) => {
             '\n' +
             (await evaluate(
               "document.body.innerText + '\\nFOCUS: ' + document.activeElement?.outerHTML",
-            )),
+            )) +
+            '\nGEOMETRY: ' +
+            (await evaluate(`JSON.stringify({
+              width: innerWidth, height: innerHeight, ratio: devicePixelRatio,
+              boxes: ['.terminal-dock', '.terminal-panel', '.terminal-output'].map(selector =>
+                [selector, document.querySelector(selector)?.getBoundingClientRect().toJSON()])
+            })`)),
         );
       await new Promise((resolve) => setTimeout(resolve, 30));
     }
@@ -124,6 +130,8 @@ module.exports = async ({ window, origin, token, backend }) => {
       "document.querySelector('.xterm-accessibility')?.textContent.includes('HISTORY_12000')",
     );
   }
+  const originalSize = window.getContentSize();
+  window.setContentSize(1024, 680);
   window.webContents.setZoomFactor(2);
   await until('document.documentElement.scrollWidth <= innerWidth');
   await until(`(() => {
@@ -132,6 +140,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     return output.height >= 30 && output.top >= dock.top && output.bottom <= dock.bottom + 1;
   })()`);
   window.webContents.setZoomFactor(1);
+  window.setContentSize(...originalSize);
   await send(process.platform === 'win32' ? 'exit /b 0' : 'exit 0');
   await until("document.querySelector('.terminal-state')?.textContent === '已退出 · 0'");
   await click('button[aria-label="关闭终端 1"]');

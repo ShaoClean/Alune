@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Button, Tooltip, AluneModal, useAluneConfirm } from '@alune/ui';
+import { Button, Tooltip, Dropdown, AluneModal, useAluneConfirm } from '@alune/ui';
 import {
   CodeOutlined,
   PlusOutlined,
@@ -15,6 +15,7 @@ import {
   CheckCircleOutlined,
   WarningOutlined,
   LoadingOutlined,
+  EllipsisOutlined,
 } from '@ant-design/icons';
 import type { Repository, TerminalSession } from '@alune/shared';
 import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/shared';
@@ -373,6 +374,45 @@ function TerminalPanel({
           <CodeOutlined /> 终端
         </strong>
         <span className="terminal-heading__spacer" />
+        <span className="terminal-compact-actions">
+          <Dropdown
+            trigger={['click']}
+            menu={{
+              items: [
+                {
+                  key: 'path',
+                  label: '复制启动目录',
+                  disabled: !repository,
+                  onClick: () => void copy(selected?.initialPath || repository?.path || ''),
+                },
+                {
+                  key: 'copy',
+                  label: '复制选区',
+                  disabled: !selected,
+                  onClick: () => {
+                    const runtime = selected && getTerminalRuntime(selected.id);
+                    if (runtime) void copy(runtime.terminal.getSelection());
+                  },
+                },
+                {
+                  key: 'paste',
+                  label: '粘贴',
+                  disabled: selected?.state !== 'running',
+                  onClick: () => selected && void pasteTerminal(selected.id),
+                },
+                {
+                  key: 'close',
+                  label: selected?.state === 'connecting' ? '取消创建终端' : '关闭当前终端',
+                  disabled: !selected,
+                  danger: true,
+                  onClick: () => selected && void onClose(selected),
+                },
+              ],
+            }}
+          >
+            <Button type="text" size="small" aria-label="终端操作" icon={<EllipsisOutlined />} />
+          </Dropdown>
+        </span>
         <Tooltip title={reason || '在当前仓库新建终端'}>
           <Button
             data-terminal-new

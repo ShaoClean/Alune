@@ -44,12 +44,32 @@
 .workspace-center:has(dialog:modal) .terminal-dock {
   display: none;
 }
+.terminal-compact-actions {
+  display: none;
+}
 /* Browser/Electron zoom reduces CSS viewport height. Keep the input area
    inside the dock instead of reserving an unusable preview above it. */
 @media (max-height: 600px) {
+  .terminal-panel {
+    min-height: 0;
+  }
   .terminal-dock {
     height: 100%;
     max-height: 100%;
+  }
+  .terminal-panel .terminal-footnote,
+  .terminal-path .ant-btn {
+    display: none;
+  }
+  .terminal-compact-actions {
+    display: block;
+  }
+}
+@media (max-height: 420px) {
+  /* All-session navigation and the actions menu keep switching/closing
+     available when a second toolbar row would crowd out the PTY. */
+  .terminal-panel .terminal-tabs {
+    display: none;
   }
 }
 @media (max-width: 899px) {
