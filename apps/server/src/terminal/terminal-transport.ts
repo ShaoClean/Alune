@@ -77,7 +77,12 @@ export async function localTerminal(
       if (disposed) return stopped;
       disposed = true;
       data.dispose();
-      if (exited) return stopped;
+      if (exited) {
+        // node-pty's Windows output worker owns a pipe server even after the
+        // shell exits. kill() also disposes that worker and native handles.
+        if (process.platform === 'win32') child.kill();
+        return stopped;
+      }
       // A backpressured PTY must drain its descriptor while shutting down.
       // Otherwise macOS can keep a killed process waiting on the full PTY.
       child.resume();
