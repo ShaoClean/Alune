@@ -72,7 +72,7 @@ export function TerminalWorkspace({
         level: 1,
         title: '粘贴多行命令？',
         description: '粘贴内容可能立即执行，请先核对。',
-        content: <pre className="terminal-paste-preview">{text.slice(0, 2000)}</pre>,
+        content: <pre className="terminal-paste-preview">{text}</pre>,
         okText: '粘贴',
         initialFocus: 'cancel',
       }),
@@ -313,10 +313,11 @@ function TerminalPanel({
     fitTerminal(selected.id);
   }, [selected?.id, mode, preferences.fontFamily, preferences.fontSize]);
 
+  const minimumHeight = window.matchMedia('(max-width: 560px)').matches ? 260 : 220;
   const resize = (height: number) => {
     const available = panel.current?.parentElement?.parentElement?.clientHeight || 600;
     useTerminalStore.setState({
-      height: Math.max(160, Math.min(height, Math.max(160, available - 150))),
+      height: Math.max(minimumHeight, Math.min(height, Math.max(minimumHeight, available - 150))),
     });
   };
   const copy = async (text: string) => {
@@ -342,7 +343,7 @@ function TerminalPanel({
         tabIndex={0}
         aria-label="调整终端高度"
         aria-orientation="horizontal"
-        aria-valuemin={160}
+        aria-valuemin={minimumHeight}
         aria-valuemax={panel.current?.parentElement?.parentElement?.clientHeight || 900}
         aria-valuenow={store.height}
         onKeyDown={(event) => {
@@ -350,7 +351,7 @@ function TerminalPanel({
           event.preventDefault();
           resize(
             event.key === 'Home'
-              ? 160
+              ? minimumHeight
               : event.key === 'End'
                 ? 10000
                 : store.height + (event.key === 'ArrowUp' ? 1 : -1) * (event.shiftKey ? 50 : 10),

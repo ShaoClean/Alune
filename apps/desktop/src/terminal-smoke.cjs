@@ -73,7 +73,7 @@ module.exports = async ({ window, origin, token, backend }) => {
   assert.match(await evaluate("document.querySelector('.terminal-identity').textContent"), /本机/);
   assert.equal(
     await evaluate("document.querySelector('.terminal-path code').textContent"),
-    fs.realpathSync(root),
+    fs.realpathSync.native(root),
   );
 
   await click('button[aria-label="收起终端"]');
@@ -126,9 +126,11 @@ module.exports = async ({ window, origin, token, backend }) => {
   }
   window.webContents.setZoomFactor(2);
   await until('document.documentElement.scrollWidth <= innerWidth');
-  assert.ok(
-    await evaluate("document.querySelector('.terminal-output').getBoundingClientRect().height > 0"),
-  );
+  await until(`(() => {
+    const output = document.querySelector('.terminal-output').getBoundingClientRect();
+    const dock = document.querySelector('.terminal-dock').getBoundingClientRect();
+    return output.height >= 30 && output.top >= dock.top && output.bottom <= dock.bottom + 1;
+  })()`);
   window.webContents.setZoomFactor(1);
   await send(process.platform === 'win32' ? 'exit /b 0' : 'exit 0');
   await until("document.querySelector('.terminal-state')?.textContent === '已退出 · 0'");
