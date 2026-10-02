@@ -124,6 +124,7 @@ export function BranchPicker({
       <Popover
         trigger="click"
         placement="bottomRight"
+        align={{ overflow: { shiftX: true, adjustY: true } }}
         arrow={false}
         open={open}
         onOpenChange={(value) => {
@@ -150,7 +151,7 @@ export function BranchPicker({
           >
             <div className="branch-picker__search">
               <Input
-                size="small"
+                size="middle"
                 allowClear
                 prefix={<SearchOutlined />}
                 placeholder="筛选分支…"
@@ -159,7 +160,11 @@ export function BranchPicker({
                 onChange={(event) => setQuery(event.target.value)}
               />
             </div>
-            {loading && <p role="status">正在读取分支…</p>}
+            {loading && (
+              <p className="branch-picker__empty" role="status">
+                正在读取分支…
+              </p>
+            )}
             {!loading && !visibleLocal.length && !visibleRemote.length && (
               <p className="branch-picker__empty">没有匹配的分支</p>
             )}
