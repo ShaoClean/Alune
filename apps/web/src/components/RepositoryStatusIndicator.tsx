@@ -11,15 +11,18 @@ import { StatusBadge } from '@alune/ui';
 export function RepositoryStatusIndicator({
   id,
   compact = false,
+  quiet = false,
 }: {
   id: string;
   compact?: boolean;
+  quiet?: boolean;
 }) {
   const observe = useRepositoryVisibility(id);
   const { entry, stale } = useRepositoryStatus(id);
   const busy = entry?.phase === 'loading' || entry?.phase === 'queued';
   const failed = entry?.phase === 'error';
   const dirty = Boolean(entry?.data?.files.length);
+  const quietClean = quiet && !busy && !failed && !stale && entry?.data && !dirty;
   const label = busy
     ? entry?.data
       ? '更新中 · 缓存'
@@ -54,7 +57,7 @@ export function RepositoryStatusIndicator({
   return (
     <span
       ref={observe}
-      className={`repository-status${compact ? ' repository-status--compact' : ''}`}
+      className={`repository-status${compact ? ' repository-status--compact' : ''}${quietClean ? ' repository-status--quiet' : ''}`}
       title={title}
       aria-label={title}
     >
