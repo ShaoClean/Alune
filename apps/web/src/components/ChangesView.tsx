@@ -2,7 +2,7 @@ import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import { FeedbackNotice } from '@alune/ui';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Button, Input, Tooltip } from '@alune/ui';
+import { Button, Input, Tooltip, type TooltipProps } from '@alune/ui';
 import { AlunePopconfirm } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
 import { changeActions, changeKindLabel, type FileStatus } from '@alune/shared';
@@ -80,6 +80,13 @@ const excludeRule = (path: string) =>
 
 const GENERATION_SCOPE = '仅分析已暂存改动 · 由你确认后提交';
 
+// Pair foreground and background explicitly; dark-theme primary text is not a tooltip color.
+const FILE_ACTION_TOOLTIP: Pick<TooltipProps, 'trigger' | 'color' | 'styles'> = {
+  trigger: ['hover', 'focus'],
+  color: 'var(--text)',
+  styles: { container: { color: 'var(--surface)' } },
+};
+
 // Reordering the form must not change when committing is allowed.
 export const commitDisabled = (busy: boolean, stagedCount: number, message: string) =>
   busy || !stagedCount || !message.trim();
@@ -107,6 +114,7 @@ export function ChangesView({
   const draft = useCommitDraftStore((state) => state.drafts[repoId] || EMPTY_DRAFT);
   const { updateDraft, clearSubmittedDraft } = useCommitDraftStore();
   const [discardConfirmed, setDiscardConfirmed] = useState(false);
+  const [discardOpenPath, setDiscardOpenPath] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -386,47 +394,56 @@ export function ChangesView({
         </button>
         <div className="file-row__actions">
           {file.staged ? (
-            <Button
-              type="text"
-              size="small"
-              icon={<MinusOutlined />}
-              aria-label={`取消暂存 ${file.path}`}
-              loading={loading}
-              disabled={busy}
-              onClick={() => void runFileAction('unstage', [file.path])}
-            />
+            <Tooltip title={busy ? null : '取消暂存'} {...FILE_ACTION_TOOLTIP}>
+              <Button
+                type="text"
+                size="small"
+                icon={<MinusOutlined />}
+                aria-label={`取消暂存 ${file.path}`}
+                loading={loading}
+                disabled={busy}
+                onClick={() => void runFileAction('unstage', [file.path])}
+              />
+            </Tooltip>
           ) : actions.stage ? (
-            <Button
-              type="text"
-              size="small"
-              icon={<PlusOutlined />}
-              aria-label={`暂存 ${file.path}`}
-              loading={loading}
-              disabled={busy}
-              onClick={() => void runFileAction('stage', [file.path])}
-            />
+            <Tooltip title={busy ? null : '暂存文件'} {...FILE_ACTION_TOOLTIP}>
+              <Button
+                type="text"
+                size="small"
+                icon={<PlusOutlined />}
+                aria-label={`暂存 ${file.path}`}
+                loading={loading}
+                disabled={busy}
+                onClick={() => void runFileAction('stage', [file.path])}
+              />
+            </Tooltip>
           ) : null}
           {actions.open && (
-            <Button
-              type="text"
-              size="small"
-              icon={<ExportOutlined />}
-              aria-label={`打开${file.kind === 'worktree' ? ' Worktree' : '仓库'} ${file.path}`}
-              title={file.kind === 'worktree' ? '打开 Worktree' : '打开仓库'}
-              disabled={busy}
-              onClick={() => void openChangeRepository(file)}
-            />
+            <Tooltip
+              title={busy ? null : file.kind === 'worktree' ? '打开 Worktree' : '打开仓库'}
+              {...FILE_ACTION_TOOLTIP}
+            >
+              <Button
+                type="text"
+                size="small"
+                icon={<ExportOutlined />}
+                aria-label={`打开${file.kind === 'worktree' ? ' Worktree' : '仓库'} ${file.path}`}
+                disabled={busy}
+                onClick={() => void openChangeRepository(file)}
+              />
+            </Tooltip>
           )}
           {actions.ignore && (
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeInvisibleOutlined />}
-              aria-label={`本地忽略 ${file.path}`}
-              title="本地忽略此目录"
-              disabled={busy}
-              onClick={() => ignoreChangeDirectory(file)}
-            />
+            <Tooltip title={busy ? null : '本地忽略此目录'} {...FILE_ACTION_TOOLTIP}>
+              <Button
+                type="text"
+                size="small"
+                icon={<EyeInvisibleOutlined />}
+                aria-label={`本地忽略 ${file.path}`}
+                disabled={busy}
+                onClick={() => ignoreChangeDirectory(file)}
+              />
+            </Tooltip>
           )}
           {actions.discard && (
             <AlunePopconfirm
@@ -460,38 +477,46 @@ export function ChangesView({
                   />
                 </>
               }
-              onOpenChange={() => setDiscardConfirmed(false)}
+              onOpenChange={(open) => {
+                setDiscardConfirmed(false);
+                setDiscardOpenPath(open ? file.path : null);
+              }}
               okDisabled={!discardConfirmed}
               okText="丢弃改动"
               disabled={busy}
               onConfirm={() => discardFile(file.path)}
             >
+              <Tooltip
+                title={busy || discardOpenPath === file.path ? null : '丢弃未暂存改动'}
+                {...FILE_ACTION_TOOLTIP}
+              >
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  icon={<UndoOutlined />}
+                  aria-label={`丢弃 ${file.path}`}
+                  loading={loading}
+                  disabled={busy}
+                />
+              </Tooltip>
+            </AlunePopconfirm>
+          )}
+          {!kind && (actions.delete || addedPaths.has(file.path)) && (
+            <Tooltip title={busy ? null : '删除整个新增文件'} {...FILE_ACTION_TOOLTIP}>
               <Button
                 type="text"
                 danger
                 size="small"
-                icon={<UndoOutlined />}
-                aria-label={`丢弃 ${file.path}`}
-                title="丢弃未暂存改动"
-                loading={loading}
+                icon={<DeleteOutlined />}
+                aria-label={`删除整个新增文件 ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
                 disabled={busy}
+                onClick={() => {
+                  ai.cancel();
+                  setDeletePath(file.path);
+                }}
               />
-            </AlunePopconfirm>
-          )}
-          {!kind && (actions.delete || addedPaths.has(file.path)) && (
-            <Button
-              type="text"
-              danger
-              size="small"
-              icon={<DeleteOutlined />}
-              aria-label={`删除整个新增文件 ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
-              title="删除整个新增文件"
-              disabled={busy}
-              onClick={() => {
-                ai.cancel();
-                setDeletePath(file.path);
-              }}
-            />
+            </Tooltip>
           )}
         </div>
       </div>
