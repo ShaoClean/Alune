@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Delete, Body, Param, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { ConnectionService } from './connection.service';
 import type { SSHConnectionConfig } from '@alune/shared';
 
@@ -23,7 +31,8 @@ export class ConnectionController {
 
   @Get(':id')
   async get(@Param('id', ParseUUIDPipe) id: string) {
-    const { password, passphrase, ...rest } = await this.connectionService.get(id);
+    const { password, passphrase, ...rest } =
+      await this.connectionService.get(id);
     return {
       ...rest,
       hasAuth: !!(password || passphrase),
@@ -32,8 +41,11 @@ export class ConnectionController {
   }
 
   @Delete(':id')
-  async delete(@Param('id', ParseUUIDPipe) id: string) {
-    return this.connectionService.delete(id);
+  async delete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body?: { terminalSessionIds?: string[] },
+  ) {
+    return this.connectionService.delete(id, body?.terminalSessionIds);
   }
 
   @Post(':id/test')

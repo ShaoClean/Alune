@@ -7,6 +7,8 @@ import { connectionStatus, connectionStatusLabel } from '../stores/connectionSta
 import { RepositorySwitcher } from './RepositorySwitcher';
 import { FeedbackStatusButton, StatusButton } from '@alune/ui';
 import { useSyncStatusStore } from '../stores/syncStatusStore';
+import { CodeOutlined } from '@ant-design/icons';
+import { useTerminalStore } from '../stores/terminalState';
 
 export function WorkspaceStatusBar({
   repository,
@@ -24,6 +26,7 @@ export function WorkspaceStatusBar({
   onUpdates?: () => void;
 }) {
   const navigate = useNavigate();
+  const terminalCount = useTerminalStore((state) => state.sessions.length);
   const syncDetail = useSyncStatusStore((state) => state.detail);
   const syncRepoId = useSyncStatusStore((state) => state.repoId);
   // Only surface the progress of the repository this status bar describes.
@@ -77,6 +80,14 @@ export function WorkspaceStatusBar({
         )}
       </div>
       <div className="status-bar__right">
+        <StatusButton
+          label={`终端 ${terminalCount} · 全部会话`}
+          tooltip="全部终端会话"
+          onClick={() => useTerminalStore.setState({ allOpen: true })}
+        >
+          <CodeOutlined />
+          <span>终端 {terminalCount}</span>
+        </StatusButton>
         <StatusButton
           label={connectionLabel}
           tooltip={local ? 'Git 命令在本机执行' : `${connectionLabel} · 管理连接`}

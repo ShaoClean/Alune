@@ -1,0 +1,44 @@
+name: 仓库终端
+
+on:
+  push:
+    branches: [development]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terminal-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terminals:
+    name: PTY 与原生包 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14, windows-latest]
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - run: npx turbo build --filter=server
+      - name: 会话隔离、SSH、退出与背压
+        timeout-minutes: 3
+        run: node --test apps/server/test/terminal.integration.cjs
+      - run: npm run desktop:build
+      - run: npm run pack -w desktop
+      - name: 原生包终端、输入、保留输出与关闭确认
+        if: runner.os != 'Linux'
+        run: npm run test:terminals -w desktop -- --packaged
+      - name: 原生包终端、输入、保留输出与关闭确认 (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:terminals -w desktop -- --packaged

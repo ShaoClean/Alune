@@ -4,12 +4,14 @@ import {
   NotFoundException,
   GatewayTimeoutException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { realpath, stat } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { ConnectionService } from '../connection/connection.service';
+import { TerminalRegistry } from '../terminal/terminal-registry';
 import {
   DiffImages,
   GitCommands,
@@ -145,6 +147,7 @@ export class RepositoryService {
   constructor(
     @Inject('DATABASE') private db: Database.Database,
     private connectionService: ConnectionService,
+    @Optional() private terminals?: TerminalRegistry,
   ) {
     this._initTable();
   }
@@ -441,8 +444,15 @@ export class RepositoryService {
     return this.fromRow(row);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, terminalSessionIds?: string[]): Promise<void> {
+    this.terminals?.remove({ repositoryId: id }, terminalSessionIds);
     this.db.prepare('DELETE FROM repositories WHERE id = ?').run(id);
+  }
+
+  withoutTerminals<T>(ids: string[], operation: () => Promise<T>) {
+    return this.terminals
+      ? this.terminals.withoutTerminals(ids, operation)
+      : operation();
   }
 
   async pin(id: string, pinned: boolean): Promise<void> {

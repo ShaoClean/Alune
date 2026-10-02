@@ -5,6 +5,7 @@ import type { Request, Response, NextFunction } from 'express';
 import * as path from 'node:path';
 import { AppModule } from './app.module';
 import type { AiSecretStorage } from './ai/secret-storage';
+import { TerminalRegistry } from './terminal/terminal-registry';
 
 export interface ServerOptions {
   port?: number;
@@ -12,6 +13,7 @@ export interface ServerOptions {
   webRoot?: string;
   token?: string;
   aiSecretStorage?: AiSecretStorage;
+  desktop?: boolean;
 }
 
 export async function startServer(options: ServerOptions = {}) {
@@ -21,6 +23,9 @@ export async function startServer(options: ServerOptions = {}) {
     { abortOnError: false, forceCloseConnections: Boolean(options.token) },
   );
   try {
+    const terminals = app.get(TerminalRegistry);
+    terminals.enabled = Boolean(options.token);
+    terminals.desktop = options.desktop === true;
     if (options.token) {
       const authorization = `Bearer ${options.token}`;
       app.use((req: Request, res: Response, next: NextFunction) => {

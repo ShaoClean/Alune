@@ -1,0 +1,326 @@
+.workspace-center:has(.terminal-panel) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.workspace-center:has(.terminal-panel) > .workspace-panel--detail,
+.workspace-center:has(.terminal-panel) > .workspace-main-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.terminal-dock {
+  flex: none;
+  min-height: 0;
+  height: var(--terminal-height, 340px);
+  max-height: calc(100% - 150px);
+  overflow: hidden;
+}
+.terminal-dock:empty {
+  display: none;
+}
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  min-height: 220px;
+  min-width: 0;
+  color: var(--text);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.workspace-center:has(.terminal-panel[data-maximized='true']) > :not(.terminal-dock) {
+  display: none;
+}
+.workspace-center:has(.terminal-panel[data-maximized='true']) .terminal-dock {
+  flex: 1;
+  max-height: 100%;
+}
+.terminal-panel[data-maximized='true'] {
+  height: 100%;
+}
+.workspace-center:has(dialog:modal) .terminal-dock {
+  display: none;
+}
+.terminal-compact-actions {
+  display: none;
+}
+/* Browser/Electron zoom reduces CSS viewport height. Keep the input area
+   inside the dock instead of reserving an unusable preview above it. */
+@media (max-height: 600px) {
+  .terminal-panel {
+    min-height: 0;
+  }
+  .terminal-dock {
+    height: 100%;
+    max-height: 100%;
+  }
+  .terminal-panel .terminal-footnote,
+  .terminal-path .ant-btn {
+    display: none;
+  }
+  .terminal-compact-actions {
+    display: block;
+  }
+}
+@media (max-height: 420px) {
+  /* All-session navigation and the actions menu keep switching/closing
+     available when a second toolbar row would crowd out the PTY. */
+  .terminal-panel .terminal-tabs {
+    display: none;
+  }
+}
+@media (max-width: 899px) {
+  .workspace-page--compact .workspace-center:has(.terminal-panel) {
+    display: flex;
+    flex: 1 1 0;
+  }
+  .workspace-page--compact .workspace-center:has(.terminal-panel) > .workspace-panel--detail {
+    display: flex;
+  }
+  .workspace-page--compact .workspace-body:has(.terminal-panel) > .workspace-main-panel {
+    display: none;
+  }
+}
+.terminal-resize {
+  height: 5px;
+  flex: none;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.terminal-resize:hover,
+.terminal-resize:focus-visible {
+  background: var(--blue);
+}
+.terminal-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  min-height: 37px;
+  flex: none;
+  border-bottom: 1px solid var(--line);
+}
+.terminal-heading strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.terminal-heading__spacer {
+  flex: 1;
+}
+.terminal-tabs {
+  display: flex;
+  flex: none;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  min-height: 36px;
+}
+.terminal-tab {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  border-right: 1px solid var(--line);
+}
+.terminal-tab.is-active {
+  box-shadow: inset 0 -2px var(--blue);
+  background: var(--surface-hover);
+}
+.terminal-tab button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.terminal-tab button span:last-child {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.terminal-identity,
+.terminal-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  flex: none;
+  min-width: 0;
+}
+.terminal-identity > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+.terminal-state {
+  white-space: nowrap;
+}
+.terminal-state.is-running {
+  color: var(--green);
+}
+.terminal-state.is-failed {
+  color: var(--red);
+}
+.terminal-state.is-disconnected {
+  color: var(--orange);
+}
+.terminal-path {
+  padding-top: 0;
+  color: var(--text-muted);
+}
+.terminal-path > span {
+  white-space: nowrap;
+}
+.terminal-path code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.terminal-output {
+  flex: 1;
+  min-height: 40px;
+  overflow: hidden;
+  background: #f7f9fc;
+  padding: 4px 8px;
+}
+[data-theme='dark'] .terminal-output {
+  background: #171c27;
+}
+.terminal-emulator {
+  width: 100%;
+  height: 100%;
+}
+.terminal-emulator .xterm {
+  height: 100%;
+}
+.terminal-notice,
+.terminal-truncated {
+  flex: none;
+  padding: 4px 12px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  background: var(--surface-hover);
+  color: var(--orange);
+  max-height: 60px;
+  overflow: auto;
+}
+.terminal-empty {
+  flex: 1;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  overflow: auto;
+}
+.terminal-empty p {
+  margin: 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+.terminal-footnote {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 12px;
+  flex: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  border-top: 1px solid var(--line);
+}
+.terminal-footnote > span {
+  flex: 1;
+}
+.terminal-footnote button {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+}
+.terminal-all-sessions,
+.terminal-session-summary {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.terminal-all-sessions li {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+}
+.terminal-all-sessions li > button:first-child {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: none;
+  color: inherit;
+  border: 0;
+  cursor: pointer;
+}
+.terminal-all-sessions code,
+.terminal-session-summary code {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.terminal-paste-preview {
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.terminal-panel button:focus-visible,
+.terminal-resize:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+@media (max-width: 560px) {
+  .terminal-heading {
+    padding: 0 4px;
+  }
+  .terminal-panel .ant-btn,
+  .terminal-tab button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .terminal-heading strong {
+    font-size: 12px;
+  }
+  .terminal-footnote {
+    flex-wrap: wrap;
+  }
+  .terminal-footnote button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .terminal-identity,
+  .terminal-path {
+    padding-inline: 8px;
+  }
+}

@@ -31,6 +31,7 @@ import { PanelResizeHandle } from '../components/PanelResizeHandle';
 import { RepositoryToolbar } from '../components/RepositoryToolbar';
 import type { RepositoryPanel as Panel, SyncOperation } from '../components/RepositoryToolbar';
 import { useSyncStatusStore } from '../stores/syncStatusStore';
+import { useTerminalStore } from '../stores/terminalState';
 
 type SelectedFile = { path: string; status: string; staged: boolean };
 const panelLabels: Record<Panel, string> = {
@@ -49,13 +50,15 @@ export function RepositoryDetailPage() {
 }
 
 function RepositoryWorkspace({ id }: { id: string | undefined }) {
+  const terminalHeight = useTerminalStore((state) => state.height);
   const message = useFeedbackMessage();
   const confirm = useAluneConfirm();
   const navigate = useNavigate();
   const location = useLocation();
-  const { setRightPanelAvailable, repositoryToolbarSlot } = useOutletContext<{
+  const { setRightPanelAvailable, repositoryToolbarSlot, setTerminalSlot } = useOutletContext<{
     setRightPanelAvailable: (available: boolean) => void;
     repositoryToolbarSlot: HTMLDivElement | null;
+    setTerminalSlot: (slot: HTMLDivElement | null) => void;
   }>();
   const { layout, compact, changesWidth, changesMax, updateLayout } = useWorkspaceLayout();
   const backButton = useRef<HTMLButtonElement>(null);
@@ -644,6 +647,11 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
               {renderPanel()}
             </div>
           )}
+          <div
+            className="terminal-dock"
+            ref={setTerminalSlot}
+            style={{ '--terminal-height': `${terminalHeight}px` } as CSSProperties}
+          />
         </div>
         {hasInspector && !compact && !layout.changesCollapsed && (
           <PanelResizeHandle

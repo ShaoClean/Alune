@@ -235,19 +235,36 @@ export class GitService implements OnModuleDestroy {
   async previewWorkspaceFile(id: string, path: string) {
     const repo = await this.repoService.get(id);
     try {
-      return await new WorkspaceFileActions(await this.transport(repo)).preview(repo.path, path);
+      return await new WorkspaceFileActions(await this.transport(repo)).preview(
+        repo.path,
+        path,
+      );
     } catch (error) {
-      if (error instanceof RepositoryFileError) throw new HttpException(error.message, error.statusCode);
+      if (error instanceof RepositoryFileError)
+        throw new HttpException(error.message, error.statusCode);
       throw error;
     }
   }
 
-  mutateWorkspaceFile(id: string, path: string, token: string, action: 'delete' | 'rename', name?: string) {
+  mutateWorkspaceFile(
+    id: string,
+    path: string,
+    token: string,
+    action: 'delete' | 'rename',
+    name?: string,
+  ) {
     return this.write(id, 'workspace-file', async (_git, repo, connection) => {
       try {
-        return await new WorkspaceFileActions(connection).mutate(repo.path, path, token, action, name);
+        return await new WorkspaceFileActions(connection).mutate(
+          repo.path,
+          path,
+          token,
+          action,
+          name,
+        );
       } catch (error) {
-        if (error instanceof RepositoryFileError) throw new HttpException(error.message, error.statusCode);
+        if (error instanceof RepositoryFileError)
+          throw new HttpException(error.message, error.statusCode);
         throw error;
       }
     });
@@ -752,21 +769,28 @@ export class GitService implements OnModuleDestroy {
         throw new ConflictException(
           '此 Worktree 存在改动、未跟踪或忽略文件；请先保留需要的内容。',
         );
-      await this.checked(git, repo.path, ['worktree', 'remove', '--', target]);
-      const removedIds: string[] = [];
-      for (const registered of await this.repoService.list()) {
-        if (
-          registered.source === 'local' &&
-          (process.platform === 'win32'
-            ? worktreePathKey(registered.path).toLowerCase() ===
-              worktreePathKey(target).toLowerCase()
-            : worktreePathKey(registered.path) === worktreePathKey(target))
-        ) {
+      const key = (value: string) =>
+        process.platform === 'win32'
+          ? worktreePathKey(value).toLowerCase()
+          : worktreePathKey(value);
+      const registrations = (await this.repoService.list()).filter(
+        (registered) =>
+          registered.source === 'local' && key(registered.path) === key(target),
+      );
+      const removedIds = registrations.map((registered) => registered.id);
+      // Hold the admission lock across the filesystem operation and registry
+      // deletion so a new shell cannot start between the check and Git remove.
+      return this.repoService.withoutTerminals(removedIds, async () => {
+        await this.checked(git, repo.path, [
+          'worktree',
+          'remove',
+          '--',
+          target,
+        ]);
+        for (const registered of registrations)
           await this.repoService.delete(registered.id);
-          removedIds.push(registered.id);
-        }
-      }
-      return { success: true, removedIds };
+        return { success: true, removedIds };
+      });
     });
   }
 }

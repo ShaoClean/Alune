@@ -12,6 +12,7 @@ import { AppService } from './app.service';
 import { SecretsModule } from './secrets/secrets.module';
 import { ProxyModule } from './proxy/proxy.module';
 import { ProxyController } from './proxy/proxy.controller';
+import { TerminalModule } from './terminal/terminal.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ProxyController } from './proxy/proxy.controller';
     GitModule,
     FileModule,
     EventsModule,
+    TerminalModule,
   ],
   controllers: [AppController, ProxyController],
   providers: [AppService],

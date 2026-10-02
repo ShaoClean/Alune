@@ -9,6 +9,7 @@
     "dist": "electron-builder --projectDir dist/app --config ../../electron-builder.cjs",
     "test": "npm run test:unit && node scripts/smoke.mjs",
     "test:unit": "node --test test/*.test.cjs tests/*.test.cjs",
+    "test:terminals": "node scripts/test-terminals.mjs",
     "test:worktrees": "node scripts/test-worktrees.mjs",
     "test:repository-session": "node scripts/test-repository-session.mjs",
     "test:diff-theme": "node scripts/test-diff-theme.mjs",

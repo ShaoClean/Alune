@@ -1,5 +1,15 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('aluneTerminal', {
+  onShutdownRequested: (callback) => {
+    const listener = (_event, request) => callback(request);
+    ipcRenderer.on('terminal:shutdown-request', listener);
+    return () => ipcRenderer.removeListener('terminal:shutdown-request', listener);
+  },
+  respondToShutdown: (requestId, confirmed) =>
+    ipcRenderer.send('terminal:shutdown-response', requestId, confirmed === true),
+});
+
 contextBridge.exposeInMainWorld('desktopUpdates', {
   getState: () => ipcRenderer.invoke('updates:state'),
   check: () => ipcRenderer.invoke('updates:check'),

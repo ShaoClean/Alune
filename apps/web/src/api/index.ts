@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { confirmTerminalRemoval } from '../stores/terminalRemoval';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@alune/shared';
 import type {
   ConnectionTestResult,
@@ -44,7 +45,19 @@ const api = axios.create({
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const impact = error.response?.data;
+    if (
+      error.config?.method === 'delete' &&
+      impact?.code === 'TERMINAL_CONFIRM_REQUIRED' &&
+      Array.isArray(impact.sessions) &&
+      (await confirmTerminalRemoval(impact.sessions))
+    ) {
+      return api.request({
+        ...error.config,
+        data: { terminalSessionIds: impact.sessions.map((item: { id: string }) => item.id) },
+      });
+    }
     const detail = error.response?.data?.message;
     if (detail) error.message = Array.isArray(detail) ? detail.join('；') : String(detail);
     return Promise.reject(error);
