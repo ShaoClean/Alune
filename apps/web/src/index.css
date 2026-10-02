@@ -2097,40 +2097,9 @@ body,
   cursor: default;
 }
 .tree-sort-handle:focus-visible,
-.tree-node__action:focus-visible,
-.tree-node__delete:focus-visible {
+.tree-node__action:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
-}
-.tree-node__delete {
-  display: grid;
-  place-items: center;
-  flex: 0 0 24px;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  color: var(--text-muted);
-  background: transparent;
-  border: 0;
-  border-radius: 5px;
-  cursor: pointer;
-  opacity: 0.55;
-  transition:
-    color var(--motion-hover) var(--ease-enter),
-    background var(--motion-hover) var(--ease-enter),
-    opacity var(--motion-hover) var(--ease-enter);
-}
-.tree-node--repo:hover .tree-node__delete,
-.tree-node--repo:focus-within .tree-node__delete {
-  opacity: 1;
-}
-.tree-node__delete:hover {
-  color: var(--red);
-  background: var(--red-soft);
-}
-.tree-node__delete:disabled {
-  cursor: wait;
-  opacity: 0.45;
 }
 .tree-group,
 .tree-node--repo {

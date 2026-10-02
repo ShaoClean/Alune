@@ -13,6 +13,7 @@ import {
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { RepositoryTabs } from './RepositoryTabs';
+import { repositoryWorkspaceLabels } from '../stores/repositoryLabels';
 import { useDesktopUpdates } from '../hooks/useDesktopUpdates';
 import { useConnectionStatusSync } from '../hooks/useConnectionStatusSync';
 import { WorkspaceTree } from './WorkspaceTree';
@@ -126,6 +127,7 @@ export function Layout() {
     activateRepositoryTab,
     listLoaded,
   } = useRepositoryStore();
+  const workspaceLabels = useMemo(() => repositoryWorkspaceLabels(repositories), [repositories]);
 
   useEffect(() => {
     void fetchConnections();
@@ -356,6 +358,8 @@ export function Layout() {
           ) : selectedKey === '/repositories' && openRepositories.length > 0 ? (
             <RepositoryTabs
               repositories={openRepositories}
+              workspaceLabels={workspaceLabels}
+              connections={connections}
               activeId={activeRepository?.id}
               onSelect={(id) => {
                 activateRepositoryTab(id);
@@ -475,6 +479,7 @@ export function Layout() {
                 query={repositoryQuery}
                 connections={connections}
                 repositories={repositories}
+                workspaceLabels={workspaceLabels}
                 statuses={statuses}
                 activeId={activeRepository?.id}
                 onOpenRepository={handleOpenRepository}

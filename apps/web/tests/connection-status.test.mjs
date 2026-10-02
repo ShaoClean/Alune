@@ -18,12 +18,14 @@ await hydrateWorkspace();
 const listed = (overrides = {}) => [
   { id: 'dev', name: '开发服务器', status: 'unknown', ...overrides },
 ];
-const dots = (html) => [...html.matchAll(/class="connection-dot connection-dot--(\w+)"/g)].map(([, state]) => state);
+const dots = (html) =>
+  [...html.matchAll(/class="connection-dot connection-dot--(\w+)"/g)].map(([, state]) => state);
 const renderTree = (statuses) =>
   renderToStaticMarkup(
     createElement(WorkspaceTree, {
       connections: [{ id: 'dev', name: '开发服务器' }],
       repositories: [{ id: 'repo-a', connectionId: 'dev', name: 'alune', path: '/w/alune' }],
+      workspaceLabels: new Map(),
       statuses,
       onOpenRepository() {},
     }),
@@ -37,7 +39,11 @@ beforeEach(() => {
 test('列表返回的实际连接状态直接进入 store，未建连时保持未测试', async () => {
   connectionApi.list = async () => listed();
   await connections.getState().fetchConnections();
-  assert.deepEqual(connections.getState().statuses.dev, { status: 'unknown', error: undefined, updatedAt: undefined });
+  assert.deepEqual(connections.getState().statuses.dev, {
+    status: 'unknown',
+    error: undefined,
+    updatedAt: undefined,
+  });
 
   connectionApi.list = async () => listed({ status: 'connected', updatedAt: 10 });
   await connections.getState().fetchConnections();
@@ -79,7 +85,9 @@ test('显式测试只补齐缺失状态，旧响应不覆盖推送，删除时�
   await connections.getState().testConnection('dev');
   assert.equal(connections.getState().statuses.dev.status, 'connected');
 
-  connections.getState().applyConnectionStatus({ connectionId: 'dev', status: 'connected', updatedAt: 9 });
+  connections
+    .getState()
+    .applyConnectionStatus({ connectionId: 'dev', status: 'connected', updatedAt: 9 });
   connectionApi.test = async () => ({
     success: false,
     status: 'error',

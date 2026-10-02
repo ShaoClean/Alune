@@ -129,8 +129,8 @@
   flex: 1;
   align-items: center;
   min-width: 0;
-  min-height: 32px;
-  height: 32px;
+  min-height: 39px;
+  height: 39px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -142,9 +142,9 @@
 .app-tabbar .repository-tab {
   flex: 0 0 auto;
   align-items: center;
-  height: 32px;
-  min-width: 115px;
-  max-width: 220px;
+  height: 39px;
+  min-width: 130px;
+  max-width: 300px;
   margin: 0;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -1183,63 +1183,255 @@
   border-color: transparent;
   font-weight: 500;
 }
-.tree-node--selected {
-  background: var(--blue-soft);
+.tree-node--repo.tree-node--selected {
+  background: var(--sidebar-active);
   border-color: transparent;
 }
+/* A workspace is one fixed-height row; long identities never wrap. */
 .tree-node--repo {
-  align-items: flex-start;
-  gap: 4px;
-  padding-left: 5px;
+  align-items: center;
+  container: workspace-row / inline-size;
+  height: 36px;
+  min-height: 36px;
+  gap: 5px;
+  padding: 0 4px 0 16px;
+}
+.tree-node--repo > .tree-sort-handle {
+  position: absolute;
+  left: -2px;
+  width: 14px;
 }
 .tree-node--repo > .tree-node__action {
-  display: grid;
-  grid-template-columns: 13px minmax(0, 1fr) 14px;
-  gap: 3px 6px;
-  padding-block: 3px;
-}
-.tree-node--repo .tree-node__icon {
-  grid-column: 1;
-  grid-row: 1;
+  height: 100%;
+  gap: 5px;
 }
 .tree-node--repo .repository-status {
-  grid-column: 3;
-  grid-row: 1;
+  flex: 0 0 14px;
+  font-size: 13px;
 }
-.tree-node__repository {
-  display: contents;
+/* Keep an observable pixel so clean rows still participate in status refreshes. */
+.tree-node--repo .repository-status--quiet {
+  flex-basis: 1px;
+  width: 1px;
+  min-width: 1px;
+  overflow: hidden;
+  opacity: 0;
 }
-.tree-node__repository > .tree-node__label {
-  grid-column: 2;
-  grid-row: 1;
+.repository-identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1 1 auto;
   min-width: 0;
-  color: var(--text);
+  text-align: left;
 }
-.tree-node__worktree {
-  grid-column: 1 / -1;
-  justify-self: start;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: var(--surface-hover);
+.repository-kind-icon {
+  flex: 0 0 15px;
   color: var(--text-muted);
-  font-size: 10px;
-  line-height: 16px;
+  font-size: 15px;
+}
+.repository-kind-icon--linked {
+  color: var(--blue);
+}
+.repository-identity__text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
   white-space: nowrap;
 }
-.tree-node__worktree--linked {
-  color: var(--blue);
-  background: var(--blue-soft);
+.repository-identity__name {
+  flex: 0 0 auto;
+  min-width: 24px;
+  max-width: min(120px, 45%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
 }
-.tree-node__path {
-  grid-column: 1 / -1;
-  min-width: 0;
+.repository-identity__name:only-child {
+  max-width: 100%;
+}
+/* At the minimum sidebar width, prioritize the distinguishing workspace name. */
+@container workspace-row (max-width: 190px) {
+  .repository-identity--qualified .repository-identity__name,
+  .repository-identity--qualified .repository-identity__separator {
+    display: none;
+  }
+}
+.repository-identity__separator {
+  flex: 0 0 auto;
   color: var(--text-muted);
   font-size: 11px;
-  line-height: 16px;
+}
+.repository-identity__detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.tree-node--selected .repository-identity__detail,
+.repository-tab--active .repository-identity__detail {
+  color: var(--blue);
+}
+.app-tabbar .repository-tab__select {
+  gap: 8px;
+  padding-inline: 10px 4px;
+}
+.app-tabbar .repository-tab__select .anticon {
+  display: inline-flex;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+.app-tabbar .repository-tab__select .repository-kind-icon--linked {
+  color: var(--blue);
+}
+.repository-tab .repository-identity__name {
+  font-size: 12px;
+}
+.repository-tab__source {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  max-width: 90px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.repository-tab__source > span:not(.anticon) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-tabbar .repository-tab__source .anticon {
+  font-size: 12px;
+}
+.tree-node__more {
+  display: grid;
+  place-items: center;
+  flex: 0 0 21px;
+  width: 21px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+}
+.tree-node:hover .tree-node__more,
+.tree-node:focus-within .tree-node__more,
+.tree-node__more--open {
+  opacity: 1;
+}
+.tree-node__more:hover {
+  color: var(--blue);
+  background: var(--surface-hover);
+}
+.tree-node__more:focus-visible,
+.workspace-actions > button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+@media (hover: none) {
+  .tree-node__more {
+    opacity: 1;
+  }
+}
+.repository-identity-tooltip {
+  max-width: min(360px, calc(100vw - 24px));
+  --antd-arrow-background-color: var(--surface-raised);
+}
+.repository-identity-tooltip .ant-tooltip-container {
+  padding: 14px 16px;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+.repository-identity-details {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.repository-identity-details__heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.repository-identity-details__heading strong {
+  min-width: 0;
   overflow-wrap: anywhere;
-  white-space: normal;
+  font-size: 13px;
+  font-weight: 550;
+}
+.repository-identity-details__heading > span:last-child {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.repository-identity-details dl {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 8px 10px;
+  margin: 10px 0 0;
+}
+.repository-identity-details dt {
+  color: var(--text-muted);
+}
+.repository-identity-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.repository-identity-details__path {
+  font-family: var(--font-mono);
+}
+.workspace-actions-popover .ant-popover-container {
+  padding: 5px;
+}
+.workspace-actions {
+  min-width: 160px;
+}
+.workspace-actions > button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.workspace-actions > button:hover {
+  background: var(--surface-hover);
+}
+.workspace-actions > button:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 .tree-sort-handle {
+  opacity: 0;
+}
+.tree-node .tree-sort-handle:disabled {
   opacity: 0;
 }
 .tree-node:hover > .tree-sort-handle:not(:disabled),

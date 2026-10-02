@@ -9,12 +9,14 @@ export function RemoveRepositoryConfirm({
   onConfirm,
   placement,
   disabled,
+  onOpenChange,
   children,
 }: {
   repository: { name: string; path: string };
   onConfirm: () => unknown;
   placement?: PopconfirmProps['placement'];
   disabled?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactElement;
 }) {
   return (
@@ -28,6 +30,7 @@ export function RemoveRepositoryConfirm({
       placement={placement}
       disabled={disabled}
       onConfirm={onConfirm}
+      onOpenChange={onOpenChange}
     >
       {children}
     </AlunePopconfirm>

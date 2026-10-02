@@ -1,16 +1,25 @@
-import { repositorySourceLabel } from '../stores/repositorySource';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import { Dropdown, Tooltip } from '@alune/ui';
 import type { MenuProps } from 'antd';
-import { CloseOutlined, FolderOpenOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  CloseOutlined,
+  CloudServerOutlined,
+  LaptopOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
+import type { Repository } from '@alune/shared';
+import { RepositoryIdentity, RepositoryIdentityTooltip } from './RepositoryIdentity';
+import { repositoryAccessibleName } from '../stores/repositoryLabels';
 import { horizontalPlacement, moveBeforeOrAfter } from '../stores/sidebarOrder';
 import type { Placement } from '../stores/sidebarOrder';
 import { tabsToClose } from '../stores/tabCommands';
 import type { TabCloseCommand } from '../stores/tabCommands';
 
 interface Props {
-  repositories: any[];
+  repositories: Repository[];
+  workspaceLabels: Map<string, string>;
+  connections: { id: string; name: string }[];
   activeId?: string;
   onSelect: (id: string) => void;
   onMove: (sourceId: string, targetId: string, placement: Placement) => boolean;
@@ -35,6 +44,8 @@ const closeCommands: { key: TabCloseCommand; label: string; spoken: string }[] =
 
 export function RepositoryTabs({
   repositories,
+  workspaceLabels,
+  connections,
   activeId,
   onSelect,
   onMove,
@@ -54,6 +65,12 @@ export function RepositoryTabs({
   const dragStep = useRef(0);
   const previousPositions = useRef<Map<string, number> | null>(null);
   const animations = useRef<Animation[]>([]);
+  const sourceLabel = (repo: Repository) =>
+    repo.source === 'local'
+      ? '本机'
+      : connections.find((connection) => connection.id === repo.connectionId)?.name ||
+        repo.connectionId ||
+        'SSH';
 
   useLayoutEffect(() => {
     const previous = previousPositions.current;
@@ -311,7 +328,9 @@ export function RepositoryTabs({
           label: (
             <span className="repository-tab-menu__heading" title={menuTitle}>
               <span className="repository-tab-menu__heading-prefix">标签页 ·</span>
-              <span className="repository-tab-menu__name">{menuTarget.name}</span>
+              <span className="repository-tab-menu__name">
+                {[menuTarget.name, workspaceLabels.get(menuTarget.id)].filter(Boolean).join(' · ')}
+              </span>
             </span>
           ),
           children: closeCommands.flatMap(({ key, label, spoken }) => {
@@ -368,6 +387,8 @@ export function RepositoryTabs({
       >
         {repositories.map((repo, index) => {
           const active = repo.id === activeId;
+          const source = sourceLabel(repo);
+          const accessibleName = repositoryAccessibleName(repo, source);
           const shift =
             destinationIndex > sourceIndex && index > sourceIndex && index <= destinationIndex
               ? -dragStep.current
@@ -390,25 +411,39 @@ export function RepositoryTabs({
               }}
               onKeyDown={(event) => keyboardMenu(event, repo.id)}
             >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={active}
-                aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight Shift+F10 ContextMenu"
-                className="repository-tab__select"
-                title={repo.path ? `${repo.name} · ${repo.path}` : repo.name}
-                onClick={() => onSelect(repo.id)}
-                onKeyDown={(event) => keyboardMove(event, repo.id, repo.name)}
+              <RepositoryIdentityTooltip
+                repo={repo}
+                source={source}
+                disabled={Boolean(dragging || menu)}
               >
-                <FolderOpenOutlined />
-                <span className="repository-tab__name">{repo.name}</span>
-                <span className="source-badge">{repositorySourceLabel(repo)}</span>
-                {repo.isDirty && <span className="repository-tab__dirty" aria-label="有改动" />}
-              </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight Shift+F10 ContextMenu"
+                  className="repository-tab__select"
+                  aria-label={accessibleName}
+                  onClick={() => onSelect(repo.id)}
+                  onKeyDown={(event) => keyboardMove(event, repo.id, accessibleName)}
+                >
+                  <RepositoryIdentity repo={repo} label={workspaceLabels.get(repo.id)} />
+                  <span className="repository-tab__source" title={source} aria-label={source}>
+                    {repo.source === 'local' ? (
+                      <LaptopOutlined />
+                    ) : (
+                      <>
+                        <CloudServerOutlined />
+                        <span>{source}</span>
+                      </>
+                    )}
+                  </span>
+                  {repo.isDirty && <span className="repository-tab__dirty" aria-label="有改动" />}
+                </button>
+              </RepositoryIdentityTooltip>
               <button
                 type="button"
                 className="repository-tab__close"
-                aria-label={`关闭 ${repo.name}`}
+                aria-label={`关闭 ${accessibleName}`}
                 draggable={false}
                 onClick={(event) => {
                   event.stopPropagation();
