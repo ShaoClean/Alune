@@ -15,6 +15,7 @@ import { TerminalRegistry } from '../terminal/terminal-registry';
 import {
   DiffImages,
   GitCommands,
+  GitBlame,
   GitWorktrees,
   RepositoryFiles,
   worktreePathKey,
@@ -22,8 +23,9 @@ import {
   runGit,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
-import { REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
+import { BLAME_TIMEOUT_MS, REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
 import type {
+  BlameOptions,
   Repository,
   RepositoryStatus,
   DiffOptions,
@@ -559,6 +561,45 @@ export class RepositoryService {
     const repo = await this.get(id);
     const conn = await this.connection(repo);
     return new RepositoryFiles(conn).read(repo.path, path);
+  }
+
+  private async withBlame<T>(
+    id: string,
+    operation: (git: GitBlame, path: string, signal: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new GatewayTimeoutException('逐行追溯超时，请稍后重试。');
+        controller.abort(error);
+        reject(error);
+      }, BLAME_TIMEOUT_MS);
+    });
+    const work = (async () => {
+      const repo = await this.get(id);
+      const conn = await this.connection(repo);
+      controller.signal.throwIfAborted();
+      return operation(new GitBlame(conn), repo.path, controller.signal);
+    })();
+    try {
+      return await Promise.race([work, timeout]);
+    } finally {
+      clearTimeout(timer!);
+      controller.abort();
+    }
+  }
+
+  getBlame(id: string, options: BlameOptions) {
+    return this.withBlame(id, (git, path, signal) =>
+      git.read(path, options, signal),
+    );
+  }
+
+  getBlameCommit(id: string, hash: string) {
+    return this.withBlame(id, (git, path, signal) =>
+      git.commit(path, hash, signal),
+    );
   }
 
   async getCommitFiles(id: string, commit: string, parentCommit?: string) {

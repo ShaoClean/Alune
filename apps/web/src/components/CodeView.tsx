@@ -1,4 +1,5 @@
 import { FeedbackAlert } from '@alune/ui';
+import type { ReactNode } from 'react';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useCodeTheme } from './useCodeTheme';
@@ -17,6 +18,8 @@ export function CodeView({
   language,
   showNotice = true,
   scrollKey,
+  annotations,
+  focusLine,
 }: {
   path: string;
   text: string;
@@ -24,6 +27,8 @@ export function CodeView({
   language: FileLanguage | null;
   showNotice?: boolean;
   scrollKey?: string;
+  annotations?: ReactNode;
+  focusLine?: number;
 }) {
   const container = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -33,6 +38,18 @@ export function CodeView({
       container.current.scrollLeft = position.left;
     }
   }, [scrollKey]);
+  useLayoutEffect(() => {
+    if (!focusLine || !container.current) return;
+    const line = container.current.querySelector<HTMLElement>(`[data-blame-line="${focusLine}"]`);
+    if (line)
+      container.current.scrollTop = Math.max(
+        0,
+        line.getBoundingClientRect().top -
+          container.current.getBoundingClientRect().top +
+          container.current.scrollTop -
+          80,
+      );
+  }, [focusLine, scrollKey]);
   const { theme, style } = useCodeTheme();
   const notice = useWorkspaceStore((state) => state.codeAppearanceNotice);
   const highlightable = Boolean(language) && text.length <= HIGHLIGHT_MAX_CHARS;
@@ -101,6 +118,7 @@ export function CodeView({
         data-code-theme={theme.id}
       >
         <div className="files-code__lines">
+          {annotations}
           <pre className="files-code__gutter" aria-hidden="true">
             {gutter}
           </pre>

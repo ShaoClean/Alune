@@ -97,6 +97,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   );
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<{ repoId: string; hash: string }>();
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [syncing, setSyncing] = useState<SyncOperation | null>(null);
   const [syncingForce, setSyncingForce] = useState(false);
@@ -221,6 +222,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   useLayoutEffect(() => clearDiff, [id, activePanel, clearDiff]);
 
   const selectPanel = (panel: Panel) => {
+    setHistoryTarget(undefined);
     setActivePanel(panel);
     setSelectedFile(null);
     if (compact && panel === 'changes') updateLayout({ changesCollapsed: false });
@@ -435,12 +437,23 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
               clearDiff();
             }
           }}
+          onSelectCommit={(hash) => {
+            setHistoryTarget({ repoId: id, hash });
+            setActivePanel('history');
+          }}
           gitFiles={statusEntry?.data?.files}
         />
       );
     if (activePanel === 'pull-requests')
       return <PullRequestsView key={id} repoId={id} refreshToken={pullRequestsRefresh} />;
-    if (activePanel === 'history') return <HistoryWorkspace repoId={id} />;
+    if (activePanel === 'history')
+      return (
+        <HistoryWorkspace
+          key={id}
+          repoId={id}
+          targetHash={historyTarget?.repoId === id ? historyTarget.hash : undefined}
+        />
+      );
     if (activePanel === 'branches')
       return <BranchesView key={id} repoId={id} onRefresh={() => void handleRefresh(true)} />;
     if (activePanel === 'stashes')
