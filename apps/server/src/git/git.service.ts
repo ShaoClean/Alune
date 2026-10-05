@@ -33,9 +33,13 @@ import {
   runGit,
   assertFileChanges,
   ignoreDirectory,
+  ConflictResolution,
+  ConflictResolutionError,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
 import type {
+  ConflictBlockChoice,
+  ConflictSide,
   DiscardChangesScope,
   Repository,
   SwitchBranchResult,
@@ -682,6 +686,61 @@ export class GitService implements OnModuleDestroy {
         this.value(commit, '提交'),
       ]),
     );
+  }
+  private conflict<T>(
+    id: string,
+    kind: string,
+    operation: (conflicts: ConflictResolution, repo: Repository) => Promise<T>,
+  ) {
+    return this.write(id, kind, async (_git, repo, connection) => {
+      try {
+        return await operation(new ConflictResolution(connection), repo);
+      } catch (error) {
+        if (error instanceof ConflictResolutionError)
+          throw new HttpException(error.message, error.statusCode);
+        throw error;
+      }
+    });
+  }
+  continueOperation(id: string) {
+    return this.conflict(id, 'conflict-continue', (conflicts, repo) =>
+      conflicts.continue(repo.path),
+    );
+  }
+  skipOperation(id: string) {
+    return this.conflict(id, 'conflict-skip', (conflicts, repo) =>
+      conflicts.skip(repo.path),
+    );
+  }
+  abortOperation(id: string) {
+    return this.conflict(id, 'conflict-abort', async (conflicts, repo) => {
+      await conflicts.abort(repo.path);
+      return { success: true };
+    });
+  }
+  resolveConflictFile(id: string, file: string, side: ConflictSide) {
+    return this.conflict(id, 'resolve-conflict', async (conflicts, repo) => {
+      await conflicts.resolveFile(repo.path, this.files(repo, [file])[0], side);
+      return { success: true };
+    });
+  }
+  resolveConflictBlock(
+    id: string,
+    file: string,
+    index: number,
+    choice: ConflictBlockChoice,
+    expected: string,
+  ) {
+    return this.conflict(id, 'resolve-conflict', async (conflicts, repo) => {
+      await conflicts.resolveBlock(
+        repo.path,
+        this.files(repo, [file])[0],
+        index,
+        choice,
+        expected,
+      );
+      return { success: true };
+    });
   }
   addRemote(id: string, name: string, url: string) {
     return this.write(id, 'add-remote', (git, repo) =>
