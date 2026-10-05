@@ -78,7 +78,7 @@ export class GitService implements OnModuleDestroy {
       signal?.addEventListener('abort', abort, { once: true });
       if (signal?.aborted) abort();
     });
-    const connection = await (
+    const connection: RepositoryTransport = await (
       signal ? Promise.race([connecting, cancelled]) : connecting
     ).finally(() => {
       if (abort) signal?.removeEventListener('abort', abort);
@@ -86,6 +86,7 @@ export class GitService implements OnModuleDestroy {
     signal?.throwIfAborted();
     return {
       signal,
+      hasAnyPath: connection.hasAnyPath?.bind(connection),
       execGit: connection.execGit?.bind(connection),
       execCommand: (...args) => connection.execCommand(...args),
       withSftp: (operation) => connection.withSftp(operation),

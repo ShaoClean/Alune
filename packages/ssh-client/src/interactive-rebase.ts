@@ -12,7 +12,7 @@ import {
 } from '@alune/shared';
 import { runGit, type RepositoryTransport } from './repository-transport';
 import { joinRepositoryPath } from './repository-path';
-import { quotePosixArgument } from './git-shell';
+import { isWindowsPath, quotePosixArgument } from './git-shell';
 import { readSftpChunks } from './sftp-file';
 import { validateRepositoryPath } from './repository-files';
 
@@ -91,8 +91,47 @@ export class InteractiveRebase {
     return withoutNewline(await this.git(root, ['rev-parse', '--absolute-git-dir']));
   }
 
+  private async hasState(directory: string): Promise<boolean> {
+    // Ordinary Git operations must still work on SSH hosts without SFTP.
+    // Only open the file subsystem when Git or Alune has a recovery marker.
+    const paths = ['rebase-merge', 'rebase-apply', SESSION].map((name) =>
+      joinRepositoryPath(directory, name),
+    );
+    if (this.connection.hasAnyPath) return this.connection.hasAnyPath(paths);
+    let probe: string;
+    if (isWindowsPath(directory)) {
+      const literals = paths.map((path) => `'${path.replace(/'/g, "''")}'`).join(',');
+      const script = [
+        "$ErrorActionPreference = 'Stop'",
+        '$found = $false',
+        `foreach ($rebasePath in @(${literals})) { try { $null = Get-Item -LiteralPath $rebasePath -Force; $found = $true } catch [System.Management.Automation.ItemNotFoundException] {} }`,
+        "if ($found) { [Console]::Write('active') } else { [Console]::Write('idle') }",
+      ].join('; ');
+      probe = `powershell -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(script, 'utf16le').toString('base64')}`;
+    } else {
+      const checks = paths
+        .map((path) => `[ -e ${quotePosixArgument(path)} ] || [ -L ${quotePosixArgument(path)} ]`)
+        .join(' || ');
+      probe = `if ${checks}; then printf active; else printf idle; fi`;
+    }
+    const result = await this.connection.execCommand(
+      probe,
+      undefined,
+      AbortSignal.any([
+        AbortSignal.timeout(30_000),
+        ...(this.connection.signal ? [this.connection.signal] : []),
+      ]),
+      { maxOutputBytes: 4096 },
+    );
+    if (result.exitCode !== 0 || !['idle', 'active'].includes(result.stdout.trim()))
+      throw new Error(result.stderr.trim() || '无法检查变基状态。');
+    return result.stdout.trim() === 'active';
+  }
+
   async state(root: string): Promise<RebaseState> {
     const directory = await this.directory(root);
+    if (!(await this.hasState(directory)))
+      return { active: false, managed: false, inProgress: false, conflicts: [] };
     const flags = await this.connection.withSftp(async (files) => {
       const [merge, apply, managed] = await Promise.all([
         exists(files, joinRepositoryPath(directory, 'rebase-merge')),

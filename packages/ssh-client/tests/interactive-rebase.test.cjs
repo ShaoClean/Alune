@@ -55,6 +55,23 @@ const messages = (f) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+test('idle state does not require SFTP, but recovery markers still fail closed', async (t) => {
+  const f = await fixture(t);
+  const connection = new LocalConnection();
+  connection.withSftp = async () => {
+    throw new Error('SFTP unavailable');
+  };
+  const rebase = new InteractiveRebase(connection);
+  assert.deepEqual(await rebase.state(f.repo), {
+    active: false,
+    managed: false,
+    inProgress: false,
+    conflicts: [],
+  });
+  fs.mkdirSync(path.join(f.git('rev-parse', '--absolute-git-dir'), 'alune-interactive-rebase'));
+  await assert.rejects(rebase.state(f.repo), /SFTP unavailable/);
+});
+
 for (const mode of ['local', 'worktree', 'ssh']) {
   test(
     `${mode}: reorder, reword, consecutive squash/fixup and drop use real Git`,
