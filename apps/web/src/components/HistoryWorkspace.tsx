@@ -2,13 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CommitFile, GraphCommit } from '@alune/shared';
 import { Button } from '@alune/ui';
-import { ArrowLeftOutlined, CloseOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CloseOutlined, TagOutlined } from '@ant-design/icons';
 import { HistoryReference, HistoryView } from './HistoryView';
 import { DiffViewer } from './DiffViewer';
 import { FileIcon, ErrorState } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
+import { CreateTagDialog } from './CreateTagDialog';
 
 const statuses = { added: 'A', modified: 'M', deleted: 'D', renamed: 'R', copied: 'C' };
 
@@ -28,6 +29,8 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
     clearDiff,
   } = useRepositoryStore();
   const [selected, setSelected] = useState<GraphCommit | null>(null);
+  const [tagTarget, setTagTarget] = useState<string | null>(null);
+  useEffect(() => setTagTarget(null), [repoId]);
   const [file, setFile] = useState<CommitFile | null>(null);
   const [ratio, setRatio] = useState(60);
   const [focusDiff, setFocusDiff] = useState(false);
@@ -160,6 +163,13 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
               <strong title={selected.message}>{selected.message}</strong>
               <code title={selected.hash}>{selected.shortHash}</code>
               <Button
+                size="small"
+                icon={<TagOutlined />}
+                onClick={() => setTagTarget(selected.hash)}
+              >
+                创建标签
+              </Button>
+              <Button
                 type="text"
                 size="small"
                 icon={<CloseOutlined />}
@@ -256,6 +266,14 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
             </div>
           </section>
         </>
+      )}
+      {tagTarget && (
+        <CreateTagDialog
+          repoId={repoId}
+          target={tagTarget}
+          onCancel={() => setTagTarget(null)}
+          onCreated={() => setTagTarget(null)}
+        />
       )}
     </div>
   );

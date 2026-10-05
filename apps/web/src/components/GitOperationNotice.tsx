@@ -20,6 +20,10 @@ const labels: Record<string, string> = {
   'create-worktree': '创建 Worktree',
   'remove-worktree': '删除 Worktree',
   'delete-file': '删除文件',
+  'create-tag': '创建标签',
+  'delete-tag': '删除标签',
+  'push-tag': '推送标签',
+  'checkout-tag': '从标签检出',
 };
 export function GitOperationNotice({
   repoId,

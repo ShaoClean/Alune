@@ -1,6 +1,7 @@
 export { SSHConnection, SSHConnectionPool, parseSSHConfig } from './connection-manager';
 export type { SSHConnectionOptions, CommandResult, StreamCallbacks } from './connection-manager';
 export { GitCommands } from './git-commands';
+export { GitTags } from './git-tags';
 export { assertFileChanges, ignoreDirectory } from './change-entries';
 export { GitWorktrees, worktreePathKey } from './worktrees';
 export { StagedChanges, StagedChangesError, AI_DIFF_MAX_BYTES } from './staged-changes';

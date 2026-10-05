@@ -8,7 +8,13 @@ import {
   Query,
 } from '@nestjs/common';
 import { GitService } from './git.service';
-import type { SwitchBranchOptions } from '@alune/shared';
+import type {
+  SwitchBranchOptions,
+  CreateTagOptions,
+  DeleteTagOptions,
+  PushTagOptions,
+  CheckoutTagOptions,
+} from '@alune/shared';
 
 @Controller('repositories')
 export class GitController {
@@ -84,6 +90,51 @@ export class GitController {
     @Body() body: { remote?: string },
   ) {
     return this.gitService.fetch(id, body.remote);
+  }
+
+  @Get(':id/tags')
+  tags(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gitService.tags(id);
+  }
+
+  @Get(':id/tags/remote')
+  remoteTags(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('remote') remote: string,
+  ) {
+    return this.gitService.tags(id, remote ?? '');
+  }
+
+  @Post(':id/tags')
+  createTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CreateTagOptions,
+  ) {
+    return this.gitService.createTag(id, body);
+  }
+
+  @Post(':id/tags/delete')
+  deleteTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: DeleteTagOptions,
+  ) {
+    return this.gitService.deleteTag(id, body);
+  }
+
+  @Post(':id/tags/push')
+  pushTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: PushTagOptions,
+  ) {
+    return this.gitService.pushTag(id, body);
+  }
+
+  @Post(':id/tags/checkout')
+  checkoutTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CheckoutTagOptions,
+  ) {
+    return this.gitService.checkoutTag(id, body);
   }
 
   @Post(':id/branch')
