@@ -1,3 +1,4 @@
+import { PullRequestCreationService } from './pull-request-creation.service';
 import { Module } from '@nestjs/common';
 import { RepositoryService } from './repository.service';
 import { RepositoryController } from './repository.controller';
@@ -18,8 +19,9 @@ import { RepositoryAnalyticsController } from './repository-analytics.controller
   providers: [
     RepositoryService,
     PullRequestsService,
+    PullRequestCreationService,
     RepositoryAnalyticsService,
   ],
-  exports: [RepositoryService],
+  exports: [RepositoryService, PullRequestCreationService],
 })
 export class RepositoryModule {}

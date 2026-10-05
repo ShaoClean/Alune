@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type {
   AiSettings,
+  PullRequestCreationQuery,
   SaveAiProvider,
   CommitGenerationPreferences,
   GeneratedCommit,
@@ -27,6 +28,14 @@ export const aiApi = {
       .then((r) => r.data),
   test: (id: string, input: TestAiProvider, signal: AbortSignal): Promise<{ message: string }> =>
     api.post(`/providers/${encodeURIComponent(id)}/test`, input, { signal }).then((r) => r.data),
+  generatePullRequest: (
+    repoId: string,
+    query: PullRequestCreationQuery & { configRevision: string; revision: string },
+    signal: AbortSignal,
+  ): Promise<{ title: string; description: string; truncated: boolean }> =>
+    api
+      .post(`/repositories/${encodeURIComponent(repoId)}/pull-request`, query, { signal })
+      .then((r) => r.data),
   generate: (repoId: string, revision: string, signal: AbortSignal): Promise<GeneratedCommit> =>
     api
       .post(`/repositories/${encodeURIComponent(repoId)}/generate`, { revision }, { signal })

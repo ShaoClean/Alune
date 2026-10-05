@@ -144,3 +144,48 @@ export interface PullRequestResourcePage<T> {
   notice?: string;
 }
 import type { PullRequestSelection } from './access-tokens';
+
+export interface PullRequestCreationQuery extends Omit<PullRequestQuery, 'state' | 'page'> {
+  sourceBranch?: string;
+  targetBranch?: string;
+}
+
+export interface PullRequestCreationPreview {
+  sourceBranch: string;
+  targetBranch: string;
+  defaultBranch: string;
+  branches: string[];
+  revision: string;
+  pushRequired: boolean;
+  pushBlockedReason?: string;
+  notice?: string;
+  commits: { hash: string; message: string }[];
+  files: PullRequestFile[];
+  existing?: PullRequestItem;
+  template: string;
+  templatePath?: string;
+  options: {
+    assignees: { value: string; label: string }[];
+    reviewers: { value: string; label: string }[];
+    labels: { value: string; label: string }[];
+    notice?: string;
+  };
+}
+
+export interface CreatePullRequest extends PullRequestCreationQuery {
+  sourceBranch: string;
+  targetBranch: string;
+  revision: string;
+  operationId: string;
+  title: string;
+  description: string;
+  draft: boolean;
+  assignees?: string[];
+  reviewers?: string[];
+  labels?: string[];
+}
+
+export interface CreatedPullRequest {
+  item: PullRequestItem;
+  warning?: string;
+}

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Input } from '@alune/ui';
@@ -109,6 +110,7 @@ interface Props {
 }
 
 export function BranchesView({ repoId, onRefresh }: Props) {
+  const navigate = useNavigate();
   const message = useFeedbackMessage();
   const { branches, fetchBranches, error, errorPanel } = useRepositoryStore();
   // P02 reads the working tree so the merge prompt states the real number of changes.
@@ -241,6 +243,19 @@ export function BranchesView({ repoId, onRefresh }: Props) {
               合并
             </Button>
           </AlunePopconfirm>
+        )}
+        {!branch.isRemote && (
+          <Button
+            size="small"
+            disabled={loading}
+            onClick={() =>
+              navigate(
+                `/repositories/${repoId}?${new URLSearchParams({ panel: 'pull-requests', createPr: '1', sourceBranch: branch.name })}`,
+              )
+            }
+          >
+            创建 PR/MR
+          </Button>
         )}
         {!branch.isRemote && (
           <Button

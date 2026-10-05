@@ -145,7 +145,10 @@ function apiUrl(remote: PullRequestRemote, query: PullRequestQuery): URL {
   return url;
 }
 
-async function readJson(response: Response): Promise<unknown> {
+async function readJson(
+  response: Response,
+  maxBytes = MAX_RESPONSE_BYTES,
+): Promise<unknown> {
   if (!response.body)
     throw new BadGatewayException('托管平台返回了空响应，请重试。');
   const reader = response.body.getReader();
@@ -156,7 +159,7 @@ async function readJson(response: Response): Promise<unknown> {
       const { value, done } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_RESPONSE_BYTES)
+      if (size > maxBytes)
         throw new BadGatewayException('托管平台响应过大，请在浏览器中查看。');
       chunks.push(value);
     }
@@ -167,7 +170,7 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-function normalizeItem(
+export function normalizeItem(
   value: any,
   remote: PullRequestRemote,
   query: PullRequestQuery,
@@ -302,7 +305,7 @@ export class PullRequestsService {
     });
   }
 
-  private withRequest<T>(
+  withRequest<T>(
     id: string,
     query: Pick<PullRequestQuery, 'remote' | 'target' | 'provider' | 'token'>,
     work: (
@@ -316,7 +319,9 @@ export class PullRequestsService {
         },
       ) => Promise<{ data: unknown; hasMore: boolean }>,
       authenticated: boolean,
+      signal: AbortSignal,
     ) => Promise<T>,
+    limits?: { responseBytes?: number },
   ): Promise<T> {
     return this.withDeadline(async (signal) => {
       const remote = await this.target(id, query, signal);
@@ -378,11 +383,13 @@ export class PullRequestsService {
                 response.headers.has('retry-after')));
           const message =
             options && [400, 405, 406, 409, 422].includes(response.status)
-              ? response.status === 409
-                ? '托管平台检测到代码版本或状态冲突，请刷新后重新确认。'
-                : url.pathname.endsWith('/merge')
-                  ? '平台拒绝合并：冲突、所需检查、审批或分支保护条件未满足，请刷新后核对。'
-                  : '平台拒绝此操作：评论内容或代码定位无效，或 PR/MR 状态已变化。请刷新详情后重试。'
+              ? /\/(pulls|merge_requests)$/.test(url.pathname)
+                ? '无法创建 PR/MR：请检查是否已存在相同分支的请求、分支是否已推送、目标分支及标题是否有效。'
+                : response.status === 409
+                  ? '托管平台检测到代码版本或状态冲突，请刷新后重新确认。'
+                  : url.pathname.endsWith('/merge')
+                    ? '平台拒绝合并：冲突、所需检查、审批或分支保护条件未满足，请刷新后核对。'
+                    : '平台拒绝此操作：评论内容或代码定位无效，或 PR/MR 状态已变化。请刷新详情后重试。'
               : limited
                 ? '托管平台请求次数已达上限，请稍后重试，或为公开仓库配置令牌。'
                 : response.status === 401
@@ -410,7 +417,7 @@ export class PullRequestsService {
                 : 502,
           );
         }
-        const data = await readJson(response);
+        const data = await readJson(response, limits?.responseBytes);
         if (!options) credential.assertCurrent();
         return {
           data,
@@ -419,7 +426,12 @@ export class PullRequestsService {
             Boolean(response.headers.get('x-next-page')),
         };
       };
-      const result = await work(remote, request, Boolean(credential.token));
+      const result = await work(
+        remote,
+        request,
+        Boolean(credential.token),
+        signal,
+      );
       // A credential change cannot undo a dispatched write. Preserve its receipt
       // so an acknowledged success is never presented as a retryable failure.
       if (!writeDispatched) credential.assertCurrent();
