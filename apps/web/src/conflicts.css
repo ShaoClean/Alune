@@ -1,0 +1,337 @@
+/* Merge conflicts: "current" (HEAD) is blue, "incoming" is purple, unresolved state is orange. */
+
+/* Operation bar above the change groups. */
+.conflict-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 11px;
+  background: var(--orange-soft);
+  border: 1px solid var(--orange-line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-sm);
+}
+.conflict-bar__main {
+  display: flex;
+  flex: 1 1 220px;
+  gap: 9px;
+  min-width: 0;
+}
+.conflict-bar__icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--orange);
+  background: var(--surface);
+  border: 1px solid var(--orange-line);
+  border-radius: 6px;
+}
+.conflict-bar__icon svg {
+  width: 14px;
+  height: 14px;
+}
+.conflict-bar__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.conflict-bar__text > strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.conflict-bar__step {
+  padding: 1px 6px;
+  color: var(--orange);
+  background: var(--surface);
+  border: 1px solid var(--orange-line);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.conflict-bar__subject {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conflict-bar__sides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.conflict-bar__sides i {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+.conflict-bar__sides i::before {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  content: '';
+  border-radius: 2px;
+}
+.conflict-bar__sides i[data-side='current']::before,
+.conflict-side[data-side='current'] .conflict-side__title::before {
+  background: var(--blue);
+}
+.conflict-bar__sides i[data-side='incoming']::before,
+.conflict-side[data-side='incoming'] .conflict-side__title::before {
+  background: var(--purple);
+}
+.conflict-bar__state.is-open {
+  color: var(--orange);
+  font-weight: 600;
+}
+.conflict-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Conflict group and rows in the Changes list. */
+.change-group--conflict {
+  border-color: var(--orange-line);
+}
+.change-group--conflict .change-group__header {
+  background: var(--orange-soft);
+  border-bottom-color: var(--orange-line);
+}
+.change-group--conflict .change-group__title .anticon {
+  color: var(--orange);
+}
+.change-group__hint {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.file-row__conflict {
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  color: var(--orange);
+  background: var(--orange-soft);
+  border: 1px solid var(--orange-line);
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Resolver in the detail pane. */
+.conflict-kind {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  color: var(--orange);
+  background: var(--orange-soft);
+  border: 1px solid var(--orange-line);
+  border-radius: 4px;
+  font-family: var(--font-sans, inherit);
+  font-size: 10px;
+  font-weight: 600;
+}
+.conflict-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 9px 15px;
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--line);
+}
+.conflict-summary p {
+  flex: 1 1 260px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.conflict-summary__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.conflict-summary__actions .ant-btn[data-side='current']:not(:disabled) {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+.conflict-summary__actions .ant-btn[data-side='incoming']:not(:disabled) {
+  color: var(--purple);
+  border-color: var(--purple-line);
+}
+.conflict-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 15px 18px;
+  background: var(--content);
+}
+.diff-shell__body.conflict-body pre {
+  min-width: 0;
+  padding: 8px 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.conflict-context {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.diff-shell__body .conflict-context {
+  color: var(--text-muted);
+}
+.diff-shell__body .conflict-context--full {
+  color: var(--text);
+}
+.conflict-fold {
+  align-self: flex-start;
+  padding: 3px 9px;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  font-size: 10px;
+  cursor: pointer;
+}
+.conflict-fold:hover {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+.conflict-fold:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.conflict-block {
+  background: var(--surface-raised);
+  border: 1px solid var(--orange-line);
+  border-left: 3px solid var(--orange);
+  border-radius: 6px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.conflict-block__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  padding: 7px 10px;
+  background: var(--orange-soft);
+  border-bottom: 1px solid var(--orange-line);
+}
+.conflict-block__header strong {
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.conflict-block__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.conflict-block__actions .ant-btn[data-choice='current']:not(:disabled):hover {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+.conflict-block__actions .ant-btn[data-choice='incoming']:not(:disabled):hover {
+  color: var(--purple);
+  border-color: var(--purple-line);
+}
+.conflict-block__sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.conflict-block__sides.has-base {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.conflict-side {
+  min-width: 0;
+}
+.conflict-side + .conflict-side {
+  border-left: 1px solid var(--line);
+}
+.conflict-side__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 11px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+}
+.conflict-side__title::before {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  content: '';
+  background: var(--line-strong);
+  border-radius: 2px;
+}
+.conflict-side__title strong {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-weight: 600;
+}
+.conflict-side__title span {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conflict-side[data-side='current'] {
+  background: var(--blue-soft);
+}
+.conflict-side[data-side='incoming'] {
+  background: var(--purple-soft);
+}
+.diff-shell__body .conflict-side pre {
+  background: transparent;
+}
+.conflict-side__empty {
+  margin: 0;
+  padding: 8px 11px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+}
+.conflict-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.conflict-empty--error {
+  color: var(--red);
+}
+
+/* Narrow detail panes stack the sides; current stays above incoming. */
+@media (max-width: 900px) {
+  .conflict-block__sides,
+  .conflict-block__sides.has-base {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .conflict-side + .conflict-side {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+}

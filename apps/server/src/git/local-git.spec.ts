@@ -148,11 +148,19 @@ describe('local repositories with real Git and SQLite', () => {
     const detached = join(root, 'detached');
     git('worktree', 'add', '-qb', 'feature', feature);
     git('worktree', 'add', '-q', '--detach', detached);
-    const selected = (await repos.getWorktrees(id)).find((item) => item.branch === 'feature')!;
+    const selected = (await repos.getWorktrees(id)).find(
+      (item) => item.branch === 'feature',
+    )!;
     const linked = await repos.openWorktree(id, selected.path);
     const headless = await repos.addLocal(detached);
-    for (const [target, expected] of [[id, 'main'], [linked.id, 'linked'], [headless.id, 'linked']]) {
-      const { body } = await request(app.getHttpServer()).get(`/repositories/${target}/status`).expect(200);
+    for (const [target, expected] of [
+      [id, 'main'],
+      [linked.id, 'linked'],
+      [headless.id, 'linked'],
+    ]) {
+      const { body } = await request(app.getHttpServer())
+        .get(`/repositories/${target}/status`)
+        .expect(200);
       expect(body.worktreeKind).toBe(expected);
       expect((await repos.get(target)).worktreeKind).toBe(expected);
       if (target === headless.id) expect(body.branch).toBe('');
@@ -296,9 +304,54 @@ describe('local repositories with real Git and SQLite', () => {
     await service.stage(id, ['tracked.txt']);
     await service.commit(id, 'main edit');
     await expect(service.merge(id, 'conflict')).rejects.toThrow();
+    let status = await repos.getStatus(id);
+    expect(status.files.some((file) => file.conflicted)).toBe(true);
+    expect(status.files[0]).toMatchObject({
+      path: 'tracked.txt',
+      conflict: 'both-modified',
+    });
+    expect(status.operation).toMatchObject({
+      kind: 'merge',
+      branch: 'conflict',
+      subject: 'branch edit',
+    });
+
+    const rejected = (promise: Promise<unknown>) =>
+      expect(promise).rejects.toMatchObject({ status: expect.any(Number) });
+    const code = async (promise: Promise<unknown>) =>
+      promise.then(
+        () => 200,
+        (error: { getStatus?: () => number }) => error.getStatus?.(),
+      );
+    expect(await code(service.continueOperation(id))).toBe(409);
+    expect(await code(service.skipOperation(id))).toBe(400);
     expect(
-      (await repos.getStatus(id)).files.some((file) => file.conflicted),
-    ).toBe(true);
+      await code(
+        service.resolveConflictBlock(id, 'tracked.txt', 0, 'both', 'x'),
+      ),
+    ).toBe(409);
+    await rejected(
+      service.resolveConflictFile(id, '../tracked.txt', 'current'),
+    );
+    await service.abortOperation(id);
+    status = await repos.getStatus(id);
+    expect(status.operation).toBeUndefined();
+    expect(status.files).toEqual([]);
+
+    await expect(service.merge(id, 'conflict')).rejects.toThrow();
+    const raw = readFileSync(join(path, 'tracked.txt'), 'utf8');
+    await service.resolveConflictBlock(id, 'tracked.txt', 0, 'incoming', raw);
+    expect(readFileSync(join(path, 'tracked.txt'), 'utf8')).toBe('branch\n');
+    await service.stage(id, ['tracked.txt']);
+    await expect(service.continueOperation(id)).resolves.toEqual({
+      success: true,
+      conflicts: false,
+    });
+    status = await repos.getStatus(id);
+    expect(status.operation).toBeUndefined();
+    expect(git('log', '-1', '--format=%s').trim()).toBe(
+      "Merge branch 'conflict'",
+    );
   });
 
   it('previews/apply/pop/drop stashes, including untracked files when selected', async () => {

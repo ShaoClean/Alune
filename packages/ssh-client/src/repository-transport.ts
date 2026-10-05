@@ -1,7 +1,12 @@
 import type { SSHConnection, CommandResult } from './connection-manager';
 import { gitFileCommand } from './git-shell';
 
-export type CommandOptions = { maxOutputBytes?: number; strictUtf8?: boolean; binary?: boolean };
+export type CommandOptions = {
+  maxOutputBytes?: number;
+  strictUtf8?: boolean;
+  binary?: boolean;
+  environment?: Record<string, string>;
+};
 
 // Git and file parsing are shared; only execution and file transport differ.
 export type RepositoryTransport = Pick<SSHConnection, 'execCommand' | 'withSftp'> & {
@@ -32,5 +37,10 @@ export function runGit(
   // accepted by our stash operations, so allow Git's internal pathspec handling.
   if (args[0] === 'stash') args = ['--no-literal-pathspecs', ...args];
   if (connection.execGit) return connection.execGit(path, args, combined, options);
-  return connection.execCommand(gitFileCommand(path, args), undefined, combined, options);
+  return connection.execCommand(
+    gitFileCommand(path, args, options?.environment),
+    undefined,
+    combined,
+    options,
+  );
 }
