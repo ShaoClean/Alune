@@ -180,9 +180,11 @@ function ConflictDialog({
 export function RebaseOperationNotice({
   repoId,
   onFinished,
+  onManagedChange,
 }: {
   repoId: string;
   onFinished: () => void;
+  onManagedChange?: (managed: boolean) => void;
 }) {
   const feedback = useFeedbackMessage();
   const [state, setState] = useState<RebaseState | null>(null);
@@ -193,6 +195,11 @@ export function RebaseOperationNotice({
   const [confirmation, setConfirmation] = useState<'skip' | 'abort' | null>(null);
   const callback = useRef(onFinished);
   callback.current = onFinished;
+  const managedCallback = useRef(onManagedChange);
+  managedCallback.current = onManagedChange;
+  useEffect(() => {
+    managedCallback.current?.(!!state?.managed);
+  }, [state?.managed]);
   const pending = useRef(false);
   const pollingRevision = useRef(0);
   useEffect(() => {
@@ -260,7 +267,7 @@ export function RebaseOperationNotice({
       notifyRebaseChanged(repoId);
     }
   };
-  if (!state?.active)
+  if (!state?.managed)
     return error ? (
       <div className="rebase-operation">
         <p className="rebase-error" role="alert">
@@ -278,9 +285,7 @@ export function RebaseOperationNotice({
             {running ? '变基正在执行' : state.inProgress ? '变基已暂停' : '变基会话需要清理'}
           </strong>
           <span className="rebase-muted">
-            {state.managed
-              ? `${state.branch ?? '当前分支'} · ${state.conflicts.length} 个冲突文件`
-              : '此变基由应用外发起，请在原操作环境中继续或中止。'}
+            {`${state.branch ?? '当前分支'} · ${state.conflicts.length} 个冲突文件`}
           </span>
         </div>
         {state.managed && (

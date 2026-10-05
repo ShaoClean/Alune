@@ -137,6 +137,58 @@ describe('interactive rebase HTTP flow with real local Git', () => {
     expect(git('rev-parse', 'HEAD')).toBe(second);
   });
 
+  it.each(['continue', 'skip', 'abort'] as const)(
+    'shared conflict controls %s a managed rebase while preserving messages and cleanup',
+    async (action) => {
+      const first = commit('first');
+      const second = commit('second');
+      const preview = await request(app.getHttpServer())
+        .post(`${route}/preview`)
+        .send({ base })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(route)
+        .send({
+          base,
+          token: preview.body.token,
+          entries: [
+            { hash: second, action: 'reword', message: 'Second rewritten' },
+            { hash: first, action: 'reword', message: 'First rewritten' },
+          ],
+        })
+        .expect(201);
+      const resolve = async () => {
+        await request(app.getHttpServer())
+          .post(`/repositories/${id}/conflicts/resolve-file`)
+          .send({ file: 'file', side: 'incoming' })
+          .expect(201);
+        await request(app.getHttpServer())
+          .post(`/repositories/${id}/stage`)
+          .send({ files: ['file'] })
+          .expect(201);
+      };
+      if (action === 'continue') await resolve();
+      const result = await request(app.getHttpServer())
+        .post(`/repositories/${id}/conflicts/${action}`)
+        .expect(201);
+      expect(result.body.success).toBe(true);
+      if (action === 'continue') {
+        expect(result.body.conflicts).toBe(true);
+        expect(git('log', '-1', '--format=%B')).toBe('Second rewritten');
+        await resolve();
+        const finished = await request(app.getHttpServer())
+          .post(`/repositories/${id}/conflicts/continue`)
+          .expect(201);
+        expect(finished.body.conflicts).toBe(false);
+      }
+      const state = await request(app.getHttpServer()).get(route).expect(200);
+      expect(state.body.active).toBe(false);
+      expect(git('status', '--porcelain')).toBe('');
+      if (action === 'abort') expect(git('rev-parse', 'HEAD')).toBe(second);
+      else expect(git('log', '-1', '--format=%B')).toBe('First rewritten');
+    },
+  );
+
   it('rejects malformed input and stale previews before touching the branch', async () => {
     const first = commit('first');
     await request(app.getHttpServer())

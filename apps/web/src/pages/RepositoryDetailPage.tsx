@@ -20,6 +20,7 @@ import { BranchesView } from '../components/BranchesView';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { ChangesView } from '../components/ChangesView';
 import { DiffViewer } from '../components/DiffViewer';
+import { ConflictResolver } from '../components/ConflictResolver';
 import { FilesView } from '../components/FilesView';
 import { HistoryWorkspace } from '../components/HistoryWorkspace';
 import { RemotesView } from '../components/RemotesView';
@@ -102,6 +103,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [syncing, setSyncing] = useState<SyncOperation | null>(null);
   const [syncingForce, setSyncingForce] = useState(false);
   const [context, setContext] = useState<RepositoryContext | null>(null);
+  const [managedRebase, setManagedRebase] = useState<string | null>(null);
   const [syncError, setSyncError] = useState('');
   const [syncAttempt, setSyncAttempt] = useState(0);
   const [syncSelection, setSyncSelection] = useState<{
@@ -198,12 +200,14 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     (file) => file.path === selectedFile?.path && file.staged === selectedFile?.staged,
   );
   const selectedStatusKey = selectedStatus
-    ? JSON.stringify([selectedStatus.status, selectedStatus.oldPath])
+    ? JSON.stringify([selectedStatus.status, selectedStatus.oldPath, selectedStatus.conflict])
     : null;
+  // Conflicted files open the resolver, which reads the worktree file itself.
+  const selectedConflict = selectedStatus?.conflicted ? selectedStatus : null;
 
   useLayoutEffect(() => {
     if (activePanel !== 'changes') return;
-    if (id && selectedFile && selectedStatusKey) {
+    if (id && selectedFile && selectedStatusKey && !selectedConflict) {
       void fetchDiff(id, { file: selectedFile.path, staged: selectedFile.staged });
     } else clearDiff();
   }, [
@@ -212,6 +216,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     selectedFile?.path,
     selectedFile?.staged,
     selectedStatusKey,
+    selectedConflict?.conflicted,
     status?.branch,
     worktreeDiffRevision,
     fetchDiff,
@@ -411,6 +416,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         <ChangesView
           key={id}
           repoId={id}
+          managedRebase={managedRebase === id}
           onRefresh={handleRefresh}
           onSelectFile={handleSelectFile}
           selectedFile={selectedFile}
@@ -482,6 +488,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         key={`rebase:${id}`}
         repoId={id!}
         onFinished={() => void handleRefresh()}
+        onManagedChange={(managed) => setManagedRebase(managed ? id! : null)}
       />
       <FeedbackNotice
         source="git-sync"
@@ -613,7 +620,21 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                   </Button>
                 </div>
               )}
-              {selectedFile ? (
+              {selectedFile && selectedConflict ? (
+                <ConflictResolver
+                  key={`${id}:${selectedFile.path}`}
+                  repoId={id!}
+                  file={selectedConflict}
+                  operation={status?.operation}
+                  revision={`${worktreeDiffRevision}:${selectedStatusKey}`}
+                  onChanged={() => handleRefresh(true)}
+                  onFocus={() => updateLayout({ sidebarCollapsed: true, changesCollapsed: true })}
+                  onClose={() => {
+                    setSelectedFile(null);
+                    returnToList();
+                  }}
+                />
+              ) : selectedFile ? (
                 <DiffViewer
                   diff={diff}
                   loading={diffLoading}

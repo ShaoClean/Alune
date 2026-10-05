@@ -42,6 +42,9 @@ import type {
   RebaseResult,
   RebaseConflict,
   RebaseResolution,
+  ConflictBlockChoice,
+  ConflictSide,
+  ConflictStepResult,
 } from '@alune/shared';
 
 const api = axios.create({
@@ -355,6 +358,30 @@ export const gitApi = {
     api.post(`/repositories/${id}/cherry-pick`, { commits }, gitTimeout).then((r) => r.data),
   revert: (id: string, commit: string) =>
     api.post(`/repositories/${id}/revert`, { commit }, gitTimeout).then((r) => r.data),
+  continueOperation: (id: string): Promise<ConflictStepResult> =>
+    api.post(`/repositories/${id}/conflicts/continue`, {}, gitTimeout).then((r) => r.data),
+  skipOperation: (id: string): Promise<ConflictStepResult> =>
+    api.post(`/repositories/${id}/conflicts/skip`, {}, gitTimeout).then((r) => r.data),
+  abortOperation: (id: string) =>
+    api.post(`/repositories/${id}/conflicts/abort`, {}, gitTimeout).then((r) => r.data),
+  resolveConflictFile: (id: string, file: string, side: ConflictSide) =>
+    api
+      .post(`/repositories/${id}/conflicts/resolve-file`, { file, side }, gitTimeout)
+      .then((r) => r.data),
+  resolveConflictBlock: (
+    id: string,
+    file: string,
+    index: number,
+    choice: ConflictBlockChoice,
+    expected: string,
+  ) =>
+    api
+      .post(
+        `/repositories/${id}/conflicts/resolve-block`,
+        { file, index, choice, expected },
+        gitTimeout,
+      )
+      .then((r) => r.data),
 };
 
 // File APIs

@@ -22,6 +22,10 @@ const labels: Record<string, string> = {
   'create-worktree': '创建 Worktree',
   'remove-worktree': '删除 Worktree',
   'delete-file': '删除文件',
+  'conflict-continue': '继续操作',
+  'conflict-skip': '跳过提交',
+  'conflict-abort': '中止操作',
+  'resolve-conflict': '解决冲突',
 };
 export function GitOperationNotice({
   repoId,

@@ -13,6 +13,7 @@ import Database from 'better-sqlite3';
 import { ConnectionService } from '../connection/connection.service';
 import { TerminalRegistry } from '../terminal/terminal-registry';
 import {
+  ConflictResolution,
   DiffImages,
   GitCommands,
   GitWorktrees,
@@ -478,9 +479,13 @@ export class RepositoryService {
       const conn = await this.connection(repo);
       // A connection may finish after this request's deadline. Do not start Git then.
       controller.signal.throwIfAborted();
-      const [status, worktreeKind] = await Promise.all([
+      const [status, worktreeKind, operation] = await Promise.all([
         new GitCommands(conn).status(repo.path, controller.signal),
         this.readWorktreeKind(repo, conn, controller.signal),
+        // Conflicted files are still listed if the operation state is unreadable.
+        new ConflictResolution(conn)
+          .state(repo.path, controller.signal)
+          .catch(() => undefined),
       ]);
       controller.signal.throwIfAborted();
       if (worktreeKind) {
@@ -488,7 +493,11 @@ export class RepositoryService {
           .prepare('UPDATE repositories SET worktree_kind = ? WHERE id = ?')
           .run(worktreeKind, id);
       }
-      return { ...status, ...(worktreeKind ? { worktreeKind } : {}) };
+      return {
+        ...status,
+        ...(worktreeKind ? { worktreeKind } : {}),
+        ...(operation ? { operation } : {}),
+      };
     })();
     const request = Promise.race([work, timeout]).finally(() => {
       clearTimeout(timer);

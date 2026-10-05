@@ -34,9 +34,13 @@ import {
   assertFileChanges,
   ignoreDirectory,
   InteractiveRebase,
+  ConflictResolution,
+  ConflictResolutionError,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
 import type {
+  ConflictBlockChoice,
+  ConflictSide,
   DiscardChangesScope,
   Repository,
   SwitchBranchResult,
@@ -123,9 +127,16 @@ export class GitService implements OnModuleDestroy {
           ?.holdTask?.();
       controller.signal.throwIfAborted();
       if (
-        !['stage', 'unstage', 'interactive-rebase', 'rebase-conflict'].includes(
-          kind,
-        ) &&
+        ![
+          'stage',
+          'unstage',
+          'interactive-rebase',
+          'rebase-conflict',
+          'resolve-conflict',
+          'conflict-continue',
+          'conflict-skip',
+          'conflict-abort',
+        ].includes(kind) &&
         (await new InteractiveRebase(connection).state(repo.path)).managed
       )
         throw new ConflictException(
@@ -745,6 +756,91 @@ export class GitService implements OnModuleDestroy {
         this.value(commit, '提交'),
       ]),
     );
+  }
+  private conflict<T>(
+    id: string,
+    kind: string,
+    operation: (
+      conflicts: ConflictResolution,
+      repo: Repository,
+      connection: RepositoryTransport,
+    ) => Promise<T>,
+  ) {
+    return this.write(id, kind, async (_git, repo, connection) => {
+      try {
+        return await operation(
+          new ConflictResolution(connection),
+          repo,
+          connection,
+        );
+      } catch (error) {
+        if (error instanceof ConflictResolutionError)
+          throw new HttpException(error.message, error.statusCode);
+        throw error;
+      }
+    });
+  }
+  continueOperation(id: string) {
+    return this.controlConflictOperation(id, 'continue');
+  }
+  skipOperation(id: string) {
+    return this.controlConflictOperation(id, 'skip');
+  }
+  async abortOperation(id: string) {
+    await this.controlConflictOperation(id, 'abort');
+    return { success: true };
+  }
+  private controlConflictOperation(
+    id: string,
+    action: 'continue' | 'skip' | 'abort',
+  ) {
+    return this.conflict(
+      id,
+      `conflict-${action}`,
+      async (conflicts, repo, connection) => {
+        const rebase = new InteractiveRebase(connection);
+        if ((await rebase.state(repo.path)).managed) {
+          // Keep the prepared messages and session cleanup when the shared
+          // conflict controls act on an Alune interactive rebase.
+          const result = await rebase.control(repo.path, action);
+          if (result.error && !result.state.conflicts.length)
+            throw new BadRequestException(result.error);
+          return {
+            success: true as const,
+            conflicts: result.state.conflicts.length > 0,
+          };
+        }
+        if (action === 'abort') {
+          await conflicts.abort(repo.path);
+          return { success: true as const, conflicts: false };
+        }
+        return conflicts[action](repo.path);
+      },
+    );
+  }
+  resolveConflictFile(id: string, file: string, side: ConflictSide) {
+    return this.conflict(id, 'resolve-conflict', async (conflicts, repo) => {
+      await conflicts.resolveFile(repo.path, this.files(repo, [file])[0], side);
+      return { success: true };
+    });
+  }
+  resolveConflictBlock(
+    id: string,
+    file: string,
+    index: number,
+    choice: ConflictBlockChoice,
+    expected: string,
+  ) {
+    return this.conflict(id, 'resolve-conflict', async (conflicts, repo) => {
+      await conflicts.resolveBlock(
+        repo.path,
+        this.files(repo, [file])[0],
+        index,
+        choice,
+        expected,
+      );
+      return { success: true };
+    });
   }
   addRemote(id: string, name: string, url: string) {
     return this.write(id, 'add-remote', (git, repo) =>
