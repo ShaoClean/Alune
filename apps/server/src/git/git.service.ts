@@ -33,6 +33,7 @@ import {
   runGit,
   assertFileChanges,
   ignoreDirectory,
+  InteractiveRebase,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
 import type {
@@ -40,6 +41,8 @@ import type {
   Repository,
   SwitchBranchResult,
   BranchNameConflict,
+  RebaseRequest,
+  RebaseResolution,
 } from '@alune/shared';
 
 type Operation = {
@@ -118,6 +121,15 @@ export class GitService implements OnModuleDestroy {
           .getConnection?.(repo.connectionId)
           ?.holdTask?.();
       controller.signal.throwIfAborted();
+      if (
+        !['stage', 'unstage', 'interactive-rebase', 'rebase-conflict'].includes(
+          kind,
+        ) &&
+        (await new InteractiveRebase(connection).state(repo.path)).managed
+      )
+        throw new ConflictException(
+          '请先完成或中止当前交互式变基，再执行其他 Git 操作。',
+        );
       return await operation(new GitCommands(connection), repo, connection);
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -186,6 +198,56 @@ export class GitService implements OnModuleDestroy {
         result.stderr || result.stdout || 'Git 操作未完成，请刷新状态后重试。',
       );
     return { success: true, stdout: result.stdout };
+  }
+
+  private async readRebase<T>(
+    id: string,
+    action: (rebase: InteractiveRebase, path: string) => Promise<T>,
+  ) {
+    try {
+      const repo = await this.repoService.get(id);
+      return await action(
+        new InteractiveRebase(
+          await this.transport(repo, AbortSignal.timeout(60_000)),
+        ),
+        repo.path,
+      );
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法读取变基状态。',
+      );
+    }
+  }
+
+  previewRebase(id: string, base: string) {
+    return this.readRebase(id, (rebase, path) => rebase.preview(path, base));
+  }
+
+  rebaseState(id: string) {
+    return this.readRebase(id, (rebase, path) => rebase.state(path));
+  }
+
+  startRebase(id: string, request: RebaseRequest) {
+    return this.write(id, 'interactive-rebase', (_git, repo, connection) =>
+      new InteractiveRebase(connection).start(repo.path, request),
+    );
+  }
+
+  controlRebase(id: string, action: 'continue' | 'skip' | 'abort') {
+    return this.write(id, 'interactive-rebase', (_git, repo, connection) =>
+      new InteractiveRebase(connection).control(repo.path, action),
+    );
+  }
+
+  rebaseConflict(id: string, path: string) {
+    return this.readRebase(id, (rebase, root) => rebase.conflict(root, path));
+  }
+
+  resolveRebaseConflict(id: string, request: RebaseResolution) {
+    return this.write(id, 'rebase-conflict', (_git, repo, connection) =>
+      new InteractiveRebase(connection).resolve(repo.path, request),
+    );
   }
   private async branch(git: GitCommands, path: string, name: string) {
     this.value(name, '分支名称');

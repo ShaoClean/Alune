@@ -2,6 +2,7 @@ import { useFeedbackMessage } from '@alune/ui';
 import type { RepositoryContext } from '@alune/shared';
 import { RepositoryContextNotice } from '../components/RepositoryContextNotice';
 import { GitOperationNotice } from '../components/GitOperationNotice';
+import { RebaseOperationNotice } from '../components/RebaseOperationNotice';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
@@ -477,6 +478,11 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         onRefresh={() => void handleRefresh()}
       />
       <GitOperationNotice key={id} repoId={id!} onFinished={() => void handleRefresh()} />
+      <RebaseOperationNotice
+        key={`rebase:${id}`}
+        repoId={id!}
+        onFinished={() => void handleRefresh()}
+      />
       <FeedbackNotice
         source="git-sync"
         title={syncError ? 'Git 操作未完成' : null}

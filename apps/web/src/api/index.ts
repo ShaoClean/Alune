@@ -36,6 +36,12 @@ import type {
   SaveAccessToken,
   ApplyAccessToken,
   SwitchBranchResult,
+  RebasePreview,
+  RebaseRequest,
+  RebaseState,
+  RebaseResult,
+  RebaseConflict,
+  RebaseResolution,
 } from '@alune/shared';
 
 const api = axios.create({
@@ -215,6 +221,26 @@ export const repositoryApi = {
 
 // Git Operation APIs
 export const gitApi = {
+  previewRebase: (id: string, base: string): Promise<RebasePreview> =>
+    api
+      .post(`/repositories/${id}/interactive-rebase/preview`, { base }, { timeout: 65_000 })
+      .then((r) => r.data),
+  rebaseState: (id: string): Promise<RebaseState> =>
+    api.get(`/repositories/${id}/interactive-rebase`).then((r) => r.data),
+  startRebase: (id: string, request: RebaseRequest): Promise<RebaseResult> =>
+    api.post(`/repositories/${id}/interactive-rebase`, request, gitTimeout).then((r) => r.data),
+  controlRebase: (id: string, action: 'continue' | 'skip' | 'abort'): Promise<RebaseResult> =>
+    api
+      .post(`/repositories/${id}/interactive-rebase/control`, { action }, gitTimeout)
+      .then((r) => r.data),
+  rebaseConflict: (id: string, path: string): Promise<RebaseConflict> =>
+    api
+      .post(`/repositories/${id}/interactive-rebase/conflict`, { path }, { timeout: 65_000 })
+      .then((r) => r.data),
+  resolveRebaseConflict: (id: string, request: RebaseResolution): Promise<RebaseState> =>
+    api
+      .post(`/repositories/${id}/interactive-rebase/resolve`, request, gitTimeout)
+      .then((r) => r.data),
   ignoreDirectory: (id: string, path: string) =>
     api.post(`/repositories/${id}/ignore-directory`, { path }, gitTimeout).then((r) => r.data),
   operation: (id: string) => api.get(`/repositories/${id}/operation`).then((r) => r.data),

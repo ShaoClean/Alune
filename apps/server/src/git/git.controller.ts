@@ -8,11 +8,60 @@ import {
   Query,
 } from '@nestjs/common';
 import { GitService } from './git.service';
-import type { SwitchBranchOptions } from '@alune/shared';
+import type {
+  SwitchBranchOptions,
+  RebaseRequest,
+  RebaseResolution,
+} from '@alune/shared';
 
 @Controller('repositories')
 export class GitController {
   constructor(private readonly gitService: GitService) {}
+
+  @Post(':id/interactive-rebase/preview')
+  previewRebase(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { base: string },
+  ) {
+    return this.gitService.previewRebase(id, body?.base);
+  }
+
+  @Get(':id/interactive-rebase')
+  rebaseState(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gitService.rebaseState(id);
+  }
+
+  @Post(':id/interactive-rebase')
+  startRebase(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: RebaseRequest,
+  ) {
+    return this.gitService.startRebase(id, body);
+  }
+
+  @Post(':id/interactive-rebase/control')
+  controlRebase(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { action: 'continue' | 'skip' | 'abort' },
+  ) {
+    return this.gitService.controlRebase(id, body?.action);
+  }
+
+  @Post(':id/interactive-rebase/conflict')
+  rebaseConflict(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { path: string },
+  ) {
+    return this.gitService.rebaseConflict(id, body?.path);
+  }
+
+  @Post(':id/interactive-rebase/resolve')
+  resolveRebaseConflict(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: RebaseResolution,
+  ) {
+    return this.gitService.resolveRebaseConflict(id, body);
+  }
 
   @Post(':id/ignore-directory')
   ignoreDirectory(
