@@ -36,6 +36,9 @@ import type { DialogIconName } from '@alune/ui';
 import { DialogCard, DialogNote, DialogPath, DialogStat, DialogStats } from '@alune/ui';
 import { Sparkles } from './Sparkles';
 import { useCommitGeneration } from '../hooks/useCommitGeneration';
+import { ConflictOperationBar } from './ConflictOperationBar';
+import { useMarkResolved } from './ConflictResolver';
+import { conflictKindLabels } from './conflict-model';
 
 interface Props {
   repoId: string;
@@ -43,6 +46,7 @@ interface Props {
   onSelectFile?: (file: any) => void;
   selectedFile?: { path: string; staged: boolean } | null;
   onFileChanged?: (path: string) => void;
+  managedRebase?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
@@ -97,6 +101,7 @@ export function ChangesView({
   onSelectFile,
   selectedFile,
   onFileChanged,
+  managedRebase = false,
 }: Props) {
   const message = useFeedbackMessage();
   const confirm = useAluneConfirm();
@@ -126,7 +131,8 @@ export function ChangesView({
     actionable: FileStatus[];
     skipped: FileStatus[];
   } | null>(null);
-  const busy = loading || deletePath !== null || discardAllOpen;
+  const [operationBusy, setOperationBusy] = useState(false);
+  const busy = loading || operationBusy || deletePath !== null || discardAllOpen;
 
   const panel = useRef<HTMLElement>(null);
   const actionFocus = useRef<{
@@ -159,7 +165,12 @@ export function ChangesView({
   );
   const ai = useCommitGeneration(repoId, stagedSignature, stagedFiles.length);
   const modelLabel = ai.model ? ai.model.model.name : '尚未配置 AI';
-  const unstagedFiles = useMemo(() => files.filter((file: any) => !file.staged), [files]);
+  const unstagedFiles = useMemo(
+    () => files.filter((file) => !file.staged && !file.conflicted),
+    [files],
+  );
+  const conflictFiles = useMemo(() => files.filter((file) => file.conflicted), [files]);
+  const operation = status?.operation;
   const addedPaths = useMemo(
     () => new Set(files.filter((file) => file.status === 'added').map((file) => file.path)),
     [files],
@@ -168,6 +179,7 @@ export function ChangesView({
   const refreshStatus = async () => {
     await onRefresh();
   };
+  const markResolved = useMarkResolved(repoId, refreshStatus);
 
   const runFileAction = async (action: 'stage' | 'unstage', paths: string[]) => {
     if (busy) return;
@@ -345,9 +357,7 @@ export function ChangesView({
           <span
             className={`file-row__status file-row__status--${file.status}`}
             title={
-              file.conflicted
-                ? '合并冲突：解决文件内容后暂存'
-                : statusWords[file.status] || file.status
+              file.conflicted ? '冲突：解决后标记为已解决' : statusWords[file.status] || file.status
             }
           >
             {file.conflicted ? 'U' : statusLabels[file.status] || '?'}
@@ -369,6 +379,9 @@ export function ChangesView({
               <small>{displayPath.slice(0, displayPath.lastIndexOf('/'))}</small>
             )}
           </span>
+          {file.conflict && (
+            <span className="file-row__conflict">{conflictKindLabels[file.conflict]}</span>
+          )}
           {kind && (
             <span
               className="file-row__kind"
@@ -393,7 +406,18 @@ export function ChangesView({
           </span>
         </button>
         <div className="file-row__actions">
-          {file.staged ? (
+          {file.conflicted && !kind ? (
+            <Tooltip title={busy ? null : '标记为已解决'} {...FILE_ACTION_TOOLTIP}>
+              <Button
+                type="text"
+                size="small"
+                icon={<CheckOutlined />}
+                aria-label={`标记为已解决 ${file.path}`}
+                disabled={busy}
+                onClick={() => void markResolved(file.path)}
+              />
+            </Tooltip>
+          ) : file.staged ? (
             <Tooltip title={busy ? null : '取消暂存'} {...FILE_ACTION_TOOLTIP}>
               <Button
                 type="text"
@@ -523,9 +547,9 @@ export function ChangesView({
     );
   };
 
-  const renderGroup = (title: string, groupFiles: any[], staged: boolean) =>
+  const renderGroup = (title: string, groupFiles: any[], staged: boolean, conflicts = false) =>
     groupFiles.length > 0 ? (
-      <div className="change-group" key={title}>
+      <div className={`change-group${conflicts ? ' change-group--conflict' : ''}`} key={title}>
         <div className="change-group__header">
           <button
             type="button"
@@ -537,34 +561,38 @@ export function ChangesView({
             {staged ? <CheckOutlined /> : <FolderOpenOutlined />} {title}{' '}
             <span className="count-badge">{groupFiles.length}</span>
           </button>
-          <div className="change-group__actions">
-            {!staged && (
+          {conflicts ? (
+            <span className="change-group__hint">选择文件逐块解决</span>
+          ) : (
+            <div className="change-group__actions">
+              {!staged && (
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<UndoOutlined />}
+                  aria-label="放弃所有更改"
+                  ref={discardAllTrigger}
+                  disabled={busy}
+                  onClick={() => setDiscardAllOpen(true)}
+                >
+                  放弃所有更改
+                </Button>
+              )}
               <Button
                 type="text"
                 size="small"
-                danger
-                icon={<UndoOutlined />}
-                aria-label="放弃所有更改"
-                ref={discardAllTrigger}
-                disabled={busy}
-                onClick={() => setDiscardAllOpen(true)}
+                aria-label={staged ? '全部取消暂存' : '全部暂存'}
+                disabled={
+                  busy ||
+                  !groupFiles.some((file) => changeActions(file)[staged ? 'unstage' : 'stage'])
+                }
+                onClick={() => runGroupAction(groupFiles, staged)}
               >
-                放弃所有更改
+                {staged ? '全部取消暂存' : '全部暂存'}
               </Button>
-            )}
-            <Button
-              type="text"
-              size="small"
-              aria-label={staged ? '全部取消暂存' : '全部暂存'}
-              disabled={
-                busy ||
-                !groupFiles.some((file) => changeActions(file)[staged ? 'unstage' : 'stage'])
-              }
-              onClick={() => runGroupAction(groupFiles, staged)}
-            >
-              {staged ? '全部取消暂存' : '全部暂存'}
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
         {!closedGroups[title] &&
           groupFiles
@@ -726,6 +754,17 @@ export function ChangesView({
         />
       </div>
       <div className="changes-content">
+        {status && !managedRebase && (
+          <ConflictOperationBar
+            repoId={repoId}
+            repoName={repoName}
+            operation={operation}
+            conflicts={conflictFiles.length}
+            disabled={busy && !operationBusy}
+            onBusyChange={setOperationBusy}
+            onChanged={refreshStatus}
+          />
+        )}
         {!status ? (
           entry?.phase === 'error' ? (
             <ErrorState
@@ -738,19 +777,22 @@ export function ChangesView({
             <LoadingState label="正在读取仓库状态…" />
           )
         ) : files.length === 0 ? (
-          <EmptyState
-            title={stale ? '上次读取时工作区干净' : '工作区干净'}
-            description={
-              stale ? '当前状态尚未确认，请刷新后查看。' : '此仓库没有已暂存或未暂存的改动。'
-            }
-            action={
-              <Button icon={<ReloadOutlined />} onClick={() => void refreshStatus()}>
-                刷新状态
-              </Button>
-            }
-          />
+          operation ? null : (
+            <EmptyState
+              title={stale ? '上次读取时工作区干净' : '工作区干净'}
+              description={
+                stale ? '当前状态尚未确认，请刷新后查看。' : '此仓库没有已暂存或未暂存的改动。'
+              }
+              action={
+                <Button icon={<ReloadOutlined />} onClick={() => void refreshStatus()}>
+                  刷新状态
+                </Button>
+              }
+            />
+          )
         ) : (
           <>
+            {renderGroup('冲突', conflictFiles, false, true)}
             {renderGroup('未暂存', unstagedFiles, false)}
             {renderGroup('已暂存', stagedFiles, true)}
             {query &&
@@ -765,7 +807,9 @@ export function ChangesView({
       <div className="commit-box">
         <div className="commit-box__heading">
           <strong>提交改动</strong>
-          <span>{stagedFiles.length} 个文件已暂存</span>
+          <span>
+            {operation ? '进行中的操作请用上方的“继续”完成' : `${stagedFiles.length} 个文件已暂存`}
+          </span>
         </div>
         <Input
           aria-label="提交摘要"
@@ -839,7 +883,7 @@ export function ChangesView({
           block
           icon={<CheckOutlined />}
           loading={loading}
-          disabled={commitDisabled(busy, stagedFiles.length, draft.message)}
+          disabled={!!operation || commitDisabled(busy, stagedFiles.length, draft.message)}
           onClick={() => void handleCommit()}
         >
           提交已暂存内容{stagedFiles.length > 0 ? ` · ${stagedFiles.length}` : ''}

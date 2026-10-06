@@ -8,3 +8,5 @@ export * from './proxy';
 export * from './repository-analytics';
 export * from './terminal';
 export * from './blame';
+export * from './tags';
+export * from './rebase';

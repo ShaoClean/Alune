@@ -174,6 +174,22 @@ export class LocalConnection implements RepositoryTransport {
     return operation(localFiles);
   }
 
+  async hasAnyPath(paths: string[]): Promise<boolean> {
+    this.signal?.throwIfAborted();
+    const present = await Promise.all(
+      paths.map(async (path) => {
+        try {
+          await fs.promises.lstat(path);
+          return true;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+          throw error;
+        }
+      }),
+    );
+    return present.some(Boolean);
+  }
+
   execGit(
     path: string,
     args: string[],
@@ -194,6 +210,7 @@ export class LocalConnection implements RepositoryTransport {
       GIT_TERMINAL_PROMPT: '0',
       GCM_INTERACTIVE: 'Never',
       LC_ALL: 'C',
+      ...options.environment,
     };
     // The desktop may have been launched from another repository's Git hook.
     for (const key of [

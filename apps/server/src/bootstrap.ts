@@ -56,6 +56,19 @@ export async function startServer(options: ServerOptions = {}) {
       });
     }
 
+    // Multi-commit messages and escaped conflict text can exceed Express's
+    // default 100 KiB JSON limit. Keep the larger budget scoped to this flow.
+    app.use(
+      [
+        '/repositories/:id/interactive-rebase',
+        '/api/repositories/:id/interactive-rebase',
+      ],
+      express.json({ limit: '1mb' }),
+    );
+    // Nest detects even a path-scoped jsonParser as an installed global parser.
+    // Explicitly retain its default parser for every other endpoint.
+    app.use(express.json());
+
     if (options.webRoot) {
       app.setGlobalPrefix('api');
       const webRoot = path.resolve(options.webRoot);

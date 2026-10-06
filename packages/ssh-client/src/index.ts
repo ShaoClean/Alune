@@ -2,6 +2,8 @@ export { SSHConnection, SSHConnectionPool, parseSSHConfig } from './connection-m
 export type { SSHConnectionOptions, CommandResult, StreamCallbacks } from './connection-manager';
 export { GitCommands } from './git-commands';
 export { GitBlame } from './git-blame';
+export { GitTags } from './git-tags';
+export { InteractiveRebase } from './interactive-rebase';
 export { assertFileChanges, ignoreDirectory } from './change-entries';
 export { GitWorktrees, worktreePathKey } from './worktrees';
 export { StagedChanges, StagedChangesError, AI_DIFF_MAX_BYTES } from './staged-changes';
@@ -34,3 +36,4 @@ export type { ProxySnapshot } from './proxy-transport';
 export { GitProxyError } from './proxy-git';
 export { WorkspaceFileActions, validateWorkspaceName } from './workspace-file-actions';
 export { collectRepositoryAnalytics, primaryLanguage } from './repository-analytics';
+export { ConflictResolution, ConflictResolutionError } from './conflict-resolution';

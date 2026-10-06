@@ -109,6 +109,27 @@ async function eachLimit<T>(items: T[], run: (item: T) => Promise<void>): Promis
   );
 }
 
+// Returns the absolute path of `relative`, refusing any route through a
+// symlink so that a link can never expose files outside the repository.
+export async function resolveRepositoryDirectory(
+  sftp: SFTPWrapper,
+  repoPath: string,
+  relative: string,
+  requested: string,
+): Promise<string> {
+  const realpath = promisify(sftp.realpath.bind(sftp));
+  // SFTP resolves Windows drive paths as well as POSIX paths without shell syntax.
+  const root = await realpath(repoPath);
+  if (!relative) return root;
+  const target = joinRepositoryPath(root, relative);
+  const resolved = await realpath(target);
+  const same = isWindowsPath(repoPath)
+    ? resolved.replace(/\\/g, '/').toLowerCase() === target.toLowerCase()
+    : resolved === target;
+  if (!same) throw new RepositoryFileError(`“${requested}”经过符号链接，只读浏览不会跟随链接。`);
+  return target;
+}
+
 class PreviewLimitError extends Error {}
 
 export class RepositoryFiles {
@@ -230,25 +251,13 @@ export class RepositoryFiles {
     });
   }
 
-  // Returns the absolute path of `relative`, refusing any route through a
-  // symlink so that a link can never expose files outside the repository.
-  private async resolve(
+  private resolve(
     sftp: SFTPWrapper,
     repoPath: string,
     relative: string,
     requested: string,
   ): Promise<string> {
-    const realpath = promisify(sftp.realpath.bind(sftp));
-    // SFTP resolves Windows drive paths as well as POSIX paths without shell syntax.
-    const root = await realpath(repoPath);
-    if (!relative) return root;
-    const target = joinRepositoryPath(root, relative);
-    const resolved = await realpath(target);
-    const same = isWindowsPath(repoPath)
-      ? resolved.replace(/\\/g, '/').toLowerCase() === target.toLowerCase()
-      : resolved === target;
-    if (!same) throw new RepositoryFileError(`“${requested}”经过符号链接，只读浏览不会跟随链接。`);
-    return target;
+    return resolveRepositoryDirectory(sftp, repoPath, relative, requested);
   }
 
   private async readCapped(sftp: SFTPWrapper, target: string, limit: number): Promise<Buffer> {

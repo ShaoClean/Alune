@@ -101,6 +101,80 @@ describe('local repositories with real Git and SQLite', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  it('manages tags through HTTP with explicit confirmation and worktree identity', async () => {
+    await seed();
+    const http = () => request(app.getHttpServer());
+    const remote = join(root, 'tags.git');
+    execFileSync('git', ['init', '--bare', '-q', remote]);
+    git('remote', 'add', 'origin', remote);
+    await http()
+      .post(`/repositories/${id}/tags`)
+      .send({ name: 'v1', type: 'annotated', message: '发行说明' })
+      .expect(201);
+    const { body: tags } = await http()
+      .get(`/repositories/${id}/tags`)
+      .expect(200);
+    expect(tags).toEqual([
+      expect.objectContaining({
+        name: 'v1',
+        type: 'annotated',
+        message: '发行说明',
+        commitHash: git('rev-parse', 'HEAD').trim(),
+      }),
+    ]);
+    for (const body of [
+      {},
+      { name: 'bad name', type: 'lightweight' },
+      { name: 'v1', type: 'lightweight' },
+    ])
+      await http().post(`/repositories/${id}/tags`).send(body).expect(400);
+    await http()
+      .post(`/repositories/${id}/tags/push`)
+      .send({ remote: 'origin', name: 'v1' })
+      .expect(201);
+    const { body: remoteTags } = await http()
+      .get(`/repositories/${id}/tags/remote`)
+      .query({ remote: 'origin' })
+      .expect(200);
+    expect(remoteTags).toEqual([
+      { name: 'v1', objectHash: tags[0].objectHash },
+    ]);
+    await http().get(`/repositories/${id}/tags/remote`).expect(400);
+    await http()
+      .post(`/repositories/${id}/tags/delete`)
+      .send(tags[0])
+      .expect(400);
+    await http()
+      .post(`/repositories/${id}/tags/checkout`)
+      .send(tags[0])
+      .expect(400);
+    await http()
+      .post(`/repositories/${id}/tags/checkout`)
+      .send({ ...tags[0], branch: 'release/v1' })
+      .expect(201);
+    expect(git('branch', '--show-current').trim()).toBe('release/v1');
+    const linkedPath = join(root, 'linked-tags');
+    git('worktree', 'add', '-qb', 'linked-tags', linkedPath);
+    const linked = await repos.addLocal(linkedPath);
+    await http()
+      .post(`/repositories/${linked.id}/tags`)
+      .send({ name: 'v2', type: 'lightweight' })
+      .expect(201);
+    expect(git('tag', '--list')).toContain('v2');
+    await http()
+      .post(`/repositories/${id}/tags/delete`)
+      .send({
+        ...tags[0],
+        confirmed: true,
+        remote: 'origin',
+        remoteObjectHash: tags[0].objectHash,
+      })
+      .expect(201);
+    expect(git('tag', '--list').trim()).toBe('v2');
+    expect(git('ls-remote', '--tags', 'origin').trim()).toBe('');
+    expect(ssh).not.toHaveBeenCalled();
+  });
+
   it('rejects directory staging and checkout via HTTP while allowing local ignore and ordinary file batches', async () => {
     await seed();
     git('worktree', 'add', '-qb', 'nested-tree', '.claude/worktrees/demo');
@@ -148,11 +222,19 @@ describe('local repositories with real Git and SQLite', () => {
     const detached = join(root, 'detached');
     git('worktree', 'add', '-qb', 'feature', feature);
     git('worktree', 'add', '-q', '--detach', detached);
-    const selected = (await repos.getWorktrees(id)).find((item) => item.branch === 'feature')!;
+    const selected = (await repos.getWorktrees(id)).find(
+      (item) => item.branch === 'feature',
+    )!;
     const linked = await repos.openWorktree(id, selected.path);
     const headless = await repos.addLocal(detached);
-    for (const [target, expected] of [[id, 'main'], [linked.id, 'linked'], [headless.id, 'linked']]) {
-      const { body } = await request(app.getHttpServer()).get(`/repositories/${target}/status`).expect(200);
+    for (const [target, expected] of [
+      [id, 'main'],
+      [linked.id, 'linked'],
+      [headless.id, 'linked'],
+    ]) {
+      const { body } = await request(app.getHttpServer())
+        .get(`/repositories/${target}/status`)
+        .expect(200);
       expect(body.worktreeKind).toBe(expected);
       expect((await repos.get(target)).worktreeKind).toBe(expected);
       if (target === headless.id) expect(body.branch).toBe('');
@@ -296,9 +378,54 @@ describe('local repositories with real Git and SQLite', () => {
     await service.stage(id, ['tracked.txt']);
     await service.commit(id, 'main edit');
     await expect(service.merge(id, 'conflict')).rejects.toThrow();
+    let status = await repos.getStatus(id);
+    expect(status.files.some((file) => file.conflicted)).toBe(true);
+    expect(status.files[0]).toMatchObject({
+      path: 'tracked.txt',
+      conflict: 'both-modified',
+    });
+    expect(status.operation).toMatchObject({
+      kind: 'merge',
+      branch: 'conflict',
+      subject: 'branch edit',
+    });
+
+    const rejected = (promise: Promise<unknown>) =>
+      expect(promise).rejects.toMatchObject({ status: expect.any(Number) });
+    const code = async (promise: Promise<unknown>) =>
+      promise.then(
+        () => 200,
+        (error: { getStatus?: () => number }) => error.getStatus?.(),
+      );
+    expect(await code(service.continueOperation(id))).toBe(409);
+    expect(await code(service.skipOperation(id))).toBe(400);
     expect(
-      (await repos.getStatus(id)).files.some((file) => file.conflicted),
-    ).toBe(true);
+      await code(
+        service.resolveConflictBlock(id, 'tracked.txt', 0, 'both', 'x'),
+      ),
+    ).toBe(409);
+    await rejected(
+      service.resolveConflictFile(id, '../tracked.txt', 'current'),
+    );
+    await service.abortOperation(id);
+    status = await repos.getStatus(id);
+    expect(status.operation).toBeUndefined();
+    expect(status.files).toEqual([]);
+
+    await expect(service.merge(id, 'conflict')).rejects.toThrow();
+    const raw = readFileSync(join(path, 'tracked.txt'), 'utf8');
+    await service.resolveConflictBlock(id, 'tracked.txt', 0, 'incoming', raw);
+    expect(readFileSync(join(path, 'tracked.txt'), 'utf8')).toBe('branch\n');
+    await service.stage(id, ['tracked.txt']);
+    await expect(service.continueOperation(id)).resolves.toEqual({
+      success: true,
+      conflicts: false,
+    });
+    status = await repos.getStatus(id);
+    expect(status.operation).toBeUndefined();
+    expect(git('log', '-1', '--format=%s').trim()).toBe(
+      "Merge branch 'conflict'",
+    );
   });
 
   it('previews/apply/pop/drop stashes, including untracked files when selected', async () => {
