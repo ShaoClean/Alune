@@ -1,3 +1,5 @@
+import { useCommitSignatures } from '../hooks/useCommitSignatures';
+import { CommitSignatureBadge } from './CommitSignatureBadge';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CommitFile, GraphCommit } from '@alune/shared';
@@ -64,6 +66,7 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
       unfiltered.current = null;
     }
   }, [filtering]);
+  const signatures = useCommitSignatures(repoId, selected ? [selected.hash] : [], logGeneration);
   const [ratio, setRatio] = useState(60);
   const [focusDiff, setFocusDiff] = useState(false);
   const container = useRef<HTMLDivElement>(null);
@@ -261,6 +264,16 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
                 <div className="history-detail__meta">
                   <span title={selected.email}>{selected.author}</span>
                   <time>{new Date(selected.date).toLocaleString('zh-CN')}</time>
+                  <CommitSignatureBadge
+                    detail
+                    signature={signatures.values[selected.hash]}
+                    error={signatures.error}
+                  />
+                  {signatures.error && (
+                    <Button size="small" onClick={signatures.retry}>
+                      重试验证
+                    </Button>
+                  )}
                   <code title={selected.hash}>{selected.hash}</code>
                   <div>
                     {selected.references.map((reference) => (

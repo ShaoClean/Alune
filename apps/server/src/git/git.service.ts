@@ -22,6 +22,7 @@ import {
   WorkspaceFileActions,
   RepositoryFileError,
   GitCommands,
+  GitSigning,
   PartialChanges,
   PartialChangesError,
   GitTags,
@@ -44,6 +45,7 @@ import {
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
 import type {
+  SigningConfig,
   PartialDiffRequest,
   ConflictBlockChoice,
   ConflictSide,
@@ -128,7 +130,15 @@ export class GitService implements OnModuleDestroy {
     const controller = new AbortController();
     this.active.set(id, { controller, kind, startedAt: Date.now() });
     const timer = setTimeout(
-      () => controller.abort(new Error('Git 操作超时，请检查仓库状态后重试。')),
+      () =>
+        controller.abort(
+          new Error(
+            'Git 操作超时，请检查仓库状态后重试。' +
+              (['commit', 'create-tag'].includes(kind)
+                ? ' 若启用了签名，请检查执行主机的 pinentry 或 agent 是否正在等待交互。'
+                : ''),
+          ),
+        ),
       5 * 60_000,
     );
     timer.unref();
@@ -389,17 +399,21 @@ export class GitService implements OnModuleDestroy {
       return { success: true };
     });
   }
-  commit(id: string, message: string, description?: string) {
+  commit(id: string, message: string, description?: string, amend?: string) {
     return this.write(id, 'commit', async (git, repo) => {
       if (
         typeof message !== 'string' ||
         !message.trim() ||
-        (description !== undefined && typeof description !== 'string')
+        (description !== undefined && typeof description !== 'string') ||
+        (amend !== undefined &&
+          (typeof amend !== 'string' ||
+            !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(amend)))
       )
         throw new BadRequestException('请填写有效的提交信息。');
       const result = await git.commit(
         repo.path,
         description ? `${message}\n\n${description}` : message,
+        amend,
       );
       if (result.exitCode !== 0)
         throw new Error(result.stderr || result.stdout);
@@ -931,6 +945,43 @@ export class GitService implements OnModuleDestroy {
         this.value(url, '远程地址'),
       ]),
     );
+  }
+  async signingConfig(id: string) {
+    const repo = await this.repoService.get(id);
+    try {
+      return {
+        ...(await new GitSigning(await this.transport(repo)).read(repo.path)),
+        source: repo.source,
+      };
+    } catch (error) {
+      throw new BadRequestException((error as Error).message);
+    }
+  }
+  saveSigningConfig(id: string, value: SigningConfig) {
+    return this.write(id, 'signing-config', async (_git, repo, connection) => ({
+      ...(await new GitSigning(connection).save(repo.path, value)),
+      source: repo.source,
+    }));
+  }
+  async commitSignatures(id: string, hashes: string[]) {
+    const repo = await this.repoService.get(id);
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () =>
+        controller.abort(
+          new Error('签名验证超时，请检查执行主机的签名程序后重试。'),
+        ),
+      35_000,
+    );
+    try {
+      return await new GitSigning(
+        await this.transport(repo, controller.signal),
+      ).signatures(repo.path, hashes);
+    } catch (error) {
+      throw new BadRequestException((error as Error).message);
+    } finally {
+      clearTimeout(timer);
+    }
   }
   saveAuthor(id: string, name: string, email: string) {
     return this.write(id, 'author', async (git, repo) => {

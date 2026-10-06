@@ -66,9 +66,14 @@ jobs:
       - run: npm run build -w @alune/shared
       - run: npm run build -w @alune/ssh-client
         id: build-local-git
-      - run: node --test packages/ssh-client/tests/local-connection.test.cjs packages/ssh-client/tests/discard-changes.test.cjs packages/ssh-client/tests/change-entries.test.cjs packages/ssh-client/tests/repository-analytics.test.cjs
+      - run: node --test packages/ssh-client/tests/local-connection.test.cjs packages/ssh-client/tests/discard-changes.test.cjs packages/ssh-client/tests/change-entries.test.cjs packages/ssh-client/tests/repository-analytics.test.cjs packages/ssh-client/tests/signing.test.cjs
       - run: npm test -w server -- --ci --runInBand local-git.spec.ts workspace-file.spec.ts
         if: ${{ !cancelled() && steps.build-local-git.outcome == 'success' }}
+      - name: 验证本地与 SSH 签名 HTTP 接口
+        if: runner.os != 'Windows'
+        run: |
+          npm run build -w server
+          node --test apps/web/tests/signing.integration.cjs
 
   network-proxy:
     name: 网络代理 (${{ matrix.os }})

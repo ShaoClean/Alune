@@ -6,6 +6,7 @@ import type {
   PushTagOptions,
   CheckoutTagOptions,
 } from '@alune/shared';
+import { GitSigning, signingFailure } from './git-signing';
 import { runGit } from './repository-transport';
 import type { RepositoryTransport } from './repository-transport';
 
@@ -15,7 +16,8 @@ export class GitTags {
 
   private async checked(path: string, args: string[]) {
     const result = await runGit(this.connection, path, args);
-    if (result.exitCode !== 0) throw new Error(result.stderr || result.stdout || '标签操作失败。');
+    if (result.exitCode !== 0)
+      throw new Error(signingFailure(result.stderr || result.stdout || '标签操作失败。'));
     return result.stdout;
   }
 
@@ -41,23 +43,23 @@ export class GitTags {
     const output = await this.checked(path, [
       'for-each-ref',
       '--sort=-version:refname',
-      '--format=%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(*objecttype)%00%(taggername)%00%(contents)%00',
+      '--format=%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(*objecttype)%00%(taggername)%00%(contents)%00%(contents:signature)%00',
       'refs/tags/',
     ]);
     const fields = output.split('\0');
     const tags: GitTag[] = [];
-    for (let i = 0; i + 7 < fields.length; i += 7) {
-      const [ref, objectHash, objectType, peeledHash, peeledType, tagger, contents] = fields.slice(
-        i,
-        i + 7,
-      );
+    for (let i = 0; i + 8 < fields.length; i += 8) {
+      const [ref, objectHash, objectType, peeledHash, peeledType, tagger, contents, signature] =
+        fields.slice(i, i + 8);
       const annotated = objectType === 'tag';
       const tag: GitTag = {
         name: ref.replace(/^\n/, '').slice('refs/tags/'.length),
         objectHash,
         objectType,
         type: annotated ? 'annotated' : 'lightweight',
-        message: annotated ? contents.trimEnd() : '',
+        message: annotated
+          ? (signature ? contents.slice(0, -signature.length) : contents).trimEnd()
+          : '',
         tagger,
         ...(objectType === 'commit'
           ? { commitHash: objectHash }
@@ -125,16 +127,40 @@ export class GitTags {
     const hash = (
       await this.checked(path, ['rev-parse', '--verify', '--end-of-options', `${target}^{commit}`])
     ).trim();
-    await this.checked(path, [
+    const config =
+      options.type === 'annotated' ? await new GitSigning(this.connection).read(path) : null;
+    const sign = !!config && (config.enabled || config.tagEnabled);
+    // Git's verbatim mode does not add the newline required before signature armor.
+    const message =
+      sign && !options.message!.endsWith('\n') ? options.message + '\n' : options.message;
+    const result = await runGit(this.connection, path, [
       '-c',
       'tag.gpgSign=false',
       'tag',
-      '--no-sign',
-      ...(options.type === 'annotated' ? ['-a', '--cleanup=verbatim', '-m', options.message!] : []),
+      sign ? '--sign' : '--no-sign',
+      ...(options.type === 'annotated'
+        ? [...(sign ? [] : ['-a']), '--cleanup=verbatim', '-m', message!]
+        : []),
       '--',
       options.name,
       hash,
     ]);
+    if (result.exitCode !== 0) throw new Error(signingFailure(result.stderr || result.stdout));
+    if (sign) {
+      // Some Git versions return success after ssh-keygen fails and leave an unsigned tag.
+      const objectHash = (await this.checked(path, ['rev-parse', '--verify', ref])).trim();
+      const object = await this.checked(path, ['cat-file', 'tag', objectHash]);
+      const unsignedBody = object.slice(object.indexOf('\n\n') + 2);
+      if (unsignedBody === message || !/\n-----BEGIN (?:SSH|PGP) SIGNATURE-----\n/.test(object)) {
+        const removed = await runGit(this.connection, path, ['update-ref', '-d', ref, objectHash]);
+        throw new Error(
+          signingFailure(result.stderr || 'signing failed: 未生成标签签名。') +
+            (removed.exitCode === 0
+              ? '\n未签名的标签已撤销。'
+              : '\n标签已变化，未自动撤销，请刷新检查。'),
+        );
+      }
+    }
     return { success: true };
   }
 

@@ -1,3 +1,4 @@
+import { signingFailure } from './git-signing';
 import { joinRepositoryPath } from './repository-path';
 import { runGit } from './repository-transport';
 import type { RepositoryTransport } from './repository-transport';
@@ -205,10 +206,25 @@ export class GitCommands {
     await this._changeIndex(repoPath, files, 'add');
   }
 
-  async commit(repoPath: string, message: string) {
+  async commit(repoPath: string, message: string, amend?: string) {
     if (!message.trim() || message.includes('\0'))
       throw new Error('提交信息不能为空或包含 NUL 字符。');
-    return runGit(this.connection, repoPath, ['commit', '--cleanup=verbatim', '-m', message]);
+    if (amend !== undefined) {
+      if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(amend))
+        throw new Error('请选择要修改的完整提交哈希。');
+      const head = await runGit(this.connection, repoPath, ['rev-parse', '--verify', 'HEAD']);
+      if (head.exitCode !== 0 || head.stdout.trim() !== amend)
+        throw new Error('上一次提交已变化，请重新选择后重试。');
+    }
+    const result = await runGit(this.connection, repoPath, [
+      'commit',
+      ...(amend ? ['--amend'] : []),
+      '--cleanup=verbatim',
+      '-m',
+      message,
+    ]);
+    if (result.exitCode !== 0) result.stderr = signingFailure(result.stderr || result.stdout);
+    return result;
   }
 
   async unstage(repoPath: string, files: string[]): Promise<void> {
@@ -355,7 +371,7 @@ export class GitCommands {
       C: 'copied',
     };
 
-    for (let index = 0; index < tokens.length; ) {
+    for (let index = 0; index < tokens.length;) {
       const statusToken = tokens[index++];
       if (!statusToken) continue;
 
@@ -383,7 +399,7 @@ export class GitCommands {
       return Number(value);
     };
 
-    for (let index = 0; index < tokens.length; ) {
+    for (let index = 0; index < tokens.length;) {
       const statToken = tokens[index++];
       if (!statToken) continue;
 

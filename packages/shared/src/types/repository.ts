@@ -326,3 +326,20 @@ export interface WorkspaceFilePreview {
   reason?: string;
   token: string;
 }
+
+export interface SigningConfig {
+  enabled: boolean;
+  /** Git uses openpgp for GPG. Other existing formats are shown without rewriting them. */
+  format: string;
+  signingKey: string;
+  tagEnabled?: boolean;
+  source?: 'local' | 'ssh';
+}
+
+export interface CommitSignature {
+  hash: string;
+  status: 'valid' | 'invalid' | 'unknown' | 'unsigned';
+  code: string;
+  signer: string;
+  key: string;
+}

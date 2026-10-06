@@ -1,3 +1,5 @@
+import { useCommitSignatures } from '../hooks/useCommitSignatures';
+import { CommitSignatureBadge } from './CommitSignatureBadge';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { GraphCommit, CommitReference } from '@alune/shared';
@@ -183,6 +185,11 @@ export function HistoryView({
 
   const start = Math.max(0, Math.floor((scrollTop - GRAPH_ROW_HEIGHT) / GRAPH_ROW_HEIGHT) - 12);
   const end = Math.min(log.length, start + Math.ceil(height / GRAPH_ROW_HEIGHT) + 25);
+  const signatures = useCommitSignatures(
+    repoId,
+    visible ? log.slice(start, end).map((commit) => commit.hash) : [],
+    logGeneration,
+  );
   const graphWidth = Math.max(72, graph.width * GRAPH_LANE_WIDTH + 24);
   const updateScrollTop = (value: number) => {
     scrollTopRef.current = value;
@@ -257,6 +264,13 @@ export function HistoryView({
             </Button>
           )
         }
+      />
+      <FeedbackNotice
+        source="history-signatures"
+        title={signatures.error ? '签名验证未完成' : null}
+        description={signatures.error}
+        actionLabel="重试验证"
+        onAction={signatures.retry}
       />
       {filtered && !!log.length && (
         <div className="history-filter__summary" role="status">
@@ -376,6 +390,10 @@ export function HistoryView({
                       />
                     </span>
                     <span role="gridcell" className="history-row__message" title={commit.message}>
+                      <CommitSignatureBadge
+                        signature={signatures.values[commit.hash]}
+                        error={signatures.error}
+                      />{' '}
                       {commit.message || '无提交信息'}
                     </span>
                     <span
