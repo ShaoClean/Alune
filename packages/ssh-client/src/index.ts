@@ -1,6 +1,7 @@
 export { SSHConnection, SSHConnectionPool, parseSSHConfig } from './connection-manager';
 export type { SSHConnectionOptions, CommandResult, StreamCallbacks } from './connection-manager';
 export { GitCommands } from './git-commands';
+export { GitBlame } from './git-blame';
 export { GitTags } from './git-tags';
 export { InteractiveRebase } from './interactive-rebase';
 export { assertFileChanges, ignoreDirectory } from './change-entries';

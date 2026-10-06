@@ -148,3 +148,20 @@ test('commit-file failures belong only to the selected commit and cannot duplica
   assert.equal(store.getState().commitFilesError, 'commit files unavailable');
   assert.equal(store.getState().error, null);
 });
+
+test('blame jumps start at an older commit and pagination retains that revision scope', async () => {
+  const calls = [];
+  repositoryApi.log = async (id, options) => {
+    calls.push(options);
+    return calls.length === 1
+      ? page(['old', 'parent'], true, 50, 'focused')
+      : page(['older'], false, 51, 'focused');
+  };
+  await store.getState().fetchLog('a', 'refresh', 'old');
+  await store.getState().fetchLog('a', 'more');
+  assert.deepEqual(calls[0], { count: 50, branch: 'old' });
+  assert.deepEqual(calls[1], { count: 50, branch: 'old', skip: 50, revision: 'focused' });
+  await store.getState().fetchLog('a');
+  assert.equal(calls[2].branch, undefined);
+  assert.equal(store.getState().logBranch, undefined);
+});

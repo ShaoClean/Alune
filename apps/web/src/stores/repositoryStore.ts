@@ -43,6 +43,7 @@ interface RepositoryState {
   currentRepo: any | null;
   status: RepositoryStatus | null;
   log: GraphCommit[];
+  logBranch?: string;
   logLoading: boolean;
   logLoadingMore: boolean;
   logHasMore: boolean;
@@ -90,7 +91,7 @@ interface RepositoryState {
   setCurrentRepo: (repo: any) => void;
   resetWorkspace: (id?: string) => void;
   fetchStatus: (id: string, afterMutation?: boolean) => Promise<void>;
-  fetchLog: (id: string, mode?: 'refresh' | 'more') => Promise<void>;
+  fetchLog: (id: string, mode?: 'refresh' | 'more', branch?: string) => Promise<void>;
   fetchCommitFiles: (id: string, commit: string, parentCommit?: string) => Promise<void>;
   fetchDiff: (id: string, params?: DiffOptions) => Promise<void>;
   clearDiff: () => void;
@@ -246,6 +247,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     currentRepo: null,
     status: null,
     log: [],
+    logBranch: undefined,
     logLoading: false,
     logLoadingMore: false,
     logHasMore: false,
@@ -532,6 +534,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       set({
         status: id ? (get().repositoryStatuses[id]?.data ?? null) : null,
         log: [],
+        logBranch: undefined,
         logLoading: false,
         logLoadingMore: false,
         logHasMore: false,
@@ -571,7 +574,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       await requestStatus(id, true, true, afterMutation);
     },
 
-    fetchLog: async (id, mode = 'refresh') => {
+    fetchLog: async (id, mode = 'refresh', branch) => {
       if (workspaceId !== null && workspaceId !== id) return;
       const append = mode === 'more';
       const state = get();
@@ -596,6 +599,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           id,
           {
             count: 50,
+            ...((append ? state.logBranch : branch)
+              ? { branch: append ? state.logBranch : branch }
+              : {}),
             ...(append ? { skip: state.logNextSkip, revision: state.logRevision! } : {}),
           },
           controller.signal,
@@ -614,6 +620,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             logLoadingMore: false,
             logError: null,
             logHasMore: page.hasMore,
+            logBranch: append ? current.logBranch : branch,
             logNextSkip: page.nextSkip,
             logRevision: page.revision,
             logShallow: page.shallow,

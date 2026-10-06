@@ -2,6 +2,9 @@ import axios from 'axios';
 import { confirmTerminalRemoval } from '../stores/terminalRemoval';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@alune/shared';
 import type {
+  BlameOptions,
+  BlameResult,
+  BlameCommitDetail,
   ConnectionTestResult,
   DiffImageContent,
   DiffImageOptions,
@@ -222,6 +225,12 @@ export const repositoryApi = {
   file: (id: string, path: string, signal?: AbortSignal): Promise<RepositoryFilePreview> =>
     api
       .get(`/repositories/${id}/file`, { params: { path }, signal, timeout: 60000 })
+      .then((r) => r.data),
+  blame: (id: string, params: BlameOptions, signal?: AbortSignal): Promise<BlameResult> =>
+    api.get(`/repositories/${id}/blame`, { params, signal, timeout: 20000 }).then((r) => r.data),
+  blameCommit: (id: string, commit: string, signal?: AbortSignal): Promise<BlameCommitDetail> =>
+    api
+      .get(`/repositories/${id}/blame-commit`, { params: { commit }, signal, timeout: 20000 })
       .then((r) => r.data),
   branches: (id: string) => api.get(`/repositories/${id}/branches`).then((r) => r.data),
   stashes: (id: string) => api.get(`/repositories/${id}/stashes`).then((r) => r.data),

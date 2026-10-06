@@ -274,6 +274,70 @@ export class RepositoryController {
     );
   }
 
+  @Get(':id/blame')
+  async getBlame(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('path') path?: unknown,
+    @Query('revision') revision?: unknown,
+    @Query('ignoreWhitespace') ignoreWhitespace?: unknown,
+    @Query('useIgnoreRevs') useIgnoreRevs?: unknown,
+    @Query('previousLine') previousLine?: unknown,
+    @Query('expectedVersion') expectedVersion?: unknown,
+  ) {
+    if (typeof path !== 'string' || !path)
+      throw new BadRequestException('path is required');
+    if (
+      revision !== undefined &&
+      (typeof revision !== 'string' ||
+        !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(revision))
+    )
+      throw new BadRequestException('无效的追溯版本。');
+    for (const value of [ignoreWhitespace, useIgnoreRevs]) {
+      if (value !== undefined && value !== 'true' && value !== 'false')
+        throw new BadRequestException('无效的追溯选项。');
+    }
+    if (
+      previousLine !== undefined &&
+      (typeof previousLine !== 'string' || !/^[1-9][0-9]*$/.test(previousLine))
+    )
+      throw new BadRequestException('无效的追溯行号。');
+    if (
+      expectedVersion !== undefined &&
+      (typeof expectedVersion !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(expectedVersion))
+    )
+      throw new BadRequestException('无效的追溯快照。');
+    return this.readFiles(
+      () =>
+        this.repoService.getBlame(id, {
+          path,
+          revision: revision as string | undefined,
+          ignoreWhitespace: ignoreWhitespace === 'true',
+          useIgnoreRevs: useIgnoreRevs !== 'false',
+          previousLine:
+            previousLine === undefined ? undefined : Number(previousLine),
+          expectedVersion: expectedVersion as string | undefined,
+        }),
+      '无法读取逐行追溯',
+    );
+  }
+
+  @Get(':id/blame-commit')
+  async getBlameCommit(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('commit') commit?: unknown,
+  ) {
+    if (
+      typeof commit !== 'string' ||
+      !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(commit)
+    )
+      throw new BadRequestException('无效的提交哈希。');
+    return this.readFiles(
+      () => this.repoService.getBlameCommit(id, commit),
+      '无法读取提交信息',
+    );
+  }
+
   private async readFiles<T>(
     operation: () => Promise<T>,
     fallback: string,
