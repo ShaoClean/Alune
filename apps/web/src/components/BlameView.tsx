@@ -60,30 +60,57 @@ function BlameBlock({
     staleTime: Infinity,
     retry: false,
   });
+  const message = detail.data?.body ?? commit.summary;
+  const newline = message.indexOf('\n');
+  const subject = newline < 0 ? message : message.slice(0, newline);
+  const body = newline < 0 ? '' : message.slice(newline + 1).trim();
+  const notes = [
+    lines.every((line) => !line.previous) && '此版本没有可追溯的父版本。',
+    lines.some((line) => line.ignored) && '已越过忽略列表中的提交。',
+    lines.some((line) => line.unblamable) && '部分行无法归属到被忽略提交之外的版本。',
+  ].filter(Boolean);
   const info = (
     <div className="blame-popover">
-      <strong>{commit.author}</strong>
-      {commit.email && <span>{commit.email}</span>}
+      <header className="blame-popover__header">
+        <div className="blame-popover__identity">
+          <strong>{commit.author}</strong>
+          {commit.email && <span>{commit.email}</span>}
+        </div>
+        {!first.uncommitted && (
+          <time dateTime={commit.date} title={new Date(commit.date).toLocaleString('zh-CN')}>
+            {blameRelativeDate(commit.date)}
+          </time>
+        )}
+      </header>
+      <div className="blame-popover__message">
+        <p>{first.uncommitted ? '尚未提交的修改' : subject}</p>
+        {body && <pre>{body}</pre>}
+        {detail.isFetching && <span className="blame-popover__hint">正在读取完整提交信息…</span>}
+        {detail.error && (
+          <Button size="small" onClick={() => void detail.refetch()}>
+            重试完整提交信息
+          </Button>
+        )}
+      </div>
       {!first.uncommitted && (
-        <>
-          <time>{new Date(commit.date).toLocaleString('zh-CN')}</time>
-          <code>{first.hash}</code>
-        </>
+        <div className="blame-popover__meta">
+          <code title={first.hash}>{first.hash.slice(0, 8)}</code>
+          <span>{new Date(commit.date).toLocaleString('zh-CN')}</span>
+        </div>
       )}
-      <pre>{detail.data?.body ?? commit.summary}</pre>
-      {detail.isFetching && <span>正在读取完整提交信息…</span>}
-      {detail.error && (
-        <Button size="small" onClick={() => void detail.refetch()}>
-          重试完整提交信息
-        </Button>
+      {notes.length > 0 && (
+        <ul className="blame-popover__notes">
+          {notes.map((note) => (
+            <li key={note as string}>{note}</li>
+          ))}
+        </ul>
       )}
-      {lines.every((line) => !line.previous) && <span>此版本没有可追溯的父版本。</span>}
-      {lines.some((line) => line.ignored) && <span>已越过忽略列表中的提交。</span>}
-      {lines.some((line) => line.unblamable) && <span>部分行无法归属到被忽略提交之外的版本。</span>}
       {!first.uncommitted && (
-        <Button size="small" onClick={() => onSelectCommit?.(first.hash)}>
-          在提交历史中查看
-        </Button>
+        <footer className="blame-popover__footer">
+          <Button size="small" type="link" onClick={() => onSelectCommit?.(first.hash)}>
+            在提交历史中查看 →
+          </Button>
+        </footer>
       )}
     </div>
   );
