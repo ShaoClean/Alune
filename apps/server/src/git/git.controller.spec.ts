@@ -54,9 +54,21 @@ describe('GitController', () => {
         repositoryId,
         '提交摘要',
         description,
+        undefined,
       );
     },
   );
+
+  it('修改提交时传递待核对的 HEAD', async () => {
+    const amend = 'a'.repeat(40);
+    await controller.commit(repositoryId, { message: '修改摘要', amend });
+    expect(service.commit).toHaveBeenCalledWith(
+      repositoryId,
+      '修改摘要',
+      undefined,
+      amend,
+    );
+  });
 
   it('推送时传递远端、分支及强制标记', async () => {
     const result = { success: true };

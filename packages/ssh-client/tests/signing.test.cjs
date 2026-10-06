@@ -201,9 +201,15 @@ for (const kind of ['local', 'ssh']) {
       const signed = await commit(f, 'gpg');
       assert.equal((await f.signing.signatures(f.repo, [signed]))[0].status, 'valid');
       const amended = await commit(f, 'gpg amended', signed);
-      f.git('verify-commit', amended);
+      // The fixture's git helper captures env before GNUPGHOME is set.
+      const verify = (...args) =>
+        execFileSync('git', ['-C', f.repo, ...args], {
+          env: { ...process.env, GNUPGHOME: home },
+          encoding: 'utf8',
+        });
+      verify('verify-commit', amended);
       await f.tags.create(f.repo, { name: 'gpg-tag', type: 'annotated', message: 'signed' });
-      f.git('verify-tag', 'gpg-tag');
+      verify('verify-tag', 'gpg-tag');
       await f.signing.save(f.repo, {
         enabled: true,
         format: 'openpgp',
