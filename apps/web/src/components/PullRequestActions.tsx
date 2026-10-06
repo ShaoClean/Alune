@@ -228,13 +228,21 @@ export function ReviewActionBar({
   const marker = query.provider === 'github' ? '#' : '!';
   const methodLabelId = useId();
   const selectedMethod = view?.snapshot.mergeMethods.find((item) => item.value === method);
+  const completedTitle =
+    review.actions?.state === 'merged'
+      ? 'PR/MR 已合并'
+      : review.actions?.state === 'closed'
+        ? 'PR/MR 已关闭'
+        : undefined;
   const mergeStatus = review.loading
     ? '正在检查操作权限'
-    : review.actions?.merge.allowed
-      ? '可以合并'
-      : review.actions
-        ? '暂不可合并'
-        : '无法读取操作权限';
+    : completedTitle
+      ? completedTitle
+      : review.actions?.merge.allowed
+        ? '可以合并'
+        : review.actions
+          ? '暂不可合并'
+          : '无法读取操作权限';
   return (
     <section className="pull-request-actions" aria-label="Review 操作">
       <div className="pull-request-actions__status" role="status">
@@ -287,8 +295,14 @@ export function ReviewActionBar({
         review.actions?.comment.reason) && (
         <FeedbackAlert
           source="review-permissions"
-          type="warning"
-          title="PR/MR 操作权限受限"
+          type={
+            !completedTitle || review.actions?.comment.reason
+              ? 'warning'
+              : review.actions?.state === 'merged'
+                ? 'success'
+                : 'info'
+          }
+          title={completedTitle || 'PR/MR 操作权限受限'}
           description={
             [
               ...new Set(
