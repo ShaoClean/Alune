@@ -10,7 +10,8 @@ module.exports = async ({ window, origin, token, backend }) => {
   git('init', '-q', '-b', 'main');
   git('config', 'user.name', 'Terminal Test');
   git('config', 'user.email', 'terminal@example.invalid');
-  git('remote', 'add', 'origin', root);
+  // Terminal checks never use the remote; keep setup notices from interrupting input.
+  git('remote', 'add', 'origin', 'https://fixture.invalid/terminal.git');
   fs.writeFileSync(path.join(root, 'probe.txt'), 'ALUNE_DESKTOP_PTY_VERIFIED\n中文终端\n');
   git('add', '.');
   git('commit', '-qm', 'fixture');
