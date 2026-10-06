@@ -170,9 +170,17 @@ for (const kind of ['local', 'ssh']) {
     },
     async (t) => {
       const f = await setup(t, kind);
-      // Git for Windows bundles MSYS GPG, which needs forward-slash paths.
-      const home = join(f.root, 'gnupg').replace(/\\/g, '/');
-      fs.mkdirSync(home, { mode: 0o700 });
+      const directory = join(f.root, 'gnupg');
+      fs.mkdirSync(directory, { mode: 0o700 });
+      // MSYS GPG treats even C:/... as relative; native Windows GPG needs a drive path.
+      const msys =
+        process.platform === 'win32' &&
+        execFileSync('gpgconf', ['--list-dirs', 'homedir'], { encoding: 'utf8' })
+          .trim()
+          .startsWith('/');
+      const home = msys
+        ? execFileSync('cygpath', ['-u', directory], { encoding: 'utf8' }).trim()
+        : directory;
       const previous = process.env.GNUPGHOME;
       process.env.GNUPGHOME = home;
       f.cleanup.push(() => {
