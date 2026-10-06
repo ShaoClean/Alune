@@ -40,3 +40,5 @@ export { ConflictResolution, ConflictResolutionError } from './conflict-resoluti
 export { PartialChanges, PartialChangesError } from './partial-changes';
 
 export { GitSigning, signingFailure, signatureStatus } from './git-signing';
+export { GitSubmodules } from './submodules';
+export { GitLfs } from './lfs';

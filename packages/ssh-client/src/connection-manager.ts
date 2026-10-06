@@ -324,6 +324,8 @@ export class SSHConnection extends EventEmitter {
     args: string[],
     signal?: AbortSignal,
     options?: {
+      onStderr?: (data: string) => void;
+      onStdout?: (data: string) => void;
       stdin?: string | Buffer;
       maxOutputBytes?: number;
       strictUtf8?: boolean;
@@ -331,7 +333,13 @@ export class SSHConnection extends EventEmitter {
       environment?: Record<string, string>;
     },
   ): Promise<CommandResult> {
-    if (!this.proxyEnabled || !['fetch', 'pull', 'push', 'ls-remote'].includes(args[0]))
+    if (
+      !this.proxyEnabled ||
+      !(
+        ['fetch', 'pull', 'push', 'ls-remote'].includes(args[0]) ||
+        (args[0] === 'submodule' && args[1] === 'update')
+      )
+    )
       return this.execCommand(
         gitFileCommand(repoPath, args, options?.environment),
         undefined,
@@ -342,7 +350,14 @@ export class SSHConnection extends EventEmitter {
     try {
       await this.prepareGitProxy();
       signal?.throwIfAborted();
-      const adapted = await proxyGitArguments(this, repoPath, args, this.forwardPort!, signal);
+      const adapted = await proxyGitArguments(
+        this,
+        repoPath,
+        args,
+        this.forwardPort!,
+        signal,
+        options?.environment,
+      );
       return await this.execCommand(adapted, undefined, signal, options);
     } finally {
       release();
@@ -354,6 +369,8 @@ export class SSHConnection extends EventEmitter {
     cwd?: string,
     signal?: AbortSignal,
     options?: {
+      onStderr?: (data: string) => void;
+      onStdout?: (data: string) => void;
       stdin?: string | Buffer;
       maxOutputBytes?: number;
       strictUtf8?: boolean;
@@ -409,8 +426,14 @@ export class SSHConnection extends EventEmitter {
               chunks.push(data);
             }
           };
-          stream.on('data', (data: Buffer) => collect(stdout, data));
-          stream.stderr.on('data', (data: Buffer) => collect(stderr, data));
+          stream.on('data', (data: Buffer) => {
+            collect(stdout, data);
+            options?.onStdout?.(data.toString('utf8'));
+          });
+          stream.stderr.on('data', (data: Buffer) => {
+            collect(stderr, data);
+            options?.onStderr?.(data.toString('utf8'));
+          });
 
           stream.on('close', (exitCode: number | null) => {
             cleanup();

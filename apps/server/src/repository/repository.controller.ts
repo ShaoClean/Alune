@@ -27,6 +27,31 @@ import type { DiffImageOptions, DiffOptions } from '@alune/shared';
 export class RepositoryController {
   constructor(private readonly repoService: RepositoryService) {}
 
+  @Get(':id/submodules')
+  submodules(@Param('id', ParseUUIDPipe) id: string) {
+    return this.repoService.getSubmodules(id);
+  }
+
+  @Get(':id/lfs')
+  lfs(@Param('id', ParseUUIDPipe) id: string) {
+    return this.repoService.getLfsStatus(id);
+  }
+
+  @Post(':id/submodules/open')
+  async openSubmodule(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { path: string },
+  ) {
+    try {
+      return await this.repoService.openSubmodule(id, body?.path);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法打开子模块。',
+      );
+    }
+  }
+
   @Get('scan')
   async scan(
     @Query('connectionId') connectionId: string,

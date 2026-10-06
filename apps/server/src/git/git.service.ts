@@ -19,6 +19,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { RepositoryService } from '../repository/repository.service';
 import { ProxyService } from '../proxy/proxy.service';
 import {
+  GitSubmodules,
   WorkspaceFileActions,
   RepositoryFileError,
   GitCommands,
@@ -65,6 +66,7 @@ type Operation = {
   controller: AbortController;
   kind: string;
   startedAt: number;
+  progress?: string;
 };
 @Injectable()
 export class GitService implements OnModuleDestroy {
@@ -145,7 +147,46 @@ export class GitService implements OnModuleDestroy {
     let release: (() => void) | undefined;
     try {
       const repo = await this.repoService.get(id);
-      const connection = await this.transport(repo, controller.signal);
+      const transport = await this.transport(repo, controller.signal);
+      let progressTail = '';
+      const recordProgress = (chunk: string) => {
+        progressTail = (progressTail + chunk).slice(-4096);
+        const lines = progressTail.split(/[\r\n]/).filter(Boolean);
+        const line = lines
+          .reverse()
+          .find((value) =>
+            /(?:LFS|Uploading|Downloading|Smudge|batch response)/i.test(value),
+          );
+        const active = this.active.get(id);
+        if (line && active?.controller === controller)
+          active.progress = line
+            .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+            .slice(0, 400);
+      };
+      const connection: RepositoryTransport = {
+        signal: controller.signal,
+        execCommand: transport.execCommand.bind(transport),
+        withSftp: transport.withSftp.bind(transport),
+        hasAnyPath: transport.hasAnyPath?.bind(transport),
+        execGit: (path, args, signal, options) =>
+          runGit(transport, path, args, signal, {
+            ...options,
+            environment: {
+              ...options?.environment,
+              ...(['push', 'pull'].includes(kind)
+                ? { GIT_LFS_FORCE_PROGRESS: '1' }
+                : {}),
+            },
+            onStdout: (chunk) => {
+              options?.onStdout?.(chunk);
+              recordProgress(chunk);
+            },
+            onStderr: (chunk) => {
+              options?.onStderr?.(chunk);
+              recordProgress(chunk);
+            },
+          }),
+      };
       if (repo.connectionId)
         release = this.connectionService
           .getConnection?.(repo.connectionId)
@@ -193,6 +234,7 @@ export class GitService implements OnModuleDestroy {
       ? {
           kind: active.kind,
           startedAt: active.startedAt,
+          progress: active.progress,
           cancelling: active.controller.signal.aborted,
         }
       : null;
@@ -420,6 +462,12 @@ export class GitService implements OnModuleDestroy {
       return { success: true, stdout: result.stdout };
     });
   }
+  updateSubmodules(id: string, action: 'update' | 'sync') {
+    return this.write(id, 'submodule-' + action, (_git, repo, connection) =>
+      new GitSubmodules(connection).update(repo.path, action),
+    );
+  }
+
   push(
     id: string,
     remote?: string,

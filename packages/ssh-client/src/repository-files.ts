@@ -1,3 +1,5 @@
+import { parseLfsPointer } from '@alune/shared';
+import { GitLfs } from './lfs';
 import { joinRepositoryPath } from './repository-path';
 import { runGit } from './repository-transport';
 import type { RepositoryTransport } from './repository-transport';
@@ -234,6 +236,26 @@ export class RepositoryFiles {
         if (error instanceof PreviewLimitError)
           return { path: file, kind: 'too-large', size: limit + 1, limit };
         throw error;
+      }
+      const pointer = parseLfsPointer(bytes.toString('utf8'));
+      if (pointer) {
+        let message = 'LFS 文件内容尚未下载；请在仓库所在主机运行 git lfs pull。';
+        if (mediaType) {
+          try {
+            const object = await new GitLfs(this.connection).readObject(repoPath, pointer, limit);
+            if (object)
+              return {
+                path: file,
+                kind: 'image',
+                size: object.length,
+                mediaType,
+                content: object.toString('base64'),
+              };
+          } catch (error) {
+            message = error instanceof Error ? error.message : message;
+          }
+        } else message = '此文件由 Git LFS 管理，显示实际文件大小和内容标识。';
+        return { path: file, kind: 'lfs', ...pointer, message };
       }
       if (mediaType)
         return {

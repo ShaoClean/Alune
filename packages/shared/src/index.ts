@@ -3,3 +3,4 @@ export * from './change-actions';
 export * from './pull-request-lines';
 export * from './merge-conflicts';
 export * from './partial-diff';
+export * from './lfs';

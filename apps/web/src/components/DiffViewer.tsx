@@ -1,3 +1,6 @@
+import { lfsDiffPointers } from './lfs-diff';
+import { diffImageMediaType } from '@alune/shared';
+import { formatBytes } from './ImageDiffView';
 import { usePartialDiff } from './usePartialDiff';
 import type { PartialDiffControls } from './usePartialDiff';
 import { FeedbackAlert } from '@alune/ui';
@@ -183,11 +186,15 @@ export function DiffViewer({
     }
     return result;
   }, [rawHighlightable, highlighter, language, oldCode, newCode]);
+  const lfs = useMemo(() => lfsDiffPointers(diff ?? ''), [diff]);
+  const submoduleDiff = !!diff && /^Submodule /m.test(diff);
   const imageKind = diff && repoId && filePath ? getImageDiffKind(diff, filePath) : null;
   const textDiff =
     !loading &&
     !error &&
     !imageKind &&
+    !lfs &&
+    !submoduleDiff &&
     Boolean(diff || oldCode || newCode) &&
     !(diff && getDiffNotice(diff));
   const preferredMode = useWorkspaceStore((state) => state.layout.diffMode);
@@ -310,6 +317,55 @@ export function DiffViewer({
           {diff === undefined
             ? '请选择改动文件或提交以查看差异。'
             : '当前比较没有差异，请刷新仓库状态。'}
+        </div>
+      );
+    if (lfs)
+      return (
+        <div className="lfs-diff">
+          <h3>Git LFS 文件变化</h3>
+          <div className="lfs-diff__versions">
+            {(['before', 'after'] as const).map((side) => (
+              <section key={side}>
+                <h4>{side === 'before' ? '变更前' : '变更后'}</h4>
+                {lfs[side] ? (
+                  <>
+                    <p>实际大小：{formatBytes(lfs[side].size)}</p>
+                    <p>OID（SHA-256）</p>
+                    <code>{lfs[side].oid}</code>
+                  </>
+                ) : (
+                  <p>
+                    {side === 'before' && /^new file mode /m.test(diff ?? '')
+                      ? '新增文件'
+                      : side === 'after' && /^deleted file mode /m.test(diff ?? '')
+                        ? '文件已删除'
+                        : '此版本不是 LFS 指针'}
+                  </p>
+                )}
+              </section>
+            ))}
+          </div>
+          {repoId && filePath && diffImageMediaType(filePath) && (
+            <ImageDiffView
+              repoId={repoId}
+              path={filePath}
+              kind={
+                /^new file mode /m.test(diff ?? '')
+                  ? 'added'
+                  : /^deleted file mode /m.test(diff ?? '')
+                    ? 'deleted'
+                    : 'modified'
+              }
+              request={imageRequest || {}}
+            />
+          )}
+        </div>
+      );
+    if (submoduleDiff)
+      return (
+        <div className="lfs-diff">
+          <h3>子模块提交变化</h3>
+          <pre>{diff}</pre>
         </div>
       );
     if (diff && imageKind && repoId && filePath)

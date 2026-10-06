@@ -277,6 +277,7 @@ export interface RepositoryTreeListing {
 }
 
 export type RepositoryFilePreview =
+  | { path: string; kind: 'lfs'; size: number; oid: string; message: string }
   | {
       path: string;
       kind: 'text';

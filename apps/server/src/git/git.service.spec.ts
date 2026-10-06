@@ -1,7 +1,7 @@
 import { GitService } from './git.service';
 import { ConnectionService } from '../connection/connection.service';
 import { RepositoryService } from '../repository/repository.service';
-import { GitCommands } from '@alune/ssh-client';
+import { GitCommands, InteractiveRebase } from '@alune/ssh-client';
 
 describe('GitService index operations', () => {
   afterEach(() => jest.restoreAllMocks());
@@ -53,5 +53,48 @@ describe('Git operation lifecycle', () => {
     connected({ execCommand: execute });
     await new Promise((resolve) => setImmediate(resolve));
     expect(execute).not.toHaveBeenCalled();
+  });
+});
+
+describe('LFS transfer progress', () => {
+  it('reports both output streams, keeps failure details, and releases the operation guard', async () => {
+    jest
+      .spyOn(InteractiveRebase.prototype, 'state')
+      .mockResolvedValue({ managed: false } as any);
+    let finish!: (result: any) => void;
+    let output: any;
+    const connection = {
+      execCommand: jest.fn(),
+      withSftp: jest.fn(),
+      execGit: jest.fn(async (_path, args, _signal, options) => {
+        if (args[0] !== 'push') return { exitCode: 0, stdout: '', stderr: '' };
+        output = options;
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      }),
+    };
+    const service = new GitService(
+      {
+        ensureConnected: async () => connection,
+      } as unknown as ConnectionService,
+      {
+        get: async () => ({ path: '/fixture/repo', connectionId: 'host' }),
+      } as unknown as RepositoryService,
+    );
+    const pending = service.push('repo');
+    const failed = expect(pending).rejects.toThrow('LFS upload failed: 403');
+    for (let tries = 0; !finish && tries < 100; tries++)
+      await new Promise((resolve) => setImmediate(resolve));
+    expect(finish).toBeDefined();
+    expect(output.environment.GIT_LFS_FORCE_PROGRESS).toBe('1');
+    output.onStdout('Uploading LFS objects: 50% (1/2)\r');
+    expect(service.operation('repo')?.progress).toContain('50%');
+    output.onStderr('LFS upload failed: 403\n');
+    expect(service.operation('repo')?.progress).toContain('403');
+    finish({ exitCode: 1, stdout: '', stderr: 'LFS upload failed: 403' });
+    await failed;
+    expect(service.operation('repo')).toBeNull();
+    jest.restoreAllMocks();
   });
 });

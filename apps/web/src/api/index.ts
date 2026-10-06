@@ -1,3 +1,4 @@
+import type { LfsStatus, SubmoduleInfo } from '@alune/shared';
 import axios from 'axios';
 import { confirmTerminalRemoval } from '../stores/terminalRemoval';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@alune/shared';
@@ -186,6 +187,12 @@ export const repositoryApi = {
     api.post('/repositories', { source: 'local', path }).then((r) => r.data),
   context: (id: string, signal?: AbortSignal): Promise<RepositoryContext> =>
     api.get(`/repositories/${id}/context`, { signal }).then((r) => r.data),
+  submodules: (id: string, signal?: AbortSignal): Promise<SubmoduleInfo[]> =>
+    api.get(`/repositories/${id}/submodules`, { signal }).then((r) => r.data),
+  lfs: (id: string, signal?: AbortSignal): Promise<LfsStatus> =>
+    api.get(`/repositories/${id}/lfs`, { signal }).then((r) => r.data),
+  openSubmodule: (id: string, path: string): Promise<Repository> =>
+    api.post(`/repositories/${id}/submodules/open`, { path }).then((r) => r.data),
   worktrees: (id: string, signal?: AbortSignal): Promise<WorktreeInfo[]> =>
     api
       .get('/repositories/' + id + '/worktrees', {
@@ -299,6 +306,8 @@ export const gitApi = {
       .then((r) => r.data),
   ignoreDirectory: (id: string, path: string) =>
     api.post(`/repositories/${id}/ignore-directory`, { path }, gitTimeout).then((r) => r.data),
+  submodules: (id: string, action: 'update' | 'sync') =>
+    api.post(`/repositories/${id}/submodules`, { action }, gitTimeout).then((r) => r.data),
   operation: (id: string) => api.get(`/repositories/${id}/operation`).then((r) => r.data),
   cancel: (id: string) => api.post(`/repositories/${id}/operation/cancel`).then((r) => r.data),
   deepen: (id: string, remote?: string) =>

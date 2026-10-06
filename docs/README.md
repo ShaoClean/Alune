@@ -6,6 +6,7 @@
 - [工作区使用说明](workspace.md)：布局、快捷键、Diff、提交历史、PR/MR、Worktree 与仓库终端
 - [桌面端说明](desktop.md)：安装条件、版本更新、数据目录与迁移
 - [创建 PR/MR](pull-requests.md)：分支预览、草稿、平台令牌、AI 起草与模板范围
+- [子模块与 Git LFS](submodules-lfs.md)：递归更新、独立标签、LFS 预览与安装提示
 - [提交签名](commit-signing.md)：GPG／SSH 配置、验证状态、远端密钥与失败处理
 - [AI 设置说明](ai-settings.md)：服务商、模型、密钥和提交生成
 - [网络代理](network-proxy.md)：代理配置、生效时机、远端 Git 转发与连接测试

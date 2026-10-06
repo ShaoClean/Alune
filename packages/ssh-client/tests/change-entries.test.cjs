@@ -164,9 +164,9 @@ test('tracked submodules retain pointer previews/staging and are excluded from f
   file = (await commands.status(f.repo)).files.find((file) => file.path === 'module');
   assert.equal(file.submodule.commitChanged, true);
   assert.equal(changeActions(file).stage, true);
-  assert.match(await commands.diff(f.repo, { file: 'module' }), /Subproject commit/);
+  assert.match(await commands.diff(f.repo, { file: 'module' }), /Submodule module .*\n  > pointer change/);
   await commands.stage(f.repo, ['module']);
-  assert.match(await commands.diff(f.repo, { file: 'module', staged: true }), /Subproject commit/);
+  assert.match(await commands.diff(f.repo, { file: 'module', staged: true }), /Submodule module .*\n  > pointer change/);
   await assert.rejects(assertFileChanges(connection, f.repo, ['module']), /子模块/);
   f.write('tracked.txt', 'modified\n');
   const discard = new DiscardChanges(connection);

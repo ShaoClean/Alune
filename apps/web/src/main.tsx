@@ -7,6 +7,7 @@ import '@alune/ui/styles.css';
 import './index.css';
 import './workspace-layout.css';
 import './files.css';
+import './components/repository-extensions.css';
 import './tags.css';
 import './conflicts.css';
 import './pull-requests.css';

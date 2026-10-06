@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { gitApi } from '../api';
 
 const labels: Record<string, string> = {
+  'submodule-update': '初始化 / 更新子模块',
+  'submodule-sync': '同步子模块 URL',
   stage: '暂存',
   unstage: '取消暂存',
   commit: '提交',
@@ -42,6 +44,7 @@ export function GitOperationNotice({
   const [operation, setOperation] = useState<{
     kind: string;
     startedAt: number;
+    progress?: string;
     cancelling: boolean;
   } | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -82,7 +85,7 @@ export function GitOperationNotice({
       type="info"
       title={`${labels[operation.kind] || 'Git 操作'}进行中`}
       eventKey={operation.startedAt}
-      description={`${Math.max(1, Math.floor((Date.now() - operation.startedAt) / 1000))} 秒。取消后请刷新；已完成的步骤会保留。`}
+      description={`${operation.progress ? operation.progress + ' · ' : ''}${Math.max(1, Math.floor((Date.now() - operation.startedAt) / 1000))} 秒。取消后请刷新；已完成的步骤会保留。`}
       actionLabel={cancelling || operation.cancelling ? '正在取消…' : '取消操作'}
       busy={cancelling || operation.cancelling}
       onAction={async () => {

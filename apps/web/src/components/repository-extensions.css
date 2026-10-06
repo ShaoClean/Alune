@@ -1,0 +1,62 @@
+.repository-extensions {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  max-height: 45%;
+  overflow: auto;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.repository-extensions summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.repository-extensions__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+.repository-extensions ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.repository-extensions li {
+  display: grid;
+  gap: 4px;
+}
+.repository-extensions li strong {
+  overflow-wrap: anywhere;
+}
+.repository-extensions li > span {
+  opacity: 0.75;
+  font-size: 11px;
+}
+.repository-extensions li button {
+  justify-self: start;
+}
+.repository-extensions p {
+  overflow-wrap: anywhere;
+  margin: 6px 0;
+}
+.repository-extensions__lfs {
+  margin-top: 10px;
+}
+.lfs-diff {
+  padding: 16px;
+}
+.lfs-diff__versions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.lfs-diff code {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.lfs-diff pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

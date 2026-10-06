@@ -1,3 +1,5 @@
+import { parseLfsPointer } from '@alune/shared';
+import { GitLfs } from './lfs';
 import { joinRepositoryPath } from './repository-path';
 import { runGit } from './repository-transport';
 import type { RepositoryTransport } from './repository-transport';
@@ -76,9 +78,22 @@ export class DiffImages {
     if (!mediaType) throw new DiffImageError('此文件类型不支持图片预览。');
 
     const { blob, worktree } = this.revisions(options);
-    const bytes = worktree
+    let bytes = worktree
       ? await this.readWorktree(repoPath, options.file)
       : await this.readBlob(repoPath, blob!, signal);
+    const pointer = parseLfsPointer(bytes.toString('utf8'));
+    if (pointer) {
+      const object = await new GitLfs(this.connection).readObject(
+        repoPath,
+        pointer,
+        DIFF_IMAGE_MAX_BYTES,
+      );
+      if (!object)
+        throw new DiffImageError(
+          `LFS 图片尚未下载（${pointer.size} 字节，OID ${pointer.oid}）。请在仓库所在主机运行 git lfs pull。`,
+        );
+      bytes = object;
+    }
     return {
       path: options.file,
       side: options.side as DiffImageSide,

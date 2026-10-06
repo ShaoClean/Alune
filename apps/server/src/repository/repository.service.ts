@@ -15,6 +15,8 @@ import { ConnectionService } from '../connection/connection.service';
 import { TerminalRegistry } from '../terminal/terminal-registry';
 import { ProxyService } from '../proxy/proxy.service';
 import {
+  GitSubmodules,
+  GitLfs,
   ConflictResolution,
   DiffImages,
   GitCommands,
@@ -68,6 +70,45 @@ export class RepositoryService {
       return operation(repo, new GitWorktrees(connection), controller.signal);
     })();
     return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  async getSubmodules(id: string) {
+    const repo = await this.get(id);
+    return new GitSubmodules(
+      await this.connection(
+        repo,
+        AbortSignal.timeout(REPOSITORY_STATUS_TIMEOUT_MS),
+      ),
+    ).list(repo.path);
+  }
+
+  async getLfsStatus(id: string) {
+    const repo = await this.get(id);
+    return new GitLfs(
+      await this.connection(
+        repo,
+        AbortSignal.timeout(REPOSITORY_STATUS_TIMEOUT_MS),
+      ),
+    ).status(repo.path);
+  }
+
+  async openSubmodule(id: string, selectedPath: string): Promise<Repository> {
+    const signal = AbortSignal.timeout(REPOSITORY_STATUS_TIMEOUT_MS);
+    const repo = await this.get(id);
+    const path = await new GitSubmodules(
+      await this.connection(repo, signal),
+    ).resolve(repo.path, selectedPath);
+    signal.throwIfAborted();
+    await this.get(id);
+    if (repo.source === 'local') return this.addLocal(path, signal, id);
+    const existing = this.db
+      .prepare(
+        'SELECT * FROM repositories WHERE connection_id = ? AND path = ? ORDER BY created_at, id LIMIT 1',
+      )
+      .get(repo.connectionId, path) as any;
+    return existing
+      ? this.fromRow(existing)
+      : this.add(repo.connectionId!, path);
   }
 
   getWorktrees(id: string) {
