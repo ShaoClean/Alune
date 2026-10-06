@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
   OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
 import {
   isAbsolute,
@@ -16,6 +17,7 @@ import {
 import { realpath } from 'node:fs/promises';
 import { ConnectionService } from '../connection/connection.service';
 import { RepositoryService } from '../repository/repository.service';
+import { ProxyService } from '../proxy/proxy.service';
 import {
   WorkspaceFileActions,
   RepositoryFileError,
@@ -72,13 +74,18 @@ export class GitService implements OnModuleDestroy {
   constructor(
     private connectionService: ConnectionService,
     private repoService: RepositoryService,
+    @Optional() private proxy?: ProxyService,
   ) {}
 
   private async transport(
     repo: Repository,
     signal?: AbortSignal,
   ): Promise<RepositoryTransport> {
-    if (repo.source === 'local') return new LocalConnection(signal);
+    if (repo.source === 'local')
+      return new LocalConnection(
+        signal,
+        this.proxy ? () => this.proxy!.settings.snapshot() : undefined,
+      );
     if (!repo.connectionId)
       throw new BadRequestException('远程仓库缺少 SSH 连接。');
     const connecting = this.connectionService.ensureConnected(

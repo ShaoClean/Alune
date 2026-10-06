@@ -262,7 +262,7 @@ export function ProxySettings() {
           </Tag>
         )}
       </div>
-      <p className="settings-lead">统一配置 AI、应用更新、SSH 与远端 Git 的网络代理。</p>
+      <p className="settings-lead">统一配置 AI、应用更新、SSH 与本地及远端 Git 的网络代理。</p>
       {notice && blocker.state !== 'blocked' && (
         <FeedbackNotice
           source="proxy-result"
@@ -558,6 +558,7 @@ export function ProxySettings() {
               <section className="proxy-panel">
                 <h2>配置如何生效</h2>
                 <p>本机新请求在保存后使用新配置；代理失败会明确报错。</p>
+                <p>本地仓库的拉取、推送与远程引用查询在下一次操作时使用新配置，无需重连。</p>
                 <p>
                   已有 SSH
                   连接继续使用原配置，断线自动重连也沿用原配置。点击“重新连接并应用”后切换。

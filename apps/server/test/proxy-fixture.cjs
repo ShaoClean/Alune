@@ -19,6 +19,7 @@ async function startProxyFixture() {
   fs.mkdirSync(seed); git(seed, 'init', '-q', '-b', 'main');
   git(seed, 'config', 'user.name', 'Proxy Fixture'); git(seed, 'config', 'user.email', 'fixture@example.invalid');
   fs.writeFileSync(path.join(seed, 'README.md'), 'proxy fixture\n'); git(seed, 'add', '.'); git(seed, 'commit', '-qm', 'initial');
+  git(seed, 'tag', 'fixture-v1');
   git(root, 'clone', '--bare', seed, 'remote.git'); git(root, 'clone', path.join(root, 'remote.git'), repo);
   git(repo, 'config', 'user.name', 'Proxy Fixture'); git(repo, 'config', 'user.email', 'fixture@example.invalid');
   git(repo, 'config', 'http.sslCAInfo', certificate); git(repo, 'config', 'http.proxy', 'http://unreachable.invalid:1');
@@ -28,7 +29,7 @@ async function startProxyFixture() {
 
   const payload = Buffer.from('controlled-update-payload');
   const dmg = 'Alune-0.5.0-mac-arm64.dmg', sha = createHash('sha256').update(payload).digest('hex');
-  const urls = [], aiRequests = [];
+  const urls = [], aiRequests = [], gitRequests = [];
   const releases = await listen(https.createServer(tlsOptions, (request, response) => {
     urls.push({ host: request.headers.host, path: request.url });
     const base = 'https://github.com/ShaoClean/Alune/releases/download/v0.5.0/';
@@ -45,6 +46,7 @@ async function startProxyFixture() {
     response.end(JSON.stringify(request.url.endsWith('/models') ? { data: [{ id: 'fixture-model' }] } : { choices: [{ message: { content: JSON.stringify({ message: 'feat: proxy fixture', description: '' }) } }] }));
   }));
   const gitHTTP = await listen(https.createServer(tlsOptions, (request, response) => {
+    gitRequests.push({ host: request.headers.host, path: request.url });
     const url = new URL(request.url, 'https://git.fixture.test');
     const child = spawn('git', ['http-backend'], { env: { ...env, GIT_PROJECT_ROOT: root, GIT_HTTP_EXPORT_ALL: '1', PATH_INFO: url.pathname, QUERY_STRING: url.search.slice(1), REQUEST_METHOD: request.method, CONTENT_TYPE: request.headers['content-type'] || '', REMOTE_USER: 'fixture' } });
     let buffered = Buffer.alloc(0), headersSent = false;
@@ -65,6 +67,8 @@ async function startProxyFixture() {
   const gitSSH = await forwardingSSH({ environment: env });
   fs.writeFileSync(knownHosts, `[git.fixture.test]:${gitSSH.port} ssh-rsa ${gitSSH.publicKey}\n`);
   fs.writeFileSync(path.join(bin, 'ssh'), `#!/bin/sh\nexec /usr/bin/ssh -o UserKnownHostsFile='${knownHosts}' "$@"\n`, { mode: 0o700 });
+  // Local Git subprocesses need the same isolated SSH host trust as remote Git.
+  const oldPath = process.env.PATH; process.env.PATH = `${bin}:${env.PATH}`;
   const remote = await forwardingSSH({ environment: { ...env, PATH: `${bin}:${env.PATH}` } });
   const credentials = { username: 'fixture-user', password: 'fixture-password' };
   const map = (host, port) => ({ host: '127.0.0.1', port: ['api.github.com', 'github.com', 'release-assets.githubusercontent.com'].includes(host) ? releases.port : host === 'ai.fixture.test' ? ai.port : port });
@@ -81,11 +85,16 @@ async function startProxyFixture() {
   const repository = { id: '11111111-1111-4111-8111-111111111111', connectionId: connection.id, name: '代理测试仓库', path: repo, source: 'ssh' };
   const linked = { ...repository, id: '22222222-2222-4222-8222-222222222222', name: '关联 Worktree', path: worktree };
   for (const value of [repository, linked]) database.prepare('INSERT INTO repositories (id, connection_id, name, path) VALUES (?, ?, ?, ?)').run(value.id, value.connectionId, value.name, value.path);
+  // Exercise the actual local registration path instead of inserting local rows.
+  const localRepository = await repositories.addLocal(repo);
+  const localLinked = await repositories.addLocal(worktree, undefined, localRepository.id);
   const httpsRemote = `https://git.fixture.test:${gitHTTP.port}/remote.git`, sshRemote = `ssh://fixture@git.fixture.test:${gitSSH.port}${root}/remote.git`;
+  const directRemote = `https://127.0.0.1:${gitHTTP.port}/remote.git`;
   git(repo, 'remote', 'set-url', 'origin', httpsRemote);
-  return { root, app, origin: await app.getUrl(), proxy, proxies, credentials, connection, connections, repositories, repository, linked, repo, worktree, seed, git, httpsRemote, sshRemote, ai, aiRequests, urls, remote, gitSSH,
+  return { root, app, origin: await app.getUrl(), proxy, proxies, credentials, connection, connections, repositories, repository, linked, localRepository, localLinked, repo, worktree, seed, git, httpsRemote, sshRemote, directRemote, gitRequests, ai, aiRequests, urls, remote, gitSSH,
     async close() {
       await app.close(); database.close(); for (const fixture of [releases, ai, gitHTTP, remote, gitSSH, ...Object.values(proxies)]) fixture.close();
+      if (oldPath === undefined) delete process.env.PATH; else process.env.PATH = oldPath;
       await new Promise((resolve) => setTimeout(resolve, 100)); fs.rmSync(root, { recursive: true, force: true });
     },
   };

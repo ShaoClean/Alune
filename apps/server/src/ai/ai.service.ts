@@ -203,7 +203,10 @@ export class AiService implements OnModuleDestroy {
     const repo = await this.repositories.get(repoId);
     const connection =
       repo.source === 'local'
-        ? new LocalConnection(signal)
+        ? new LocalConnection(
+            signal,
+            this.proxy ? () => this.proxy!.settings.snapshot() : undefined,
+          )
         : await this.connections.ensureConnected(repo.connectionId!);
     const release = 'holdTask' in connection ? connection.holdTask() : () => {};
     try {
