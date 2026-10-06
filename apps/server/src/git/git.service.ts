@@ -20,6 +20,7 @@ import {
   WorkspaceFileActions,
   RepositoryFileError,
   GitCommands,
+  GitTags,
   LocalConnection,
   NewFileDeletion,
   NewFileDeletionError,
@@ -45,6 +46,10 @@ import type {
   Repository,
   SwitchBranchResult,
   BranchNameConflict,
+  CreateTagOptions,
+  DeleteTagOptions,
+  PushTagOptions,
+  CheckoutTagOptions,
   RebaseRequest,
   RebaseResolution,
 } from '@alune/shared';
@@ -447,6 +452,53 @@ export class GitService implements OnModuleDestroy {
       ]),
     );
   }
+  async tags(id: string, remote?: string) {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(new Error('读取标签超时，请重试。')),
+      30_000,
+    );
+    timer.unref();
+    try {
+      const repo = await this.repoService.get(id);
+      const tags = new GitTags(await this.transport(repo, controller.signal));
+      return remote === undefined
+        ? await tags.list(repo.path)
+        : await tags.remoteTags(repo.path, remote);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法读取标签。',
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  createTag(id: string, options: CreateTagOptions) {
+    return this.write(id, 'create-tag', (_git, repo, connection) =>
+      new GitTags(connection).create(repo.path, options),
+    );
+  }
+
+  deleteTag(id: string, options: DeleteTagOptions) {
+    return this.write(id, 'delete-tag', (_git, repo, connection) =>
+      new GitTags(connection).delete(repo.path, options),
+    );
+  }
+
+  pushTag(id: string, options: PushTagOptions) {
+    return this.write(id, 'push-tag', (_git, repo, connection) =>
+      new GitTags(connection).push(repo.path, options),
+    );
+  }
+
+  checkoutTag(id: string, options: CheckoutTagOptions) {
+    return this.write(id, 'checkout-tag', (_git, repo, connection) =>
+      new GitTags(connection).checkout(repo.path, options),
+    );
+  }
+
   createBranch(id: string, name: string, checkout?: boolean) {
     return this.write(id, 'create-branch', async (git, repo) =>
       this.checked(git, repo.path, [

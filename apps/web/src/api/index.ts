@@ -36,6 +36,12 @@ import type {
   SaveAccessToken,
   ApplyAccessToken,
   SwitchBranchResult,
+  GitTag,
+  RemoteTag,
+  CreateTagOptions,
+  DeleteTagOptions,
+  PushTagOptions,
+  CheckoutTagOptions,
   RebasePreview,
   RebaseRequest,
   RebaseState,
@@ -224,6 +230,19 @@ export const repositoryApi = {
 
 // Git Operation APIs
 export const gitApi = {
+  tags: (id: string): Promise<GitTag[]> => api.get(`/repositories/${id}/tags`).then((r) => r.data),
+  remoteTags: (id: string, remote: string): Promise<RemoteTag[]> =>
+    api
+      .get(`/repositories/${id}/tags/remote`, { params: { remote }, timeout: 35_000 })
+      .then((r) => r.data),
+  createTag: (id: string, options: CreateTagOptions) =>
+    api.post(`/repositories/${id}/tags`, options, gitTimeout).then((r) => r.data),
+  deleteTag: (id: string, options: DeleteTagOptions) =>
+    api.post(`/repositories/${id}/tags/delete`, options, gitTimeout).then((r) => r.data),
+  pushTag: (id: string, options: PushTagOptions) =>
+    api.post(`/repositories/${id}/tags/push`, options, gitTimeout).then((r) => r.data),
+  checkoutTag: (id: string, options: CheckoutTagOptions) =>
+    api.post(`/repositories/${id}/tags/checkout`, options, gitTimeout).then((r) => r.data),
   previewRebase: (id: string, base: string): Promise<RebasePreview> =>
     api
       .post(`/repositories/${id}/interactive-rebase/preview`, { base }, { timeout: 65_000 })

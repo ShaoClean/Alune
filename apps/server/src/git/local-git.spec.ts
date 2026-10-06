@@ -101,6 +101,80 @@ describe('local repositories with real Git and SQLite', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  it('manages tags through HTTP with explicit confirmation and worktree identity', async () => {
+    await seed();
+    const http = () => request(app.getHttpServer());
+    const remote = join(root, 'tags.git');
+    execFileSync('git', ['init', '--bare', '-q', remote]);
+    git('remote', 'add', 'origin', remote);
+    await http()
+      .post(`/repositories/${id}/tags`)
+      .send({ name: 'v1', type: 'annotated', message: '发行说明' })
+      .expect(201);
+    const { body: tags } = await http()
+      .get(`/repositories/${id}/tags`)
+      .expect(200);
+    expect(tags).toEqual([
+      expect.objectContaining({
+        name: 'v1',
+        type: 'annotated',
+        message: '发行说明',
+        commitHash: git('rev-parse', 'HEAD').trim(),
+      }),
+    ]);
+    for (const body of [
+      {},
+      { name: 'bad name', type: 'lightweight' },
+      { name: 'v1', type: 'lightweight' },
+    ])
+      await http().post(`/repositories/${id}/tags`).send(body).expect(400);
+    await http()
+      .post(`/repositories/${id}/tags/push`)
+      .send({ remote: 'origin', name: 'v1' })
+      .expect(201);
+    const { body: remoteTags } = await http()
+      .get(`/repositories/${id}/tags/remote`)
+      .query({ remote: 'origin' })
+      .expect(200);
+    expect(remoteTags).toEqual([
+      { name: 'v1', objectHash: tags[0].objectHash },
+    ]);
+    await http().get(`/repositories/${id}/tags/remote`).expect(400);
+    await http()
+      .post(`/repositories/${id}/tags/delete`)
+      .send(tags[0])
+      .expect(400);
+    await http()
+      .post(`/repositories/${id}/tags/checkout`)
+      .send(tags[0])
+      .expect(400);
+    await http()
+      .post(`/repositories/${id}/tags/checkout`)
+      .send({ ...tags[0], branch: 'release/v1' })
+      .expect(201);
+    expect(git('branch', '--show-current').trim()).toBe('release/v1');
+    const linkedPath = join(root, 'linked-tags');
+    git('worktree', 'add', '-qb', 'linked-tags', linkedPath);
+    const linked = await repos.addLocal(linkedPath);
+    await http()
+      .post(`/repositories/${linked.id}/tags`)
+      .send({ name: 'v2', type: 'lightweight' })
+      .expect(201);
+    expect(git('tag', '--list')).toContain('v2');
+    await http()
+      .post(`/repositories/${id}/tags/delete`)
+      .send({
+        ...tags[0],
+        confirmed: true,
+        remote: 'origin',
+        remoteObjectHash: tags[0].objectHash,
+      })
+      .expect(201);
+    expect(git('tag', '--list').trim()).toBe('v2');
+    expect(git('ls-remote', '--tags', 'origin').trim()).toBe('');
+    expect(ssh).not.toHaveBeenCalled();
+  });
+
   it('rejects directory staging and checkout via HTTP while allowing local ignore and ordinary file batches', async () => {
     await seed();
     git('worktree', 'add', '-qb', 'nested-tree', '.claude/worktrees/demo');

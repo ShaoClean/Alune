@@ -91,6 +91,11 @@ describe('interactive rebase HTTP flow with real local Git', () => {
   it('exposes conflicts, blocks unrelated writes, resolves, continues and aborts the next conflict', async () => {
     const first = commit('first');
     const second = commit('second');
+    const tagsRoute = `/repositories/${id}/tags`;
+    await request(app.getHttpServer())
+      .post(tagsRoute)
+      .send({ name: 'before-rebase', type: 'lightweight' })
+      .expect(201);
     const preview = await request(app.getHttpServer())
       .post(`${route}/preview`)
       .send({ base })
@@ -107,6 +112,29 @@ describe('interactive rebase HTTP flow with real local Git', () => {
       })
       .expect(201);
     expect(start.body.state.conflicts).toEqual(['file']);
+    const pausedHead = git('rev-parse', 'HEAD');
+    const pausedStatus = git('status', '--porcelain');
+    const tag = { name: 'before-rebase', objectHash: second };
+    const listed = await request(app.getHttpServer()).get(tagsRoute).expect(200);
+    expect(listed.body).toEqual([expect.objectContaining(tag)]);
+    for (const [endpoint, body] of [
+      ['', { name: 'during-rebase', type: 'lightweight' }],
+      ['/delete', { ...tag, confirmed: true }],
+      ['/push', { name: tag.name, remote: 'origin' }],
+      ['/checkout', { ...tag, branch: 'must-not-exist' }],
+      ['/checkout', { ...tag, confirmed: true }],
+    ] as const) {
+      const blocked = await request(app.getHttpServer())
+        .post(`${tagsRoute}${endpoint}`)
+        .send(body)
+        .expect(409);
+      expect(blocked.body.message).toContain('交互式变基');
+    }
+    expect(git('rev-parse', 'HEAD')).toBe(pausedHead);
+    expect(git('status', '--porcelain')).toBe(pausedStatus);
+    expect(git('tag', '--list')).toBe(tag.name);
+    expect(git('rev-parse', `refs/tags/${tag.name}`)).toBe(second);
+    expect(git('branch', '--list', 'must-not-exist')).toBe('');
     await request(app.getHttpServer())
       .post(`/repositories/${id}/commit`)
       .send({ message: 'must not commit' })
@@ -135,6 +163,11 @@ describe('interactive rebase HTTP flow with real local Git', () => {
       .expect(201);
     expect(aborted.body.state.active).toBe(false);
     expect(git('rev-parse', 'HEAD')).toBe(second);
+    await request(app.getHttpServer())
+      .post(tagsRoute)
+      .send({ name: 'after-rebase', type: 'lightweight' })
+      .expect(201);
+    expect(git('rev-parse', 'refs/tags/after-rebase')).toBe(second);
   });
 
   it.each(['continue', 'skip', 'abort'] as const)(
