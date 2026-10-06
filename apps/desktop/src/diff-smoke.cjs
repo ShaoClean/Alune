@@ -4,11 +4,12 @@ const assert = require('node:assert/strict');
 module.exports = async ({ window, origin, token, backend }) => {
   const { ConnectionService } = require('./server/connection/connection.service');
   const { RepositoryService } = require('./server/repository/repository.service');
-  const { GitCommands } = require('@alune/ssh-client');
+  const { GitCommands, PartialChanges } = require('@alune/ssh-client');
   const connections = backend.get(ConnectionService);
   const repositories = backend.get(RepositoryService);
   const originalContext = repositories.getContext;
   const originalConnect = connections.ensureConnected;
+  const originalPreview = PartialChanges.prototype.preview;
   const originals = Object.fromEntries(
     ['status', 'diff', 'stage', 'unstage'].map((key) => [key, GitCommands.prototype[key]]),
   );
@@ -109,6 +110,11 @@ module.exports = async ({ window, origin, token, backend }) => {
         return 'diff --git a/file b/file\n--- a/file\n+++ b/file\n@@ -1 +1 @@\n-desktop first\n+desktop second\n';
       return patch('desktop second');
     };
+    // Editable previews use the same synthetic patches as the full-file fixture.
+    // Real partial Git operations are covered in ssh-client/tests/partial-changes.test.cjs.
+    PartialChanges.prototype.preview = async (repoPath, file, staged) => ({
+      diff: await GitCommands.prototype.diff(repoPath, { file, staged }),
+    });
     GitCommands.prototype.stage = async () => {
       staged = true;
     };
@@ -226,6 +232,7 @@ module.exports = async ({ window, origin, token, backend }) => {
   } finally {
     connections.ensureConnected = originalConnect;
     repositories.getContext = originalContext;
+    PartialChanges.prototype.preview = originalPreview;
     Object.assign(GitCommands.prototype, originals);
     if (repo?.id)
       await fetch(`${origin}/api/repositories/${repo.id}`, { method: 'DELETE', headers });
