@@ -30,7 +30,7 @@ const bar = (props) =>
     }),
   );
 
-function changes(files, operation) {
+function changes(files, operation, managedRebase = false) {
   const status = { branch: 'main', ahead: 0, behind: 0, files, operation };
   Object.assign(useRepositoryStore.getInitialState(), {
     status,
@@ -38,7 +38,9 @@ function changes(files, operation) {
       conflicts: { phase: 'success', data: status, updatedAt: Date.now() },
     },
   });
-  return wrap(createElement(ChangesView, { repoId: 'conflicts', onRefresh: async () => {} }));
+  return wrap(
+    createElement(ChangesView, { repoId: 'conflicts', onRefresh: async () => {}, managedRebase }),
+  );
 }
 
 const rebase = {
@@ -105,6 +107,26 @@ test('仍有冲突时不能继续，变基可以跳过，中止始终可用', ()
   assert.match(html, /<button[^>]*disabled=""[^>]*>(?:(?!<\/button>).)*继续变基/);
   assert.match(html, /跳过此提交/);
   assert.match(html, /中止变基/);
+});
+
+test('交互式变基使用专用控制栏，同时保留通用冲突文件入口', () => {
+  const html = changes(
+    [
+      {
+        path: 'conflict.txt',
+        status: 'modified',
+        staged: false,
+        conflicted: true,
+        conflict: 'both-modified',
+      },
+    ],
+    rebase,
+    true,
+  );
+  assert.doesNotMatch(html, /class="conflict-bar"/);
+  assert.doesNotMatch(html, /跳过此提交|中止变基/);
+  assert.match(html, /change-group--conflict/);
+  assert.match(html, /aria-label="标记为已解决 conflict\.txt"/);
 });
 
 test('冲突解决后可以继续；合并没有跳过', () => {

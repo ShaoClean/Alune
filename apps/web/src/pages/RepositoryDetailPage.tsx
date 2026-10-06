@@ -2,6 +2,7 @@ import { useFeedbackMessage } from '@alune/ui';
 import type { RepositoryContext } from '@alune/shared';
 import { RepositoryContextNotice } from '../components/RepositoryContextNotice';
 import { GitOperationNotice } from '../components/GitOperationNotice';
+import { RebaseOperationNotice } from '../components/RebaseOperationNotice';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
@@ -102,6 +103,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [syncing, setSyncing] = useState<SyncOperation | null>(null);
   const [syncingForce, setSyncingForce] = useState(false);
   const [context, setContext] = useState<RepositoryContext | null>(null);
+  const [managedRebase, setManagedRebase] = useState<string | null>(null);
   const [syncError, setSyncError] = useState('');
   const [syncAttempt, setSyncAttempt] = useState(0);
   const [syncSelection, setSyncSelection] = useState<{
@@ -414,6 +416,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         <ChangesView
           key={id}
           repoId={id}
+          managedRebase={managedRebase === id}
           onRefresh={handleRefresh}
           onSelectFile={handleSelectFile}
           selectedFile={selectedFile}
@@ -481,6 +484,12 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         onRefresh={() => void handleRefresh()}
       />
       <GitOperationNotice key={id} repoId={id!} onFinished={() => void handleRefresh()} />
+      <RebaseOperationNotice
+        key={`rebase:${id}`}
+        repoId={id!}
+        onFinished={() => void handleRefresh()}
+        onManagedChange={(managed) => setManagedRebase(managed ? id! : null)}
+      />
       <FeedbackNotice
         source="git-sync"
         title={syncError ? 'Git 操作未完成' : null}

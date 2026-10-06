@@ -46,6 +46,7 @@ interface Props {
   onSelectFile?: (file: any) => void;
   selectedFile?: { path: string; staged: boolean } | null;
   onFileChanged?: (path: string) => void;
+  managedRebase?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
@@ -100,6 +101,7 @@ export function ChangesView({
   onSelectFile,
   selectedFile,
   onFileChanged,
+  managedRebase = false,
 }: Props) {
   const message = useFeedbackMessage();
   const confirm = useAluneConfirm();
@@ -752,7 +754,7 @@ export function ChangesView({
         />
       </div>
       <div className="changes-content">
-        {status && (
+        {status && !managedRebase && (
           <ConflictOperationBar
             repoId={repoId}
             repoName={repoName}

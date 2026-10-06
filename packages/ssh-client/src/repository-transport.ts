@@ -11,6 +11,7 @@ export type CommandOptions = {
 // Git and file parsing are shared; only execution and file transport differ.
 export type RepositoryTransport = Pick<SSHConnection, 'execCommand' | 'withSftp'> & {
   signal?: AbortSignal;
+  hasAnyPath?: (paths: string[]) => Promise<boolean>;
   execGit?: (
     path: string,
     args: string[],
