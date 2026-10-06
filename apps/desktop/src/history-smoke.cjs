@@ -3,11 +3,12 @@ const assert = require('node:assert/strict');
 module.exports = async ({ window, origin, token, backend }) => {
   const { ConnectionService } = require('./server/connection/connection.service');
   const { RepositoryService } = require('./server/repository/repository.service');
-  const { GitCommands, GitLogChangedError } = require('@alune/ssh-client');
+  const { GitCommands, GitLogChangedError, GitSigning } = require('@alune/ssh-client');
   const connections = backend.get(ConnectionService);
   const repositories = backend.get(RepositoryService);
   const originalContext = repositories.getContext;
   const originalConnect = connections.ensureConnected;
+  const originalSignatures = GitSigning.prototype.signatures;
   const originals = Object.fromEntries(
     ['status', 'log', 'commitFiles', 'diff'].map((key) => [key, GitCommands.prototype[key]]),
   );
@@ -69,6 +70,9 @@ module.exports = async ({ window, origin, token, backend }) => {
       remotes: [{ name: 'origin', fetchUrl: 'fixture.invalid/repo', pushUrl: 'fixture.invalid/repo' }],
     });
     GitCommands.prototype.status = async () => ({ branch: 'main', ahead: 0, behind: 0, files: [] });
+    // Generated history commits are unsigned and have no SSH transport to verify them.
+    GitSigning.prototype.signatures = async (_path, hashes) =>
+      hashes.map((hash) => ({ hash, status: 'unsigned', code: 'N', signer: '', key: '' }));
     GitCommands.prototype.log = async (_path, options) => {
       if (options.revision && options.revision !== revision) throw new GitLogChangedError();
       const offset = Number(options.skip || 0),
@@ -193,6 +197,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     window.setSize(...originalSize);
     connections.ensureConnected = originalConnect;
     repositories.getContext = originalContext;
+    GitSigning.prototype.signatures = originalSignatures;
     Object.assign(GitCommands.prototype, originals);
     if (repo) await fetch(origin + '/api/repositories/' + repo.id, { method: 'DELETE', headers });
     if (connection)
