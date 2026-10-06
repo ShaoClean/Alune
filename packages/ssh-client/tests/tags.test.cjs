@@ -36,6 +36,7 @@ for (const mode of ['local', 'worktree', 'ssh', 'ssh-worktree']) {
     const light = "版本/v1.0'$()";
     fixture.git('config', 'tag.gpgSign', 'true');
     await tags.create(repo, { name: light, type: 'lightweight', target: head });
+    fixture.git('config', 'tag.gpgSign', 'false');
     await tags.create(repo, {
       name: 'v2.0',
       type: 'annotated',

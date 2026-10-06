@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { GitService } from './git.service';
 import type {
+  SigningConfig,
   PartialDiffRequest,
   SwitchBranchOptions,
   CreateTagOptions,
@@ -105,9 +106,14 @@ export class GitController {
   @Post(':id/commit')
   async commit(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { message: string; description?: string },
+    @Body() body: { message: string; description?: string; amend?: string },
   ) {
-    return this.gitService.commit(id, body.message, body.description);
+    return this.gitService.commit(
+      id,
+      body.message,
+      body.description,
+      body.amend,
+    );
   }
 
   @Post(':id/push')
@@ -446,6 +452,25 @@ export class GitController {
     @Body() body: { name: string; url: string },
   ) {
     return this.gitService.addRemote(id, body.name, body.url);
+  }
+
+  @Get(':id/signing')
+  signingConfig(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gitService.signingConfig(id);
+  }
+  @Post(':id/signing')
+  saveSigningConfig(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: SigningConfig,
+  ) {
+    return this.gitService.saveSigningConfig(id, body);
+  }
+  @Post(':id/signatures')
+  commitSignatures(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { hashes: string[] },
+  ) {
+    return this.gitService.commitSignatures(id, body?.hashes);
   }
 
   @Post(':id/author')

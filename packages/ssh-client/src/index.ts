@@ -38,3 +38,5 @@ export { WorkspaceFileActions, validateWorkspaceName } from './workspace-file-ac
 export { collectRepositoryAnalytics, primaryLanguage } from './repository-analytics';
 export { ConflictResolution, ConflictResolutionError } from './conflict-resolution';
 export { PartialChanges, PartialChangesError } from './partial-changes';
+
+export { GitSigning, signingFailure, signatureStatus } from './git-signing';

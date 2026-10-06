@@ -2,6 +2,8 @@ import axios from 'axios';
 import { confirmTerminalRemoval } from '../stores/terminalRemoval';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@alune/shared';
 import type {
+  SigningConfig,
+  CommitSignature,
   PartialDiffRequest,
   BlameOptions,
   BlameResult,
@@ -254,6 +256,14 @@ export const repositoryApi = {
 
 // Git Operation APIs
 export const gitApi = {
+  signingConfig: (id: string, signal?: AbortSignal): Promise<SigningConfig> =>
+    api.get(`/repositories/${id}/signing`, { signal }).then((r) => r.data),
+  saveSigningConfig: (id: string, config: SigningConfig): Promise<SigningConfig> =>
+    api.post(`/repositories/${id}/signing`, config, gitTimeout).then((r) => r.data),
+  signatures: (id: string, hashes: string[], signal?: AbortSignal): Promise<CommitSignature[]> =>
+    api
+      .post(`/repositories/${id}/signatures`, { hashes }, { signal, timeout: 40_000 })
+      .then((r) => r.data),
   tags: (id: string): Promise<GitTag[]> => api.get(`/repositories/${id}/tags`).then((r) => r.data),
   remoteTags: (id: string, remote: string): Promise<RemoteTag[]> =>
     api
@@ -337,9 +347,9 @@ export const gitApi = {
     api.post(`/repositories/${id}/stage`, { files }, gitTimeout).then((r) => r.data),
   unstage: (id: string, files: string[]) =>
     api.post(`/repositories/${id}/unstage`, { files }, gitTimeout).then((r) => r.data),
-  commit: (id: string, message: string, description?: string) =>
+  commit: (id: string, message: string, description?: string, amend?: string) =>
     api
-      .post(`/repositories/${id}/commit`, { message, description }, gitTimeout)
+      .post(`/repositories/${id}/commit`, { message, description, amend }, gitTimeout)
       .then((r) => r.data),
   push: (
     id: string,

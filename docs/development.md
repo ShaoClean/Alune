@@ -127,3 +127,9 @@ npm run test:terminals -w desktop -- --packaged
 `prepare` 会修复 node-pty 1.1.0 中 macOS 预编译 `spawn-helper` 的执行权限。桌面暂存目录独立重建 SQLite 与 node-pty，后者完整解包到 asar 外；不会改动开发服务器的 Node ABI。
 
 [返回项目首页](../README.md) · [文档索引](README.md)
+
+### 提交签名验证
+
+构建 shared、ssh-client、server 和 web 后，运行 `node --test packages/ssh-client/tests/signing.test.cjs` 与 `node --test apps/web/tests/signing.integration.cjs`，在临时本地与 SSH 仓库验证真实签名、修改提交、附注标签、篡改、缺失信任配置、密钥缺失和失败后 HEAD／暂存区保留。真实 GPG 测试需要安装 GPG，缺失时明确跳过；pinentry 失败使用受控程序模拟，不替代桌面弹窗验收。
+
+运行 `node apps/web/tests/signing-fixture.cjs` 可打开生产界面做签名验收。fixture 使用临时 SSH 密钥、本地 SSH 服务与独立数据目录，输出本地和远端仓库 URL；退出时清理。Windows 的测试 SSH 服务暂不支持执行命令，只运行本地用例。发布前仍需在各平台实际确认 GPG／SSH agent 和桌面 pinentry；使用说明见[提交签名](commit-signing.md)。

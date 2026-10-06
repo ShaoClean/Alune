@@ -111,6 +111,9 @@ export function CreateTagDialog({
       {type === 'annotated' && (
         <label className="dlg-fld">
           <span className="dlg-fld-label">附注</span>
+          <span className="dlg-fld-hint">
+            遵循此仓库的提交签名或 tag.gpgsign 设置；SSH 仓库使用远端密钥。
+          </span>
           <Input.TextArea
             aria-label="标签附注"
             rows={4}

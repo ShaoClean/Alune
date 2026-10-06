@@ -1,3 +1,4 @@
+import { AmendCommitDialog } from './AmendCommitDialog';
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import type { ShowHistory } from './WorkspaceFileMenu';
 import { FeedbackNotice } from '@alune/ui';
@@ -126,6 +127,7 @@ export function ChangesView({
   const [query, setQuery] = useState('');
   const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
+  const [amendOpen, setAmendOpen] = useState(false);
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const [discardAllOpen, setDiscardAllOpen] = useState(false);
   const discardAllTrigger = useRef<HTMLButtonElement>(null);
@@ -337,7 +339,10 @@ export function ChangesView({
     try {
       await gitApi.commit(repoId, draft.message.trim(), draft.description.trim() || undefined);
       clearSubmittedDraft(repoId, draft);
-      await fetchStatus(repoId, true);
+      await Promise.all([
+        fetchStatus(repoId, true),
+        useRepositoryStore.getState().fetchLog(repoId),
+      ]);
     } catch (err: any) {
       message.error(err.message || '提交失败');
     } finally {
@@ -812,9 +817,25 @@ export function ChangesView({
           </>
         )}
       </div>
+      {amendOpen && (
+        <AmendCommitDialog
+          key={repoId}
+          repoId={repoId}
+          onClose={() => setAmendOpen(false)}
+          onCommitted={onRefresh}
+        />
+      )}
       <div className="commit-box">
         <div className="commit-box__heading">
           <strong>提交改动</strong>
+          <Button
+            type="text"
+            size="small"
+            disabled={busy || !!operation}
+            onClick={() => setAmendOpen(true)}
+          >
+            修改上一次提交
+          </Button>
           <span>
             {operation ? '进行中的操作请用上方的“继续”完成' : `${stagedFiles.length} 个文件已暂存`}
           </span>

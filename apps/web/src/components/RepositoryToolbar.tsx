@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactElement, WheelEvent } from 'react';
+import { SigningSettingsDialog } from './SigningSettingsDialog';
+import { SafetyCertificateOutlined } from '@ant-design/icons';
 import { Dropdown } from '@alune/ui';
 import {
   BranchesOutlined,
@@ -29,13 +31,7 @@ import { syncLabel } from '../stores/syncStatusStore';
 import type { SyncOperation } from '../stores/syncStatusStore';
 
 export type RepositoryPanel =
-  | 'changes'
-  | 'files'
-  | 'history'
-  | 'branches'
-  | 'stashes'
-  | 'remotes'
-  | 'pull-requests';
+  'changes' | 'files' | 'history' | 'branches' | 'stashes' | 'remotes' | 'pull-requests';
 export type { SyncOperation };
 
 type ViewItem = { key: RepositoryPanel; label: string; icon: ReactElement };
@@ -135,6 +131,7 @@ export function RepositoryToolbar({
   onBranchSwitched: () => void | Promise<void>;
   tier?: 'full' | 'compact' | 'condensed' | 'minimal';
 }) {
+  const [signingOpen, setSigningOpen] = useState(false);
   const detectedTier = useToolbarTier();
   const terminalVisible = useTerminalStore((state) => state.visible);
   const tier = forcedTier || detectedTier;
@@ -253,6 +250,21 @@ export function RepositoryToolbar({
       <span className="repository-toolbar__divider" aria-hidden="true" />
 
       <div className="repository-toolbar__actions">
+        <ToolbarButton
+          variant="icon"
+          label="提交签名设置"
+          tooltip="提交签名设置"
+          onClick={() => setSigningOpen(true)}
+        >
+          <SafetyCertificateOutlined />
+        </ToolbarButton>
+        {signingOpen && (
+          <SigningSettingsDialog
+            key={repoId}
+            repoId={repoId}
+            onClose={() => setSigningOpen(false)}
+          />
+        )}
         <ToolbarButton
           variant="icon"
           label="终端"
