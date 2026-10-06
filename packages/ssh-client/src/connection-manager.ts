@@ -323,10 +323,20 @@ export class SSHConnection extends EventEmitter {
     repoPath: string,
     args: string[],
     signal?: AbortSignal,
-    options?: { maxOutputBytes?: number; strictUtf8?: boolean; binary?: boolean },
+    options?: {
+      maxOutputBytes?: number;
+      strictUtf8?: boolean;
+      binary?: boolean;
+      environment?: Record<string, string>;
+    },
   ): Promise<CommandResult> {
     if (!this.proxyEnabled || !['fetch', 'pull', 'push', 'ls-remote'].includes(args[0]))
-      return this.execCommand(gitFileCommand(repoPath, args), undefined, signal, options);
+      return this.execCommand(
+        gitFileCommand(repoPath, args, options?.environment),
+        undefined,
+        signal,
+        options,
+      );
     const release = this.holdTask();
     try {
       await this.prepareGitProxy();

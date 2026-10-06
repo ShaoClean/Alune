@@ -13,6 +13,8 @@ const labels: Record<string, string> = {
   'fetch-history': '获取完整历史',
   merge: '合并分支',
   rebase: '变基',
+  'interactive-rebase': '交互式变基',
+  'rebase-conflict': '解决变基冲突',
   stash: '储藏',
   'stash-pop': '弹出储藏',
   'stash-apply': '应用储藏',
@@ -24,6 +26,10 @@ const labels: Record<string, string> = {
   'delete-tag': '删除标签',
   'push-tag': '推送标签',
   'checkout-tag': '从标签检出',
+  'conflict-continue': '继续操作',
+  'conflict-skip': '跳过提交',
+  'conflict-abort': '中止操作',
+  'resolve-conflict': '解决冲突',
 };
 export function GitOperationNotice({
   repoId,
@@ -66,7 +72,9 @@ export function GitOperationNotice({
       clearTimeout(timer);
     };
   }, [repoId]);
-  if (!operation) return null;
+  // Rebase has a persistent recovery panel; a transient notification can remain
+  // open after Git pauses and obscure its conflict controls.
+  if (!operation || ['interactive-rebase', 'rebase-conflict'].includes(operation.kind)) return null;
   return (
     <FeedbackNotice
       source="git-operation"

@@ -1,6 +1,10 @@
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { NewFileDeletion, NewFileDeletionError } from '@alune/ssh-client';
+import {
+  NewFileDeletion,
+  NewFileDeletionError,
+  InteractiveRebase,
+} from '@alune/ssh-client';
 import { GitService } from './git.service';
 import { GitController } from './git.controller';
 import { ConnectionService } from '../connection/connection.service';
@@ -19,6 +23,12 @@ describe('single new file deletion HTTP API', () => {
   let app: any;
   let connect: jest.Mock;
   beforeEach(async () => {
+    jest.spyOn(InteractiveRebase.prototype, 'state').mockResolvedValue({
+      active: false,
+      managed: false,
+      inProgress: false,
+      conflicts: [],
+    });
     connect = jest.fn().mockResolvedValue({});
     const module = await Test.createTestingModule({
       controllers: [GitController],

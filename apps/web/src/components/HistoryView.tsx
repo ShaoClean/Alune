@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { GraphCommit, CommitReference } from '@alune/shared';
-import { FeedbackNotice } from '@alune/ui';
+import { FeedbackNotice, Button, Dropdown } from '@alune/ui';
+import { InteractiveRebaseDialog } from './InteractiveRebaseDialog';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { EmptyState, ErrorState } from '@alune/ui';
 import { formatRelativeDate } from './ui';
@@ -106,6 +107,8 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(400);
   const [focused, setFocused] = useState(0);
+  const [rebaseBase, setRebaseBase] = useState<string | null>(null);
+  useEffect(() => setRebaseBase(null), [repoId]);
   const graph = useMemo(() => {
     const cached = graphCache.current;
     const previous =
@@ -193,6 +196,25 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
 
   return (
     <section className="workspace-panel history-panel" aria-label="所有分支提交历史">
+      {!!log.length && (
+        <div className="history-rebase-action">
+          <Button
+            size="small"
+            disabled={logLoading}
+            onClick={() => setRebaseBase(log[focused]?.hash ?? log[0].hash)}
+          >
+            从所选提交交互式变基
+          </Button>
+        </div>
+      )}
+      {rebaseBase && (
+        <InteractiveRebaseDialog
+          key={`${repoId}:${rebaseBase}`}
+          repoId={repoId}
+          base={rebaseBase}
+          onClose={() => setRebaseBase(null)}
+        />
+      )}
       <FeedbackNotice
         source="history"
         title={logError ? '提交历史读取失败' : null}
@@ -253,63 +275,76 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
             {log.slice(start, end).map((commit, offset) => {
               const index = start + offset;
               return (
-                <div
-                  role="row"
-                  aria-rowindex={index + 2}
-                  aria-selected={selectedHash === commit.hash}
-                  id={'commit-' + commit.hash}
+                <Dropdown
                   key={commit.hash}
-                  data-hash={commit.hash}
-                  className={
-                    'history-columns history-row' +
-                    (selectedHash === commit.hash ? ' history-row--selected' : '') +
-                    (focused === index ? ' history-row--focused' : '')
-                  }
-                  onClick={() => {
-                    setFocused(index);
-                    onSelectCommit?.(commit);
+                  trigger={['contextMenu']}
+                  menu={{
+                    items: [
+                      {
+                        key: 'rebase',
+                        label: '从此处交互式变基',
+                        onClick: () => setRebaseBase(commit.hash),
+                      },
+                    ],
                   }}
                 >
-                  <span role="gridcell">
-                    <GraphCell
-                      row={graph.rows[index]}
-                      width={graphWidth}
-                      merge={commit.parents.length > 1}
-                    />
-                  </span>
-                  <span role="gridcell" className="history-row__message" title={commit.message}>
-                    {commit.message || '无提交信息'}
-                  </span>
-                  <span
-                    role="gridcell"
-                    className="history-row__refs"
-                    title={commit.references.map((ref) => ref.fullName).join('\n')}
+                  <div
+                    role="row"
+                    aria-rowindex={index + 2}
+                    aria-selected={selectedHash === commit.hash}
+                    id={'commit-' + commit.hash}
+                    data-hash={commit.hash}
+                    className={
+                      'history-columns history-row' +
+                      (selectedHash === commit.hash ? ' history-row--selected' : '') +
+                      (focused === index ? ' history-row--focused' : '')
+                    }
+                    onClick={() => {
+                      setFocused(index);
+                      onSelectCommit?.(commit);
+                    }}
                   >
-                    {commit.references.slice(0, 2).map((reference) => (
-                      <HistoryReference key={reference.fullName} reference={reference} />
-                    ))}
-                    {commit.references.length > 2 && (
-                      <span className="history-ref-count">+{commit.references.length - 2}</span>
-                    )}
-                  </span>
-                  <span
-                    role="gridcell"
-                    className="history-row__author"
-                    title={commit.author + ' <' + commit.email + '>'}
-                  >
-                    {commit.author}
-                  </span>
-                  <span
-                    role="gridcell"
-                    className="history-row__date"
-                    title={new Date(commit.date).toLocaleString('zh-CN')}
-                  >
-                    {formatRelativeDate(commit.date)}
-                  </span>
-                  <code role="gridcell" className="history-row__hash">
-                    {commit.shortHash}
-                  </code>
-                </div>
+                    <span role="gridcell">
+                      <GraphCell
+                        row={graph.rows[index]}
+                        width={graphWidth}
+                        merge={commit.parents.length > 1}
+                      />
+                    </span>
+                    <span role="gridcell" className="history-row__message" title={commit.message}>
+                      {commit.message || '无提交信息'}
+                    </span>
+                    <span
+                      role="gridcell"
+                      className="history-row__refs"
+                      title={commit.references.map((ref) => ref.fullName).join('\n')}
+                    >
+                      {commit.references.slice(0, 2).map((reference) => (
+                        <HistoryReference key={reference.fullName} reference={reference} />
+                      ))}
+                      {commit.references.length > 2 && (
+                        <span className="history-ref-count">+{commit.references.length - 2}</span>
+                      )}
+                    </span>
+                    <span
+                      role="gridcell"
+                      className="history-row__author"
+                      title={commit.author + ' <' + commit.email + '>'}
+                    >
+                      {commit.author}
+                    </span>
+                    <span
+                      role="gridcell"
+                      className="history-row__date"
+                      title={new Date(commit.date).toLocaleString('zh-CN')}
+                    >
+                      {formatRelativeDate(commit.date)}
+                    </span>
+                    <code role="gridcell" className="history-row__hash">
+                      {commit.shortHash}
+                    </code>
+                  </div>
+                </Dropdown>
               );
             })}
             <div style={{ height: (log.length - end) * GRAPH_ROW_HEIGHT }} role="presentation" />

@@ -63,7 +63,9 @@ function attachSftp(session, onSftp) {
     sftp.on('RENAME', (id, source, destination) =>
       fs.link(source, destination, (error) => {
         if (error) return failure(id, error);
-        fs.unlink(source, (error) => error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK));
+        fs.unlink(source, (error) =>
+          error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
+        );
       }),
     );
     sftp.on('REMOVE', (id, filename) =>
@@ -71,8 +73,16 @@ function attachSftp(session, onSftp) {
         error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
       ),
     );
-    sftp.on('OPEN', (id, filename, flags) =>
-      fs.open(filename, flagsToString(flags), (error, descriptor) => {
+    sftp.on('MKDIR', (id, filename, attributes) =>
+      fs.mkdir(filename, { mode: attributes.mode }, (error) =>
+        error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK),
+      ),
+    );
+    sftp.on('RMDIR', (id, filename) =>
+      fs.rmdir(filename, (error) => (error ? failure(id, error) : sftp.status(id, STATUS_CODE.OK))),
+    );
+    sftp.on('OPEN', (id, filename, flags, attributes) =>
+      fs.open(filename, flagsToString(flags), attributes.mode ?? 0o666, (error, descriptor) => {
         if (error) return failure(id, error);
         const handle = Buffer.alloc(4);
         handle.writeUInt32BE(nextHandle++);
