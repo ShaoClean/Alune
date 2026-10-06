@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { NotFoundException } from '@nestjs/common';
-import { GitCommands, GitWorktrees, RepositoryFiles } from '@alune/ssh-client';
+import { GitCommands, GitWorktrees, RepositoryFiles, GitSubmodules } from '@alune/ssh-client';
 import { REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
 import { RepositoryService } from './repository.service';
 import { ConnectionService } from '../connection/connection.service';
@@ -32,6 +32,29 @@ describe('RepositoryService registration and remote status', () => {
     jest.restoreAllMocks();
     jest.useRealTimers();
     db.close();
+  });
+
+  it('opens registered submodules on the same SSH host and reuses their registration', async () => {
+    const parent = await service.add('host-b', '/fixture/parent');
+    const resolve = jest
+      .spyOn(GitSubmodules.prototype, 'resolve')
+      .mockResolvedValue('/fixture/parent/modules/core');
+    const first = await service.openSubmodule(parent.id, 'modules/core');
+    const second = await service.openSubmodule(parent.id, 'modules/core');
+    expect(first).toEqual(second);
+    expect(first).toMatchObject({
+      source: 'ssh',
+      connectionId: 'host-b',
+      path: '/fixture/parent/modules/core',
+    });
+    expect(ensureConnected).toHaveBeenCalledWith('host-b');
+    expect(resolve).toHaveBeenCalledWith('/fixture/parent', 'modules/core');
+    expect(await service.list('host-b')).toHaveLength(2);
+    resolve.mockRejectedValue(new Error('请先初始化所选子模块。'));
+    await expect(service.openSubmodule(parent.id, 'missing')).rejects.toThrow(
+      '初始化',
+    );
+    expect(await service.list('host-b')).toHaveLength(2);
   });
 
   it('browses files relative to the registered repository path', async () => {

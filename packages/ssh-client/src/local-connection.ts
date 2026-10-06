@@ -204,13 +204,20 @@ export class LocalConnection implements RepositoryTransport {
     signal?.throwIfAborted();
     this.signal?.throwIfAborted();
     if (this.proxySnapshot) {
-      let network = ['fetch', 'pull', 'push', 'ls-remote'].includes(args[0]);
+      let network =
+        ['fetch', 'pull', 'push', 'ls-remote'].includes(args[0]) ||
+        (args[0] === 'submodule' && args[1] === 'update');
       if (!network) {
         // Object reads (show/diff/blame, etc.) can fetch missing objects in a
         // partial clone. Detect this before allowing an otherwise offline command.
         const partial = await this.executeGit(
           path,
-          ['config', '--name-only', '--get-regexp', '^(extensions\\.partialclone|remote\\..*\\.promisor)$'],
+          [
+            'config',
+            '--name-only',
+            '--get-regexp',
+            '^(extensions\\.partialclone|remote\\..*\\.promisor)$',
+          ],
           signal,
           { environment: options.environment, maxOutputBytes: 65_536 },
         );
@@ -315,8 +322,14 @@ export class LocalConnection implements RepositoryTransport {
         if (bytes > max) stop(new CommandOutputLimitError());
         else target.push(chunk);
       };
-      child.stdout.on('data', (chunk: Buffer) => collect(stdout, chunk));
-      child.stderr.on('data', (chunk: Buffer) => collect(stderr, chunk));
+      child.stdout.on('data', (chunk: Buffer) => {
+        collect(stdout, chunk);
+        options.onStdout?.(chunk.toString('utf8'));
+      });
+      child.stderr.on('data', (chunk: Buffer) => {
+        collect(stderr, chunk);
+        options.onStderr?.(chunk.toString('utf8'));
+      });
       child.stdin.on('error', (error: NodeJS.ErrnoException) => {
         if (error.code !== 'EPIPE') stop(error);
       });

@@ -26,6 +26,14 @@ import type {
 export class GitController {
   constructor(private readonly gitService: GitService) {}
 
+  @Post(':id/submodules')
+  updateSubmodules(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { action: 'update' | 'sync' },
+  ) {
+    return this.gitService.updateSubmodules(id, body?.action);
+  }
+
   @Post(':id/interactive-rebase/preview')
   previewRebase(
     @Param('id', ParseUUIDPipe) id: string,

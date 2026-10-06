@@ -81,7 +81,13 @@ export class GitCommands {
     if (options?.file !== undefined) this._validateFilePath(options.file);
     if (options?.file && isWindowsPath(repoPath) && /[\\:]/.test(options.file))
       throw new Error('Windows 仓库中的文件路径必须使用 / 分隔，不能包含反斜杠或冒号。');
-    const flags = ['--no-color', '--no-ext-diff', '--no-textconv'];
+    const flags = [
+      '--no-color',
+      '--no-ext-diff',
+      '--no-textconv',
+      '--submodule=log',
+      '--unified=3',
+    ];
     let args = ['diff', ...flags];
     let untracked = false;
     if (options?.file && !options.commit) {

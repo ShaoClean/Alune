@@ -1,3 +1,4 @@
+import { RepositoryExtensions } from './RepositoryExtensions';
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import type { ShowHistory } from './WorkspaceFileMenu';
 import { FeedbackAlert } from '@alune/ui';
@@ -425,6 +426,14 @@ export function FilesView({
         className="files-view__tree"
         style={stacked ? undefined : { width: treeWidth }}
       >
+        <RepositoryExtensions
+          key={repoId}
+          repoId={repoId}
+          revision={`${refreshToken}:${gitRevision}`}
+          onChanged={() => {
+            void loadDirectory(ROOT);
+          }}
+        />
         <div className="files-tree__header">
           <div className="files-tree__title">
             <span>工作区文件</span>
@@ -869,7 +878,7 @@ function PreviewBody({
   if (entry.kind === 'submodule')
     return (
       <FilesNotice context={entry?.path} icon={<ApiOutlined />} title="嵌套仓库或子模块">
-        此目录包含独立的 Git 仓库，文件浏览不会进入其中。如需查看，请将其作为仓库单独添加。
+        子模块可在左侧“子模块”分组中初始化、更新或在新标签中打开。其他嵌套仓库可从仓库列表单独添加。
       </FilesNotice>
     );
   if (entry.kind === 'symlink' || preview?.kind === 'symlink')
@@ -907,6 +916,17 @@ function PreviewBody({
       </div>
     );
   switch (preview.kind) {
+    case 'lfs':
+      return (
+        <section className="lfs-diff" aria-label="Git LFS 文件">
+          <h3>Git LFS 文件</h3>
+          <p>实际大小：{formatBytes(preview.size)}</p>
+          <p>
+            OID（SHA-256）：<code>{preview.oid}</code>
+          </p>
+          <p>{preview.message}</p>
+        </section>
+      );
     case 'text':
       return preview.content === '' ? (
         <FilesNotice context={entry?.path} empty icon={<FileSearchOutlined />} title="空文件">

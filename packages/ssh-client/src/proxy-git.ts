@@ -78,6 +78,7 @@ export async function proxyGitArguments(
   args: string[],
   port: number,
   signal?: AbortSignal,
+  environment?: Record<string, string>,
 ): Promise<string> {
   const proxy = `http://127.0.0.1:${port}`;
   const config = await connection.execCommand(
@@ -118,6 +119,7 @@ export async function proxyGitArguments(
       ...args,
     ],
     {
+      ...environment,
       GIT_TERMINAL_PROMPT: '0',
       GIT_SSH_VARIANT: 'ssh',
       GIT_SSH_COMMAND: ssh,

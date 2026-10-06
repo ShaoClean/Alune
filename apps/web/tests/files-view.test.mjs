@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -410,7 +411,9 @@ test('超大文本关闭语法高亮并提示原因', () => {
 });
 
 test('文件视图首屏显示文件操作入口、目录加载状态和可调整的树宽度', () => {
-  const html = renderToStaticMarkup(createElement(FilesView, { repoId: 'fixture' }));
+  const html = renderToStaticMarkup(
+    createElement(MemoryRouter, null, createElement(FilesView, { repoId: 'fixture' })),
+  );
   assert.match(html, /aria-label="仓库文件"/);
   assert.match(html, /工作区文件/);
   assert.match(html, /右键文件可重命名、删除或复制路径/);
