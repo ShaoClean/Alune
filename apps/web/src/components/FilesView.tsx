@@ -1,4 +1,5 @@
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
+import type { ShowHistory } from './WorkspaceFileMenu';
 import { FeedbackAlert } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -80,12 +81,14 @@ export function FilesView({
   repoId,
   refreshToken = 0,
   onFileChanged,
+  onShowHistory,
   gitFiles,
   onSelectCommit,
 }: {
   repoId: string;
   refreshToken?: number;
   onFileChanged?: (path: string) => void;
+  onShowHistory?: ShowHistory;
   gitFiles?: readonly FileStatus[];
   onSelectCommit?: (hash: string) => void;
 }) {
@@ -193,27 +196,32 @@ export function FilesView({
     [repoId],
   );
 
-  const fileMenu = useWorkspaceFileMenu(repoId, (path, next) => {
-    onFileChanged?.(path);
-    for (const directory of visibleDirectories(
-      current.current.directories,
-      current.current.expanded,
-    ))
-      loadDirectory(directory);
-    if (current.current.selected?.path === path) {
-      if (next) {
-        setSelected({ ...current.current.selected, path: next, name: fileName(next) });
-        setFocused(next);
-        setDocumentAnchor(null);
-        loadFile(next);
-      } else {
-        fileRequest.current?.abort();
-        fileRequest.current = null;
-        setSelected(null);
-        setFile(null);
+  const fileMenu = useWorkspaceFileMenu(
+    repoId,
+    (path, next) => {
+      onFileChanged?.(path);
+      for (const directory of visibleDirectories(
+        current.current.directories,
+        current.current.expanded,
+      ))
+        loadDirectory(directory);
+      if (current.current.selected?.path === path) {
+        if (next) {
+          setSelected({ ...current.current.selected, path: next, name: fileName(next) });
+          setFocused(next);
+          setDocumentAnchor(null);
+          loadFile(next);
+        } else {
+          fileRequest.current?.abort();
+          fileRequest.current = null;
+          setSelected(null);
+          setFile(null);
+        }
       }
-    }
-  });
+    },
+    false,
+    onShowHistory,
+  );
 
   // Revalidate a restored tree and preview; stop every request when leaving.
   useEffect(() => {

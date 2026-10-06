@@ -230,6 +230,16 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   // Clear only when leaving the view, so a refresh can retain its mounted content.
   useLayoutEffect(() => clearDiff, [id, activePanel, clearDiff]);
 
+  const showHistory = (path: string, file: boolean) => {
+    if (!id) return;
+    setHistoryTarget(undefined);
+    setActivePanel('history');
+    setSelectedFile(null);
+    void useRepositoryStore
+      .getState()
+      .setLogFilter(id, { file: path, ...(file ? { follow: true } : {}) });
+  };
+
   const selectPanel = (panel: Panel) => {
     setHistoryTarget(undefined);
     setActivePanel(panel);
@@ -427,6 +437,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           onRefresh={handleRefresh}
           onSelectFile={handleSelectFile}
           selectedFile={selectedFile}
+          onShowHistory={showHistory}
           onFileChanged={(path) => {
             setFilesRefresh((value) => value + 1);
             if (selectedFile?.path === path) {
@@ -443,6 +454,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           key={id}
           repoId={id}
           refreshToken={filesRefresh}
+          onShowHistory={showHistory}
           onFileChanged={(path) => {
             if (selectedFile?.path === path) {
               setSelectedFile(null);

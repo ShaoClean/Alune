@@ -1,4 +1,5 @@
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
+import type { ShowHistory } from './WorkspaceFileMenu';
 import { FeedbackNotice } from '@alune/ui';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -46,6 +47,7 @@ interface Props {
   onSelectFile?: (file: any) => void;
   selectedFile?: { path: string; staged: boolean } | null;
   onFileChanged?: (path: string) => void;
+  onShowHistory?: ShowHistory;
   managedRebase?: boolean;
 }
 
@@ -101,6 +103,7 @@ export function ChangesView({
   onSelectFile,
   selectedFile,
   onFileChanged,
+  onShowHistory,
   managedRebase = false,
 }: Props) {
   const message = useFeedbackMessage();
@@ -156,7 +159,12 @@ export function ChangesView({
     const content = panel.current.querySelector('.changes-content');
     if (content) content.scrollTop = saved.scrollTop;
   }, [loading]);
-  const fileMenu = useWorkspaceFileMenu(repoId, (path) => onFileChanged?.(path), busy);
+  const fileMenu = useWorkspaceFileMenu(
+    repoId,
+    (path) => onFileChanged?.(path),
+    busy,
+    onShowHistory,
+  );
 
   const files = status?.files || [];
   const stagedFiles = useMemo(() => files.filter((file: any) => file.staged), [files]);

@@ -165,3 +165,82 @@ test('blame jumps start at an older commit and pagination retains that revision 
   assert.equal(calls[2].branch, undefined);
   assert.equal(store.getState().logBranch, undefined);
 });
+
+test('filters reach every page, survive refreshes and are cleared by a jump to one commit', async () => {
+  const calls = [];
+  repositoryApi.log = async (id, options) => {
+    calls.push(options);
+    return page(['x'], calls.length === 1, 50, 'filtered');
+  };
+  const filter = { search: 'fix', author: 'Bob', since: 100, until: 200, currentBranch: true };
+  await store.getState().setLogFilter('a', { ...filter, file: 'src/a.ts', follow: true });
+  await store.getState().fetchLog('a', 'more');
+  const expected = {
+    count: 50,
+    branch: 'HEAD',
+    search: 'fix',
+    author: 'Bob',
+    since: 100,
+    until: 200,
+    file: 'src/a.ts',
+    follow: true,
+  };
+  assert.deepEqual(calls[0], expected);
+  assert.deepEqual(calls[1], { ...expected, skip: 50, revision: 'filtered' });
+  // Tag, branch and toolbar refreshes keep what the user filtered by.
+  await store.getState().fetchLog('a');
+  assert.deepEqual(calls[2], expected);
+  await store.getState().fetchLog('a', 'refresh', 'old');
+  assert.deepEqual(calls[3], { count: 50, branch: 'old' });
+  assert.deepEqual(store.getState().logFilter, {});
+  await store.getState().setLogFilter('a', { follow: true });
+  assert.deepEqual(calls[4], { count: 50 }, 'rename tracking needs a file');
+  store.getState().resetWorkspace('b');
+  assert.deepEqual(store.getState().logFilter, {});
+});
+
+test('filters that hide commits switch the graph to a chain; a path alone keeps the topology', async () => {
+  const { historyFilterActive, linearHistory } = await import('../src/stores/repositoryStore.ts');
+  assert.equal(historyFilterActive({}), false);
+  assert.equal(historyFilterActive({ search: '', currentBranch: false }), false);
+  assert.equal(historyFilterActive({ currentBranch: true }), true);
+  assert.equal(linearHistory({ file: 'src', currentBranch: true }), false);
+  for (const filter of [
+    { search: 'a' },
+    { author: 'a' },
+    { since: 1 },
+    { until: 1 },
+    { file: 'a', follow: true },
+  ])
+    assert.equal(linearHistory(filter), true, JSON.stringify(filter));
+});
+
+test('date inputs cover whole local days and drafts drop empty fields', async () => {
+  const { dateInput, dateSeconds, draftFilter, toDraft } =
+    await import('../src/components/history-filter.ts');
+  const since = dateSeconds('2026-03-05');
+  const until = dateSeconds('2026-03-05', true);
+  assert.equal(until - since, 86399);
+  assert.equal(new Date(since * 1000).getHours(), 0);
+  assert.equal(dateInput(since), '2026-03-05');
+  assert.equal(dateInput(until), '2026-03-05');
+  assert.equal(dateSeconds('03/05/2026'), undefined);
+  assert.deepEqual(
+    draftFilter({
+      search: '  fix ',
+      author: '',
+      since: '',
+      until: '2026-03-05',
+      file: './src/a.ts',
+      follow: true,
+      currentBranch: false,
+    }),
+    { search: 'fix', until, file: 'src/a.ts', follow: true },
+  );
+  assert.deepEqual(draftFilter({ ...toDraft({}), follow: true }), {}, 'no file, no follow');
+  assert.deepEqual(draftFilter(toDraft({ file: 'a', follow: true, since })), {
+    since,
+    file: 'a',
+    follow: true,
+  });
+});

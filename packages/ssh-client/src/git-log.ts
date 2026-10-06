@@ -37,6 +37,15 @@ export async function readLog(
     if (value !== undefined && (typeof value !== 'string' || value.includes('\0')))
       throw new GitLogOptionsError('无效的历史查询参数。');
   }
+  // Seconds after 1970 and before year 10000; Git reads `@0` as no date at all.
+  const since = options.since === undefined ? 0 : integer(options.since, 0, 1, 253402300799);
+  const until = options.until === undefined ? 0 : integer(options.until, 0, 1, 253402300799);
+  if (since && until && since > until) throw new GitLogOptionsError('开始时间不能晚于结束时间。');
+  const flag = options.follow as unknown;
+  if (![undefined, true, false, 'true', 'false'].includes(flag as any))
+    throw new GitLogOptionsError('无效的历史查询参数。');
+  const follow = flag === true || flag === 'true';
+  if (follow && !options.file) throw new GitLogOptionsError('跟踪重命名需要指定单个文件。');
   if (skip && !options.revision) throw new GitLogOptionsError('加载下一页需要历史版本，请先刷新。');
 
   const run = (args: string[]) => runGit(connection, repoPath, args);
@@ -79,6 +88,9 @@ export async function readLog(
           options.file || '',
           options.author || '',
           options.search || '',
+          since,
+          until,
+          follow,
         ]),
       )
       .digest('hex');
@@ -125,53 +137,146 @@ export async function readLog(
     ]);
     revisions = [hash.trim()];
   }
-  const output = await checked([
-    'log',
-    '--topo-order',
-    '--no-color',
-    '--no-show-signature',
-    '--no-decorate',
-    '-z',
-    '--format=%H%x00%h%x00%s%x00%an%x00%ae%x00%aI%x00%P',
-    '--max-count=' + (count + 1),
-    '--skip=' + skip,
-    ...(options.author ? ['--author=' + options.author] : []),
-    ...(options.search ? ['--grep=' + options.search] : []),
-    ...revisions,
-    '--',
-    ...(options.file ? [options.file] : []),
-  ]);
+  const filtered = !!(options.search || options.author || since || until);
+  const paths = ['--', ...(options.file ? [options.file] : [])];
+  // Followed history appends the full message and committer date, then a status.
+  const fieldCount = follow ? 9 : 7;
+  const format =
+    '--format=%H%x00%h%x00%s%x00%an%x00%ae%x00%aI%x00%P' + (follow ? '%x00%B%x00%cI' : '');
+  const parse = (output: string) => {
+    const fields = output.split('\0');
+    if (fields.at(-1) === '') fields.pop();
+    const commits: (GraphCommit & { body?: string; committed?: number })[] = [];
+    let i = 0;
+    while (i < fields.length) {
+      if (i + fieldCount > fields.length) throw new Error('提交历史格式不完整，请重试。');
+      const [hash, shortHash, message, author, email, date, parents, body, committed] =
+        fields.slice(i, i + fieldCount);
+      i += fieldCount;
+      let path: string | undefined;
+      let oldPath: string | undefined;
+      // With `-z --name-status` each status follows the format after a newline.
+      if (follow && fields[i]?.startsWith('\n')) {
+        const status = fields[i++].slice(1);
+        if (/^[RC]/.test(status)) oldPath = fields[i++];
+        path = fields[i++];
+        if (path === undefined) throw new Error('提交历史格式不完整，请重试。');
+      }
+      const refs = references.get(hash) || [];
+      commits.push({
+        hash,
+        shortHash,
+        message,
+        author,
+        email,
+        date: new Date(date),
+        parents: parents ? parents.split(' ') : [],
+        references: refs,
+        refs: refs.map((ref) =>
+          ref.kind === 'tag'
+            ? 'tag: ' + ref.name
+            : ref.current && ref.kind === 'local'
+              ? 'HEAD -> ' + ref.name
+              : ref.name,
+        ),
+        ...(path !== undefined ? { path } : {}),
+        ...(oldPath !== undefined && oldPath !== path ? { oldPath } : {}),
+        ...(follow ? { body, committed: Date.parse(committed) / 1000 } : {}),
+      });
+    }
+    return commits;
+  };
+  const log = (args: string[]) =>
+    checked(['log', '--no-color', '--no-show-signature', '--no-decorate', '-z', format, ...args]);
+  const search = options.search?.toLowerCase();
+  const hashLike = !!search && /^[0-9a-f]{4,40}$/.test(search);
+
+  let commits: GraphCommit[];
+  let hasMore: boolean;
+  let nextSkip: number;
+  if (follow) {
+    // Git stops following a rename made in a commit it filters out or skips, so
+    // walk the file's whole history and filter here with `-i -F` semantics.
+    const output = await log([
+      '--topo-order',
+      '--name-status',
+      '--follow',
+      ...(filtered ? [] : ['--max-count=' + (skip + count + 1)]),
+      ...revisions,
+      ...paths,
+    ]);
+    const author = options.author?.toLowerCase();
+    const matches = parse(output).filter(
+      (commit) =>
+        (!search ||
+          commit.body!.toLowerCase().includes(search) ||
+          (hashLike && commit.hash.startsWith(search))) &&
+        (!author || (commit.author + ' <' + commit.email + '>').toLowerCase().includes(author)) &&
+        (!since || commit.committed! >= since) &&
+        (!until || commit.committed! <= until),
+    );
+    commits = matches
+      .slice(skip, skip + count)
+      .map(({ body: _body, committed: _committed, ...commit }) => commit);
+    hasMore = matches.length > skip + count;
+    nextSkip = skip + commits.length;
+  } else {
+    const filters = [
+      ...(options.author || options.search ? ['--regexp-ignore-case', '--fixed-strings'] : []),
+      ...(options.author ? ['--author=' + options.author] : []),
+      ...(since ? ['--since=@' + since] : []),
+      ...(until ? ['--until=@' + until] : []),
+      // Parent rewriting keeps the commits a pathspec leaves connected in the graph.
+      ...(options.file ? ['--parents'] : []),
+    ];
+    // A hash prefix finds its commit when that commit also passes the other
+    // filters. It leads the first page and is dropped from the message matches.
+    let hashMatch: GraphCommit | undefined;
+    if (hashLike) {
+      const resolved = await run([
+        'rev-parse',
+        '--verify',
+        '--quiet',
+        '--end-of-options',
+        search + '^{commit}',
+      ]);
+      const hash = resolved.stdout.trim();
+      if (
+        resolved.exitCode === 0 &&
+        hash.startsWith(search!) &&
+        (!options.branch ||
+          (await run(['merge-base', '--is-ancestor', hash, revisions[0]])).exitCode === 0)
+      )
+        hashMatch = parse(await log(['--no-walk', ...filters, hash, ...paths]))[0];
+    }
+    const lead = hashMatch && !skip ? [hashMatch] : [];
+    // Keep at least one message match on the first page so `nextSkip` advances.
+    const limit = Math.max(1, count - lead.length);
+    const found = parse(
+      await log([
+        '--topo-order',
+        '--max-count=' + (limit + 1),
+        '--skip=' + skip,
+        ...filters,
+        ...(options.search ? ['--grep=' + options.search] : []),
+        ...revisions,
+        ...paths,
+      ]),
+    );
+    const consumed = Math.min(limit, found.length);
+    commits = [
+      ...lead,
+      ...found.slice(0, consumed).filter((commit) => commit.hash !== hashMatch?.hash),
+    ];
+    hasMore = found.length > limit;
+    nextSkip = skip + consumed;
+  }
   const after = await snapshot();
   if (before.revision !== after.revision) throw new GitLogChangedError();
-  const fields = output.split('\0');
-  if (fields.at(-1) === '') fields.pop();
-  if (fields.length % 7) throw new Error('提交历史格式不完整，请重试。');
-  const commits: GraphCommit[] = [];
-  for (let i = 0; i < fields.length; i += 7) {
-    const [hash, shortHash, message, author, email, date, parents] = fields.slice(i, i + 7);
-    const refs = references.get(hash) || [];
-    commits.push({
-      hash,
-      shortHash,
-      message,
-      author,
-      email,
-      date: new Date(date),
-      parents: parents ? parents.split(' ') : [],
-      references: refs,
-      refs: refs.map((ref) =>
-        ref.kind === 'tag'
-          ? 'tag: ' + ref.name
-          : ref.current && ref.kind === 'local'
-            ? 'HEAD -> ' + ref.name
-            : ref.name,
-      ),
-    });
-  }
   return {
-    commits: commits.slice(0, count),
-    hasMore: commits.length > count,
-    nextSkip: skip + Math.min(count, commits.length),
+    commits,
+    hasMore,
+    nextSkip,
     revision: before.revision,
     shallow: before.shallow,
   };

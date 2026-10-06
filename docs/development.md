@@ -92,6 +92,18 @@ node apps/web/tests/blame-fixture.cjs
 
 前两项使用真实 Git、临时本地与 SSH 仓库验证逐行归属、Worktree、重命名父版本、忽略空白／提交、未提交行、编码、大小限制和 HTTP 参数。第三项输出本地、SSH、Worktree 界面地址，历史包含超过 50 条后续提交，可验证旧提交跳转；退出后清理临时数据。
 
+### 提交历史筛选验证
+
+构建 shared、ssh-client、server 和 web 后，执行：
+
+```sh
+node --test packages/ssh-client/tests/log-filters.test.cjs
+node --test apps/web/tests/history-filter.integration.cjs
+node apps/web/tests/history-filter-fixture.cjs
+```
+
+前两项在多作者、多分支、文件两次重命名的临时仓库中，将信息、哈希、作者、时间、分支和路径筛选的分页结果与 `git log` 逐条核对，并验证 `--follow` 的逐提交路径及本地、SSH、Worktree 一致。第三项输出三种仓库的界面地址，可验证筛选栏、文件历史与清除后恢复选择；退出后清理临时数据。
+
 ### 仓库终端验证
 
 终端模块默认禁用；桌面启动时使用随机 Bearer token 开启。嵌入式认证服务通过 `startServer({ token, ... })` 明确开启，不能仅以绑定回环地址或 CORS 代替认证。终端命名空间 `/terminal` 每条连接独立拥有会话；断线会销毁其 PTY，重连不恢复进程。

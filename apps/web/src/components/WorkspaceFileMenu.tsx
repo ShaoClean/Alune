@@ -24,11 +24,19 @@ type Target = {
   trigger: HTMLElement;
   session: number;
   allowed: boolean;
+  file: boolean;
 };
 type Change = (path: string, newPath?: string) => void;
+/** `file` is false for directories, whose history cannot follow renames. */
+export type ShowHistory = (path: string, file: boolean) => void;
 
 /** Shared by live working-tree rows only; never used by history/PR snapshots. */
-export function useWorkspaceFileMenu(repoId: string, onChanged: Change, disabled = false) {
+export function useWorkspaceFileMenu(
+  repoId: string,
+  onChanged: Change,
+  disabled = false,
+  onShowHistory?: ShowHistory,
+) {
   const [target, setTarget] = useState<Target | null>(null);
   const [dialog, setDialog] = useState<{ target: Target; action: 'delete' | 'rename' } | null>(
     null,
@@ -88,6 +96,7 @@ export function useWorkspaceFileMenu(repoId: string, onChanged: Change, disabled
     event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>,
     path: string,
     allowed: boolean,
+    file: boolean,
   ) => {
     event.preventDefault();
     event.stopPropagation();
@@ -100,17 +109,18 @@ export function useWorkspaceFileMenu(repoId: string, onChanged: Change, disabled
     setTarget({
       path,
       allowed,
+      file,
       trigger,
       session: ++session.current,
       x: Math.max(8, Math.min(pointer ? event.clientX : rect.left + 16, window.innerWidth - 260)),
       y: Math.max(8, Math.min(pointer ? event.clientY : rect.bottom, window.innerHeight - 270)),
     });
   };
-  const bindings = (path: string, allowed = true) => ({
-    onContextMenu: (event: MouseEvent<HTMLElement>) => open(event, path, allowed),
+  const bindings = (path: string, allowed = true, file = allowed) => ({
+    onContextMenu: (event: MouseEvent<HTMLElement>) => open(event, path, allowed, file),
     onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
       if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))
-        open(event, path, allowed);
+        open(event, path, allowed, file);
     },
     'aria-haspopup': 'menu' as const,
   });
@@ -167,6 +177,15 @@ export function useWorkspaceFileMenu(repoId: string, onChanged: Change, disabled
                 },
                 { key: 'copy', icon: <DialogIcon name="copy" />, label: '复制路径' },
                 { key: 'relative', icon: <DialogIcon name="link" />, label: '复制相对路径' },
+                ...(onShowHistory
+                  ? [
+                      {
+                        key: 'history',
+                        icon: <DialogIcon name="clock" />,
+                        label: target.file ? '查看文件历史' : '查看目录历史',
+                      },
+                    ]
+                  : []),
                 { type: 'divider' },
                 {
                   key: 'rename',
@@ -196,6 +215,7 @@ export function useWorkspaceFileMenu(repoId: string, onChanged: Change, disabled
               ],
               onClick: ({ key }) => {
                 if (key === 'copy' || key === 'relative') void copy(key === 'relative');
+                if (key === 'history') onShowHistory?.(target.path, target.file);
                 if ((key === 'delete' || key === 'rename') && canModify)
                   setDialog({ target, action: key });
                 close();
