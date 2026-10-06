@@ -20,6 +20,7 @@ import {
   WorkspaceFileActions,
   RepositoryFileError,
   GitCommands,
+  GitTags,
   LocalConnection,
   NewFileDeletion,
   NewFileDeletionError,
@@ -33,13 +34,24 @@ import {
   runGit,
   assertFileChanges,
   ignoreDirectory,
+  InteractiveRebase,
+  ConflictResolution,
+  ConflictResolutionError,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
 import type {
+  ConflictBlockChoice,
+  ConflictSide,
   DiscardChangesScope,
   Repository,
   SwitchBranchResult,
   BranchNameConflict,
+  CreateTagOptions,
+  DeleteTagOptions,
+  PushTagOptions,
+  CheckoutTagOptions,
+  RebaseRequest,
+  RebaseResolution,
 } from '@alune/shared';
 
 type Operation = {
@@ -75,7 +87,7 @@ export class GitService implements OnModuleDestroy {
       signal?.addEventListener('abort', abort, { once: true });
       if (signal?.aborted) abort();
     });
-    const connection = await (
+    const connection: RepositoryTransport = await (
       signal ? Promise.race([connecting, cancelled]) : connecting
     ).finally(() => {
       if (abort) signal?.removeEventListener('abort', abort);
@@ -83,6 +95,7 @@ export class GitService implements OnModuleDestroy {
     signal?.throwIfAborted();
     return {
       signal,
+      hasAnyPath: connection.hasAnyPath?.bind(connection),
       execGit: connection.execGit?.bind(connection),
       execCommand: (...args) => connection.execCommand(...args),
       withSftp: (operation) => connection.withSftp(operation),
@@ -118,6 +131,22 @@ export class GitService implements OnModuleDestroy {
           .getConnection?.(repo.connectionId)
           ?.holdTask?.();
       controller.signal.throwIfAborted();
+      if (
+        ![
+          'stage',
+          'unstage',
+          'interactive-rebase',
+          'rebase-conflict',
+          'resolve-conflict',
+          'conflict-continue',
+          'conflict-skip',
+          'conflict-abort',
+        ].includes(kind) &&
+        (await new InteractiveRebase(connection).state(repo.path)).managed
+      )
+        throw new ConflictException(
+          '请先完成或中止当前交互式变基，再执行其他 Git 操作。',
+        );
       return await operation(new GitCommands(connection), repo, connection);
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -186,6 +215,56 @@ export class GitService implements OnModuleDestroy {
         result.stderr || result.stdout || 'Git 操作未完成，请刷新状态后重试。',
       );
     return { success: true, stdout: result.stdout };
+  }
+
+  private async readRebase<T>(
+    id: string,
+    action: (rebase: InteractiveRebase, path: string) => Promise<T>,
+  ) {
+    try {
+      const repo = await this.repoService.get(id);
+      return await action(
+        new InteractiveRebase(
+          await this.transport(repo, AbortSignal.timeout(60_000)),
+        ),
+        repo.path,
+      );
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法读取变基状态。',
+      );
+    }
+  }
+
+  previewRebase(id: string, base: string) {
+    return this.readRebase(id, (rebase, path) => rebase.preview(path, base));
+  }
+
+  rebaseState(id: string) {
+    return this.readRebase(id, (rebase, path) => rebase.state(path));
+  }
+
+  startRebase(id: string, request: RebaseRequest) {
+    return this.write(id, 'interactive-rebase', (_git, repo, connection) =>
+      new InteractiveRebase(connection).start(repo.path, request),
+    );
+  }
+
+  controlRebase(id: string, action: 'continue' | 'skip' | 'abort') {
+    return this.write(id, 'interactive-rebase', (_git, repo, connection) =>
+      new InteractiveRebase(connection).control(repo.path, action),
+    );
+  }
+
+  rebaseConflict(id: string, path: string) {
+    return this.readRebase(id, (rebase, root) => rebase.conflict(root, path));
+  }
+
+  resolveRebaseConflict(id: string, request: RebaseResolution) {
+    return this.write(id, 'rebase-conflict', (_git, repo, connection) =>
+      new InteractiveRebase(connection).resolve(repo.path, request),
+    );
   }
   private async branch(git: GitCommands, path: string, name: string) {
     this.value(name, '分支名称');
@@ -373,6 +452,53 @@ export class GitService implements OnModuleDestroy {
       ]),
     );
   }
+  async tags(id: string, remote?: string) {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(new Error('读取标签超时，请重试。')),
+      30_000,
+    );
+    timer.unref();
+    try {
+      const repo = await this.repoService.get(id);
+      const tags = new GitTags(await this.transport(repo, controller.signal));
+      return remote === undefined
+        ? await tags.list(repo.path)
+        : await tags.remoteTags(repo.path, remote);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '无法读取标签。',
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  createTag(id: string, options: CreateTagOptions) {
+    return this.write(id, 'create-tag', (_git, repo, connection) =>
+      new GitTags(connection).create(repo.path, options),
+    );
+  }
+
+  deleteTag(id: string, options: DeleteTagOptions) {
+    return this.write(id, 'delete-tag', (_git, repo, connection) =>
+      new GitTags(connection).delete(repo.path, options),
+    );
+  }
+
+  pushTag(id: string, options: PushTagOptions) {
+    return this.write(id, 'push-tag', (_git, repo, connection) =>
+      new GitTags(connection).push(repo.path, options),
+    );
+  }
+
+  checkoutTag(id: string, options: CheckoutTagOptions) {
+    return this.write(id, 'checkout-tag', (_git, repo, connection) =>
+      new GitTags(connection).checkout(repo.path, options),
+    );
+  }
+
   createBranch(id: string, name: string, checkout?: boolean) {
     return this.write(id, 'create-branch', async (git, repo) =>
       this.checked(git, repo.path, [
@@ -682,6 +808,91 @@ export class GitService implements OnModuleDestroy {
         this.value(commit, '提交'),
       ]),
     );
+  }
+  private conflict<T>(
+    id: string,
+    kind: string,
+    operation: (
+      conflicts: ConflictResolution,
+      repo: Repository,
+      connection: RepositoryTransport,
+    ) => Promise<T>,
+  ) {
+    return this.write(id, kind, async (_git, repo, connection) => {
+      try {
+        return await operation(
+          new ConflictResolution(connection),
+          repo,
+          connection,
+        );
+      } catch (error) {
+        if (error instanceof ConflictResolutionError)
+          throw new HttpException(error.message, error.statusCode);
+        throw error;
+      }
+    });
+  }
+  continueOperation(id: string) {
+    return this.controlConflictOperation(id, 'continue');
+  }
+  skipOperation(id: string) {
+    return this.controlConflictOperation(id, 'skip');
+  }
+  async abortOperation(id: string) {
+    await this.controlConflictOperation(id, 'abort');
+    return { success: true };
+  }
+  private controlConflictOperation(
+    id: string,
+    action: 'continue' | 'skip' | 'abort',
+  ) {
+    return this.conflict(
+      id,
+      `conflict-${action}`,
+      async (conflicts, repo, connection) => {
+        const rebase = new InteractiveRebase(connection);
+        if ((await rebase.state(repo.path)).managed) {
+          // Keep the prepared messages and session cleanup when the shared
+          // conflict controls act on an Alune interactive rebase.
+          const result = await rebase.control(repo.path, action);
+          if (result.error && !result.state.conflicts.length)
+            throw new BadRequestException(result.error);
+          return {
+            success: true as const,
+            conflicts: result.state.conflicts.length > 0,
+          };
+        }
+        if (action === 'abort') {
+          await conflicts.abort(repo.path);
+          return { success: true as const, conflicts: false };
+        }
+        return conflicts[action](repo.path);
+      },
+    );
+  }
+  resolveConflictFile(id: string, file: string, side: ConflictSide) {
+    return this.conflict(id, 'resolve-conflict', async (conflicts, repo) => {
+      await conflicts.resolveFile(repo.path, this.files(repo, [file])[0], side);
+      return { success: true };
+    });
+  }
+  resolveConflictBlock(
+    id: string,
+    file: string,
+    index: number,
+    choice: ConflictBlockChoice,
+    expected: string,
+  ) {
+    return this.conflict(id, 'resolve-conflict', async (conflicts, repo) => {
+      await conflicts.resolveBlock(
+        repo.path,
+        this.files(repo, [file])[0],
+        index,
+        choice,
+        expected,
+      );
+      return { success: true };
+    });
   }
   addRemote(id: string, name: string, url: string) {
     return this.write(id, 'add-remote', (git, repo) =>

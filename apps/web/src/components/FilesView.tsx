@@ -25,6 +25,7 @@ import { CommandButton, FileIcon, FolderIcon } from '@alune/ui';
 import { fileLanguage } from './file-language';
 import type { FileLanguage } from './file-language';
 import { CodeView } from './CodeView';
+import { BlameView } from './BlameView';
 import { MarkdownPreview } from './MarkdownPreview';
 import { isMarkdownFile } from './markdown-resources';
 export { CodeView, HIGHLIGHT_MAX_CHARS } from './CodeView';
@@ -80,11 +81,13 @@ export function FilesView({
   refreshToken = 0,
   onFileChanged,
   gitFiles,
+  onSelectCommit,
 }: {
   repoId: string;
   refreshToken?: number;
   onFileChanged?: (path: string) => void;
   gitFiles?: readonly FileStatus[];
+  onSelectCommit?: (hash: string) => void;
 }) {
   const gitIndex = useMemo(() => fileStatusIndex(gitFiles), [gitFiles]);
   const gitRevision = useMemo(() => filesStatusRevision(gitFiles), [gitFiles]);
@@ -507,6 +510,8 @@ export function FilesView({
       )}
       {fileMenu.element}
       <FilePreviewPane
+        key={selected?.path}
+        onSelectCommit={onSelectCommit}
         repositoryId={repoId}
         entry={selected}
         file={file && selected?.path === file.path ? file : null}
@@ -702,6 +707,7 @@ export function FilePreviewPane({
   onOpenFile,
   fragment,
   refreshToken,
+  onSelectCommit,
 }: {
   repositoryId?: string;
   entry: RepositoryTreeEntry | null;
@@ -712,7 +718,10 @@ export function FilePreviewPane({
   onOpenFile?: (path: string, fragment: string) => void;
   fragment?: string;
   refreshToken?: number;
+  onSelectCommit?: (hash: string) => void;
 }) {
+  const [blameEnabled, setBlameEnabled] = useState(false);
+  const [blameVersion, setBlameVersion] = useState<{ path: string; lines?: number }>();
   if (!entry)
     return (
       <div className="files-view__preview">
@@ -724,15 +733,18 @@ export function FilePreviewPane({
 
   const preview =
     file?.phase === 'ready' ? file.preview : file?.phase === 'loading' ? file.stale : undefined;
-  const language = fileLanguage(entry.path);
+  const previewPath = blameEnabled && blameVersion ? blameVersion.path : entry.path;
+  const language = fileLanguage(previewPath);
   const text = preview?.kind === 'text' ? displayText(preview.content) : null;
   const meta: string[] = [];
-  if (preview?.kind === 'text') {
+  if (blameEnabled) {
+    if (blameVersion?.lines !== undefined) meta.push(`${blameVersion.lines.toLocaleString()} 行`);
+  } else if (preview?.kind === 'text') {
     meta.push(language?.label ?? '纯文本', encodingLabels[preview.encoding]);
     if (text!.crlf) meta.push('CRLF');
     meta.push(`${text!.lines.toLocaleString()} 行`);
   }
-  if (preview && 'size' in preview) meta.push(formatBytes(preview.size));
+  if (!blameEnabled && preview && 'size' in preview) meta.push(formatBytes(preview.size));
 
   return (
     <div
@@ -741,55 +753,81 @@ export function FilePreviewPane({
       aria-busy={file?.phase === 'loading'}
     >
       <div className="files-preview__header">
-        <h3 className="files-preview__path" title={entry.path}>
-          {entry.path.includes('/') && (
+        <h3 className="files-preview__path" title={previewPath}>
+          {previewPath.includes('/') && (
             <span className="files-preview__dir">
-              {entry.path.slice(0, entry.path.lastIndexOf('/') + 1)}
+              {previewPath.slice(0, previewPath.lastIndexOf('/') + 1)}
             </span>
           )}
-          <span className="files-preview__name">{fileName(entry.path)}</span>
+          <span className="files-preview__name">{fileName(previewPath)}</span>
         </h3>
         <div className="files-preview__meta">
           {file?.phase === 'loading' && preview && <Spin size="small" aria-label="正在刷新" />}
           {meta.map((item) => (
             <span key={item}>{item}</span>
           ))}
-          {entry.kind === 'file' && isMarkdownFile(entry.path) && preview?.kind === 'text' && (
-            <div className="files-preview__modes" role="group" aria-label="Markdown 显示模式">
-              {(['source', 'preview'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  aria-pressed={markdownMode === mode}
-                  onClick={() => onMarkdownModeChange?.(mode)}
-                >
-                  {mode === 'source' ? '源码' : 'Preview'}
-                </button>
-              ))}
+          {!blameEnabled &&
+            entry.kind === 'file' &&
+            isMarkdownFile(entry.path) &&
+            preview?.kind === 'text' && (
+              <div className="files-preview__modes" role="group" aria-label="Markdown 显示模式">
+                {(['source', 'preview'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={markdownMode === mode}
+                    onClick={() => onMarkdownModeChange?.(mode)}
+                  >
+                    {mode === 'source' ? '源码' : 'Preview'}
+                  </button>
+                ))}
+              </div>
+            )}
+          {repositoryId && entry.kind === 'file' && (
+            <div className="files-preview__modes">
+              <button
+                type="button"
+                aria-pressed={blameEnabled}
+                onClick={() => setBlameEnabled((value) => !value)}
+              >
+                逐行追溯
+              </button>
             </div>
           )}
           <CommandButton
             label="复制文件路径"
-            onClick={() => void navigator.clipboard?.writeText(entry.path)}
+            onClick={() => void navigator.clipboard?.writeText(previewPath)}
           >
             <CopyOutlined />
           </CommandButton>
         </div>
       </div>
       <div className="files-preview__body">
-        <PreviewBody
-          repositoryId={repositoryId}
-          entry={entry}
-          file={file}
-          preview={preview}
-          text={text}
-          language={language}
-          markdownMode={markdownMode}
-          onOpenFile={onOpenFile}
-          fragment={fragment}
-          refreshToken={refreshToken}
-          onRetry={onRetry}
-        />
+        {blameEnabled && repositoryId && file?.phase === 'ready' ? (
+          <BlameView
+            key={JSON.stringify([repositoryId, entry.path])}
+            repoId={repositoryId}
+            path={entry.path}
+            refreshToken={refreshToken}
+            contentRevision={preview?.kind === 'text' ? preview.content : JSON.stringify(preview)}
+            onVersionChange={setBlameVersion}
+            onSelectCommit={onSelectCommit}
+          />
+        ) : (
+          <PreviewBody
+            repositoryId={repositoryId}
+            entry={entry}
+            file={file}
+            preview={preview}
+            text={text}
+            language={language}
+            markdownMode={markdownMode}
+            onOpenFile={onOpenFile}
+            fragment={fragment}
+            refreshToken={refreshToken}
+            onRetry={onRetry}
+          />
+        )}
       </div>
     </div>
   );

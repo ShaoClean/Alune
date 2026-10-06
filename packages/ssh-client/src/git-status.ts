@@ -1,4 +1,4 @@
-import type { FileStatus, RepositoryStatus } from '@alune/shared';
+import type { ConflictKind, FileStatus, RepositoryStatus } from '@alune/shared';
 
 export interface StatusRecord {
   path: string;
@@ -29,6 +29,16 @@ export function parseStatus(output: string): RepositoryStatus & {
     D: 'deleted',
     R: 'renamed',
     C: 'copied',
+  };
+  // Unmerged XY codes, ours first: "U" means the side changed the path, "A" added, "D" deleted.
+  const conflicts: Record<string, ConflictKind> = {
+    UU: 'both-modified',
+    AA: 'both-added',
+    DD: 'both-deleted',
+    AU: 'added-by-us',
+    UA: 'added-by-them',
+    DU: 'deleted-by-us',
+    UD: 'deleted-by-them',
   };
   for (let i = 0; i < tokens.length; i++) {
     const raw = tokens[i];
@@ -67,6 +77,7 @@ export function parseStatus(output: string): RepositoryStatus & {
           status: 'modified',
           staged: false,
           conflicted: true,
+          ...(conflicts[xy] ? { conflict: conflicts[xy] } : {}),
         });
       else {
         if (xy[0] !== '.')

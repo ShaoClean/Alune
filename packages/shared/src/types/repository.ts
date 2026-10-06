@@ -22,6 +22,43 @@ export interface RepositoryStatus {
   files: FileStatus[];
   unborn?: boolean;
   upstream?: string;
+  operation?: RepositoryOperationState;
+}
+
+export type RepositoryOperationKind = 'merge' | 'rebase' | 'cherry-pick' | 'revert';
+
+// A Git operation stopped for user input (usually conflicts) in this worktree.
+export interface RepositoryOperationState {
+  kind: RepositoryOperationKind;
+  // The commit being merged, replayed, picked or reverted.
+  commit?: string;
+  subject?: string;
+  // Merge: the merged branch named in MERGE_MSG. Rebase: the branch being rebased.
+  branch?: string;
+  // Rebase: the commit the branch is replayed onto.
+  onto?: string;
+  step?: number;
+  total?: number;
+}
+
+export type ConflictKind =
+  | 'both-modified'
+  | 'both-added'
+  | 'both-deleted'
+  | 'added-by-us'
+  | 'added-by-them'
+  | 'deleted-by-us'
+  | 'deleted-by-them';
+
+// "Current" is HEAD (ours); "incoming" is the merged, replayed or picked side.
+export type ConflictSide = 'current' | 'incoming';
+export type ConflictBlockChoice = ConflictSide | 'both';
+
+export interface ConflictStepResult {
+  success: true;
+  // The operation stopped again, for example at the next conflicting commit.
+  conflicts: boolean;
+  message?: string;
 }
 
 export interface RepositoryContext {
@@ -99,6 +136,7 @@ export interface FileStatus {
   status: 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'untracked' | 'ignored';
   staged: boolean;
   conflicted?: boolean;
+  conflict?: ConflictKind;
   additions?: number;
   deletions?: number;
 }

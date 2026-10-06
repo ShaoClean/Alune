@@ -2,21 +2,25 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CommitFile, GraphCommit } from '@alune/shared';
 import { Button } from '@alune/ui';
-import { ArrowLeftOutlined, CloseOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CloseOutlined, TagOutlined } from '@ant-design/icons';
 import { HistoryReference, HistoryView } from './HistoryView';
+import { repositoryApi } from '../api';
 import { DiffViewer } from './DiffViewer';
 import { FileIcon, ErrorState } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
+import { CreateTagDialog } from './CreateTagDialog';
 
 const statuses = { added: 'A', modified: 'M', deleted: 'D', renamed: 'R', copied: 'C' };
 
-export function HistoryWorkspace({ repoId }: { repoId: string }) {
+export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targetHash?: string }) {
   const { compact, updateLayout } = useWorkspaceLayout();
   const {
     log,
     logGeneration,
+    logBranch,
+    fetchLog,
     commitFiles,
     commitFilesLoading,
     commitFilesError,
@@ -27,7 +31,11 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
     fetchDiff,
     clearDiff,
   } = useRepositoryStore();
+  const [jumpError, setJumpError] = useState<string>();
+  const [jumpAttempt, setJumpAttempt] = useState(0);
   const [selected, setSelected] = useState<GraphCommit | null>(null);
+  const [tagTarget, setTagTarget] = useState<string | null>(null);
+  useEffect(() => setTagTarget(null), [repoId]);
   const [file, setFile] = useState<CommitFile | null>(null);
   const [ratio, setRatio] = useState(60);
   const [focusDiff, setFocusDiff] = useState(false);
@@ -44,11 +52,32 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
         ?.focus({ preventScroll: true }),
     );
   };
+  useLayoutEffect(() => {
+    if (!targetHash) return;
+    const controller = new AbortController();
+    setJumpError(undefined);
+    const detail = repositoryApi.blameCommit(repoId, targetHash, controller.signal);
+    const history = fetchLog(repoId, 'refresh', targetHash);
+    Promise.all([detail, history]).then(
+      ([commit]) => {
+        if (!controller.signal.aborted) {
+          setSelected(
+            useRepositoryStore.getState().log.find((item) => item.hash === commit.hash) ?? commit,
+          );
+          setFile(null);
+        }
+      },
+      (error) => {
+        if (!controller.signal.aborted) setJumpError(error.message || '无法定位提交');
+      },
+    );
+    return () => controller.abort();
+  }, [repoId, targetHash, jumpAttempt]);
   useEffect(() => {
     if (!selected) return;
     const next = log.find((commit) => commit.hash === selected.hash);
     if (next) setSelected(next);
-    else close();
+    else if (selected.hash !== targetHash) close();
   }, [logGeneration]);
   useEffect(() => {
     if (compact && selected) back.current?.focus();
@@ -78,6 +107,20 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
       }
       style={{ '--history-ratio': ratio + '%' } as CSSProperties}
     >
+      <FeedbackNotice
+        source="history-jump"
+        title={jumpError}
+        actionLabel="重试"
+        onAction={() => setJumpAttempt((value) => value + 1)}
+      />
+      {logBranch && (
+        <div className="blame-history-scope">
+          正在显示从 {logBranch.slice(0, 8)} 开始的历史
+          <Button size="small" onClick={() => void fetchLog(repoId)}>
+            查看全部历史
+          </Button>
+        </div>
+      )}
       <div className="history-workspace__graph" inert={!!selected && (compact || focusDiff)}>
         <HistoryView
           repoId={repoId}
@@ -159,6 +202,13 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
               )}
               <strong title={selected.message}>{selected.message}</strong>
               <code title={selected.hash}>{selected.shortHash}</code>
+              <Button
+                size="small"
+                icon={<TagOutlined />}
+                onClick={() => setTagTarget(selected.hash)}
+              >
+                创建标签
+              </Button>
               <Button
                 type="text"
                 size="small"
@@ -256,6 +306,14 @@ export function HistoryWorkspace({ repoId }: { repoId: string }) {
             </div>
           </section>
         </>
+      )}
+      {tagTarget && (
+        <CreateTagDialog
+          repoId={repoId}
+          target={tagTarget}
+          onCancel={() => setTagTarget(null)}
+          onCreated={() => setTagTarget(null)}
+        />
       )}
     </div>
   );

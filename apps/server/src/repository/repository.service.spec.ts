@@ -228,3 +228,30 @@ describe('RepositoryService registration and remote status', () => {
     expect((await service.get(repo.id)).worktreeKind).toBeUndefined();
   });
 });
+
+describe('blame deadline', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('bounds connection setup and never starts Git after timing out', async () => {
+    jest.useFakeTimers();
+    const db = new Database(':memory:');
+    const service = new RepositoryService(db, {} as any);
+    const connection = deferred<any>();
+    jest
+      .spyOn(service, 'get')
+      .mockResolvedValue({ path: '/fixture', source: 'ssh' } as any);
+    jest
+      .spyOn(service as any, 'connection')
+      .mockReturnValue(connection.promise);
+    const execGit = jest.fn();
+    const pending = expect(
+      service.getBlame('repo', { path: 'a.txt' }),
+    ).rejects.toMatchObject({ status: 504 });
+    await jest.advanceTimersByTimeAsync(15000);
+    await pending;
+    connection.resolve({ execGit });
+    await Promise.resolve();
+    expect(execGit).not.toHaveBeenCalled();
+    db.close();
+  });
+});

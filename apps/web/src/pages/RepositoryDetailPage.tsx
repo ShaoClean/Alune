@@ -2,6 +2,7 @@ import { useFeedbackMessage } from '@alune/ui';
 import type { RepositoryContext } from '@alune/shared';
 import { RepositoryContextNotice } from '../components/RepositoryContextNotice';
 import { GitOperationNotice } from '../components/GitOperationNotice';
+import { RebaseOperationNotice } from '../components/RebaseOperationNotice';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
@@ -19,6 +20,7 @@ import { BranchesView } from '../components/BranchesView';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { ChangesView } from '../components/ChangesView';
 import { DiffViewer } from '../components/DiffViewer';
+import { ConflictResolver } from '../components/ConflictResolver';
 import { FilesView } from '../components/FilesView';
 import { HistoryWorkspace } from '../components/HistoryWorkspace';
 import { RemotesView } from '../components/RemotesView';
@@ -97,6 +99,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   );
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<{ repoId: string; hash: string }>();
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [pushedBranch, setPushedBranch] = useState<{ branch: string; remote?: string } | null>(
     null,
@@ -104,6 +107,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [syncing, setSyncing] = useState<SyncOperation | null>(null);
   const [syncingForce, setSyncingForce] = useState(false);
   const [context, setContext] = useState<RepositoryContext | null>(null);
+  const [managedRebase, setManagedRebase] = useState<string | null>(null);
   const [syncError, setSyncError] = useState('');
   const [syncAttempt, setSyncAttempt] = useState(0);
   const [syncSelection, setSyncSelection] = useState<{
@@ -200,12 +204,14 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     (file) => file.path === selectedFile?.path && file.staged === selectedFile?.staged,
   );
   const selectedStatusKey = selectedStatus
-    ? JSON.stringify([selectedStatus.status, selectedStatus.oldPath])
+    ? JSON.stringify([selectedStatus.status, selectedStatus.oldPath, selectedStatus.conflict])
     : null;
+  // Conflicted files open the resolver, which reads the worktree file itself.
+  const selectedConflict = selectedStatus?.conflicted ? selectedStatus : null;
 
   useLayoutEffect(() => {
     if (activePanel !== 'changes') return;
-    if (id && selectedFile && selectedStatusKey) {
+    if (id && selectedFile && selectedStatusKey && !selectedConflict) {
       void fetchDiff(id, { file: selectedFile.path, staged: selectedFile.staged });
     } else clearDiff();
   }, [
@@ -214,6 +220,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     selectedFile?.path,
     selectedFile?.staged,
     selectedStatusKey,
+    selectedConflict?.conflicted,
     status?.branch,
     worktreeDiffRevision,
     fetchDiff,
@@ -224,6 +231,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   useLayoutEffect(() => clearDiff, [id, activePanel, clearDiff]);
 
   const selectPanel = (panel: Panel) => {
+    setHistoryTarget(undefined);
     setActivePanel(panel);
     setSelectedFile(null);
     if (compact && panel === 'changes') updateLayout({ changesCollapsed: false });
@@ -415,6 +423,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         <ChangesView
           key={id}
           repoId={id}
+          managedRebase={managedRebase === id}
           onRefresh={handleRefresh}
           onSelectFile={handleSelectFile}
           selectedFile={selectedFile}
@@ -440,14 +449,25 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
               clearDiff();
             }
           }}
+          onSelectCommit={(hash) => {
+            setHistoryTarget({ repoId: id, hash });
+            setActivePanel('history');
+          }}
           gitFiles={statusEntry?.data?.files}
         />
       );
     if (activePanel === 'pull-requests')
       return <PullRequestsView key={id} repoId={id} refreshToken={pullRequestsRefresh} />;
-    if (activePanel === 'history') return <HistoryWorkspace repoId={id} />;
+    if (activePanel === 'history')
+      return (
+        <HistoryWorkspace
+          key={id}
+          repoId={id}
+          targetHash={historyTarget?.repoId === id ? historyTarget.hash : undefined}
+        />
+      );
     if (activePanel === 'branches')
-      return <BranchesView key={id} repoId={id} onRefresh={() => void handleRefresh(true)} />;
+      return <BranchesView key={id} repoId={id} refreshToken={contextRevision} onRefresh={() => void handleRefresh(true)} />;
     if (activePanel === 'stashes')
       return <StashesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
     return <RemotesView repoId={id} onRefresh={() => void handleRefresh()} />;
@@ -501,6 +521,12 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         </div>
       )}
       <GitOperationNotice key={id} repoId={id!} onFinished={() => void handleRefresh()} />
+      <RebaseOperationNotice
+        key={`rebase:${id}`}
+        repoId={id!}
+        onFinished={() => void handleRefresh()}
+        onManagedChange={(managed) => setManagedRebase(managed ? id! : null)}
+      />
       <FeedbackNotice
         source="git-sync"
         title={syncError ? 'Git 操作未完成' : null}
@@ -631,7 +657,21 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                   </Button>
                 </div>
               )}
-              {selectedFile ? (
+              {selectedFile && selectedConflict ? (
+                <ConflictResolver
+                  key={`${id}:${selectedFile.path}`}
+                  repoId={id!}
+                  file={selectedConflict}
+                  operation={status?.operation}
+                  revision={`${worktreeDiffRevision}:${selectedStatusKey}`}
+                  onChanged={() => handleRefresh(true)}
+                  onFocus={() => updateLayout({ sidebarCollapsed: true, changesCollapsed: true })}
+                  onClose={() => {
+                    setSelectedFile(null);
+                    returnToList();
+                  }}
+                />
+              ) : selectedFile ? (
                 <DiffViewer
                   diff={diff}
                   loading={diffLoading}

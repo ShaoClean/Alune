@@ -8,11 +8,66 @@ import {
   Query,
 } from '@nestjs/common';
 import { GitService } from './git.service';
-import type { SwitchBranchOptions } from '@alune/shared';
+import type {
+  SwitchBranchOptions,
+  CreateTagOptions,
+  DeleteTagOptions,
+  PushTagOptions,
+  CheckoutTagOptions,
+  RebaseRequest,
+  RebaseResolution,
+  ConflictBlockChoice,
+  ConflictSide,
+} from '@alune/shared';
 
 @Controller('repositories')
 export class GitController {
   constructor(private readonly gitService: GitService) {}
+
+  @Post(':id/interactive-rebase/preview')
+  previewRebase(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { base: string },
+  ) {
+    return this.gitService.previewRebase(id, body?.base);
+  }
+
+  @Get(':id/interactive-rebase')
+  rebaseState(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gitService.rebaseState(id);
+  }
+
+  @Post(':id/interactive-rebase')
+  startRebase(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: RebaseRequest,
+  ) {
+    return this.gitService.startRebase(id, body);
+  }
+
+  @Post(':id/interactive-rebase/control')
+  controlRebase(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { action: 'continue' | 'skip' | 'abort' },
+  ) {
+    return this.gitService.controlRebase(id, body?.action);
+  }
+
+  @Post(':id/interactive-rebase/conflict')
+  rebaseConflict(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { path: string },
+  ) {
+    return this.gitService.rebaseConflict(id, body?.path);
+  }
+
+  @Post(':id/interactive-rebase/resolve')
+  resolveRebaseConflict(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: RebaseResolution,
+  ) {
+    return this.gitService.resolveRebaseConflict(id, body);
+  }
 
   @Post(':id/ignore-directory')
   ignoreDirectory(
@@ -84,6 +139,51 @@ export class GitController {
     @Body() body: { remote?: string },
   ) {
     return this.gitService.fetch(id, body.remote);
+  }
+
+  @Get(':id/tags')
+  tags(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gitService.tags(id);
+  }
+
+  @Get(':id/tags/remote')
+  remoteTags(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('remote') remote: string,
+  ) {
+    return this.gitService.tags(id, remote ?? '');
+  }
+
+  @Post(':id/tags')
+  createTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CreateTagOptions,
+  ) {
+    return this.gitService.createTag(id, body);
+  }
+
+  @Post(':id/tags/delete')
+  deleteTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: DeleteTagOptions,
+  ) {
+    return this.gitService.deleteTag(id, body);
+  }
+
+  @Post(':id/tags/push')
+  pushTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: PushTagOptions,
+  ) {
+    return this.gitService.pushTag(id, body);
+  }
+
+  @Post(':id/tags/checkout')
+  checkoutTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CheckoutTagOptions,
+  ) {
+    return this.gitService.checkoutTag(id, body);
   }
 
   @Post(':id/branch')
@@ -174,14 +274,31 @@ export class GitController {
   }
 
   @Post(':id/workspace-file/preview')
-  previewWorkspaceFile(@Param('id', ParseUUIDPipe) id: string, @Body() body: { path: string }) {
+  previewWorkspaceFile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { path: string },
+  ) {
     return this.gitService.previewWorkspaceFile(id, body?.path);
   }
 
   @Post(':id/workspace-file')
-  mutateWorkspaceFile(@Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { path: string; token: string; action: 'delete' | 'rename'; name?: string }) {
-    return this.gitService.mutateWorkspaceFile(id, body?.path, body?.token, body?.action, body?.name);
+  mutateWorkspaceFile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body()
+    body: {
+      path: string;
+      token: string;
+      action: 'delete' | 'rename';
+      name?: string;
+    },
+  ) {
+    return this.gitService.mutateWorkspaceFile(
+      id,
+      body?.path,
+      body?.token,
+      body?.action,
+      body?.name,
+    );
   }
 
   @Post(':id/delete-new-file/preview')
@@ -235,6 +352,49 @@ export class GitController {
     @Body() body: { commit: string },
   ) {
     return this.gitService.revert(id, body.commit);
+  }
+
+  @Post(':id/conflicts/continue')
+  continueOperation(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gitService.continueOperation(id);
+  }
+
+  @Post(':id/conflicts/skip')
+  skipOperation(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gitService.skipOperation(id);
+  }
+
+  @Post(':id/conflicts/abort')
+  abortOperation(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gitService.abortOperation(id);
+  }
+
+  @Post(':id/conflicts/resolve-file')
+  resolveConflictFile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { file: string; side: ConflictSide },
+  ) {
+    return this.gitService.resolveConflictFile(id, body.file, body.side);
+  }
+
+  @Post(':id/conflicts/resolve-block')
+  resolveConflictBlock(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body()
+    body: {
+      file: string;
+      index: number;
+      choice: ConflictBlockChoice;
+      expected: string;
+    },
+  ) {
+    return this.gitService.resolveConflictBlock(
+      id,
+      body.file,
+      body.index,
+      body.choice,
+      body.expected,
+    );
   }
 
   @Get(':id/operation')

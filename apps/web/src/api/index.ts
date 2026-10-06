@@ -2,6 +2,9 @@ import axios from 'axios';
 import { confirmTerminalRemoval } from '../stores/terminalRemoval';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@alune/shared';
 import type {
+  BlameOptions,
+  BlameResult,
+  BlameCommitDetail,
   ConnectionTestResult,
   PullRequestCreationQuery,
   PullRequestCreationPreview,
@@ -40,6 +43,21 @@ import type {
   SaveAccessToken,
   ApplyAccessToken,
   SwitchBranchResult,
+  GitTag,
+  RemoteTag,
+  CreateTagOptions,
+  DeleteTagOptions,
+  PushTagOptions,
+  CheckoutTagOptions,
+  RebasePreview,
+  RebaseRequest,
+  RebaseState,
+  RebaseResult,
+  RebaseConflict,
+  RebaseResolution,
+  ConflictBlockChoice,
+  ConflictSide,
+  ConflictStepResult,
 } from '@alune/shared';
 
 const api = axios.create({
@@ -222,6 +240,12 @@ export const repositoryApi = {
     api
       .get(`/repositories/${id}/file`, { params: { path }, signal, timeout: 60000 })
       .then((r) => r.data),
+  blame: (id: string, params: BlameOptions, signal?: AbortSignal): Promise<BlameResult> =>
+    api.get(`/repositories/${id}/blame`, { params, signal, timeout: 20000 }).then((r) => r.data),
+  blameCommit: (id: string, commit: string, signal?: AbortSignal): Promise<BlameCommitDetail> =>
+    api
+      .get(`/repositories/${id}/blame-commit`, { params: { commit }, signal, timeout: 20000 })
+      .then((r) => r.data),
   branches: (id: string) => api.get(`/repositories/${id}/branches`).then((r) => r.data),
   stashes: (id: string) => api.get(`/repositories/${id}/stashes`).then((r) => r.data),
   remotes: (id: string) => api.get(`/repositories/${id}/remotes`).then((r) => r.data),
@@ -229,6 +253,39 @@ export const repositoryApi = {
 
 // Git Operation APIs
 export const gitApi = {
+  tags: (id: string): Promise<GitTag[]> => api.get(`/repositories/${id}/tags`).then((r) => r.data),
+  remoteTags: (id: string, remote: string): Promise<RemoteTag[]> =>
+    api
+      .get(`/repositories/${id}/tags/remote`, { params: { remote }, timeout: 35_000 })
+      .then((r) => r.data),
+  createTag: (id: string, options: CreateTagOptions) =>
+    api.post(`/repositories/${id}/tags`, options, gitTimeout).then((r) => r.data),
+  deleteTag: (id: string, options: DeleteTagOptions) =>
+    api.post(`/repositories/${id}/tags/delete`, options, gitTimeout).then((r) => r.data),
+  pushTag: (id: string, options: PushTagOptions) =>
+    api.post(`/repositories/${id}/tags/push`, options, gitTimeout).then((r) => r.data),
+  checkoutTag: (id: string, options: CheckoutTagOptions) =>
+    api.post(`/repositories/${id}/tags/checkout`, options, gitTimeout).then((r) => r.data),
+  previewRebase: (id: string, base: string): Promise<RebasePreview> =>
+    api
+      .post(`/repositories/${id}/interactive-rebase/preview`, { base }, { timeout: 65_000 })
+      .then((r) => r.data),
+  rebaseState: (id: string): Promise<RebaseState> =>
+    api.get(`/repositories/${id}/interactive-rebase`).then((r) => r.data),
+  startRebase: (id: string, request: RebaseRequest): Promise<RebaseResult> =>
+    api.post(`/repositories/${id}/interactive-rebase`, request, gitTimeout).then((r) => r.data),
+  controlRebase: (id: string, action: 'continue' | 'skip' | 'abort'): Promise<RebaseResult> =>
+    api
+      .post(`/repositories/${id}/interactive-rebase/control`, { action }, gitTimeout)
+      .then((r) => r.data),
+  rebaseConflict: (id: string, path: string): Promise<RebaseConflict> =>
+    api
+      .post(`/repositories/${id}/interactive-rebase/conflict`, { path }, { timeout: 65_000 })
+      .then((r) => r.data),
+  resolveRebaseConflict: (id: string, request: RebaseResolution): Promise<RebaseState> =>
+    api
+      .post(`/repositories/${id}/interactive-rebase/resolve`, request, gitTimeout)
+      .then((r) => r.data),
   ignoreDirectory: (id: string, path: string) =>
     api.post(`/repositories/${id}/ignore-directory`, { path }, gitTimeout).then((r) => r.data),
   operation: (id: string) => api.get(`/repositories/${id}/operation`).then((r) => r.data),
@@ -343,6 +400,30 @@ export const gitApi = {
     api.post(`/repositories/${id}/cherry-pick`, { commits }, gitTimeout).then((r) => r.data),
   revert: (id: string, commit: string) =>
     api.post(`/repositories/${id}/revert`, { commit }, gitTimeout).then((r) => r.data),
+  continueOperation: (id: string): Promise<ConflictStepResult> =>
+    api.post(`/repositories/${id}/conflicts/continue`, {}, gitTimeout).then((r) => r.data),
+  skipOperation: (id: string): Promise<ConflictStepResult> =>
+    api.post(`/repositories/${id}/conflicts/skip`, {}, gitTimeout).then((r) => r.data),
+  abortOperation: (id: string) =>
+    api.post(`/repositories/${id}/conflicts/abort`, {}, gitTimeout).then((r) => r.data),
+  resolveConflictFile: (id: string, file: string, side: ConflictSide) =>
+    api
+      .post(`/repositories/${id}/conflicts/resolve-file`, { file, side }, gitTimeout)
+      .then((r) => r.data),
+  resolveConflictBlock: (
+    id: string,
+    file: string,
+    index: number,
+    choice: ConflictBlockChoice,
+    expected: string,
+  ) =>
+    api
+      .post(
+        `/repositories/${id}/conflicts/resolve-block`,
+        { file, index, choice, expected },
+        gitTimeout,
+      )
+      .then((r) => r.data),
 };
 
 // File APIs

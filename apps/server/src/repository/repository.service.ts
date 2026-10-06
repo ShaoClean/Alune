@@ -13,8 +13,10 @@ import Database from 'better-sqlite3';
 import { ConnectionService } from '../connection/connection.service';
 import { TerminalRegistry } from '../terminal/terminal-registry';
 import {
+  ConflictResolution,
   DiffImages,
   GitCommands,
+  GitBlame,
   GitWorktrees,
   RepositoryFiles,
   worktreePathKey,
@@ -22,8 +24,9 @@ import {
   runGit,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
-import { REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
+import { BLAME_TIMEOUT_MS, REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
 import type {
+  BlameOptions,
   Repository,
   RepositoryStatus,
   DiffOptions,
@@ -478,9 +481,13 @@ export class RepositoryService {
       const conn = await this.connection(repo);
       // A connection may finish after this request's deadline. Do not start Git then.
       controller.signal.throwIfAborted();
-      const [status, worktreeKind] = await Promise.all([
+      const [status, worktreeKind, operation] = await Promise.all([
         new GitCommands(conn).status(repo.path, controller.signal),
         this.readWorktreeKind(repo, conn, controller.signal),
+        // Conflicted files are still listed if the operation state is unreadable.
+        new ConflictResolution(conn)
+          .state(repo.path, controller.signal)
+          .catch(() => undefined),
       ]);
       controller.signal.throwIfAborted();
       if (worktreeKind) {
@@ -488,7 +495,11 @@ export class RepositoryService {
           .prepare('UPDATE repositories SET worktree_kind = ? WHERE id = ?')
           .run(worktreeKind, id);
       }
-      return { ...status, ...(worktreeKind ? { worktreeKind } : {}) };
+      return {
+        ...status,
+        ...(worktreeKind ? { worktreeKind } : {}),
+        ...(operation ? { operation } : {}),
+      };
     })();
     const request = Promise.race([work, timeout]).finally(() => {
       clearTimeout(timer);
@@ -559,6 +570,45 @@ export class RepositoryService {
     const repo = await this.get(id);
     const conn = await this.connection(repo);
     return new RepositoryFiles(conn).read(repo.path, path);
+  }
+
+  private async withBlame<T>(
+    id: string,
+    operation: (git: GitBlame, path: string, signal: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new GatewayTimeoutException('逐行追溯超时，请稍后重试。');
+        controller.abort(error);
+        reject(error);
+      }, BLAME_TIMEOUT_MS);
+    });
+    const work = (async () => {
+      const repo = await this.get(id);
+      const conn = await this.connection(repo);
+      controller.signal.throwIfAborted();
+      return operation(new GitBlame(conn), repo.path, controller.signal);
+    })();
+    try {
+      return await Promise.race([work, timeout]);
+    } finally {
+      clearTimeout(timer!);
+      controller.abort();
+    }
+  }
+
+  getBlame(id: string, options: BlameOptions) {
+    return this.withBlame(id, (git, path, signal) =>
+      git.read(path, options, signal),
+    );
+  }
+
+  getBlameCommit(id: string, hash: string) {
+    return this.withBlame(id, (git, path, signal) =>
+      git.commit(path, hash, signal),
+    );
   }
 
   async getCommitFiles(id: string, commit: string, parentCommit?: string) {

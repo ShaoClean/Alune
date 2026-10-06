@@ -80,6 +80,18 @@ CI 对本地 Git 集成测试使用 macOS、Windows、Linux 三个平台。测�
 
 批量放弃更改使用 Git 2.23+ 的 `restore --worktree` 保留暂存区；未跟踪文件仅在确认包含它们时直接删除，不进入回收站。构建上述工作区后，运行 `node apps/web/tests/discard-changes-fixture.cjs` 可验证确认范围、筛选、取消、部分失败及 Diff 刷新。fixture 输出界面 URL 和独立的本机测试控制地址，所有文件和数据库均位于临时目录，退出时清理；设计与验收记录见 [Issue-109](https://github.com/ShaoClean/Alune/wiki/Issue-109)。
 
+### 文件逐行追溯验证
+
+构建 shared、ssh-client、server 和 web 后，执行：
+
+```sh
+node --test packages/ssh-client/tests/blame.test.cjs
+node --test apps/web/tests/blame.integration.cjs
+node apps/web/tests/blame-fixture.cjs
+```
+
+前两项使用真实 Git、临时本地与 SSH 仓库验证逐行归属、Worktree、重命名父版本、忽略空白／提交、未提交行、编码、大小限制和 HTTP 参数。第三项输出本地、SSH、Worktree 界面地址，历史包含超过 50 条后续提交，可验证旧提交跳转；退出后清理临时数据。
+
 ### 仓库终端验证
 
 终端模块默认禁用；桌面启动时使用随机 Bearer token 开启。嵌入式认证服务通过 `startServer({ token, ... })` 明确开启，不能仅以绑定回环地址或 CORS 代替认证。终端命名空间 `/terminal` 每条连接独立拥有会话；断线会销毁其 PTY，重连不恢复进程。

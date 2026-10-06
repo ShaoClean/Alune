@@ -18,6 +18,7 @@ import { ErrorState, EmptyState, PanelHeader, StatusBadge } from '@alune/ui';
 import { AluneModal } from '@alune/ui';
 import { AlunePopconfirm } from '@alune/ui';
 import { DialogIcon } from '@alune/ui';
+import { TagsView } from './TagsView';
 
 function useBranchDialogContext(repoId: string) {
   const branches = useRepositoryStore((state) => state.branches);
@@ -107,9 +108,10 @@ export function NewBranchDialog({
 interface Props {
   repoId: string;
   onRefresh: () => void;
+  refreshToken?: number;
 }
 
-export function BranchesView({ repoId, onRefresh }: Props) {
+export function BranchesView({ repoId, onRefresh, refreshToken }: Props) {
   const navigate = useNavigate();
   const message = useFeedbackMessage();
   const { branches, fetchBranches, error, errorPanel } = useRepositoryStore();
@@ -309,8 +311,7 @@ export function BranchesView({ repoId, onRefresh }: Props) {
   return (
     <section className="workspace-panel">
       <PanelHeader
-        title="分支"
-        count={branches.length}
+        title="分支与标签"
         description="此仓库的本地和远程引用"
         icon={<BranchesOutlined />}
         extra={
@@ -334,31 +335,34 @@ export function BranchesView({ repoId, onRefresh }: Props) {
           </>
         }
       />
-      {error && errorPanel === 'branches' && !branches.length ? (
-        <ErrorState
-          title="无法读取分支"
-          description={error}
-          onRetry={() => void fetchBranches(repoId)}
-        />
-      ) : branches.length === 0 ? (
-        <EmptyState
-          title="未找到分支"
-          description="首次提交后会显示当前分支，也可以刷新仓库引用。"
-        />
-      ) : (
-        <div className="branch-list">
-          <div className="branch-section">
-            <div className="branch-section__title">本地 · {localBranches.length}</div>
-            {localBranches.map(renderBranch)}
-          </div>
-          {remoteBranches.length > 0 && (
+      <div className="branch-list">
+        {error && errorPanel === 'branches' && !branches.length ? (
+          <ErrorState
+            title="无法读取分支"
+            description={error}
+            onRetry={() => void fetchBranches(repoId)}
+          />
+        ) : branches.length === 0 ? (
+          <EmptyState
+            title="未找到分支"
+            description="首次提交后会显示当前分支，也可以刷新仓库引用。"
+          />
+        ) : (
+          <>
             <div className="branch-section">
-              <div className="branch-section__title">远程 · {remoteBranches.length}</div>
-              {remoteBranches.map(renderBranch)}
+              <div className="branch-section__title">本地 · {localBranches.length}</div>
+              {localBranches.map(renderBranch)}
             </div>
-          )}
-        </div>
-      )}
+            {remoteBranches.length > 0 && (
+              <div className="branch-section">
+                <div className="branch-section__title">远程 · {remoteBranches.length}</div>
+                {remoteBranches.map(renderBranch)}
+              </div>
+            )}
+          </>
+        )}
+        <TagsView repoId={repoId} onRefresh={onRefresh} refreshToken={refreshToken} />
+      </div>
       <AluneModal
         open={renameOpen}
         size="sm"

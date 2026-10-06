@@ -1,0 +1,94 @@
+.tag-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.tag-section__heading,
+.tag-controls,
+.tag-actions,
+.tag-row__title,
+.tag-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tag-section__heading {
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.tag-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+}
+.tag-section h3 span:last-child,
+.tag-row__title > span:last-child,
+.tag-row__meta,
+.tag-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.tag-controls {
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.tag-controls > .ant-input-affix-wrapper {
+  flex: 1 1 180px;
+}
+.tag-controls > .ant-select {
+  min-width: 120px;
+  max-width: 220px;
+}
+.tag-row {
+  flex-wrap: wrap;
+}
+.tag-row__body {
+  flex: 1;
+  min-width: 180px;
+  overflow: hidden;
+}
+.tag-row__title {
+  flex-wrap: wrap;
+}
+.tag-row__title strong {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.tag-row__meta {
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.tag-row details {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.tag-row summary {
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-row pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  color: var(--text-muted);
+}
+.tag-error {
+  color: var(--danger, #cf4d59);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.tag-actions {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.tag-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
