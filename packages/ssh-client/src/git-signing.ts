@@ -45,12 +45,17 @@ export class GitSigning {
   }
 
   async read(path: string): Promise<SigningConfig> {
-    const [enabled, format, signingKey, tagEnabled] = await Promise.all([
+    // Wait for every Git process before returning, even if one config is invalid.
+    const results = await Promise.allSettled([
       this.config(path, 'commit.gpgsign', true),
       this.config(path, 'gpg.format'),
       this.config(path, 'user.signingkey'),
       this.config(path, 'tag.gpgsign', true),
     ]);
+    const [enabled, format, signingKey, tagEnabled] = results.map((result) => {
+      if (result.status === 'rejected') throw result.reason;
+      return result.value;
+    });
     return {
       enabled: enabled === 'true',
       format: format || 'openpgp',

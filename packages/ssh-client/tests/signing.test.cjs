@@ -170,7 +170,8 @@ for (const kind of ['local', 'ssh']) {
     },
     async (t) => {
       const f = await setup(t, kind);
-      const home = join(f.root, 'gnupg');
+      // Git for Windows bundles MSYS GPG, which needs forward-slash paths.
+      const home = join(f.root, 'gnupg').replace(/\\/g, '/');
       fs.mkdirSync(home, { mode: 0o700 });
       const previous = process.env.GNUPGHOME;
       process.env.GNUPGHOME = home;
@@ -263,6 +264,33 @@ test('empty signing key removes only the local override, malformed config is rep
   assert.equal((await f.signing.read(f.repo)).signingKey, '');
   f.git('config', 'commit.gpgsign', 'not-a-boolean');
   await assert.rejects(f.signing.read(f.repo), /无法读取签名配置/);
+});
+
+test('invalid signing config waits for every in-flight Git read before rejecting', async () => {
+  const pending = [];
+  const signing = new GitSigning({
+    execGit(_path, args) {
+      if (args.at(-1) === 'commit.gpgsign')
+        return Promise.resolve({ exitCode: 128, stdout: '', stderr: 'bad boolean' });
+      return new Promise((resolve) => pending.push(resolve));
+    },
+  });
+  let settled = false;
+  const reading = signing.read('/repo');
+  reading.then(
+    () => {
+      settled = true;
+    },
+    () => {
+      settled = true;
+    },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  const settledBeforeOtherReads = settled;
+  for (const resolve of pending) resolve({ exitCode: 1, stdout: '', stderr: '' });
+  await assert.rejects(reading, /无法读取签名配置.*bad boolean/);
+  assert.equal(pending.length, 3);
+  assert.equal(settledBeforeOtherReads, false);
 });
 
 test(
