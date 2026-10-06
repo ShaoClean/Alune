@@ -4,6 +4,8 @@ import type { SFTPWrapper } from 'ssh2';
 import { CommandOutputLimitError } from './connection-manager';
 import type { CommandResult } from './connection-manager';
 import type { CommandOptions, RepositoryTransport } from './repository-transport';
+import type { ProxySnapshot } from './proxy-transport';
+import { withLocalGitProxy } from './local-git-proxy';
 
 // Adapt the small, callback-based filesystem surface used by the shared file
 // readers. Canonical Windows paths use '/' just like Windows OpenSSH.
@@ -162,7 +164,10 @@ exit 0`;
 }
 
 export class LocalConnection implements RepositoryTransport {
-  constructor(readonly signal?: AbortSignal) {}
+  constructor(
+    readonly signal?: AbortSignal,
+    private readonly proxySnapshot?: () => ProxySnapshot,
+  ) {}
 
   // Deliberately no shell escape hatch for local repositories.
   async execCommand(): Promise<CommandResult> {
@@ -190,7 +195,41 @@ export class LocalConnection implements RepositoryTransport {
     return present.some(Boolean);
   }
 
-  execGit(
+  async execGit(
+    path: string,
+    args: string[],
+    signal?: AbortSignal,
+    options: CommandOptions = {},
+  ): Promise<CommandResult> {
+    signal?.throwIfAborted();
+    this.signal?.throwIfAborted();
+    if (this.proxySnapshot) {
+      let network = ['fetch', 'pull', 'push', 'ls-remote'].includes(args[0]);
+      if (!network) {
+        // Object reads (show/diff/blame, etc.) can fetch missing objects in a
+        // partial clone. Detect this before allowing an otherwise offline command.
+        const partial = await this.executeGit(
+          path,
+          ['config', '--name-only', '--get-regexp', '^(extensions\\.partialclone|remote\\..*\\.promisor)$'],
+          signal,
+          { environment: options.environment, maxOutputBytes: 65_536 },
+        );
+        if (partial.exitCode !== 0 && partial.exitCode !== 1)
+          throw new Error('无法检查本地仓库的部分克隆配置，已中止 Git 操作。');
+        network = partial.exitCode === 0;
+      }
+      // Capture once per command: saving affects the next operation, never a
+      // running transfer. A corrupt/unreadable enabled setting fails closed.
+      const snapshot = network ? this.proxySnapshot() : undefined;
+      if (snapshot?.enabled)
+        return withLocalGitProxy(snapshot, args, options, (argv, commandOptions) =>
+          this.executeGit(path, argv, signal, commandOptions),
+        );
+    }
+    return this.executeGit(path, args, signal, options);
+  }
+
+  private executeGit(
     path: string,
     args: string[],
     signal?: AbortSignal,

@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Database from 'better-sqlite3';
 import { ConnectionService } from '../connection/connection.service';
 import { TerminalRegistry } from '../terminal/terminal-registry';
+import { ProxyService } from '../proxy/proxy.service';
 import {
   ConflictResolution,
   DiffImages,
@@ -152,6 +153,7 @@ export class RepositoryService {
     @Inject('DATABASE') private db: Database.Database,
     private connectionService: ConnectionService,
     @Optional() private terminals?: TerminalRegistry,
+    @Optional() private proxy?: ProxyService,
   ) {
     this._initTable();
   }
@@ -212,7 +214,11 @@ export class RepositoryService {
     repo: Repository,
     signal?: AbortSignal,
   ): Promise<RepositoryTransport> {
-    if (repo.source === 'local') return new LocalConnection(signal);
+    if (repo.source === 'local')
+      return new LocalConnection(
+        signal,
+        this.proxy ? () => this.proxy!.settings.snapshot() : undefined,
+      );
     if (!repo.connectionId)
       throw new BadRequestException('远程仓库缺少 SSH 连接，请重新登记。');
     const connection = await this.connectionService.ensureConnected(
@@ -256,7 +262,10 @@ export class RepositoryService {
           AbortSignal.timeout(REPOSITORY_STATUS_TIMEOUT_MS),
         ])
       : AbortSignal.timeout(REPOSITORY_STATUS_TIMEOUT_MS);
-    const connection = new LocalConnection(signal);
+    const connection = new LocalConnection(
+      signal,
+      this.proxy ? () => this.proxy!.settings.snapshot() : undefined,
+    );
     const result = await runGit(connection, path, [
       'rev-parse',
       '--show-toplevel',

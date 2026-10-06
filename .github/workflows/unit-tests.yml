@@ -87,7 +87,7 @@ jobs:
       - run: npm run build -w @alune/shared
       - run: npm run build -w @alune/ssh-client
       - run: npm run build -w server
-      - run: node --test packages/ssh-client/tests/proxy-transport.test.cjs apps/server/test/proxy.integration.cjs
+      - run: node --test packages/ssh-client/tests/proxy-transport.test.cjs packages/ssh-client/tests/local-git-proxy.test.cjs packages/ssh-client/tests/local-git-partial-proxy.test.cjs apps/server/test/proxy.integration.cjs
       - name: 验证 Electron 更新网络栈
         if: runner.os != 'Linux'
         run: npm run test:proxy -w desktop

@@ -44,6 +44,52 @@ const { GitService } = require('../dist/git/git.service');
 
     let ssh;
     const git = app.get(GitService);
+    // Each operation must use the latest app settings, without an SSH reconnect.
+    for (const protocol of ['http', 'https', 'socks5']) {
+      save(protocol);
+      for (const [kind, remote] of [['https', fixture.httpsRemote], ['ssh', fixture.sshRemote]]) {
+        fixture.git(fixture.repo, 'remote', 'set-url', 'origin', remote);
+        fs.writeFileSync(path.join(fixture.seed, 'README.md'), `remote update for ${protocol}/${kind}\n`);
+        fixture.git(fixture.seed, 'add', '.');
+        fixture.git(fixture.seed, 'commit', '-qm', `fixture ${protocol}/${kind}`);
+        fixture.git(fixture.seed, 'push', path.join(fixture.root, 'remote.git'), 'main');
+        const remoteHead = fixture.git(fixture.seed, 'rev-parse', 'HEAD').trim();
+        for (const repository of [fixture.localRepository, fixture.localLinked]) {
+          const branch = `local-${protocol}-${kind}-${repository === fixture.localRepository ? 'main' : 'worktree'}`;
+          for (const [operation, run] of [
+            ['fetch', () => git.fetch(repository.id, 'origin')],
+            ['pull', () => git.pull(repository.id, 'origin', 'main')],
+            ['push', () => git.push(repository.id, 'origin', branch, false, true)],
+            ['ls-remote', () => git.tags(repository.id, 'origin')],
+          ]) {
+            const before = proxies[protocol].records.length;
+            const result = await run();
+            assert.ok(proxies[protocol].records.slice(before).some((entry) => entry.host === 'git.fixture.test'), `${protocol}/${kind}/${repository.name}/${operation}: local Git routes through the current app proxy`);
+            if (operation === 'fetch') assert.equal(fixture.git(repository.path, 'rev-parse', 'refs/remotes/origin/main').trim(), remoteHead);
+            if (operation === 'pull') assert.equal(fixture.git(repository.path, 'rev-parse', 'HEAD').trim(), remoteHead);
+            if (operation === 'ls-remote') assert.ok(result.some((tag) => tag.name === 'fixture-v1'));
+          }
+          assert.equal(fixture.git(path.join(fixture.root, 'remote.git'), 'rev-parse', `refs/heads/${branch}`).trim(), fixture.git(repository.path, 'rev-parse', 'HEAD').trim(), 'push reaches the real Git backend');
+        }
+      }
+    }
+    // Disabling restores ordinary Git behavior and retains repository settings.
+    fixture.git(fixture.repo, 'remote', 'set-url', 'origin', fixture.directRemote);
+    save('http', { enabled: false, credentials: { action: 'keep' } });
+    const directBefore = fixture.gitRequests.length;
+    const proxyBefore = Object.values(proxies).map((entry) => entry.records.length);
+    await git.fetch(fixture.localRepository.id, 'origin');
+    assert.ok(fixture.gitRequests.length > directBefore, 'disabled app proxy permits configured direct Git access');
+    assert.deepEqual(Object.values(proxies).map((entry) => entry.records.length), proxyBefore);
+    // The destination is directly reachable: authentication failure must not fall back.
+    save('http', { credentials: { action: 'replace', username: credentials.username, password: 'wrong' } });
+    const failedBefore = fixture.gitRequests.length;
+    await assert.rejects(git.fetch(fixture.localRepository.id, 'origin'));
+    assert.equal(fixture.gitRequests.length, failedBefore, 'failed app proxy never retries directly');
+    save('http');
+    const restoredBefore = proxies.http.records.length;
+    await git.fetch(fixture.localRepository.id, 'origin');
+    assert.ok(proxies.http.records.length > restoredBefore, 'new credentials take effect on the next local operation');
     for (const protocol of ['http', 'https', 'socks5']) {
       const configuration = save(protocol);
       await connections.reconnectProxy(connection.id, configuration.revision);

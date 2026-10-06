@@ -9,9 +9,16 @@
 ## 生效时机
 
 - AI 生成、模型列表、AI 连接测试、HTTP 代理测试的新请求立即读取保存的配置。
+- 本地仓库（含关联 Worktree）的 fetch、pull、push、读取远程引用在下一次操作时读取保存的配置，无需重连。运行中的 Git 操作保留启动时的配置。
 - macOS 的版本元数据、SHA256SUMS、DMG 下载和受限重定向使用同一代理。Windows / Linux 的 electron-updater 使用独立 Electron 会话，经本机桥接转发；下一次检查或下载前清理旧配置的空闲连接，保存不会取消运行中的更新任务。下载的完整性验证保持不变。
 - SSH 连接保留建立时的配置快照。断线自动重连和仓库请求触发的重连仍使用这一快照；配置修改和禁用会显示“重新连接后生效”。点击“重新连接并应用”后使用最新版本。
 - 重连会检查此服务器的 Git、AI、命令及文件任务；运行中任务或正在连接时拒绝重连。主仓库和关联 Worktree 共用此保护。
+
+## 本地 Git
+
+本地仓库的 fetch、pull、push、读取远程引用使用软件代理，包括标签推送、删除远程标签与补全浅克隆历史。部分克隆仓库（partial clone）的 diff、show 等操作自动补取缺失对象时也使用代理。HTTP(S) remote 经本机回环桥接，SSH remote 使用当前命令的 SSH ProxyCommand 经同一桥接转发；支持 HTTP、HTTPS 和 SOCKS5 代理。SSH 转发使用 Alune 自带运行时，不需要另装 Python 或 Node；仍需本机 Git 和 OpenSSH。
+
+代理凭据仅保留在 Alune 进程内，不写入 Git 参数、环境或仓库配置。代理启用时覆盖当前命令的仓库级代理与 NO_PROXY 绕过规则，连接失败不回退直连；关闭后恢复 Git 原有配置和环境。每条命令结束或取消后关闭桥接。支持 HTTP(S)、SSH 与本地文件 remote；其他传输协议在代理启用时明确拒绝。PR/MR 的托管平台 API 请求与终端内手动运行的命令不属于此设置覆盖范围。
 
 ## 远端 Git
 
@@ -19,7 +26,7 @@
 
 服务器需允许 `tcpip-forward` 并接受 `127.0.0.1` 监听（建议 `GatewayPorts no` 或 `clientspecified`），提供 `python3`、Git 和 OpenSSH。Linux 从 `/proc/net/tcp*` 核实监听范围；其他系统需 `netstat -an`。发现通配地址、缺少工具、权限不足或禁止转发时明确失败，关闭转发入口，不自动安装工具。Windows SSH 路径使用 PowerShell 传递当前进程环境；Windows 远端还需可在 SSH 会话中调用的 `python3`、OpenSSH 和 `netstat`。
 
-“SSH 已连接”和“远端 Git 可用”分别显示。Git 连接测试仅读取所选仓库所有 fetch / push 地址的引用，不执行提交、fetch、pull 或 push。支持 HTTP(S) 和 SSH remote；`git://`、自定义 Git 传输助手等不允许绕过此代理。本地仓库网络操作与 PR/MR 查询沿用现有配置，不属于本设置的覆盖范围。
+“SSH 已连接”和“远端 Git 可用”分别显示。设置页的 Git 连接测试用于远端仓库，仅读取所选仓库所有 fetch / push 地址的引用，不执行提交、fetch、pull 或 push。支持 HTTP(S) 和 SSH remote；`git://`、自定义 Git 传输助手等不允许绕过此代理。
 
 ## 开发验证
 
@@ -28,13 +35,13 @@ npm run build -w @alune/shared
 npm run build -w @alune/ssh-client
 npm run build -w server
 npm test -w server -- --runInBand proxy-settings.spec.ts
-node --test packages/ssh-client/tests/proxy-transport.test.cjs apps/server/test/proxy.integration.cjs
+node --test packages/ssh-client/tests/proxy-transport.test.cjs packages/ssh-client/tests/local-git*.test.cjs apps/server/test/proxy.integration.cjs
 npm run test:proxy -w desktop
 ```
 
 Electron 测试使用真正的 NsisUpdater / AppImageUpdater 与 ElectronHttpExecutor、受控代理和临时下载文件，验证元数据、blockmap、SHA-512、重定向、配置变更及内部回环。测试不会安装下载文件；AppImage 使用完整下载，因为测试基线并非真实 AppImage。Linux 的 Electron 测试需图形会话或 `xvfb-run -a`。
 
-服务端端到端测试使用临时 Git 仓库、SSH 服务、HTTP / HTTPS / SOCKS5 代理，覆盖 AI、macOS 下载及主仓库/Worktree 的真实 Git 操作。当前 SSH/Git fixture 使用 POSIX 命令，在 Windows runner 上跳过；不能据此宣称 Windows 远端已验收。测试证书与私钥仅供隔离 fixture 使用；信任仅配置在测试子进程，不改变系统信任或生产校验。
+服务端端到端测试使用临时 Git 仓库、SSH 服务、HTTP / HTTPS / SOCKS5 代理，覆盖 AI、macOS 下载及本地和远端主仓库/Worktree 的真实 Git 操作。本地传输测试另覆盖 HTTP remote、部分克隆自动补取对象、取消清理及特殊协议绕过。当前 SSH/Git 集成 fixture 使用 POSIX 命令，在 Windows runner 上跳过；不能据此宣称 Windows 的 SSH 路径已验收。测试证书与私钥仅供隔离 fixture 使用；信任仅配置在测试子进程，不改变系统信任或生产校验。
 
 构建 web 后，可运行 `node apps/server/test/proxy-fixture.cjs` 打开控制台输出的 UI 地址；控制台同时显示一次性测试代理的地址和凭据。HTTP 与 SSH 页面测试无需真实账号，HTTPS 测试需要在启动 fixture 前为该进程设置测试证书的 `NODE_EXTRA_CA_CERTS`。退出时清理临时数据。
 
