@@ -78,6 +78,8 @@ CI 对本地 Git 集成测试使用 macOS、Windows、Linux 三个平台。测�
 
 构建 server 和 web 后，运行 `node apps/server/test/local-ui-fixture.cjs` 可在 `http://127.0.0.1:59482` 验证真实本地仓库界面。控制台输出示例仓库、无首次提交仓库和本地 bare 远程的路径；退出时清理临时目录。平台 UI、目录选择器与真实凭据的实际验收结果见 Wiki 的 Issue-82-Validation。
 
+Diff 按块／按行操作的真实 Git 测试位于 `packages/ssh-client/tests/partial-changes.test.cjs`，覆盖本地、关联 Worktree 和本机 SSH 服务。HTTP 测试为 `apps/server/src/git/partial-diff.spec.ts`。构建 shared、ssh-client、server 和 web 后，运行 `node apps/web/tests/partial-diff-fixture.cjs` 可对生产接口和界面进行联合验收；输出界面 URL 与独立测试控制 URL。控制接口支持 POST `{ "reset": true }` 重置临时仓库、`{ "edit": true }` 模拟外部修改，并返回工作区、暂存区和两侧 Diff 用于核对。所有数据位于临时目录，退出进程会清理。
+
 批量放弃更改使用 Git 2.23+ 的 `restore --worktree` 保留暂存区；未跟踪文件仅在确认包含它们时直接删除，不进入回收站。构建上述工作区后，运行 `node apps/web/tests/discard-changes-fixture.cjs` 可验证确认范围、筛选、取消、部分失败及 Diff 刷新。fixture 输出界面 URL 和独立的本机测试控制地址，所有文件和数据库均位于临时目录，退出时清理；设计与验收记录见 [Issue-109](https://github.com/ShaoClean/Alune/wiki/Issue-109)。
 
 ### 文件逐行追溯验证

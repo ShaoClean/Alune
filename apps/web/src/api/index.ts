@@ -2,6 +2,7 @@ import axios from 'axios';
 import { confirmTerminalRemoval } from '../stores/terminalRemoval';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@alune/shared';
 import type {
+  PartialDiffRequest,
   BlameOptions,
   BlameResult,
   BlameCommitDetail,
@@ -330,6 +331,8 @@ export const gitApi = {
     api
       .post(`/repositories/${id}/delete-new-file`, { path, token }, { timeout: 60000 })
       .then((r) => r.data),
+  partialDiff: (id: string, request: PartialDiffRequest) =>
+    api.post(`/repositories/${id}/partial-diff`, request).then((r) => r.data),
   stage: (id: string, files: string[]) =>
     api.post(`/repositories/${id}/stage`, { files }, gitTimeout).then((r) => r.data),
   unstage: (id: string, files: string[]) =>

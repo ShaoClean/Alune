@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { GitService } from './git.service';
 import type {
+  PartialDiffRequest,
   SwitchBranchOptions,
   CreateTagOptions,
   DeleteTagOptions,
@@ -75,6 +76,14 @@ export class GitController {
     @Body() body: { path: string },
   ) {
     return this.gitService.ignoreDirectory(id, body.path);
+  }
+
+  @Post(':id/partial-diff')
+  partialDiff(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: PartialDiffRequest,
+  ) {
+    return this.gitService.partialDiff(id, body);
   }
 
   @Post(':id/stage')

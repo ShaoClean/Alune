@@ -324,6 +324,7 @@ export class SSHConnection extends EventEmitter {
     args: string[],
     signal?: AbortSignal,
     options?: {
+      stdin?: string | Buffer;
       maxOutputBytes?: number;
       strictUtf8?: boolean;
       binary?: boolean;
@@ -352,7 +353,12 @@ export class SSHConnection extends EventEmitter {
     command: string,
     cwd?: string,
     signal?: AbortSignal,
-    options?: { maxOutputBytes?: number; strictUtf8?: boolean; binary?: boolean },
+    options?: {
+      stdin?: string | Buffer;
+      maxOutputBytes?: number;
+      strictUtf8?: boolean;
+      binary?: boolean;
+    },
   ): Promise<CommandResult> {
     signal?.throwIfAborted();
     this._ensureConnected();
@@ -427,6 +433,7 @@ export class SSHConnection extends EventEmitter {
               reject(error);
             }
           });
+          if (options?.stdin !== undefined) stream.end(options.stdin);
         },
         signal,
       );

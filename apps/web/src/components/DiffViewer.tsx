@@ -1,3 +1,5 @@
+import { usePartialDiff } from './usePartialDiff';
+import type { PartialDiffControls } from './usePartialDiff';
 import { FeedbackAlert } from '@alune/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Segmented } from '@alune/ui';
@@ -43,12 +45,16 @@ interface Props {
   filePath?: string;
   imageRequest?: Omit<DiffImageOptions, 'file' | 'side'>;
   error?: string | null;
+  partial?: PartialDiffControls;
 }
 
 type SplitCellKind = 'context' | 'add' | 'remove' | 'empty';
 
 interface SplitDiffRow {
   meta?: string;
+  metaIndex?: number;
+  leftIndex?: number;
+  rightIndex?: number;
   left?: ReactNode;
   right?: ReactNode;
   leftKind?: SplitCellKind;
@@ -61,16 +67,17 @@ function getSplitDiffRows(
   lines: NumberedDiffLine[],
   tokens: Array<ReactNode[] | undefined>,
 ): SplitDiffRow[] {
+  const indexByLine = new Map(lines.map((line, index) => [line, index]));
   const contentByLine = new Map(
     lines.map((line, index) => [line, tokens[index] ?? line.text.slice(1)]),
   );
   const content = (line: NumberedDiffLine) => contentByLine.get(line);
   const rows: SplitDiffRow[] = [];
 
-  for (let index = 0; index < lines.length; ) {
+  for (let index = 0; index < lines.length;) {
     const line = lines[index];
     if (line.kind === 'meta') {
-      rows.push({ meta: line.text });
+      rows.push({ meta: line.text, metaIndex: index });
       index += 1;
       continue;
     }
@@ -89,6 +96,8 @@ function getSplitDiffRows(
       const rowCount = Math.max(removed.length, added.length);
       for (let row = 0; row < rowCount; row += 1) {
         rows.push({
+          leftIndex: indexByLine.get(removed[row]),
+          rightIndex: indexByLine.get(added[row]),
           left: removed[row] ? content(removed[row]) : '',
           right: added[row] ? content(added[row]) : '',
           oldLine: removed[row]?.oldLine,
@@ -109,6 +118,7 @@ function getSplitDiffRows(
       added.forEach((value) =>
         rows.push({
           left: '',
+          rightIndex: indexByLine.get(value),
           right: content(value),
           newLine: value.newLine,
           leftKind: 'empty',
@@ -148,8 +158,10 @@ export function DiffViewer({
   filePath,
   imageRequest,
   error,
+  partial,
 }: Props) {
   const { theme, style } = useCodeTheme();
+  const partialActions = usePartialDiff(repoId, filePath, diff, partial, loading || !!error);
   const lines = useMemo(() => getNumberedDiffLines(diff ?? ''), [diff]);
   const highlighted = useDiffHighlight(lines, diff?.length ?? 0, filePath);
   const gutterWidth = `${Math.max(4, String(lines.reduce((max, line) => Math.max(max, line.oldLine ?? 0, line.newLine ?? 0), 0)).length + 1)}ch`;
@@ -202,13 +214,17 @@ export function DiffViewer({
 
   const renderUnifiedDiff = () => {
     return (
-      <div className="diff-unified-view" aria-label="统一差异">
+      <div
+        className={`diff-unified-view${partialActions.enabled ? ' diff-partial-enabled' : ''}`}
+        aria-label="统一差异"
+      >
         {lines.map(({ text: line, kind, oldLine, newLine }, index) => {
-          const className = `diff-code-row diff-code-row--${kind}`;
+          const className = `diff-code-row diff-code-row--${kind}${partialActions.selected.has(index) ? ' diff-row-selected' : ''}`;
           return (
             <div className={className} key={index}>
               {kind !== 'meta' && (
                 <>
+                  {partialActions.lineSelector(index, oldLine, newLine)}
                   <span className="diff-line-number" aria-hidden="true">
                     {oldLine}
                   </span>
@@ -227,6 +243,7 @@ export function DiffViewer({
                   </>
                 )}
               </code>
+              {kind === 'meta' && partialActions.hunkActions(index)}
             </div>
           );
         })}
@@ -235,7 +252,10 @@ export function DiffViewer({
   };
 
   const renderSplitDiff = () => (
-    <div className="diff-split-view" aria-label="分栏差异">
+    <div
+      className={`diff-split-view${partialActions.enabled ? ' diff-partial-enabled' : ''}`}
+      aria-label="分栏差异"
+    >
       <div className="diff-split-labels">
         <span>原版本</span>
         <span>修改后</span>
@@ -244,16 +264,23 @@ export function DiffViewer({
         row.meta !== undefined ? (
           <div className="diff-split-row diff-split-row--meta" key={`${index}-${row.meta}`}>
             <span>{row.meta}</span>
+            {partialActions.hunkActions(row.metaIndex)}
           </div>
         ) : (
           <div className="diff-split-row" key={index}>
-            <span className={`diff-split-cell diff-split-cell--${row.leftKind}`}>
+            <span
+              className={`diff-split-cell diff-split-cell--${row.leftKind}${row.leftIndex !== undefined && partialActions.selected.has(row.leftIndex) ? ' diff-row-selected' : ''}`}
+            >
+              {partialActions.lineSelector(row.leftIndex, row.oldLine)}
               <span className="diff-line-number" aria-hidden="true">
                 {row.oldLine}
               </span>
               <code>{row.left}</code>
             </span>
-            <span className={`diff-split-cell diff-split-cell--${row.rightKind}`}>
+            <span
+              className={`diff-split-cell diff-split-cell--${row.rightKind}${row.rightIndex !== undefined && partialActions.selected.has(row.rightIndex) ? ' diff-row-selected' : ''}`}
+            >
+              {partialActions.lineSelector(row.rightIndex, undefined, row.newLine)}
               <span className="diff-line-number" aria-hidden="true">
                 {row.newLine}
               </span>
@@ -434,6 +461,8 @@ export function DiffViewer({
           )}
         </div>
       </div>
+      {partialActions.toolbar}
+      {partialActions.feedback}
       <div
         className={`diff-shell__body${textDiff ? ' code-diff' : ''}`}
         ref={bodyRef}

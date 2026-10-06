@@ -1,3 +1,4 @@
+import { PartialChanges } from '@alune/ssh-client';
 import {
   Injectable,
   Inject,
@@ -542,6 +543,12 @@ export class RepositoryService {
     const conn = await this.connection(repo);
     const git = new GitCommands(conn);
     return git.log(repo.path, options);
+  }
+
+  async getEditableDiff(id: string, file: string, staged: boolean) {
+    const repo = await this.get(id);
+    const conn = await this.connection(repo);
+    return new PartialChanges(conn).preview(repo.path, file, staged);
   }
 
   async getDiff(id: string, options?: DiffOptions) {

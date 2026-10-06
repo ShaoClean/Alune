@@ -231,3 +231,74 @@
   background: transparent;
   line-height: 1.65;
 }
+
+/* Partial Git operations share the same controls in inline and fullscreen Diff. */
+.partial-diff-toolbar,
+.partial-diff-confirm,
+.partial-diff-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.partial-diff-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 6px 12px;
+}
+.partial-diff-toolbar .partial-diff-hint {
+  padding: 0;
+  margin-right: auto;
+}
+.partial-diff-confirm > span {
+  flex: 1 1 260px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.partial-diff-confirm {
+  background: var(--surface-raised);
+}
+.code-diff .partial-hunk-actions {
+  display: flex;
+  width: max-content;
+  position: sticky;
+  left: 14px;
+  gap: 6px;
+  margin: 3px 0 3px 12px;
+  font-family: var(--font-sans, sans-serif);
+}
+.code-diff .diff-partial-enabled .diff-code-row:not(.diff-code-row--meta) {
+  grid-template-columns:
+    28px calc(var(--diff-gutter-width) + 8px) calc(var(--diff-gutter-width) + 8px)
+    minmax(0, 1fr);
+}
+.code-diff .diff-partial-enabled .diff-split-cell {
+  grid-template-columns: 28px calc(var(--diff-gutter-width) + 8px) minmax(0, 1fr);
+}
+.partial-line-checkbox {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  justify-self: center;
+  align-self: center;
+  cursor: pointer;
+}
+.partial-line-checkbox:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.partial-line-checkbox:disabled {
+  cursor: default;
+}
+.code-diff .diff-row-selected {
+  box-shadow: inset 3px 0 var(--accent);
+  background: color-mix(in srgb, var(--code-selection) 45%, var(--code-background));
+}
+
+.diff-partial-enabled .diff-line-number {
+  white-space: nowrap;
+}

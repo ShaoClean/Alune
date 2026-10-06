@@ -918,7 +918,8 @@
   .workspace-page--inspecting .workspace-body > .workspace-main-panel {
     display: none;
   }
-  .workspace-page--inspecting .workspace-panel--detail {
+  .workspace-page--inspecting .workspace-panel--detail,
+  .workspace-page--compact .workspace-panel--detail:has(.diff-shell--fullscreen) {
     display: flex;
   }
   .workspace-body .workspace-detail__body {
