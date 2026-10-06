@@ -2,6 +2,7 @@ import type { SSHConnection, CommandResult } from './connection-manager';
 import { gitFileCommand } from './git-shell';
 
 export type CommandOptions = {
+  stdin?: string | Buffer;
   maxOutputBytes?: number;
   strictUtf8?: boolean;
   binary?: boolean;

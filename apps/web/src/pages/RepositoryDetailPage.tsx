@@ -71,6 +71,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     status,
     diff,
     diffLoading,
+    diffRefreshing,
+    partialDiff,
     worktreeDiffRevision,
     diffError,
     setCurrentRepo,
@@ -479,7 +481,14 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         />
       );
     if (activePanel === 'branches')
-      return <BranchesView key={id} repoId={id} refreshToken={contextRevision} onRefresh={() => void handleRefresh(true)} />;
+      return (
+        <BranchesView
+          key={id}
+          repoId={id}
+          refreshToken={contextRevision}
+          onRefresh={() => void handleRefresh(true)}
+        />
+      );
     if (activePanel === 'stashes')
       return <StashesView repoId={id} onRefresh={() => void handleRefresh(true)} />;
     return <RemotesView repoId={id} onRefresh={() => void handleRefresh()} />;
@@ -686,6 +695,17 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
               ) : selectedFile ? (
                 <DiffViewer
                   diff={diff}
+                  partial={
+                    partialDiff
+                      ? {
+                          revision: partialDiff.revision,
+                          unavailableReason: partialDiff.unavailableReason,
+                          staged: selectedFile.staged,
+                          refreshing: diffRefreshing,
+                          onChanged: () => fetchStatus(id!, true),
+                        }
+                      : undefined
+                  }
                   loading={diffLoading}
                   comparisonKey={JSON.stringify([id, selectedFile.path, selectedFile.staged])}
                   repoId={id}

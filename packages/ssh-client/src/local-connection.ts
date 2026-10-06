@@ -229,7 +229,7 @@ export class LocalConnection implements RepositoryTransport {
         windowsHide: true,
         detached: process.platform !== 'win32',
         env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
       const stdout: Buffer[] = [];
       const stderr: Buffer[] = [];
@@ -278,6 +278,10 @@ export class LocalConnection implements RepositoryTransport {
       };
       child.stdout.on('data', (chunk: Buffer) => collect(stdout, chunk));
       child.stderr.on('data', (chunk: Buffer) => collect(stderr, chunk));
+      child.stdin.on('error', (error: NodeJS.ErrnoException) => {
+        if (error.code !== 'EPIPE') stop(error);
+      });
+      child.stdin.end(options.stdin);
       child.on('error', (error: NodeJS.ErrnoException) => {
         cleanup();
         reject(

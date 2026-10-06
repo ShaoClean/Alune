@@ -1,3 +1,4 @@
+import type { PartialDiffPreview } from '@alune/shared';
 import { create } from 'zustand';
 import type { StateCreator } from 'zustand';
 import { REPOSITORY_STATUS_CACHE_MS } from '@alune/shared';
@@ -82,6 +83,7 @@ interface RepositoryState {
   commitFilesLoading: boolean;
   commitFilesError: string | null;
   diff: string;
+  partialDiff: PartialDiffPreview | null;
   diffLoading: boolean;
   diffRefreshing: boolean;
   diffKey: string | null;
@@ -289,6 +291,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     commitFilesLoading: false,
     commitFilesError: null,
     diff: '',
+    partialDiff: null,
     diffLoading: false,
     diffRefreshing: false,
     diffKey: null,
@@ -577,6 +580,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         commitFilesLoading: false,
         commitFilesError: null,
         diff: '',
+        partialDiff: null,
         diffLoading: false,
         diffRefreshing: false,
         diffKey: null,
@@ -695,7 +699,14 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
 
     clearDiff: () => {
       diffRequest += 1;
-      set({ diff: '', diffLoading: false, diffRefreshing: false, diffKey: null, diffError: null });
+      set({
+        diff: '',
+        partialDiff: null,
+        diffLoading: false,
+        diffRefreshing: false,
+        diffKey: null,
+        diffError: null,
+      });
     },
 
     fetchDiff: async (id, params) => {
@@ -713,18 +724,25 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       set({
         diffKey,
         diff: refreshing ? state.diff : '',
+        partialDiff: refreshing ? state.partialDiff : null,
         diffLoading: !refreshing,
         diffRefreshing: refreshing,
         diffError: null,
       });
       try {
-        const diff = await repositoryApi.diff(id, params);
+        const response = await repositoryApi.diff(id, {
+          ...params,
+          ...(params?.file && !params?.commit && !params?.parentCommit ? { editable: true } : {}),
+        });
+        const partialDiff = typeof response === 'string' ? null : (response as PartialDiffPreview);
+        const diff = partialDiff ? partialDiff.diff : response;
         if (request === diffRequest)
-          set({ diff, diffLoading: false, diffRefreshing: false, diffError: null });
+          set({ diff, partialDiff, diffLoading: false, diffRefreshing: false, diffError: null });
       } catch (err: any) {
         if (request === diffRequest)
           set({
             diff: '',
+            partialDiff: null,
             diffLoading: false,
             diffRefreshing: false,
             diffError: errorMessage(err),

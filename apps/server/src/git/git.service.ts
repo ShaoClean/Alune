@@ -20,6 +20,8 @@ import {
   WorkspaceFileActions,
   RepositoryFileError,
   GitCommands,
+  PartialChanges,
+  PartialChangesError,
   GitTags,
   LocalConnection,
   NewFileDeletion,
@@ -40,6 +42,7 @@ import {
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
 import type {
+  PartialDiffRequest,
   ConflictBlockChoice,
   ConflictSide,
   DiscardChangesScope,
@@ -347,6 +350,24 @@ export class GitService implements OnModuleDestroy {
         throw error;
       }
     });
+  }
+
+  partialDiff(id: string, request: PartialDiffRequest) {
+    return this.write(
+      id,
+      request?.action === 'stage' || request?.action === 'unstage'
+        ? request.action
+        : 'partial-diff',
+      async (_git, repo, connection) => {
+        try {
+          return await new PartialChanges(connection).apply(repo.path, request);
+        } catch (error) {
+          if (error instanceof PartialChangesError)
+            throw new HttpException(error.message, error.statusCode);
+          throw error;
+        }
+      },
+    );
   }
 
   stage(id: string, files: string[]) {

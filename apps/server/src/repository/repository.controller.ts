@@ -1,3 +1,4 @@
+import { PartialChangesError } from '@alune/ssh-client';
 import {
   BadRequestException,
   ConflictException,
@@ -203,9 +204,22 @@ export class RepositoryController {
         typeof query.parentCommit === 'string' ? query.parentCommit : undefined,
     };
     try {
+      if (
+        query.editable === 'true' &&
+        options.file &&
+        !options.commit &&
+        !options.parentCommit
+      )
+        return await this.repoService.getEditableDiff(
+          id,
+          options.file,
+          !!options.staged,
+        );
       return await this.repoService.getDiff(id, options);
     } catch (error) {
       if (error instanceof HttpException) throw error;
+      if (error instanceof PartialChangesError)
+        throw new HttpException(error.message, error.statusCode);
       // Preserve actionable read/limit feedback instead of Nest's generic 500 message.
       throw new BadRequestException(
         error instanceof Error ? error.message : '无法读取差异',

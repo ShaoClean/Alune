@@ -239,6 +239,8 @@ async function startSSHServer({ onSftp } = {}) {
           const child = spawn('/bin/sh', ['-c', info.command], {
             env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' },
           });
+          channel.pipe(child.stdin);
+          child.stdin.on('error', () => {});
           child.stdout.on('data', (data) => channel.write(data));
           child.stderr.on('data', (data) => channel.stderr.write(data));
           child.on('close', (code) => {
