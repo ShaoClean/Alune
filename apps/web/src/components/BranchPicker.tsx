@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Input, Popover } from '@alune/ui';
@@ -32,6 +33,7 @@ export function BranchPicker({
   maxWidth?: number;
   onSwitched: () => void;
 }) {
+  const navigate = useNavigate();
   const message = useFeedbackMessage();
   const branches = useRepositoryStore((state) => state.branches);
   const fetchBranches = useRepositoryStore((state) => state.fetchBranches);
@@ -174,6 +176,19 @@ export function BranchPicker({
               {visibleRemote.length > 0 && <div className="branch-picker__group">远程</div>}
               {visibleRemote.map(row)}
             </div>
+            <button
+              type="button"
+              className="branch-picker__create"
+              disabled={switching !== null || !branch}
+              onClick={() => {
+                close();
+                navigate(
+                  `/repositories/${repoId}?${new URLSearchParams({ panel: 'pull-requests', createPr: '1', sourceBranch: branch })}`,
+                );
+              }}
+            >
+              创建 PR/MR…
+            </button>
             <button
               type="button"
               className="branch-picker__create"

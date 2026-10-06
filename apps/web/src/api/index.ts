@@ -6,6 +6,10 @@ import type {
   BlameResult,
   BlameCommitDetail,
   ConnectionTestResult,
+  PullRequestCreationQuery,
+  PullRequestCreationPreview,
+  CreatePullRequest,
+  CreatedPullRequest,
   DiffImageContent,
   DiffImageOptions,
   NewFileDeletionPreview,
@@ -123,6 +127,16 @@ export const repositoryApi = {
       .then((r) => r.data),
   applyAccessToken: (id: string, body: ApplyAccessToken): Promise<AccessTokenSettings> =>
     api.post(`/repositories/${id}/pull-requests/token`, body).then((r) => r.data),
+  previewPullRequest: (
+    id: string,
+    query: PullRequestCreationQuery,
+    signal?: AbortSignal,
+  ): Promise<PullRequestCreationPreview> =>
+    api.post(`/repositories/${id}/pull-requests/preview`, query, { signal }).then((r) => r.data),
+  createPullRequest: (id: string, query: CreatePullRequest): Promise<CreatedPullRequest> =>
+    api
+      .post(`/repositories/${id}/pull-requests/create`, query, { timeout: 65_000 })
+      .then((r) => r.data),
   pullRequestRemotes: (id: string, signal?: AbortSignal): Promise<PullRequestRemote[]> =>
     api.get(`/repositories/${id}/pull-requests/remotes`, { signal }).then((r) => r.data),
   pullRequests: (

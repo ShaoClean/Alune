@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
@@ -12,6 +13,7 @@ import {
 import type { Request, Response } from 'express';
 import type {
   CommitGenerationPreferences,
+  PullRequestCreationQuery,
   SaveAiProvider,
   TestAiProvider,
 } from '@alune/shared';
@@ -88,6 +90,23 @@ export class AiController {
   ) {
     return this.connected(req, res, (signal) =>
       this.ai.models(id, body?.revision, signal),
+    );
+  }
+
+  @Post('repositories/:id/pull-request')
+  @Header('Cache-Control', 'no-store')
+  generatePullRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body()
+    body: PullRequestCreationQuery & {
+      configRevision: string;
+      revision: string;
+    },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.connected(req, res, (signal) =>
+      this.ai.generatePullRequest(id, body, signal),
     );
   }
 

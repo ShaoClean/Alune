@@ -1,3 +1,5 @@
+import { CreatePullRequestDialog } from './CreatePullRequestDialog';
+import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, DialogIcon, Empty, Input, Segmented, Select, Spin, Tag } from '@alune/ui';
@@ -94,6 +96,19 @@ function RemotePullRequests({
   refreshToken: number;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const message = useFeedbackMessage();
+  const [creating, setCreating] = useState(
+    () => new URLSearchParams(location.search).get('createPr') === '1',
+  );
+  const sourceBranch = new URLSearchParams(location.search).get('sourceBranch') || undefined;
+  const closeCreate = () => {
+    setCreating(false);
+    const params = new URLSearchParams(location.search);
+    params.delete('createPr');
+    params.delete('sourceBranch');
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+  };
   const {
     settings,
     loading: tokensLoading,
@@ -109,6 +124,12 @@ function RemotePullRequests({
   const [state, setState] = useState<PullRequestFilter>('open');
   const [page, setPage] = useState(1);
   const [opened, setOpened] = useState<number | null>(null);
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('createPr') === '1') {
+      setOpened(null);
+      setCreating(true);
+    }
+  }, [location.search]);
   const [tokenDraft, setTokenDraft] = useState('');
   const [credential, setCredential] = useState<{ token: string | null; revision: number }>({
     token: null,
@@ -277,6 +298,29 @@ function RemotePullRequests({
 
   return (
     <div className="pull-requests-content">
+      {creating && provider && (!invalidSelection || credential.token !== null) && (
+        <CreatePullRequestDialog
+          repoId={repoId}
+          query={{
+            remote: remote.name,
+            target: remote.webUrl,
+            provider,
+            sourceBranch,
+            ...(credential.token !== null ? { token: credential.token } : {}),
+          }}
+          onClose={closeCreate}
+          onExisting={(number) => {
+            closeCreate();
+            setOpened(number);
+          }}
+          onCreated={(result) => {
+            closeCreate();
+            if (result.warning) message.warning(result.warning);
+            setOpened(result.item.number);
+            setRetry((value) => value + 1);
+          }}
+        />
+      )}
       <div className="pull-requests-intro">
         <div className="pull-requests-project-info">
           <span className="pull-requests-provider">
@@ -384,7 +428,7 @@ function RemotePullRequests({
               </p>
               <p>
                 {provider === 'github'
-                  ? 'GitHub：细粒度令牌需要此仓库的 Pull requests 读写权限（仅查看时可用读取权限）；经典令牌需要 repo 权限。组织仓库可能需要 SSO 授权。'
+                  ? 'GitHub：细粒度令牌需要此仓库的 Pull requests 读写权限（仅查看时可用读取权限）；预览分支改动及读取模板还需要 Contents 读取权限；经典令牌需要 repo 权限。组织仓库可能需要 SSO 授权。'
                   : 'GitLab：使用有项目访问权且包含 read_api（仅查看）或 api（评论及状态操作）权限的个人、项目或群组访问令牌。'}
               </p>
               <form
@@ -477,6 +521,14 @@ function RemotePullRequests({
               ]}
             />
             <span className="pull-requests-sort">按最近更新排序</span>
+            <Button
+              type="primary"
+              icon={<DialogIcon name="pr" />}
+              disabled={invalidSelection && credential.token === null}
+              onClick={() => setCreating(true)}
+            >
+              创建 PR/MR
+            </Button>
           </div>
           <FeedbackNotice
             source="pull-requests"
@@ -591,6 +643,11 @@ export function PullRequestsView({
       });
     return () => controller.abort();
   }, [repoId, refresh, refreshToken, settings?.revision]);
+
+  useEffect(() => {
+    const requested = new URLSearchParams(location.search).get('remote');
+    if (requested && remotes.some((item) => item.name === requested)) setSelected(requested);
+  }, [location.search]);
 
   const remote = remotes.find((item) => item.name === selected);
   return (

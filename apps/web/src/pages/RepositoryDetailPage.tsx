@@ -101,6 +101,9 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [pageError, setPageError] = useState<string | null>(null);
   const [historyTarget, setHistoryTarget] = useState<{ repoId: string; hash: string }>();
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
+  const [pushedBranch, setPushedBranch] = useState<{ branch: string; remote?: string } | null>(
+    null,
+  );
   const [syncing, setSyncing] = useState<SyncOperation | null>(null);
   const [syncingForce, setSyncingForce] = useState(false);
   const [context, setContext] = useState<RepositoryContext | null>(null);
@@ -285,6 +288,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
           options?.tags,
         );
       else await gitApi[operation](id, options?.remote, options?.branch);
+      if (operation === 'push' && !options?.tags && (options?.branch || status?.branch))
+        setPushedBranch({ branch: options?.branch || status!.branch, remote: options?.remote });
       await handleRefresh(true);
     } catch (err: any) {
       setSyncError(err.message || `${label}失败`);
@@ -496,6 +501,25 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
         onRemotes={() => selectPanel('remotes')}
         onRefresh={() => void handleRefresh()}
       />
+      {pushedBranch && (
+        <div className="repository-push-followup" role="status">
+          <span>{pushedBranch.branch} 已推送</span>
+          <Button
+            type="link"
+            onClick={() => {
+              navigate(
+                `/repositories/${id}?${new URLSearchParams({ panel: 'pull-requests', createPr: '1', sourceBranch: pushedBranch.branch, ...(pushedBranch.remote ? { remote: pushedBranch.remote } : {}) })}`,
+              );
+              setPushedBranch(null);
+            }}
+          >
+            创建 PR/MR
+          </Button>
+          <Button type="text" aria-label="关闭推送提示" onClick={() => setPushedBranch(null)}>
+            关闭
+          </Button>
+        </div>
+      )}
       <GitOperationNotice key={id} repoId={id!} onFinished={() => void handleRefresh()} />
       <RebaseOperationNotice
         key={`rebase:${id}`}
