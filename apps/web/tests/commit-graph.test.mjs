@@ -91,3 +91,25 @@ test('a parent below the loaded page remains an open edge, and a new branch has 
   );
   assert.notEqual(graph.rows[0].lane, graph.rows[1].lane);
 });
+
+test('filtered results form one dashed chain that stays open while more pages remain', async () => {
+  const { linearGraph } = await import('../src/components/commit-graph.ts');
+  // Parents outside the results must not open lanes that never close.
+  const results = [commit('c', 'x'), commit('a', 'y', 'z'), commit('q', 'r')];
+  const graph = linearGraph(results, true);
+  assert.equal(graph.width, 1);
+  assert.deepEqual(
+    graph.rows.map((row) => [row.lane, row.edges.map((edge) => edge.half)]),
+    [
+      [0, ['bottom']],
+      [0, ['top', 'bottom']],
+      [0, ['top', 'bottom']],
+    ],
+  );
+  assert.ok(graph.rows.every((row) => row.edges.every((edge) => edge.dashed)));
+  assert.deepEqual(
+    linearGraph(results, false).rows[2].edges.map((edge) => edge.half),
+    ['top'],
+  );
+  assert.deepEqual(linearGraph([commit('only')], false).rows[0].edges, []);
+});

@@ -25,6 +25,25 @@ const statusSummary = (data?: RepositoryStatus) =>
         ...(data.worktreeKind ? { worktreeKind: data.worktreeKind } : {}),
       }
     : {};
+/** History filters survive refreshes until cleared or replaced. */
+export interface HistoryFilter {
+  search?: string;
+  author?: string;
+  /** Unix seconds, inclusive. */
+  since?: number;
+  until?: number;
+  /** A file or directory relative to the repository root. */
+  file?: string;
+  /** Follow `file` across renames. */
+  follow?: boolean;
+  currentBranch?: boolean;
+}
+export const historyFilterActive = (filter: HistoryFilter) =>
+  Object.values(filter).some((value) => value !== undefined && value !== '' && value !== false);
+/** Filters other than a plain path leave gaps that parents cannot connect. */
+export const linearHistory = (filter: HistoryFilter) =>
+  !!(filter.search || filter.author || filter.since || filter.until || filter.follow);
+
 const errorMessage = (error: any) => error.response?.data?.message || error.message || '请求失败';
 
 type StatusJob = {
@@ -44,6 +63,7 @@ interface RepositoryState {
   status: RepositoryStatus | null;
   log: GraphCommit[];
   logBranch?: string;
+  logFilter: HistoryFilter;
   logLoading: boolean;
   logLoadingMore: boolean;
   logHasMore: boolean;
@@ -91,7 +111,9 @@ interface RepositoryState {
   setCurrentRepo: (repo: any) => void;
   resetWorkspace: (id?: string) => void;
   fetchStatus: (id: string, afterMutation?: boolean) => Promise<void>;
+  /** A `branch` (a jump to one commit's ancestry) clears the history filter. */
   fetchLog: (id: string, mode?: 'refresh' | 'more', branch?: string) => Promise<void>;
+  setLogFilter: (id: string, filter: HistoryFilter) => Promise<void>;
   fetchCommitFiles: (id: string, commit: string, parentCommit?: string) => Promise<void>;
   fetchDiff: (id: string, params?: DiffOptions) => Promise<void>;
   clearDiff: () => void;
@@ -248,6 +270,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     status: null,
     log: [],
     logBranch: undefined,
+    logFilter: {},
     logLoading: false,
     logLoadingMore: false,
     logHasMore: false,
@@ -535,6 +558,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         status: id ? (get().repositoryStatuses[id]?.data ?? null) : null,
         log: [],
         logBranch: undefined,
+        logFilter: {},
         logLoading: false,
         logLoadingMore: false,
         logHasMore: false,
@@ -587,21 +611,28 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       const controller = new AbortController();
       logController = controller;
       const request = ++logRequest;
+      const filter = branch && !append ? {} : state.logFilter;
+      const scope = append ? state.logBranch : branch;
       set({
         logLoading: !append,
         logLoadingMore: append,
         logError: null,
         logChanged: false,
         logErrorMode: mode,
+        logFilter: filter,
       });
       try {
         const page = await repositoryApi.log(
           id,
           {
             count: 50,
-            ...((append ? state.logBranch : branch)
-              ? { branch: append ? state.logBranch : branch }
-              : {}),
+            ...(scope ? { branch: scope } : filter.currentBranch ? { branch: 'HEAD' } : {}),
+            ...(filter.search ? { search: filter.search } : {}),
+            ...(filter.author ? { author: filter.author } : {}),
+            ...(filter.since ? { since: filter.since } : {}),
+            ...(filter.until ? { until: filter.until } : {}),
+            ...(filter.file ? { file: filter.file } : {}),
+            ...(filter.file && filter.follow ? { follow: true } : {}),
             ...(append ? { skip: state.logNextSkip, revision: state.logRevision! } : {}),
           },
           controller.signal,
@@ -636,6 +667,12 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             logChanged: err.response?.data?.code === 'HISTORY_CHANGED',
           });
       }
+    },
+
+    setLogFilter: (id, filter) => {
+      if (workspaceId !== null && workspaceId !== id) return Promise.resolve();
+      set({ logFilter: filter, logBranch: undefined });
+      return get().fetchLog(id);
     },
 
     fetchCommitFiles: async (id, commit, parentCommit) => {

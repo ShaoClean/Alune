@@ -8,6 +8,8 @@ export interface GraphEdge {
   color: number;
   half: 'top' | 'bottom' | 'full';
   target: string;
+  /** Joins commits that are not adjacent in history. */
+  dashed?: boolean;
 }
 export interface GraphRow {
   hash: string;
@@ -75,4 +77,25 @@ export function appendGraph(previous: GraphLayout, commits: GraphCommit[]): Grap
     width = Math.max(width, lanes.length, lane + 1);
   }
   return { rows, lanes, width, nextColor };
+}
+
+// Message, author and date filters drop commits between the ones shown, so their
+// parents may never appear. Chain the matches on one lane instead.
+export function linearGraph(commits: GraphCommit[], hasMore: boolean): GraphLayout {
+  const rows = commits.map((commit, index): GraphRow => {
+    const edges: GraphEdge[] = [];
+    if (index > 0)
+      edges.push({ from: 0, to: 0, color: 0, half: 'top', target: commit.hash, dashed: true });
+    if (index < commits.length - 1 || hasMore)
+      edges.push({
+        from: 0,
+        to: 0,
+        color: 0,
+        half: 'bottom',
+        target: commits[index + 1]?.hash ?? '',
+        dashed: true,
+      });
+    return { hash: commit.hash, lane: 0, color: 0, edges };
+  });
+  return { rows, lanes: [], width: 1, nextColor: 1 };
 }

@@ -109,6 +109,9 @@ export interface CommitReference {
 export interface GraphCommit extends CommitInfo {
   parents: string[];
   references: CommitReference[];
+  /** Followed file history only: the file's path in this commit. */
+  path?: string;
+  oldPath?: string;
 }
 
 export interface LogPage {
@@ -293,9 +296,16 @@ export const REPOSITORY_TEXT_PREVIEW_MAX_BYTES = 1024 * 1024;
 
 export interface LogOptions {
   branch?: string;
+  /** A file or directory pathspec relative to the repository root. */
   file?: string;
+  /** Follow one file across renames; requires `file`. */
+  follow?: boolean;
   author?: string;
+  /** Matches commit messages, or a commit hash prefix of at least 4 characters. */
   search?: string;
+  /** Unix seconds, inclusive. */
+  since?: number;
+  until?: number;
   count?: number;
   skip?: number;
   revision?: string;

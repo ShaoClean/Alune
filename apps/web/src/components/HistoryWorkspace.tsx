@@ -8,11 +8,20 @@ import { repositoryApi } from '../api';
 import { DiffViewer } from './DiffViewer';
 import { FileIcon, ErrorState } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
-import { useRepositoryStore } from '../stores/repositoryStore';
+import { historyFilterActive, useRepositoryStore } from '../stores/repositoryStore';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
 import { CreateTagDialog } from './CreateTagDialog';
 
 const statuses = { added: 'A', modified: 'M', deleted: 'D', renamed: 'R', copied: 'C' };
+/** In a followed file history each commit opens on that file under its path there. */
+const followedFile = (commit: GraphCommit): CommitFile | null =>
+  commit.path
+    ? {
+        path: commit.path,
+        ...(commit.oldPath ? { oldPath: commit.oldPath } : {}),
+        status: commit.oldPath ? 'renamed' : 'modified',
+      }
+    : null;
 
 export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targetHash?: string }) {
   const { compact, updateLayout } = useWorkspaceLayout();
@@ -20,6 +29,7 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
     log,
     logGeneration,
     logBranch,
+    logFilter,
     fetchLog,
     commitFiles,
     commitFilesLoading,
@@ -37,6 +47,23 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
   const [tagTarget, setTagTarget] = useState<string | null>(null);
   useEffect(() => setTagTarget(null), [repoId]);
   const [file, setFile] = useState<CommitFile | null>(null);
+  const [reveal, setReveal] = useState<string | null>(null);
+  // The selection from before filtering, put back once every filter is cleared.
+  const unfiltered = useRef<{ commit: GraphCommit | null; file: CommitFile | null } | null>(null);
+  const restore = useRef<typeof unfiltered.current>(null);
+  const filtering = historyFilterActive(logFilter);
+  const wasFiltering = useRef(filtering);
+  useEffect(() => {
+    if (filtering === wasFiltering.current) return;
+    wasFiltering.current = filtering;
+    if (filtering) {
+      unfiltered.current = { commit: selected, file };
+      restore.current = null;
+    } else {
+      restore.current = unfiltered.current;
+      unfiltered.current = null;
+    }
+  }, [filtering]);
   const [ratio, setRatio] = useState(60);
   const [focusDiff, setFocusDiff] = useState(false);
   const container = useRef<HTMLDivElement>(null);
@@ -74,6 +101,16 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
     return () => controller.abort();
   }, [repoId, targetHash, jumpAttempt]);
   useEffect(() => {
+    const previous = restore.current;
+    if (previous && !filtering) {
+      restore.current = null;
+      const commit = previous.commit;
+      setSelected(commit && (log.find((item) => item.hash === commit.hash) ?? commit));
+      setFile(previous.file);
+      setFocusDiff(false);
+      setReveal(commit?.hash ?? null);
+      return;
+    }
     if (!selected) return;
     const next = log.find((commit) => commit.hash === selected.hash);
     if (next) setSelected(next);
@@ -125,10 +162,12 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
         <HistoryView
           repoId={repoId}
           selectedHash={selected?.hash}
+          revealHash={reveal}
           visible={!selected || (!compact && !focusDiff)}
           onSelectCommit={(commit) => {
             setSelected(commit);
-            setFile(null);
+            setFile(followedFile(commit));
+            setReveal(null);
           }}
         />
       </div>

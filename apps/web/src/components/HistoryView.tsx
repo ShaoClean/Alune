@@ -3,10 +3,17 @@ import type { CSSProperties, KeyboardEvent } from 'react';
 import type { GraphCommit, CommitReference } from '@alune/shared';
 import { FeedbackNotice, Button, Dropdown } from '@alune/ui';
 import { InteractiveRebaseDialog } from './InteractiveRebaseDialog';
-import { useRepositoryStore } from '../stores/repositoryStore';
+import { historyFilterActive, linearHistory, useRepositoryStore } from '../stores/repositoryStore';
+import { HistoryFilterBar } from './HistoryFilterBar';
 import { EmptyState, ErrorState } from '@alune/ui';
 import { formatRelativeDate } from './ui';
-import { appendGraph, emptyGraph, GRAPH_LANE_WIDTH, GRAPH_ROW_HEIGHT } from './commit-graph';
+import {
+  appendGraph,
+  emptyGraph,
+  GRAPH_LANE_WIDTH,
+  GRAPH_ROW_HEIGHT,
+  linearGraph,
+} from './commit-graph';
 import type { GraphLayout, GraphRow } from './commit-graph';
 import '../history.css';
 
@@ -14,6 +21,8 @@ interface Props {
   repoId: string;
   onSelectCommit?: (commit: GraphCommit) => void;
   selectedHash?: string | null;
+  /** Scrolls this commit into view once it is loaded, e.g. after clearing filters. */
+  revealHash?: string | null;
   visible?: boolean;
 }
 const colors = [
@@ -53,7 +62,16 @@ function GraphCell({ row, width, merge }: { row: GraphRow; width: number; merge:
           to +
           ' ' +
           bottom;
-        return <path key={i} d={path} fill="none" stroke={color(edge.color)} strokeWidth="1.8" />;
+        return (
+          <path
+            key={i}
+            d={path}
+            fill="none"
+            stroke={color(edge.color)}
+            strokeWidth="1.8"
+            strokeDasharray={edge.dashed ? '3 3' : undefined}
+          />
+        );
       })}
       <circle
         cx={x(row.lane)}
@@ -84,7 +102,13 @@ export function HistoryReference({ reference }: { reference: CommitReference }) 
   );
 }
 
-export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = true }: Props) {
+export function HistoryView({
+  repoId,
+  onSelectCommit,
+  selectedHash,
+  revealHash,
+  visible = true,
+}: Props) {
   const {
     log,
     logLoading,
@@ -96,8 +120,12 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
     logErrorMode,
     logChanged,
     logShallow,
+    logFilter,
     fetchLog,
+    setLogFilter,
   } = useRepositoryStore();
+  const filtered = historyFilterActive(logFilter);
+  const linear = linearHistory(logFilter);
   const viewport = useRef<HTMLDivElement>(null);
   const scrollTopRef = useRef(0);
   const graphCache = useRef<{ generation: number; graph: GraphLayout }>({
@@ -110,6 +138,7 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
   const [rebaseBase, setRebaseBase] = useState<string | null>(null);
   useEffect(() => setRebaseBase(null), [repoId]);
   const graph = useMemo(() => {
+    if (linear) return linearGraph(log, logHasMore);
     const cached = graphCache.current;
     const previous =
       cached.generation === logGeneration && cached.graph.rows.length <= log.length
@@ -118,7 +147,7 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
     const next = appendGraph(previous, log.slice(previous.rows.length));
     graphCache.current = { generation: logGeneration, graph: next };
     return next;
-  }, [log, logGeneration]);
+  }, [log, logGeneration, linear, logHasMore]);
 
   useEffect(() => {
     if (!logRevision && !useRepositoryStore.getState().logLoading) void fetchLog(repoId);
@@ -141,6 +170,16 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
       return;
     viewport.current.scrollTop = scrollTopRef.current;
   }, [visible, height, logGeneration]);
+  // Runs after the generation reset above, so a restored selection wins.
+  useEffect(() => {
+    const index = revealHash ? log.findIndex((commit) => commit.hash === revealHash) : -1;
+    const element = viewport.current;
+    if (index < 0 || !element) return;
+    setFocused(index);
+    const top = Math.max(0, (index + 1) * GRAPH_ROW_HEIGHT - element.clientHeight / 2);
+    element.scrollTop = top;
+    updateScrollTop(top);
+  }, [revealHash, logGeneration, log.length > 0]);
 
   const start = Math.max(0, Math.floor((scrollTop - GRAPH_ROW_HEIGHT) / GRAPH_ROW_HEIGHT) - 12);
   const end = Math.min(log.length, start + Math.ceil(height / GRAPH_ROW_HEIGHT) + 25);
@@ -195,16 +234,35 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
   };
 
   return (
-    <section className="workspace-panel history-panel" aria-label="所有分支提交历史">
-      {!!log.length && (
-        <div className="history-rebase-action">
-          <Button
-            size="small"
-            disabled={logLoading}
-            onClick={() => setRebaseBase(log[focused]?.hash ?? log[0].hash)}
-          >
-            从所选提交交互式变基
-          </Button>
+    <section
+      className="workspace-panel history-panel"
+      aria-label={
+        logFilter.follow && logFilter.file
+          ? logFilter.file + ' 的文件历史'
+          : filtered
+            ? '筛选后的提交历史'
+            : '所有分支提交历史'
+      }
+    >
+      <HistoryFilterBar
+        repoId={repoId}
+        actions={
+          !!log.length && (
+            <Button
+              size="small"
+              disabled={logLoading}
+              onClick={() => setRebaseBase(log[focused]?.hash ?? log[0].hash)}
+            >
+              从所选提交交互式变基
+            </Button>
+          )
+        }
+      />
+      {filtered && !!log.length && (
+        <div className="history-filter__summary" role="status">
+          {logFilter.follow && logFilter.file ? '文件历史 · ' : '筛选结果 · '}
+          已显示 {log.length} 个提交{logHasMore ? '，滚动加载更多' : ''}
+          {linear && <span>虚线连接的提交之间可能还有其他提交</span>}
         </div>
       )}
       {rebaseBase && (
@@ -233,7 +291,7 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
       {!log.length ? (
         logLoading ? (
           <div className="history-empty" role="status">
-            正在读取所有分支的提交…
+            {filtered ? '正在筛选提交…' : '正在读取所有分支的提交…'}
           </div>
         ) : logError ? (
           <ErrorState
@@ -241,6 +299,12 @@ export function HistoryView({ repoId, onSelectCommit, selectedHash, visible = tr
             title="无法读取提交历史"
             description={logError}
             onRetry={() => void fetchLog(repoId)}
+          />
+        ) : filtered ? (
+          <EmptyState
+            title="没有符合筛选条件的提交"
+            description="调整搜索词、作者、时间、分支范围或路径后重试。"
+            action={<Button onClick={() => void setLogFilter(repoId, {})}>清除筛选</Button>}
           />
         ) : (
           <EmptyState title="暂无提交" description="此仓库没有可显示的历史记录。" />
