@@ -139,7 +139,7 @@ export class RepositoryFiles {
 
   async list(repoPath: string, dir: string): Promise<RepositoryTreeListing> {
     validateRepositoryPath(repoPath, dir, true);
-    return this.sftp('目录', async (sftp) => {
+    const listing = await this.sftp('目录', async (sftp) => {
       const lstat = promisify(sftp.lstat.bind(sftp));
       const target = await this.resolve(sftp, repoPath, dir, dir);
       if (dir && (await lstat(target)).isDirectory() === false)
@@ -204,6 +204,24 @@ export class RepositoryFiles {
         truncated: entries.length > shown.length,
       };
     });
+    if (!listing.entries.length) return listing;
+    // Ask Git once for the visible entries, including nested/global rules and
+    // negations. NUL-delimited stdin preserves literal names on both transports;
+    // checking the index keeps tracked files out of the ignored decoration.
+    // check-ignore rejects the transport's default --literal-pathspecs mode;
+    // './' also keeps a leading ':' in a filename from becoming pathspec magic.
+    const result = await runGit(
+      this.connection,
+      repoPath,
+      ['--no-literal-pathspecs', 'check-ignore', '-z', '--stdin'],
+      undefined,
+      { stdin: listing.entries.map((entry) => `./${entry.path}`).join('\0') + '\0' },
+    );
+    if (result.exitCode !== 0 && result.exitCode !== 1)
+      throw new RepositoryFileError(`无法读取 Git 忽略状态：${result.stderr}`, 500);
+    const ignored = new Set(result.stdout.split('\0').map((path) => path.replace(/^\.\//, '')));
+    for (const entry of listing.entries) if (ignored.has(entry.path)) entry.ignored = true;
+    return listing;
   }
 
   async read(repoPath: string, file: string): Promise<RepositoryFilePreview> {

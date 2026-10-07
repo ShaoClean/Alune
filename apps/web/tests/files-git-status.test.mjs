@@ -18,7 +18,7 @@ const change = (path, status, extra = {}) => ({ path, status, staged: false, ...
 const entry = (path, kind = 'file') => ({ path, name: path.split('/').at(-1), kind });
 const decoration = (files, path, kind) => fileDecoration(fileStatusIndex(files), entry(path, kind));
 
-test('all changed states have distinct text badges; clean and ignored files stay undecorated', () => {
+test('changed states have distinct text badges; ignored files have only a color and label', () => {
   for (const [status, badge] of Object.entries({
     added: 'A',
     untracked: 'U',
@@ -33,8 +33,50 @@ test('all changed states have distinct text badges; clean and ignored files stay
     decoration([change('file.txt', 'modified', { conflicted: true })], 'file.txt').badge,
     '!',
   );
-  assert.equal(decoration([change('ignored.txt', 'ignored')], 'ignored.txt'), undefined);
+  assert.deepEqual(decoration([change('ignored.txt', 'ignored')], 'ignored.txt'), {
+    status: 'ignored',
+    badge: '',
+    label: '已忽略',
+    summary: false,
+  });
   assert.equal(decoration([change('other.txt', 'modified')], 'clean.txt'), undefined);
+});
+
+test('listing ignore metadata does not color parents or override tracked changes', () => {
+  const ignored = { ...entry('src/ignored.txt'), ignored: true };
+  assert.equal(fileDecoration(fileStatusIndex([]), ignored).status, 'ignored');
+  assert.equal(
+    fileDecoration(fileStatusIndex([change(ignored.path, 'modified')]), ignored).status,
+    'modified',
+  );
+  assert.equal(decoration([change(ignored.path, 'ignored')], 'src', 'directory'), undefined);
+  const directory = { ...entry('src', 'directory'), ignored: true };
+  assert.equal(fileDecoration(fileStatusIndex([]), directory).summary, false);
+  assert.equal(
+    fileDecoration(fileStatusIndex([change('src/tracked.txt', 'modified')]), directory).status,
+    'modified',
+  );
+
+  const html = renderToStaticMarkup(
+    createElement(TreeItem, {
+      row: { type: 'entry', entry: ignored, level: 2, position: 1, setSize: 1, parent: 'src' },
+      decoration: fileDecoration(fileStatusIndex([]), ignored),
+      selected: true,
+      focusable: true,
+      loading: false,
+      failed: false,
+      itemRef() {},
+      onOpen() {},
+    }),
+  );
+  for (const text of [
+    'files-tree__item--git-ignored',
+    'files-tree__item--selected',
+    'ignored.txt，已忽略',
+    'tabindex="0"',
+  ])
+    assert.ok(html.includes(text), text);
+  assert.ok(!html.includes('files-tree__git-status'));
 });
 
 test('mixed index/worktree records use deterministic priorities, preserving staged additions', () => {
