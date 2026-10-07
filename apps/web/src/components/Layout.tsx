@@ -47,6 +47,7 @@ export function Layout() {
   const outlet = useOutlet({ setRightPanelAvailable, repositoryToolbarSlot, setTerminalSlot });
   const workspaceOutlet = useRef(outlet);
   const workspaceFocus = useRef<HTMLElement | null>(null);
+  const wasSettings = useRef(isSettings);
   const lastWorkspacePath = useRef('/repositories');
   if (!isSettings) {
     workspaceOutlet.current = outlet;
@@ -85,17 +86,17 @@ export function Layout() {
       });
   };
   useEffect(() => {
+    const restoreWorkspaceFocus = wasSettings.current && !isSettings;
+    wasSettings.current = isSettings;
     if (isSettings) {
       focusSettingsBack();
       return;
     }
-    if (
-      !isSettings &&
-      workspaceFocus.current?.isConnected &&
-      workspaceFocus.current.getClientRects().length
-    ) {
+    // Restore focus after leaving settings, without selecting a control on startup.
+    if (!restoreWorkspaceFocus) return;
+    if (workspaceFocus.current?.isConnected && workspaceFocus.current.getClientRects().length) {
       workspaceFocus.current.focus({ preventScroll: true });
-    } else if (!isSettings)
+    } else
       document
         .querySelector<HTMLElement>('.repository-tab--active button, .sidebar-nav-item--active')
         ?.focus({ preventScroll: true });
