@@ -171,6 +171,13 @@
 .files-tree__item--git-conflicted {
   --file-git-color: var(--red);
 }
+/* VS Code's default gitDecoration.ignoredResourceForeground in each mode. */
+.files-tree__item--git-ignored {
+  --file-git-color: #8e8e90;
+}
+:root[data-theme='dark'] .files-tree__item--git-ignored {
+  --file-git-color: #8c8c8c;
+}
 .files-tree__item[class*='files-tree__item--git-'] .files-tree__name {
   color: var(--file-git-color);
 }

@@ -264,6 +264,8 @@ export interface RepositoryTreeEntry {
   path: string;
   kind: RepositoryTreeEntryKind;
   size?: number;
+  // Git's ignore rules apply only to untracked paths.
+  ignored?: boolean;
   // Symlink target as stored in the link, shown but not resolved.
   target?: string;
 }

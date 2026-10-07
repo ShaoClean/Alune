@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { SSHConnection } = require('../dist/connection-manager');
+const { LocalConnection } = require('../dist/local-connection');
 const {
   RepositoryFiles,
   RepositoryFileError,
@@ -110,6 +111,55 @@ test('directories list lazily with folders first, natural order, links and neste
     ['.keep'],
   );
 });
+
+for (const source of ['local', 'ssh']) {
+  test(`${source}: listings respect Git ignore rules, negations and tracked files`, async () => {
+    const dir = repo();
+    const reader = source === 'local' ? new RepositoryFiles(new LocalConnection()) : files;
+    write(dir, 'tracked.log', 'tracked');
+    run(dir, 'add', '--', 'tracked.log');
+    write(dir, '.gitignore', '*.log\ncache/\n*.tmp\n!keep.log\n!src/keep.tmp\n');
+    const literalPaths = [
+      '中文 space.log',
+      "引号 '$(x)'.log",
+      'line\nbreak.log',
+      'literal\\name.log',
+      '-dash.log',
+      ':(glob)name.log',
+      'star[1]*.log',
+    ];
+    for (const file of [...literalPaths, 'keep.log', 'clean.txt', 'personal.txt', 'global.txt'])
+      write(dir, file, 'content');
+    write(dir, 'cache/deep/child.txt', 'ignored subtree');
+    write(dir, 'src/.gitignore', 'local.txt\n!allow.tmp\n');
+    for (const file of ['src/local.txt', 'src/hidden.tmp', 'src/keep.tmp', 'src/allow.tmp'])
+      write(dir, file, 'content');
+    write(dir, '.git/info/exclude', 'personal.txt\n');
+    const globalIgnore = path.join(root, `global ignore ${source}`);
+    fs.writeFileSync(globalIgnore, 'global.txt\n');
+    run(dir, 'config', 'core.excludesFile', globalIgnore);
+
+    const ignoredPaths = async (directory) =>
+      (await reader.list(dir, directory)).entries
+        .filter((entry) => entry.ignored)
+        .map((entry) => entry.path)
+        .sort();
+    assert.deepEqual(
+      await ignoredPaths(''),
+      [...literalPaths, 'cache', 'personal.txt', 'global.txt'].sort(),
+    );
+    assert.deepEqual(await ignoredPaths('cache'), ['cache/deep']);
+    assert.deepEqual(await ignoredPaths('cache/deep'), ['cache/deep/child.txt']);
+    assert.deepEqual(await ignoredPaths('src'), ['src/hidden.tmp', 'src/local.txt']);
+    assert.equal((await reader.read(dir, 'cache/deep/child.txt')).content, 'ignored subtree');
+
+    // Re-reading after rule changes clears old decorations, including descendants.
+    write(dir, '.gitignore', 'clean.txt\n');
+    assert.deepEqual(await ignoredPaths(''), ['clean.txt', 'global.txt', 'personal.txt']);
+    assert.deepEqual(await ignoredPaths('cache/deep'), []);
+    assert.deepEqual(await ignoredPaths('src'), ['src/local.txt']);
+  });
+}
 
 test('paths outside the worktree, into .git or through links are refused', async () => {
   const dir = repo();

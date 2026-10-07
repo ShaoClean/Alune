@@ -619,7 +619,7 @@ export function TreeItem({
           子模块
         </span>
       )}
-      {decoration && (
+      {decoration?.badge && (
         <span className="files-tree__git-status" aria-hidden="true">
           {decoration.badge}
         </span>
