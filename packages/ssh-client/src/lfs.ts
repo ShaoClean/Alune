@@ -5,6 +5,32 @@ import { runGit, type RepositoryTransport } from './repository-transport';
 import { joinRepositoryPath } from './repository-path';
 import { readSftpChunks } from './sftp-file';
 
+// Large stdin payloads can stall Windows OpenSSH. Bound bytes, not path count;
+// each scan uses at most two of the shared connection's four session slots.
+const ATTRIBUTE_BATCH_BYTES = 4096;
+const ATTRIBUTE_CONCURRENCY = 2;
+
+function attributeBatches(files: string): Buffer[] {
+  const batches: Buffer[] = [];
+  let paths: Buffer[] = [];
+  let size = 0;
+  for (const path of files.split('\0')) {
+    if (!path) continue;
+    const bytes = Buffer.from(path + '\0', 'utf8');
+    if (bytes.length > ATTRIBUTE_BATCH_BYTES)
+      throw new Error('文件路径过长，无法安全检测 LFS 属性。');
+    if (size + bytes.length > ATTRIBUTE_BATCH_BYTES) {
+      batches.push(Buffer.concat(paths, size));
+      paths = [];
+      size = 0;
+    }
+    paths.push(bytes);
+    size += bytes.length;
+  }
+  if (size) batches.push(Buffer.concat(paths, size));
+  return batches;
+}
+
 export class GitLfs {
   constructor(private readonly connection: RepositoryTransport) {}
 
@@ -18,18 +44,7 @@ export class GitLfs {
       '--exclude-standard',
     ]);
     if (files.exitCode !== 0) throw new Error(files.stderr || '无法检测 LFS 文件。');
-    const attrs = files.stdout
-      ? await runGit(
-          this.connection,
-          repoPath,
-          ['check-attr', '-z', '--stdin', 'filter'],
-          undefined,
-          { stdin: files.stdout },
-        )
-      : null;
-    if (attrs && attrs.exitCode !== 0) throw new Error(attrs.stderr || '无法检测 LFS 属性。');
-    const fields = attrs?.stdout.split('\0') ?? [];
-    const used = fields.some((value, index) => index % 3 === 2 && value === 'lfs');
+    const used = await this.hasLfsAttributes(repoPath, files.stdout);
     const installed = version.exitCode === 0;
     return {
       used,
@@ -42,6 +57,41 @@ export class GitLfs {
           }
         : {}),
     };
+  }
+
+  private async hasLfsAttributes(repoPath: string, files: string): Promise<boolean> {
+    const batches = attributeBatches(files);
+    const controller = new AbortController();
+    const signal = this.connection.signal
+      ? AbortSignal.any([controller.signal, this.connection.signal])
+      : controller.signal;
+    let next = 0;
+    let used = false;
+    await Promise.all(
+      Array.from({ length: Math.min(ATTRIBUTE_CONCURRENCY, batches.length) }, async () => {
+        try {
+          while (!used && next < batches.length) {
+            signal.throwIfAborted();
+            const attrs = await runGit(
+              this.connection,
+              repoPath,
+              ['check-attr', '-z', '--stdin', 'filter'],
+              signal,
+              { stdin: batches[next++] },
+            );
+            signal.throwIfAborted();
+            if (attrs.exitCode !== 0) throw new Error(attrs.stderr || '无法检测 LFS 属性。');
+            const fields = attrs.stdout.split('\0');
+            if (fields.some((value, index) => index % 3 === 2 && value === 'lfs')) used = true;
+          }
+        } catch (error) {
+          // A failed batch cancels its sibling and prevents further queued work.
+          controller.abort(error);
+          throw error;
+        }
+      }),
+    );
+    return used;
   }
 
   // Reading a preview never downloads objects. Respect custom LFS storage and

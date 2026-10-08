@@ -81,6 +81,22 @@ test('strict LFS pointer parsing does not reinterpret ordinary text', () => {
 });
 
 for (const source of ['local', 'ssh']) {
+  test(`${source}: LFS detection excludes ignored untracked files but retains tracked ones`, async () => {
+    const connection = noLfs(source === 'local' ? new LocalConnection() : ssh);
+    const dir = repo();
+    write(dir, '.gitignore', 'ignored/\n');
+    write(dir, '.gitattributes', '*.bin filter=lfs -text\n');
+    write(dir, 'ignored/untracked.bin', 'ignored content');
+    const lfs = new GitLfs(connection);
+    assert.equal((await lfs.status(dir)).used, false);
+    // Track a file before introducing its LFS attribute, without needing git-lfs.
+    fs.unlinkSync(path.join(dir, '.gitattributes'));
+    write(dir, 'ignored/tracked.bin', 'tracked content');
+    git(dir, 'add', '-f', '--', 'ignored/tracked.bin');
+    write(dir, '.gitattributes', '*.bin filter=lfs -text\n');
+    assert.equal((await lfs.status(dir)).used, true);
+  });
+
   test(`${source}: nested submodule initialization, state, summaries, sync and open validation`, async () => {
     const connection = source === 'local' ? new LocalConnection() : ssh;
     const leaf = repo();
