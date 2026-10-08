@@ -234,6 +234,7 @@ export function AluneModal({
   open,
   children,
   classNames,
+  afterOpenChange,
   ...rest
 }: AluneModalProps) {
   const feedbackStore = useContext(FeedbackContext) ?? emptyFeedbackStore;
@@ -280,6 +281,7 @@ export function AluneModal({
   const shellRef = useRef<HTMLDivElement>(null);
   const okRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const settleInitialFocus = useRef<(() => void) | null>(null);
   const [pending, setPending] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [typed, setTyped] = useState('');
@@ -347,7 +349,12 @@ export function AluneModal({
     let frame = 0;
     let tries = 0;
     let dialog: HTMLElement | null = null;
+    let interacted = false;
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.isTrusted) interacted = true;
+    };
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.isTrusted) interacted = true;
       const state = latest.current;
       if (!dialog || state.level === 2 || state.busy || state.okBlocked) return;
       if (!submitsOnEnter(event, dialog)) return;
@@ -371,6 +378,7 @@ export function AluneModal({
     };
     let moved = false;
     const run = () => {
+      if (interacted) return;
       const shell = shellRef.current;
       dialog = shell?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]') ?? null;
       if (!shell || !dialog) {
@@ -382,6 +390,7 @@ export function AluneModal({
         if (description) dialog.setAttribute('aria-describedby', descriptionId);
         dialog.setAttribute('role', level === 2 ? 'alertdialog' : 'dialog');
         dialog.addEventListener('keydown', onKeyDown);
+        dialog.addEventListener('pointerdown', onPointerDown);
       }
       const target = pickTarget();
       const active = document.activeElement;
@@ -389,15 +398,29 @@ export function AluneModal({
       // Ant Design may initially focus its close button; apply every level's
       // contract once, then leave subsequent user focus changes alone.
       if (target && (free || !moved)) target.focus();
-      moved = true;
-      if (target && document.activeElement !== target && free && tries++ < 12) {
+      // A reopened, retained dialog can still be hidden for this frame. The
+      // focus trap may then select its close button. Only finish initialization
+      // once our target actually receives focus, including that retry case.
+      moved = Boolean(target && document.activeElement === target);
+      if (!moved && tries++ < 30) {
         frame = requestAnimationFrame(run);
       }
     };
+    // The focus trap can initialize after our first animation frame. Reconcile
+    // its default close-button focus when entrance finishes, unless the user
+    // has already started interacting with the dialog.
+    settleInitialFocus.current = () => {
+      if (interacted) return;
+      cancelAnimationFrame(frame);
+      moved = false;
+      run();
+    };
     frame = requestAnimationFrame(run);
     return () => {
+      settleInitialFocus.current = null;
       cancelAnimationFrame(frame);
       dialog?.removeEventListener('keydown', onKeyDown);
+      dialog?.removeEventListener('pointerdown', onPointerDown);
     };
     // Focus is chosen once per opening; later prop changes must not steal it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -525,6 +548,10 @@ export function AluneModal({
           <Modal
             {...rest}
             open={open}
+            afterOpenChange={(visible) => {
+              if (visible) settleInitialFocus.current?.();
+              afterOpenChange?.(visible);
+            }}
             centered
             width={width}
             title={
