@@ -233,8 +233,8 @@ export const repositoryApi = {
     api
       .get(`/repositories/${id}/commit-files`, { params: { commit, parentCommit } })
       .then((r) => r.data),
-  diff: (id: string, params?: any) =>
-    api.get(`/repositories/${id}/diff`, { params }).then((r) => r.data),
+  diff: (id: string, params?: any, signal?: AbortSignal) =>
+    api.get(`/repositories/${id}/diff`, { params, signal }).then((r) => r.data),
   diffImage: (
     id: string,
     params: DiffImageOptions,

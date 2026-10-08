@@ -68,7 +68,9 @@ test('empty and binary file notices are distinct without hiding mixed history pa
 test('the latest file/side wins when older successes and failures arrive late', async () => {
   const pending = [];
   repositoryApi.diff = (_id, options) =>
-    new Promise((resolve, reject) => pending.push({ options, resolve, reject }));
+    options?.editable
+      ? Promise.resolve({ diff: 'current', revision: 'validated' })
+      : new Promise((resolve, reject) => pending.push({ options, resolve, reject }));
   const first = store.getState().fetchDiff('repo', { file: 'new', staged: false });
   const second = store.getState().fetchDiff('repo', { file: 'new', staged: true });
   const third = store.getState().fetchDiff('repo', { file: 'other', staged: false });
@@ -137,7 +139,10 @@ test('refreshing the same comparison keeps readable content until the latest res
   repositoryApi.diff = async () => textPatch;
   await store.getState().fetchDiff('repo', { file: 'new' });
   const pending = [];
-  repositoryApi.diff = () => new Promise((resolve, reject) => pending.push({ resolve, reject }));
+  repositoryApi.diff = (_id, options) =>
+    options?.editable
+      ? Promise.resolve({ diff: 'updated patch', revision: 'validated' })
+      : new Promise((resolve, reject) => pending.push({ resolve, reject }));
   const first = store.getState().fetchDiff('repo', { staged: false, file: 'new' });
   const second = store.getState().fetchDiff('repo', { file: 'new' });
   assert.equal(store.getState().diff, textPatch);
@@ -180,10 +185,12 @@ test('changing repository, file, side, commit or parent never retains another co
   ];
   for (const params of comparisons) {
     let resolve;
-    repositoryApi.diff = () =>
-      new Promise((done) => {
-        resolve = done;
-      });
+    repositoryApi.diff = (_id, options) =>
+      options?.editable
+        ? Promise.resolve({ diff: textPatch, revision: 'validated' })
+        : new Promise((done) => {
+            resolve = done;
+          });
     const request = store.getState().fetchDiff('repo', params);
     assert.equal(store.getState().diff, '');
     assert.equal(store.getState().diffLoading, true);

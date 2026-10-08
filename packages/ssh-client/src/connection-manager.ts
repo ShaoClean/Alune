@@ -580,7 +580,11 @@ export class SSHConnection extends EventEmitter {
     );
   }
 
-  async withSftp<T>(operation: (sftp: SFTPWrapper) => Promise<T>): Promise<T> {
+  async withSftp<T>(
+    operation: (sftp: SFTPWrapper) => Promise<T>,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    signal?.throwIfAborted();
     this._ensureConnected();
     return new Promise<T>((resolve, reject) => {
       const controller = new AbortController();
@@ -590,12 +594,15 @@ export class SSHConnection extends EventEmitter {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        signal?.removeEventListener('abort', abort);
         controller.abort(error);
         channel?.end();
         if (error) reject(error);
         else resolve(value as T);
       };
       const timer = setTimeout(() => finish(new Error('远端文件操作超时')), 15_000);
+      const abort = () => finish(signal?.reason ?? new Error('远端文件操作已取消'));
+      signal?.addEventListener('abort', abort, { once: true });
       this._sftp((error, sftp) => {
         if (settled) {
           sftp?.end();
@@ -609,7 +616,10 @@ export class SSHConnection extends EventEmitter {
         sftp.on('error', (err: Error) => finish(err));
         sftp.on('close', () => finish(new Error('远端文件连接已中断')));
         Promise.resolve()
-          .then(() => operation(sftp))
+          .then(() => {
+            controller.signal.throwIfAborted();
+            return operation(sftp);
+          })
           .then((value) => finish(undefined, value), finish);
       }, controller.signal);
     });

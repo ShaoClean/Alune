@@ -131,6 +131,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
   let logRequest = 0;
   let logController: AbortController | null = null;
   let diffRequest = 0;
+  let diffController: AbortController | null = null;
   let commitFilesRequest = 0;
   let branchRequest = 0;
   let stashRequest = 0;
@@ -553,6 +554,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       logRequest += 1;
       logController?.abort();
       diffRequest += 1;
+      diffController?.abort();
       commitFilesRequest += 1;
       branchRequest += 1;
       stashRequest += 1;
@@ -699,6 +701,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
 
     clearDiff: () => {
       diffRequest += 1;
+      diffController?.abort();
       set({
         diff: '',
         partialDiff: null,
@@ -712,6 +715,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     fetchDiff: async (id, params) => {
       if (workspaceId !== null && workspaceId !== id) return;
       const request = ++diffRequest;
+      diffController?.abort();
+      const controller = new AbortController();
+      diffController = controller;
       const diffKey = JSON.stringify([
         id,
         params?.file ?? null,
@@ -730,14 +736,37 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         diffError: null,
       });
       try {
-        const response = await repositoryApi.diff(id, {
-          ...params,
-          ...(params?.file && !params?.commit && !params?.parentCommit ? { editable: true } : {}),
+        const diff = await repositoryApi.diff(id, params, controller.signal);
+        if (request !== diffRequest) return;
+        // Reading must not wait for the snapshots required by partial writes.
+        // The displayed patch has no actionable revision until validation finishes.
+        const editable = !!(params?.file && !params.commit && !params.parentCommit);
+        set({
+          diff,
+          partialDiff: editable ? { diff } : null,
+          diffLoading: false,
+          diffRefreshing: editable,
+          diffError: null,
         });
-        const partialDiff = typeof response === 'string' ? null : (response as PartialDiffPreview);
-        const diff = partialDiff ? partialDiff.diff : response;
-        if (request === diffRequest)
-          set({ diff, partialDiff, diffLoading: false, diffRefreshing: false, diffError: null });
+        if (editable) {
+          try {
+            const response = await repositoryApi.diff(
+              id,
+              { ...params, editable: true },
+              controller.signal,
+            );
+            const partialDiff: PartialDiffPreview =
+              typeof response === 'string' ? { diff: response } : response;
+            if (request === diffRequest)
+              set({ diff: partialDiff.diff, partialDiff, diffRefreshing: false });
+          } catch (error: any) {
+            if (request === diffRequest)
+              set({
+                partialDiff: { diff, unavailableReason: errorMessage(error) },
+                diffRefreshing: false,
+              });
+          }
+        }
       } catch (err: any) {
         if (request === diffRequest)
           set({
@@ -747,6 +776,8 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             diffRefreshing: false,
             diffError: errorMessage(err),
           });
+      } finally {
+        if (diffController === controller) diffController = null;
       }
     },
 
