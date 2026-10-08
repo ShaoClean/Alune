@@ -29,6 +29,10 @@ export interface LfsStatus {
   message?: string;
 }
 
+// Bounded attribute batches need multiple SSH round trips. Finish before the
+// API client's 30-second request deadline, including connection setup.
+export const LFS_STATUS_TIMEOUT_MS = 25_000;
+
 export interface SubmoduleInfo {
   path: string;
   recordedCommit: string;

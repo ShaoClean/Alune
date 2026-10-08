@@ -28,8 +28,13 @@ import {
   runGit,
 } from '@alune/ssh-client';
 import type { RepositoryTransport } from '@alune/ssh-client';
-import { BLAME_TIMEOUT_MS, REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
+import {
+  BLAME_TIMEOUT_MS,
+  LFS_STATUS_TIMEOUT_MS,
+  REPOSITORY_STATUS_TIMEOUT_MS,
+} from '@alune/shared';
 import type {
+  LfsStatus,
   BlameOptions,
   Repository,
   RepositoryStatus,
@@ -45,6 +50,7 @@ import type {
 @Injectable()
 export class RepositoryService {
   private statusRequests = new Map<string, Promise<RepositoryStatus>>();
+  private lfsStatusRequests = new Map<string, Promise<LfsStatus>>();
 
   private async withWorktrees<T>(
     id: string,
@@ -82,14 +88,30 @@ export class RepositoryService {
     ).list(repo.path);
   }
 
-  async getLfsStatus(id: string) {
-    const repo = await this.get(id);
-    return new GitLfs(
-      await this.connection(
-        repo,
-        AbortSignal.timeout(REPOSITORY_STATUS_TIMEOUT_MS),
-      ),
-    ).status(repo.path);
+  getLfsStatus(id: string): Promise<LfsStatus> {
+    const pending = this.lfsStatusRequests.get(id);
+    if (pending) return pending;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new GatewayTimeoutException('LFS 检测超时，请重试');
+        controller.abort(error);
+        reject(error);
+      }, LFS_STATUS_TIMEOUT_MS);
+    });
+    const work = (async () => {
+      const repo = await this.get(id);
+      const connection = await this.connection(repo, controller.signal);
+      controller.signal.throwIfAborted();
+      return new GitLfs(connection).status(repo.path);
+    })();
+    const request = Promise.race([work, timeout]).finally(() => {
+      clearTimeout(timer);
+      this.lfsStatusRequests.delete(id);
+    });
+    this.lfsStatusRequests.set(id, request);
+    return request;
   }
 
   async openSubmodule(id: string, selectedPath: string): Promise<Repository> {
