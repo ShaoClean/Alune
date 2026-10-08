@@ -294,6 +294,74 @@ describe('review locations and capability constraints', () => {
       ).merge.allowed,
     ).toBe(false);
   });
+
+  describe('legacy GitLab merge status', () => {
+    const { detailed_merge_status: _, ...legacy } = gitlab;
+    const mergeable = {
+      ...legacy,
+      merge_status: 'can_be_merged',
+      has_conflicts: false,
+    };
+    const actions = (overrides = {}, authenticated = true) =>
+      requestActions(
+        { ...mergeable, ...overrides },
+        glProject,
+        {},
+        'gitlab',
+        authenticated,
+      );
+
+    it('allows a mergeable MR without detailed_merge_status', () => {
+      expect(actions().merge).toEqual({ allowed: true });
+    });
+
+    it.each([
+      'cannot_be_merged',
+      'checking',
+      'unchecked',
+      'unknown',
+      'mergeable',
+      undefined,
+    ])('blocks an unresolved legacy status: %s', (merge_status) => {
+      expect(actions({ merge_status }).merge.allowed).toBe(false);
+    });
+
+    it('reports explicit conflicts even when the merge status is stale', () => {
+      expect(actions({ has_conflicts: true }).merge).toEqual({
+        allowed: false,
+        reason: '存在合并冲突。',
+      });
+    });
+
+    it.each([
+      'not_approved',
+      'ci_must_pass',
+      'discussions_not_resolved',
+      'unknown',
+      '',
+    ])('keeps detailed status authoritative: %s', (detailed_merge_status) => {
+      expect(actions({ detailed_merge_status }).merge.allowed).toBe(false);
+    });
+
+    it.each([
+      { user: { can_merge: false } },
+      { user: undefined },
+      { draft: true },
+      { work_in_progress: true },
+      { state: 'closed' },
+      { state: 'merged' },
+      { diff_refs: undefined },
+    ])(
+      'preserves permission, draft, state and revision guards: %j',
+      (overrides) => {
+        expect(actions(overrides).merge.allowed).toBe(false);
+      },
+    );
+
+    it('still requires authentication', () => {
+      expect(actions({}, false).merge.allowed).toBe(false);
+    });
+  });
 });
 
 describe('review write requests', () => {
@@ -460,6 +528,60 @@ describe('review write requests', () => {
       method: 'PUT',
       body: JSON.stringify({ state_event: 'close' }),
     });
+  });
+
+  it('reads and merges legacy GitLab MRs with a SHA guard, leaving final policy checks to GitLab', async () => {
+    useGitlab();
+    delete current.detailed_merge_status;
+    current.merge_status = 'can_be_merged';
+    current.has_conflicts = false;
+    expect((await service.actions('repo', glQuery)).merge.allowed).toBe(true);
+    const merge = () =>
+      mutation({
+        ...glQuery,
+        revision: requestRevision(current, 'gitlab'),
+        action: 'merge',
+        method: 'merge',
+        body: undefined,
+      });
+    await expect(service.mutate('repo', merge())).resolves.toEqual({
+      state: 'merged',
+    });
+    expect(writes()[0][1]).toMatchObject({
+      method: 'PUT',
+      body: JSON.stringify({ sha: head, squash: false }),
+    });
+    failWrite = 405;
+    await expect(service.mutate('repo', merge())).rejects.toThrow(
+      '平台拒绝合并',
+    );
+  });
+
+  it('rechecks legacy GitLab conflicts immediately before writing', async () => {
+    useGitlab();
+    delete current.detailed_merge_status;
+    current.merge_status = 'can_be_merged';
+    current.has_conflicts = false;
+    const original = fetchMock.getMockImplementation()!;
+    let reads = 0;
+    fetchMock.mockImplementation(async (input, options) => {
+      if (String(input).endsWith('/merge_requests/12') && ++reads === 2)
+        current.has_conflicts = true;
+      return original(input, options);
+    });
+    await expect(
+      service.mutate(
+        'repo',
+        mutation({
+          ...glQuery,
+          revision: requestRevision(current, 'gitlab'),
+          action: 'merge',
+          method: 'merge',
+          body: undefined,
+        }),
+      ),
+    ).rejects.toThrow('存在合并冲突');
+    expect(writes()).toHaveLength(0);
   });
 
   it('deduplicates simultaneous and acknowledged retries and rejects ID reuse for another target', async () => {

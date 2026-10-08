@@ -219,12 +219,18 @@ export function requestActions(
                 : undefined;
   }
   if (!mergeReason && !github) {
-    const status = value.detailed_merge_status;
+    // Older GitLab versions only expose merge_status. Never let its coarse
+    // result override a detailed status (approvals, CI, policies, etc.).
+    const status = value.detailed_merge_status ?? value.merge_status;
+    const mergeable =
+      value.detailed_merge_status == null ? 'can_be_merged' : 'mergeable';
     mergeReason =
-      status !== 'mergeable'
-        ? gitlabMergeReasons[status] ||
-          '平台尚未确认所有合并条件，请刷新或在浏览器中核对。'
-        : undefined;
+      value.has_conflicts === true
+        ? gitlabMergeReasons.conflict
+        : status !== mergeable
+          ? gitlabMergeReasons[status] ||
+            '平台尚未确认所有合并条件，请刷新或在浏览器中核对。'
+          : undefined;
   }
   return {
     revision,
