@@ -57,6 +57,8 @@ type StatusJob = {
   resolve: () => void;
 };
 
+export type SelectedRepositoryFile = { path: string; status: string; staged: boolean };
+
 interface RepositoryState {
   repositories: any[];
   openRepositories: any[];
@@ -93,6 +95,9 @@ interface RepositoryState {
   listLoaded: boolean;
   listError: string | null;
   repositoryStatuses: Record<string, RepositoryStatusEntry>;
+  /** In-memory selection for each open tab; closing the tab discards it. */
+  selectedFiles: Record<string, SelectedRepositoryFile>;
+  selectRepositoryFile: (id: string, file: SelectedRepositoryFile | null) => void;
   observeRepository: (id: string) => () => void;
   refreshRepositoryStatuses: (ids?: string[]) => Promise<void>;
   error: string | null;
@@ -302,6 +307,16 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     listLoaded: false,
     listError: null,
     repositoryStatuses: {},
+    selectedFiles: {},
+    selectRepositoryFile: (id, file) => {
+      if (removed.has(id) || !get().openRepositories.some((repo) => repo.id === id)) return;
+      set((state) => {
+        const selectedFiles = { ...state.selectedFiles };
+        if (file) selectedFiles[id] = file;
+        else delete selectedFiles[id];
+        return { selectedFiles };
+      });
+    },
     error: null,
     errorPanel: null,
 
@@ -383,6 +398,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             repositoryStatuses: Object.fromEntries(
               Object.entries(state.repositoryStatuses).filter(([id]) => ids.has(id)),
             ),
+            selectedFiles: Object.fromEntries(
+              Object.entries(state.selectedFiles).filter(([id]) => ids.has(id)),
+            ),
             listLoading: false,
             listLoaded: true,
             listError: null,
@@ -438,6 +456,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         repositoryStatuses: Object.fromEntries(
           Object.entries(state.repositoryStatuses).filter(([id]) => !ids.includes(id)),
         ),
+        selectedFiles: Object.fromEntries(
+          Object.entries(state.selectedFiles).filter(([id]) => !ids.includes(id)),
+        ),
         currentRepo: ids.includes(state.currentRepo?.id) ? null : state.currentRepo,
       }));
     },
@@ -466,6 +487,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       set((state) => ({
         repositoryStatuses: Object.fromEntries(
           Object.entries(state.repositoryStatuses).filter(([key]) => key !== id),
+        ),
+        selectedFiles: Object.fromEntries(
+          Object.entries(state.selectedFiles).filter(([key]) => key !== id),
         ),
         repositories: state.repositories.filter((r) => r.id !== id),
         openRepositories: state.openRepositories.filter((r) => r.id !== id),
@@ -508,6 +532,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       const closing = new Set(ids);
       set((state) => ({
         openRepositories: state.openRepositories.filter((repo) => !closing.has(repo.id)),
+        selectedFiles: Object.fromEntries(
+          Object.entries(state.selectedFiles).filter(([id]) => !closing.has(id)),
+        ),
         currentRepo:
           state.currentRepo && closing.has(state.currentRepo.id) ? null : state.currentRepo,
       }));

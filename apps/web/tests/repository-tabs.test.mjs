@@ -89,3 +89,40 @@ test('batch closing removes only open tabs and keeps registrations and statuses'
   assert.equal(store.getState().repositories, registry);
   assert.equal(store.getState().repositoryStatuses, statuses);
 });
+
+test('switching workspaces retains each tab selection, including the staged side', () => {
+  const store = createRepositoryStore();
+  const a = { path: 'first.ts', status: 'modified', staged: false };
+  const b = { path: 'second.ts', status: 'added', staged: true };
+  for (const [id, file] of [
+    ['a', a],
+    ['b', b],
+  ]) {
+    store.getState().openRepository(repo(id));
+    store.getState().resetWorkspace(id);
+    store.getState().selectRepositoryFile(id, file);
+    store.getState().clearDiff();
+    store.getState().resetWorkspace();
+  }
+  store.getState().resetWorkspace('a');
+  assert.deepEqual(store.getState().selectedFiles, { a, b });
+  store.getState().selectRepositoryFile('a', null);
+  assert.deepEqual(store.getState().selectedFiles, { b });
+});
+
+test('closing or forgetting tabs discards only their selections and late updates cannot restore them', () => {
+  const store = createRepositoryStore();
+  const file = { path: 'changed.ts', status: 'modified', staged: false };
+  for (const id of ['a', 'b', 'c']) {
+    store.getState().openRepository(repo(id));
+    store.getState().selectRepositoryFile(id, file);
+  }
+  store.getState().closeRepositories(['a', 'b']);
+  store.getState().selectRepositoryFile('a', file);
+  assert.deepEqual(store.getState().selectedFiles, { c: file });
+  store.getState().openRepository(repo('a'));
+  assert.equal(store.getState().selectedFiles.a, undefined);
+  store.getState().forgetRepositories(['c']);
+  store.getState().selectRepositoryFile('c', file);
+  assert.deepEqual(store.getState().selectedFiles, {});
+});
