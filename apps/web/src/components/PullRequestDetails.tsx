@@ -797,6 +797,7 @@ export function PullRequestDetails({
   provider,
   number,
   token,
+  selectionVersion,
   items,
   refreshToken,
   onOpen,
@@ -808,6 +809,7 @@ export function PullRequestDetails({
   provider: PullRequestProvider;
   number: number;
   token: string | null;
+  selectionVersion?: string;
   items: PullRequestItem[];
   refreshToken: number;
   onOpen: (number: number) => void;
@@ -823,8 +825,9 @@ export function PullRequestDetails({
       provider,
       number,
       ...(token !== null ? { token } : {}),
+      ...(selectionVersion !== undefined ? { selectionVersion } : {}),
     }),
-    [remote.name, remote.webUrl, provider, number, token],
+    [remote.name, remote.webUrl, provider, number, token, selectionVersion],
   );
   const item = items.find((value) => value.number === number);
   const url = `${remote.webUrl}/${provider === 'github' ? 'pull' : '-/merge_requests'}/${number}`;

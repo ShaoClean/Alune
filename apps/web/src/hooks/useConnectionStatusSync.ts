@@ -1,3 +1,4 @@
+import { usePullRequestCenter } from '../stores/pullRequestCenter';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useSocket } from './useSocket';
 import { useAccessTokensStore } from '../stores/accessTokensStore';
@@ -13,7 +14,10 @@ export function useConnectionStatusSync() {
       if (event?.connectionId && event.status) applyConnectionStatus(event);
     },
     // Events emitted while the socket was down are lost, so resync on every connect.
-    'access-tokens:changed': () => void useAccessTokensStore.getState().load(),
+    'access-tokens:changed': () => {
+      void useAccessTokensStore.getState().load();
+      usePullRequestCenter.getState().invalidate();
+    },
     connect: () => {
       void fetchConnections();
       void useAccessTokensStore.getState().load();

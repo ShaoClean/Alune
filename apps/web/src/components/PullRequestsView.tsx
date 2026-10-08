@@ -1,3 +1,4 @@
+import { usePullRequestCenter } from '../stores/pullRequestCenter';
 import { CreatePullRequestDialog } from './CreatePullRequestDialog';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useState } from 'react';
@@ -121,6 +122,7 @@ function RemotePullRequests({
   const [provider, setProvider] = useState<PullRequestProvider | null>(
     remote.provider || selection?.provider || null,
   );
+  const centerRevision = usePullRequestCenter((s) => s.revision);
   const [state, setState] = useState<PullRequestFilter>('open');
   const [page, setPage] = useState(1);
   const [opened, setOpened] = useState<number | null>(null);
@@ -259,6 +261,7 @@ function RemotePullRequests({
     refreshToken,
     retry,
     invalidSelection,
+    centerRevision,
   ]);
 
   const applyToken = (token: string) => {
@@ -291,7 +294,10 @@ function RemotePullRequests({
           setOpened(null);
           setRetry((value) => value + 1);
         }}
-        onChanged={() => setRetry((value) => value + 1)}
+        onChanged={() => {
+          setRetry((value) => value + 1);
+          usePullRequestCenter.getState().invalidate();
+        }}
       />
     );
   }

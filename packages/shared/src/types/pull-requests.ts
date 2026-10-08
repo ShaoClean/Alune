@@ -17,6 +17,8 @@ export interface PullRequestQuery {
   target: string;
   provider: PullRequestProvider;
   state: PullRequestFilter;
+  // Pin the saved association when operating from the cross-repository center.
+  selectionVersion?: string;
   page: number;
   // Omitted: resolve this remote's saved association; supplied: use only this temporary value.
   // An empty value explicitly requests anonymous access without altering the saved association.

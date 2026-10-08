@@ -6,6 +6,7 @@ import type { CSSProperties } from 'react';
 import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Input, Tooltip } from '@alune/ui';
 import {
+  PullRequestOutlined,
   ApartmentOutlined,
   ArrowLeftOutlined,
   FolderOpenOutlined,
@@ -33,6 +34,7 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 const navItems = [
   { key: '/connections', label: '连接', icon: <ApartmentOutlined /> },
   { key: '/repositories', label: '仓库', icon: <FolderOpenOutlined /> },
+  { key: '/pull-requests', label: 'PR/MR 中心', icon: <PullRequestOutlined /> },
 ];
 
 export function Layout() {
@@ -248,6 +250,7 @@ export function Layout() {
   }, [compact, mobileNavOpen]);
 
   const selectedKey = useMemo(() => {
+    if (location.pathname.startsWith('/pull-requests')) return '/pull-requests';
     if (location.pathname.startsWith('/repositories')) return '/repositories';
     return '/connections';
   }, [location.pathname]);
@@ -388,7 +391,7 @@ export function Layout() {
             />
           ) : (
             <span className="app-tabbar__title">
-              {selectedKey === '/connections' ? '连接' : '仓库'}
+              {navItems.find((item) => item.key === selectedKey)?.label}
             </span>
           )}
           {!isSettings && activeRepositoryId && (
@@ -488,9 +491,11 @@ export function Layout() {
                 >
                   <span className="sidebar-nav-item__icon">{item.icon}</span>
                   <span className="sidebar-nav-item__label">{item.label}</span>
-                  <span className="sidebar-section__count">
-                    {item.key === '/connections' ? connections.length : repositories.length}
-                  </span>
+                  {item.key !== '/pull-requests' && (
+                    <span className="sidebar-section__count">
+                      {item.key === '/connections' ? connections.length : repositories.length}
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>
@@ -550,7 +555,11 @@ export function Layout() {
           >
             <FeedbackScope
               id={workspacePath}
-              label={activeRepository?.name || currentRepo?.name || '仓库'}
+              label={
+                selectedKey === '/pull-requests'
+                  ? 'PR/MR 中心'
+                  : activeRepository?.name || currentRepo?.name || '仓库'
+              }
               active={!isSettings}
             >
               {workspaceOutlet.current}

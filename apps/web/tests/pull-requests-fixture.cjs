@@ -80,7 +80,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
     if (current.status !== 200) return new Response('{}', { status: current.status });
     if (!github && !token) return new Response('{}', { status: 401 });
     if (url.pathname.endsWith('/user'))
-      return new Response(JSON.stringify({ login: 'alune-contributor', id: 7 }));
+      return new Response(JSON.stringify({ login: 'alune-contributor', username: 'alune-contributor', id: 7 }));
     if (!resource && !url.pathname.endsWith('/pulls') && !url.pathname.endsWith('/merge_requests'))
       return new Response(
         JSON.stringify(
@@ -345,6 +345,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               state: item.state === 'merged' ? 'closed' : item.state,
               merged_at: item.state === 'merged' ? '2026-09-26T08:00:00Z' : null,
               user: { login: 'alune-contributor' },
+              requested_reviewers: item.number === 76 ? [{ login: 'alune-contributor' }] : [],
               head: { label: `contributor:${branch(item.number)}` },
               base: { ref: 'development', sha: 'b'.repeat(40) },
               mergeable: true,
@@ -356,6 +357,7 @@ async function startPullRequestsFixture({ webRoot = path.resolve(__dirname, '../
               iid: item.number,
               state: item.state === 'open' ? 'opened' : item.state,
               author: { username: 'alune-contributor' },
+              reviewers: item.number === 76 ? [{ username: 'alune-contributor' }] : [],
               source_branch: branch(item.number),
               target_branch: 'main',
               updated_at: '2026-09-26T08:00:00Z',
