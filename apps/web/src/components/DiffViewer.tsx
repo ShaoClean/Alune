@@ -66,9 +66,18 @@ interface SplitDiffRow {
   newLine?: number;
 }
 
+function isRedundantDiffHeader(line: NumberedDiffLine, multipleFiles: boolean) {
+  if (line.kind !== 'meta') return false;
+  return (
+    /^(index |--- |\+\+\+ )/.test(line.text) ||
+    (!multipleFiles && line.text.startsWith('diff --git '))
+  );
+}
+
 function getSplitDiffRows(
   lines: NumberedDiffLine[],
   tokens: Array<ReactNode[] | undefined>,
+  multipleFiles: boolean,
 ): SplitDiffRow[] {
   const indexByLine = new Map(lines.map((line, index) => [line, index]));
   const contentByLine = new Map(
@@ -80,7 +89,9 @@ function getSplitDiffRows(
   for (let index = 0; index < lines.length;) {
     const line = lines[index];
     if (line.kind === 'meta') {
-      rows.push({ meta: line.text, metaIndex: index });
+      if (!isRedundantDiffHeader(line, multipleFiles)) {
+        rows.push({ meta: line.text, metaIndex: index });
+      }
       index += 1;
       continue;
     }
@@ -166,6 +177,10 @@ export function DiffViewer({
   const { theme, style } = useCodeTheme();
   const partialActions = usePartialDiff(repoId, filePath, diff, partial, loading || !!error);
   const lines = useMemo(() => getNumberedDiffLines(diff ?? ''), [diff]);
+  const multipleFiles = useMemo(
+    () => lines.filter((line) => line.text.startsWith('diff --git ')).length > 1,
+    [lines],
+  );
   const highlighted = useDiffHighlight(lines, diff?.length ?? 0, filePath);
   const gutterWidth = `${Math.max(4, String(lines.reduce((max, line) => Math.max(max, line.oldLine ?? 0, line.newLine ?? 0), 0)).length + 1)}ch`;
   const language = fileLanguage(filePath ?? title ?? '');
@@ -226,6 +241,8 @@ export function DiffViewer({
         aria-label="统一差异"
       >
         {lines.map(({ text: line, kind, oldLine, newLine }, index) => {
+          // Keep original patch indexes for highlighting and partial staging.
+          if (isRedundantDiffHeader(lines[index], multipleFiles)) return null;
           const className = `diff-code-row diff-code-row--${kind}${partialActions.selected.has(index) ? ' diff-row-selected' : ''}`;
           return (
             <div className={className} key={index}>
@@ -267,7 +284,7 @@ export function DiffViewer({
         <span>原版本</span>
         <span>修改后</span>
       </div>
-      {getSplitDiffRows(lines, highlighted.tokens).map((row, index) =>
+      {getSplitDiffRows(lines, highlighted.tokens, multipleFiles).map((row, index) =>
         row.meta !== undefined ? (
           <div className="diff-split-row diff-split-row--meta" key={`${index}-${row.meta}`}>
             <span>{row.meta}</span>
