@@ -169,3 +169,71 @@ test('SFTP timeout cancels queued opens and closes a late acknowledgement withou
   assert.equal(opened.length, 4);
   assert.equal(operations, 0);
 });
+
+test('SFTP cancellation closes active sessions and retains the slot until close', async () => {
+  const { connection, accept } = connectionFixture();
+  const controller = new AbortController();
+  let finish;
+  const operation = connection.withSftp(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    controller.signal,
+  );
+  const channel = accept(0);
+  await Promise.resolve();
+  const rejected = assert.rejects(operation, /cancel preview/);
+  controller.abort(new Error('cancel preview'));
+  await rejected;
+  assert.equal(channel.closeRequested, true);
+  assert.equal(connection.activeTasks, 1);
+  finish('late read');
+  channel.complete();
+  assert.equal(connection.activeTasks, 0);
+  const next = connection.execCommand('next');
+  accept(1).complete();
+  assert.equal((await next).exitCode, 0);
+});
+
+test('SFTP cancellation removes queued work and disposes late channel opens', async () => {
+  const { connection, opened, accept } = connectionFixture();
+  const opening = new AbortController();
+  const queued = new AbortController();
+  let operations = 0;
+  const a = connection.withSftp(async () => {
+    operations++;
+  }, opening.signal);
+  const running = Array.from({ length: 3 }, () => connection.execCommand('keep'));
+  const b = connection.withSftp(async () => {
+    operations++;
+  }, queued.signal);
+  const rejected = [assert.rejects(a, /cancel/), assert.rejects(b, /cancel/)];
+  opening.abort(new Error('cancel open'));
+  queued.abort(new Error('cancel queued'));
+  await Promise.all(rejected);
+  const late = accept(0);
+  assert.equal(late.closeRequested, true);
+  late.complete();
+  for (let i = 1; i < 4; i++) accept(i).complete();
+  await Promise.all(running);
+  assert.equal(operations, 0);
+  assert.equal(opened.length, 4);
+  assert.equal(connection.activeTasks, 0);
+});
+
+test('SFTP aborted immediately after opening never starts the file operation', async () => {
+  const { connection, accept } = connectionFixture();
+  const controller = new AbortController();
+  let called = false;
+  const read = connection.withSftp(async () => {
+    called = true;
+  }, controller.signal);
+  const channel = accept(0);
+  const rejected = assert.rejects(read, /cancel/);
+  controller.abort(new Error('cancel before read'));
+  await rejected;
+  assert.equal(called, false);
+  channel.complete();
+  assert.equal(connection.activeTasks, 0);
+});

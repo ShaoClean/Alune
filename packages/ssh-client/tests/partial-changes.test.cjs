@@ -279,3 +279,33 @@ test('custom filters and ident conversion keep the ordinary preview but disable 
     assert.equal(f.git('show', ':text.txt'), '$Id$\nold\n');
   }
 });
+
+test('preview reuses immutable blobs while still rejecting an index change between snapshots', async (t) => {
+  const f = await setup(t);
+  f.write('file.txt', 'original\n');
+  f.git('add', '.');
+  f.git('commit', '-qm', 'base');
+  f.write('file.txt', 'changed\n');
+  const commands = [];
+  const execGit = f.transport.execGit.bind(f.transport);
+  f.transport.execGit = async (root, args, ...rest) => {
+    commands.push(args);
+    return execGit(root, args, ...rest);
+  };
+  const preview = await f.changes.preview(f.root, 'file.txt', false);
+  assert.ok(preview.revision);
+  assert.equal(commands.filter((args) => args[0] === 'cat-file').length, 2);
+  assert.equal(commands.filter((args) => args[0] === 'ls-files').length, 2);
+  assert.equal(commands.length, 13);
+  // Mutate the index after diff, before the second snapshot. Cached object
+  // bytes must not hide a new OID or mode in that second index read.
+  f.transport.execGit = async (root, args, ...rest) => {
+    const result = await execGit(root, args, ...rest);
+    if (args.includes('diff')) f.git('add', 'file.txt');
+    return result;
+  };
+  await assert.rejects(
+    f.changes.preview(f.root, 'file.txt', false),
+    (error) => error.statusCode === 409,
+  );
+});

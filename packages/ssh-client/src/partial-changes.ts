@@ -137,10 +137,16 @@ export class PartialChanges {
       throw new Unsupported('仅 UTF-8 文本支持按块或按行操作。');
     }
   }
-  private async blob(root: string, entry: string): Promise<FileContent> {
+  private async blob(
+    root: string,
+    entry: string,
+    blobs: Map<string, string>,
+  ): Promise<FileContent> {
     if (!entry) return null;
     const [mode, , oid] = entry.split(/[ \t]/);
     if (!/^100(644|755)$/.test(mode)) throw new Unsupported('符号链接和子模块请使用整文件操作。');
+    const cached = blobs.get(oid);
+    if (cached !== undefined) return { text: cached, mode };
     const size = Number(await this.git(root, ['cat-file', '-s', oid]));
     if (size > MAX_BYTES) throw new Unsupported('文件超过 2 MiB，请使用整文件操作。');
     const result = await runGit(this.connection, root, ['cat-file', 'blob', oid], undefined, {
@@ -148,7 +154,9 @@ export class PartialChanges {
       maxOutputBytes: MAX_BYTES,
     });
     if (result.exitCode !== 0 || !result.stdoutBytes) throw stale();
-    return { text: this.decode(result.stdoutBytes), mode };
+    const text = this.decode(result.stdoutBytes);
+    blobs.set(oid, text);
+    return { text, mode };
   }
   private async worktree(root: string, file: string): Promise<FileContent> {
     return this.connection.withSftp(async (sftp) => {
@@ -197,7 +205,7 @@ export class PartialChanges {
       throw stale();
     });
   }
-  private async snapshot(root: string, file: string) {
+  private async snapshot(root: string, file: string, blobs = new Map<string, string>()) {
     validateRepositoryPath(root, file);
     if ((await this.git(root, ['rev-parse', '--show-prefix'])).trim())
       throw new Unsupported('请从仓库根目录操作。');
@@ -230,13 +238,16 @@ export class PartialChanges {
       if (!['unspecified', 'unset'].includes(attr[i]))
         throw new Unsupported('此文件使用内容过滤器或编码转换，请使用整文件操作。');
     const indexed = entries[0] ? entries[0].replace(/^(\d+) ([a-f0-9]+) 0\t/, '$1 blob $2\t') : '';
-    const before = await this.blob(root, tree);
-    const cached = await this.blob(root, indexed);
+    const before = await this.blob(root, tree, blobs);
+    const cached = await this.blob(root, indexed, blobs);
     const working = await this.worktree(root, file);
     return { head: head.stdout, index, tree, attributes, before, cached, working };
   }
   private async read(root: string, file: string, staged: boolean) {
-    const state = await this.snapshot(root, file);
+    // Objects are immutable by OID. Only reuse their bytes within this read;
+    // HEAD, index entries, attributes and worktree bytes are still read twice.
+    const blobs = new Map<string, string>();
+    const state = await this.snapshot(root, file, blobs);
     const diff = await this.git(root, [
       '-c',
       'core.quotepath=false',
@@ -259,7 +270,7 @@ export class PartialChanges {
     if (diff.split('\n').length > 10_000)
       throw new Unsupported('差异超过 10,000 行，请使用整文件操作。');
     const hunks = parsePatchHunks(diff);
-    const after = await this.snapshot(root, file);
+    const after = await this.snapshot(root, file, blobs);
     if (hash(state) !== hash(after)) throw stale();
     if (!hunks.length) throw new Unsupported('没有可按块或按行操作的文本改动。');
     return { state, diff, hunks, revision: hash([root, file, staged, state, diff]) };

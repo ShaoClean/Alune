@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { NotFoundException } from '@nestjs/common';
-import { GitCommands, GitWorktrees, RepositoryFiles, GitSubmodules } from '@alune/ssh-client';
+import { GitCommands, GitWorktrees, RepositoryFiles, GitSubmodules, runGit } from '@alune/ssh-client';
 import { REPOSITORY_STATUS_TIMEOUT_MS } from '@alune/shared';
 import { RepositoryService } from './repository.service';
 import { ConnectionService } from '../connection/connection.service';
@@ -32,6 +32,25 @@ describe('RepositoryService registration and remote status', () => {
     jest.restoreAllMocks();
     jest.useRealTimers();
     db.close();
+  });
+
+  it('scopes Git and SFTP cancellation to the requesting transport', async () => {
+    const execCommand = jest.fn().mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+    const withSftp = jest.fn().mockResolvedValue('file');
+    const connection = { execCommand, withSftp };
+    ensureConnected.mockResolvedValue(connection);
+    const repo = await service.add('host-a', '/fixture/repo');
+    const controller = new AbortController();
+    const transport = await service.connection(repo, controller.signal);
+    await runGit(transport, repo.path, ['diff']);
+    expect(execCommand.mock.calls[0][2]).toBe(controller.signal);
+    const read = async () => 'file';
+    await transport.withSftp(read);
+    expect(withSftp).toHaveBeenCalledWith(read, controller.signal);
+    controller.abort();
+    await expect(runGit(transport, repo.path, ['diff'])).rejects.toThrow();
+    expect(execCommand).toHaveBeenCalledTimes(1);
+    expect(await service.connection(repo)).toBe(connection);
   });
 
   it('opens registered submodules on the same SSH host and reuses their registration', async () => {

@@ -13,7 +13,9 @@ import {
   ParseUUIDPipe,
   Query,
   Body,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { RepositoryService } from './repository.service';
 import {
   DiffImageAbsentError,
@@ -217,7 +219,14 @@ export class RepositoryController {
   }
 
   @Get(':id/diff')
-  async getDiff(@Param('id', ParseUUIDPipe) id: string, @Query() query: any) {
+  async getDiff(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: any,
+    @Res({ passthrough: true }) response?: Response,
+  ) {
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    response?.once('close', cancel);
     const options: DiffOptions = {
       file: typeof query.file === 'string' ? query.file : undefined,
       staged:
@@ -239,8 +248,9 @@ export class RepositoryController {
           id,
           options.file,
           !!options.staged,
+          controller.signal,
         );
-      return await this.repoService.getDiff(id, options);
+      return await this.repoService.getDiff(id, options, controller.signal);
     } catch (error) {
       if (error instanceof HttpException) throw error;
       if (error instanceof PartialChangesError)
@@ -249,6 +259,8 @@ export class RepositoryController {
       throw new BadRequestException(
         error instanceof Error ? error.message : '无法读取差异',
       );
+    } finally {
+      response?.off('close', cancel);
     }
   }
 

@@ -6,6 +6,8 @@ import {
 } from '@alune/ssh-client';
 import { RepositoryController } from './repository.controller';
 import { RepositoryService } from './repository.service';
+import { EventEmitter } from 'node:events';
+import type { Response } from 'express';
 
 describe('RepositoryController', () => {
   it('validates worktree selections and preserves useful status/open failures', async () => {
@@ -32,11 +34,13 @@ describe('RepositoryController', () => {
     expect(getDiff).toHaveBeenLastCalledWith(
       'fixture',
       expect.objectContaining({ file: '中文 file', staged: false }),
+      expect.any(AbortSignal),
     );
     await controller.getDiff('fixture', { file: '中文 file', staged: 'true' });
     expect(getDiff).toHaveBeenLastCalledWith(
       'fixture',
       expect.objectContaining({ staged: true }),
+      expect.any(AbortSignal),
     );
     getDiff.mockRejectedValueOnce(new Error('文件已不存在，请刷新仓库状态。'));
     await expect(
@@ -45,6 +49,49 @@ describe('RepositoryController', () => {
       status: 400,
       message: '文件已不存在，请刷新仓库状态。',
     });
+  });
+
+  it.each([false, true])(
+    'cancels disconnected diff reads (editable=%s) and removes listeners',
+    async (editable) => {
+      let signal!: AbortSignal;
+      const pending = (...args: any[]) => {
+        signal = args.at(-1);
+        return new Promise((_, reject) =>
+          signal.addEventListener('abort', () => reject(new Error('cancelled')), { once: true }),
+        );
+      };
+      const controller = new RepositoryController({
+        getDiff: pending,
+        getEditableDiff: pending,
+      } as unknown as RepositoryService);
+      const response = new EventEmitter();
+      const read = controller.getDiff(
+        'fixture',
+        { file: 'a.txt', editable: String(editable) },
+        response as Response,
+      );
+      const rejected = expect(read).rejects.toMatchObject({ message: 'cancelled' });
+      response.emit('close');
+      await rejected;
+      expect(signal.aborted).toBe(true);
+      expect(response.listenerCount('close')).toBe(0);
+    },
+  );
+
+  it('does not cancel the completed read when the response closes normally', async () => {
+    let signal!: AbortSignal;
+    const controller = new RepositoryController({
+      getDiff: async (_id: string, _options: unknown, current: AbortSignal) => {
+        signal = current;
+        return 'patch';
+      },
+    } as unknown as RepositoryService);
+    const response = new EventEmitter();
+    expect(await controller.getDiff('fixture', {}, response as Response)).toBe('patch');
+    response.emit('close');
+    expect(signal.aborted).toBe(false);
+    expect(response.listenerCount('close')).toBe(0);
   });
 
   it('requires an explicit image side and separates a missing version from a failure', async () => {

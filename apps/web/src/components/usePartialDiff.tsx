@@ -167,7 +167,11 @@ export function usePartialDiff(
     );
   };
   const toolbar = !enabled ? (
-    controls?.unavailableReason ? (
+    controls?.refreshing ? (
+      <div className="partial-diff-hint" role="status">
+        正在准备按行操作…
+      </div>
+    ) : controls?.unavailableReason ? (
       <div className="partial-diff-hint">{controls.unavailableReason}</div>
     ) : null
   ) : (

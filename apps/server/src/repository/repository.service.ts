@@ -291,7 +291,7 @@ export class RepositoryService {
     return signal
       ? {
           execCommand: (...args) => connection.execCommand(...args),
-          withSftp: (operation) => connection.withSftp(operation),
+          withSftp: (operation) => connection.withSftp(operation, signal),
           signal,
         }
       : connection;
@@ -617,15 +617,20 @@ export class RepositoryService {
     return git.log(repo.path, options);
   }
 
-  async getEditableDiff(id: string, file: string, staged: boolean) {
+  async getEditableDiff(
+    id: string,
+    file: string,
+    staged: boolean,
+    signal?: AbortSignal,
+  ) {
     const repo = await this.get(id);
-    const conn = await this.connection(repo);
+    const conn = await this.connection(repo, signal);
     return new PartialChanges(conn).preview(repo.path, file, staged);
   }
 
-  async getDiff(id: string, options?: DiffOptions) {
+  async getDiff(id: string, options?: DiffOptions, signal?: AbortSignal) {
     const repo = await this.get(id);
-    const conn = await this.connection(repo);
+    const conn = await this.connection(repo, signal);
     const git = new GitCommands(conn);
     return git.diff(repo.path, options);
   }
