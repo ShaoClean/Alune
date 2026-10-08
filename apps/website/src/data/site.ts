@@ -3,7 +3,7 @@ export const site = {
   name: 'Alune',
   title: 'Alune | 本地与 SSH 远程 Git 工作区',
   description:
-    '在桌面上，统一管理本地与 SSH 远程 Git 仓库。查看差异、暂存提交、浏览历史与 PR/MR，让日常 Git 工作留在同一个工作区。支持 macOS、Windows 和 Linux。',
+    '在桌面上，统一管理本地与 SSH 远程 Git 仓库。查看差异、暂存提交、浏览历史、处理冲突，通过 PR/MR 中心汇总已添加仓库的请求，创建与审阅协作变更。支持 macOS、Windows 和 Linux。',
   repository,
   download: `${repository}/releases/latest`,
   releases: `${repository}/releases`,

@@ -77,7 +77,7 @@ import { site } from '../data/site';
               />
             </div>
           </div>
-          <p class="caption">文件只读预览、Git 状态标记与代码主题。</p>
+          <p class="caption">文件预览、逐行追溯与代码主题；被 Git 忽略的条目显示为灰色。</p>
         </div>
         <div class="gallery-panel" id="panel-terminal" data-screenshot-tilt>
           <div class="shell">
@@ -99,7 +99,10 @@ import { site } from '../data/site';
         </article>
         <article data-reveal>
           <h3>只提交准备好的部分</h3>
-          <p>暂存所需文件，填写摘要与描述。同一文件已暂存的内容和后续修改分别展示。</p>
+          <p>
+            按文件、块或行暂存与放弃改动，填写摘要与描述。同一文件已暂存的内容和后续修改分别展示，也可配置
+            GPG 或 SSH 提交签名。
+          </p>
         </article>
         <article data-reveal class="ai-note">
           <Icon name="sparkles" />

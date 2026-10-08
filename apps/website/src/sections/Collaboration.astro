@@ -3,6 +3,7 @@ import Icon from '../components/Icon.astro';
 import Screenshot from '../components/Screenshot.astro';
 import history from '../assets/screenshots/history.png';
 import pullRequests from '../assets/screenshots/pull-requests.png';
+import center from '../assets/screenshots/pull-request-center.png';
 import { site } from '../data/site';
 ---
 
@@ -11,9 +12,8 @@ import { site } from '../data/site';
     沿着分支，读懂项目的来路。
   </h2>
   <p data-reveal data-reveal-delay="70" class="section-lede">
-    浏览已经获取的分支、标签与提交关系。
-    <br />
-    选择一次提交，继续往下看文件和差异。
+    搜索提交、查看文件历史，整理分支与提交关系。
+    <br />在 PR/MR 中心汇总已添加仓库的请求，继续阅读差异与讨论。
   </p>
   <figure data-reveal class="history-figure" data-screenshot-tilt>
     <div class="shell">
@@ -32,22 +32,35 @@ import { site } from '../data/site';
       <div>
         <h3>分支与 Worktree，各就其位</h3>
         <p>
-          创建、切换、合并分支，拉取或推送更新。本地仓库可创建和删除 Worktree；SSH
-          仓库支持发现与打开已有 Worktree。
+          创建和推送标签，用交互式变基整理提交，遇到冲突时在应用内处理。本地仓库可创建和删除
+          Worktree；SSH 仓库支持发现与打开已有 Worktree。
         </p>
       </div>
     </article>
     <article data-reveal>
       <Icon name="layers" />
       <div>
-        <h3>PR 与 MR，在工作区里审阅</h3>
+        <h3>PR 与 MR，跨仓库集中审阅</h3>
         <p>
-          查看 GitHub PR、GitLab MR 的详情、文件 Diff、评论和代码讨论。支持 HTTPS 自建
-          GitLab；配置访问令牌后，可按权限发表评论、合并或关闭请求。
+          汇总已添加仓库的 GitHub PR、GitLab MR，筛选我创建的与请求我审阅。在中心内阅读
+          Diff、评论和代码讨论；在仓库内创建请求，可选 AI 起草标题与描述。支持 HTTPS 自建 GitLab。
         </p>
       </div>
     </article>
   </div>
+  <figure data-reveal class="history-figure" data-screenshot-tilt>
+    <div class="shell">
+      <div class="core">
+        <Screenshot
+          image={center}
+          alt="PR/MR 中心：按仓库、平台、账号和状态筛选已添加项目中的请求"
+        />
+      </div>
+    </div>
+    <figcaption class="caption">
+      同一托管项目的多个克隆与 Worktree 自动去重，数据来源可逐项查看。
+    </figcaption>
+  </figure>
   <figure data-reveal class="history-figure" data-screenshot-tilt>
     <div class="shell">
       <div class="core">
