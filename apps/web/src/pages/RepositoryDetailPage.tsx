@@ -3,7 +3,7 @@ import type { RepositoryContext } from '@alune/shared';
 import { RepositoryContextNotice } from '../components/RepositoryContextNotice';
 import { GitOperationNotice } from '../components/GitOperationNotice';
 import { RebaseOperationNotice } from '../components/RebaseOperationNotice';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -15,6 +15,7 @@ import { FeedbackNotice } from '@alune/ui';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import type { SelectedRepositoryFile as SelectedFile } from '../stores/repositoryStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { BranchesView } from '../components/BranchesView';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
@@ -35,7 +36,6 @@ import type { RepositoryPanel as Panel, SyncOperation } from '../components/Repo
 import { useSyncStatusStore } from '../stores/syncStatusStore';
 import { useTerminalStore } from '../stores/terminalState';
 
-type SelectedFile = { path: string; status: string; staged: boolean };
 const panelLabels: Record<Panel, string> = {
   changes: '改动',
   files: '文件',
@@ -85,6 +85,8 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     fetchRemotes,
     fetchDiff,
     clearDiff,
+    selectedFiles,
+    selectRepositoryFile,
     error,
     errorPanel,
   } = useRepositoryStore();
@@ -102,7 +104,13 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [historyTarget, setHistoryTarget] = useState<{ repoId: string; hash: string }>();
-  const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
+  const selectedFile = (id && selectedFiles[id]) || null;
+  const setSelectedFile = useCallback(
+    (file: SelectedFile | null) => {
+      if (id) selectRepositoryFile(id, file);
+    },
+    [id, selectRepositoryFile],
+  );
   const [pushedBranch, setPushedBranch] = useState<{ branch: string; remote?: string } | null>(
     null,
   );
@@ -132,7 +140,6 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     let cancelled = false;
     setLoading(true);
     setPageError(null);
-    setSelectedFile(null);
     resetWorkspace(id);
     const cached =
       useRepositoryStore.getState().repositories.find((repo) => repo.id === id) ||
@@ -186,7 +193,9 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   };
 
   useLayoutEffect(() => {
-    if (!selectedFile || !status) return;
+    // A keyed workspace initially renders with the previous tab's global status.
+    // Wait for activation before reconciling this tab's remembered selection.
+    if (loading || switchingRepository || !selectedFile || !status) return;
     const exact = status.files.find(
       (file: SelectedFile) =>
         file.path === selectedFile.path && file.staged === selectedFile.staged,
@@ -199,7 +208,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
       if (compact) returnToList();
     } else if (next.staged !== selectedFile.staged || next.status !== selectedFile.status)
       setSelectedFile({ path: next.path, staged: next.staged, status: next.status });
-  }, [status, selectedFile, compact, clearDiff]);
+  }, [status, selectedFile, compact, clearDiff, loading, switchingRepository, setSelectedFile]);
 
   // Status polling replaces objects even when this comparison has not changed.
   const selectedStatus = status?.files.find(
@@ -212,12 +221,14 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
   const selectedConflict = selectedStatus?.conflicted ? selectedStatus : null;
 
   useLayoutEffect(() => {
-    if (activePanel !== 'changes') return;
+    if (loading || switchingRepository || activePanel !== 'changes') return;
     if (id && selectedFile && selectedStatusKey && !selectedConflict) {
       void fetchDiff(id, { file: selectedFile.path, staged: selectedFile.staged });
     } else clearDiff();
   }, [
     id,
+    loading,
+    switchingRepository,
     activePanel,
     selectedFile?.path,
     selectedFile?.staged,

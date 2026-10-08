@@ -20,13 +20,16 @@ const connection = {
   username: 'fixture',
   port: 22,
 };
-const files = [
+const originalFiles = [
   { path: 'long.txt', status: 'modified', staged: false },
   { path: 'other.txt', status: 'modified', staged: false },
   { path: 'new.txt', status: 'untracked', staged: false },
   { path: 'image.png', status: 'modified', staged: false },
   { path: 'no-diff.txt', status: 'modified', staged: false },
 ];
+// A second tab with different paths catches reconciliation against the tab being left.
+const otherRepo = { ...repo, id: 'diff-other', name: '另一仓库', path: '/other-fixture' };
+const otherFiles = [{ path: 'second.txt', status: 'modified', staged: true }];
 const image = new Resvg(
   '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"><rect x="100" y="100" width="1000" height="400" rx="80" fill="#6b82c5" fill-opacity=".7"/></svg>',
 )
@@ -60,10 +63,10 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === '/__fixture') {
       for (const key of Object.keys(control)) if (key in body) control[key] = body[key];
-      return json(res, { control, requests, files });
+      return json(res, { control, requests, files: originalFiles });
     }
     if (url.pathname === '/api/connections') return json(res, [connection]);
-    if (url.pathname === '/api/repositories') return json(res, [repo]);
+    if (url.pathname === '/api/repositories') return json(res, [repo, otherRepo]);
     if (url.pathname === '/api/ai/settings')
       return json(res, {
         revision: 'fixture',
@@ -77,11 +80,31 @@ const server = createServer(async (req, res) => {
         },
         secretStorage: { available: true, description: '隔离测试' },
       });
-    const match = url.pathname.match(/^\/api\/repositories\/diff-reading(?:\/(.*))?$/);
+    const match = url.pathname.match(/^\/api\/repositories\/(diff-reading|diff-other)(?:\/(.*))?$/);
     if (match) {
-      const action = match[1];
-      if (!action) return json(res, repo);
-      requests.push({ action, params: Object.fromEntries(url.searchParams), time: Date.now() });
+      const repository = match[1] === repo.id ? repo : otherRepo;
+      const files = repository.id === repo.id ? originalFiles : otherFiles;
+      const action = match[2];
+      if (!action) return json(res, repository);
+      requests.push({
+        repoId: repository.id,
+        action,
+        params: Object.fromEntries(url.searchParams),
+        time: Date.now(),
+      });
+      if (action === 'operation') return json(res, null);
+      if (action === 'context')
+        return json(res, {
+          path: repository.path,
+          source: 'ssh',
+          author: { name: 'Fixture', email: 'fixture@example.invalid' },
+          shallow: false,
+          unborn: false,
+          upstream: 'origin/main',
+          remotes: [
+            { name: 'origin', fetchUrl: 'fixture.invalid/repo', pushUrl: 'fixture.invalid/repo' },
+          ],
+        });
       if (action === 'status') {
         const state = {
           branch: 'main',
@@ -179,6 +202,6 @@ const server = createServer(async (req, res) => {
     json(res, { message: error.message }, 500);
   }
 });
-server.listen(0, '127.0.0.1', () =>
+server.listen(Number(process.env.PORT) || 0, '127.0.0.1', () =>
   console.log(`Diff fixture: http://127.0.0.1:${server.address().port}/repositories/${repo.id}`),
 );
