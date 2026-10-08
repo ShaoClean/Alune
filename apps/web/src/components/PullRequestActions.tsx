@@ -290,35 +290,39 @@ export function ReviewActionBar({
           />
         </Dropdown>
       </div>
-      {(review.actions?.merge.reason ||
-        review.actions?.close.reason ||
-        review.actions?.comment.reason) && (
-        <FeedbackAlert
-          source="review-permissions"
-          type={
-            !completedTitle || review.actions?.comment.reason
-              ? 'warning'
-              : review.actions?.state === 'merged'
-                ? 'success'
-                : 'info'
-          }
-          title={completedTitle || 'PR/MR 操作权限受限'}
-          description={
-            [
-              ...new Set(
-                [
-                  review.actions?.merge.reason,
-                  review.actions?.close.reason,
-                  review.actions?.comment.reason,
-                ].filter(Boolean),
-              ),
-            ].join('\n') +
-            (review.actions?.comment.reason === '请配置有写入权限的访问令牌。'
-              ? '\n请返回 PR/MR 列表，展开「访问设置」，选择具有写入权限的令牌并点击「应用到此仓库」，然后重新打开文件变动。'
-              : '')
-          }
-        />
-      )}
+      {!(
+        query.selectionVersion !== undefined &&
+        review.actions?.comment.reason === '请配置有写入权限的访问令牌。'
+      ) &&
+        (review.actions?.merge.reason ||
+          review.actions?.close.reason ||
+          review.actions?.comment.reason) && (
+          <FeedbackAlert
+            source="review-permissions"
+            type={
+              !completedTitle || review.actions?.comment.reason
+                ? 'warning'
+                : review.actions?.state === 'merged'
+                  ? 'success'
+                  : 'info'
+            }
+            title={completedTitle || 'PR/MR 操作权限受限'}
+            description={
+              [
+                ...new Set(
+                  [
+                    review.actions?.merge.reason,
+                    review.actions?.close.reason,
+                    review.actions?.comment.reason,
+                  ].filter(Boolean),
+                ),
+              ].join('\n') +
+              (review.actions?.comment.reason === '请配置有写入权限的访问令牌。'
+                ? '\n请返回 PR/MR 列表，展开「访问设置」，选择具有写入权限的令牌并点击「应用到此仓库」，然后重新打开文件变动。'
+                : '')
+            }
+          />
+        )}
       {review.error && !confirm && (
         <FeedbackAlert
           source="review-error"

@@ -11,6 +11,7 @@ import './components/repository-extensions.css';
 import './tags.css';
 import './conflicts.css';
 import './pull-requests.css';
+import './pull-request-center.css';
 import './collection-views.css';
 import './repository-overview.css';
 import './theme.css';

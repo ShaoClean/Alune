@@ -1,0 +1,326 @@
+.pr-center {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  padding: 28px 32px 0;
+  overflow: hidden;
+  color: var(--text);
+}
+.pr-center-header,
+.pr-center-toolbar,
+.pr-center-actions,
+.pr-center-detail__bar,
+.pr-center-actor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pr-center-header {
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-shrink: 0;
+}
+.pr-center-header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.pr-center-header p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.pr-center-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pr-center-toolbar {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.pr-center-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.pr-center-filters > .ant-input-affix-wrapper {
+  flex: 1 1 240px;
+  min-width: 180px;
+}
+.pr-center-filters > .ant-select {
+  min-width: 118px;
+  flex: 0 1 160px;
+}
+.pr-center-filters > .ant-select-multiple {
+  min-width: 190px;
+  flex: 1 1 220px;
+}
+.pr-center-filter-toggle {
+  display: none;
+}
+.pr-center-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 24px;
+  scrollbar-gutter: stable;
+}
+.pr-center-list-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pr-center-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.pr-center-list > ul {
+  background: var(--card-core);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+.pr-center-item {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 16px 2px;
+}
+.pr-center-item:last-child {
+  border-bottom: 0;
+}
+.pr-center-item:hover {
+  background: var(--surface-hover);
+}
+.pr-center-item__project {
+  display: flex;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding-left: 34px;
+  overflow-wrap: anywhere;
+}
+.pr-center-item__project strong {
+  font-weight: 500;
+  color: var(--text);
+}
+.pr-center-item .pull-request-row {
+  padding: 8px 0 12px;
+  border: 0;
+}
+.pr-center-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-hover);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.pr-center-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.pr-center-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 16px;
+  color: var(--text-muted);
+}
+.pr-center--detail {
+  padding: 0;
+}
+.pr-center-detail {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.pr-center-detail__bar {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.pr-center-project {
+  flex: 1;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.pr-center-actor {
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.pr-center-actor > .ant-select {
+  width: 260px;
+  max-width: 100%;
+}
+.pr-center-detail > .pull-request-detail {
+  flex: 1;
+  min-height: 0;
+}
+.pr-center-drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+  width: min(520px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  color: var(--text);
+  background: var(--surface-raised, var(--card-core));
+  box-shadow: -12px 0 40px #0003;
+}
+.pr-center-drawer::backdrop {
+  background: #0005;
+}
+.pr-center-drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+.pr-center-drawer > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.pr-center-drawer h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.pr-center-drawer__body {
+  padding: 20px 24px;
+  flex: 1;
+  overflow: auto;
+  font-size: 13px;
+}
+.pr-center-drawer__body > p {
+  color: var(--text-muted);
+  margin-top: 0;
+  line-height: 1.6;
+}
+.pr-center-sources > section {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.pr-center-sources header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pr-center-sources header span {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.pr-center-sources p {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+.pr-center-source-config {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.pr-center-source-config > .ant-select {
+  width: 100%;
+}
+@media (max-width: 900px) {
+  .pr-center {
+    padding: 20px 16px 0;
+  }
+  .pr-center--detail {
+    padding: 0;
+  }
+  .pr-center-desktop-filters {
+    display: none;
+  }
+  .pr-center-filter-toggle {
+    display: inline-flex;
+  }
+  .pr-center-drawer .pr-center-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pr-center-filters > .ant-select {
+    width: 100%;
+  }
+  .pr-center-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .pr-center-header h1 {
+    font-size: 20px;
+  }
+  .pr-center-item {
+    padding-inline: 10px;
+  }
+  .pr-center-item__project {
+    padding-left: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 600px) {
+  .pr-center-detail__bar {
+    padding: 12px;
+  }
+  .pr-center-project {
+    order: 3;
+    flex: 1 0 100%;
+    min-width: 0;
+  }
+  .pr-center-actor {
+    padding: 8px 12px;
+  }
+}
+/* Ant Design 6 uses body/body-holder around the active tab. Keep the full
+   height chain bounded so the mobile file picker cannot push the Diff away. */
+.pr-center-detail .ant-tabs-body-holder {
+  min-height: 0;
+  overflow: hidden;
+}
+.pr-center-detail .ant-tabs-body,
+.pr-center-detail .ant-tabs-body > .ant-tabs-content {
+  height: 100%;
+  min-height: 0;
+}
+.pr-center-detail .ant-tabs-body > .ant-tabs-content:not(.pull-request-files-tab) {
+  overflow: auto;
+  padding: 20px;
+}
+.pr-center-detail .pull-request-files-tab {
+  overflow: hidden;
+}

@@ -9,6 +9,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type {
+  PullRequestAccount,
   PullRequestItem,
   PullRequestPage,
   PullRequestQuery,
@@ -60,6 +61,9 @@ export function validatePullRequestQuery(value: unknown): PullRequestQuery {
     query.target.length > 4096 ||
     !['github', 'gitlab'].includes(query.provider) ||
     !['open', 'all'].includes(query.state) ||
+    (query.selectionVersion !== undefined &&
+      (typeof query.selectionVersion !== 'string' ||
+        query.selectionVersion.length > 512)) ||
     !Number.isSafeInteger(query.page) ||
     query.page < 1 ||
     query.page > 10000 ||
@@ -273,7 +277,10 @@ export class PullRequestsService {
 
   private async target(
     id: string,
-    query: Pick<PullRequestQuery, 'remote' | 'target' | 'provider'>,
+    query: Pick<
+      PullRequestQuery,
+      'remote' | 'target' | 'provider' | 'selectionVersion'
+    >,
     signal: AbortSignal,
   ) {
     const remote = (await this.readRemotes(id, signal)).find(
@@ -293,6 +300,13 @@ export class PullRequestsService {
         '平台与远端不匹配；GitHub 目前仅支持 github.com。',
       );
     }
+    if (
+      query.selectionVersion !== undefined &&
+      this.tokens.selection(id, remote).version !== query.selectionVersion
+    )
+      throw new ConflictException(
+        '仓库关联账号已变化，请刷新中心并重新确认操作账号。',
+      );
     return remote;
   }
 
@@ -307,7 +321,10 @@ export class PullRequestsService {
 
   withRequest<T>(
     id: string,
-    query: Pick<PullRequestQuery, 'remote' | 'target' | 'provider' | 'token'>,
+    query: Pick<
+      PullRequestQuery,
+      'remote' | 'target' | 'provider' | 'token' | 'selectionVersion'
+    >,
     work: (
       remote: PullRequestRemote,
       request: (
@@ -449,6 +466,84 @@ export class PullRequestsService {
         hasMore,
       };
     });
+  }
+
+  private readonly centerIdentities = new Map<
+    string,
+    { account: PullRequestAccount; expires: number }
+  >();
+
+  centerPage(id: string, input: unknown) {
+    const query = validatePullRequestQuery(input);
+    return this.withRequest(
+      id,
+      query,
+      async (remote, request, authenticated) => {
+        const selection = this.tokens.selection(id, remote);
+        const identityKey = `${query.provider}:${remote.host}:${selection.tokenId}:${selection.version.split(':').at(-1)}`;
+        let account: PullRequestAccount | null = null;
+        let identityNotice: string | undefined;
+        if (authenticated) {
+          const cached = this.centerIdentities.get(identityKey);
+          if (cached && cached.expires > Date.now()) account = cached.account;
+          else {
+            try {
+              const { data } = await request(
+                new URL(
+                  query.provider === 'github'
+                    ? 'https://api.github.com/user'
+                    : `https://${remote.host}/api/v4/user`,
+                ),
+              );
+              const username = text(
+                query.provider === 'github'
+                  ? (data as any)?.login
+                  : (data as any)?.username,
+              );
+              if (!username)
+                throw new BadGatewayException('无法识别关联账号。');
+              account = {
+                key: `${query.provider}:${remote.host}:${username.toLowerCase()}`,
+                username,
+                host: remote.host,
+              };
+              if (this.centerIdentities.size >= 256)
+                this.centerIdentities.delete(
+                  this.centerIdentities.keys().next().value!,
+                );
+              this.centerIdentities.set(identityKey, {
+                account,
+                expires: Date.now() + 60_000,
+              });
+            } catch {
+              identityNotice =
+                '无法识别关联账号，个人视图可能不完整；请检查令牌权限。';
+            }
+          }
+        } else identityNotice = '未关联账号，仅支持查看全部请求。';
+        const { data, hasMore } = await request(apiUrl(remote, query));
+        return {
+          account,
+          identityNotice,
+          hasMore,
+          items: array(data).map((value) => ({
+            ...normalizeItem(value, remote, query),
+            reviewers: (Array.isArray(
+              query.provider === 'github'
+                ? value.requested_reviewers
+                : value.reviewers,
+            )
+              ? query.provider === 'github'
+                ? value.requested_reviewers
+                : value.reviewers
+              : []
+            ).map((user: any) =>
+              text(query.provider === 'github' ? user?.login : user?.username),
+            ),
+          })),
+        };
+      },
+    );
   }
 
   detail(id: string, input: unknown): Promise<PullRequestDetail> {

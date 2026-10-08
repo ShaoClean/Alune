@@ -1,3 +1,5 @@
+import { PullRequestCenterService } from './pull-request-center.service';
+import { PullRequestCenterController } from './pull-request-center.controller';
 import { PullRequestCreationService } from './pull-request-creation.service';
 import { Module } from '@nestjs/common';
 import { RepositoryService } from './repository.service';
@@ -14,11 +16,13 @@ import { RepositoryAnalyticsController } from './repository-analytics.controller
   controllers: [
     RepositoryController,
     PullRequestsController,
+    PullRequestCenterController,
     RepositoryAnalyticsController,
   ],
   providers: [
     RepositoryService,
     PullRequestsService,
+    PullRequestCenterService,
     PullRequestCreationService,
     RepositoryAnalyticsService,
   ],

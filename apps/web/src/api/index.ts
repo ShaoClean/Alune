@@ -3,6 +3,10 @@ import axios from 'axios';
 import { confirmTerminalRemoval } from '../stores/terminalRemoval';
 import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@alune/shared';
 import type {
+  PullRequestAccount,
+  PullRequestCenterQuery,
+  PullRequestCenterPage,
+  PullRequestSources,
   SigningConfig,
   CommitSignature,
   PartialDiffRequest,
@@ -456,4 +460,20 @@ export const fileApi = {
     api.get('/files/read', { params: { connectionId, path } }).then((r) => r.data),
   write: (connectionId: string, path: string, content: string) =>
     api.post('/files/write', { connectionId, path, content }).then((r) => r.data),
+};
+
+export const pullRequestCenterApi = {
+  context: async (
+    repositoryId: string,
+    query: PullRequestQuery,
+    signal?: AbortSignal,
+  ): Promise<{ account: PullRequestAccount | null; identityNotice?: string }> =>
+    (await api.post('/pull-request-center/context', { repositoryId, query }, { signal })).data,
+  sources: async (cursor?: string, signal?: AbortSignal): Promise<PullRequestSources> =>
+    (await api.post('/pull-request-center/sources', { cursor }, { signal })).data,
+  list: async (
+    input: { discoveryId?: string; query?: PullRequestCenterQuery; cursor?: string },
+    signal?: AbortSignal,
+  ): Promise<PullRequestCenterPage> =>
+    (await api.post('/pull-request-center/list', input, { signal })).data,
 };
