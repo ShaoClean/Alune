@@ -34,7 +34,6 @@ type Preferences = {
   appearance: AppearancePreferences;
   codeAppearance: CodeAppearancePreferences;
   layout: LayoutPreferences;
-  treeOpen: boolean;
   collapsedConnectionIds: string[];
   connectionOrder: string[];
   repositoryOrderByConnection: Record<string, string[]>;
@@ -68,7 +67,6 @@ interface WorkspaceState extends Preferences {
   removeRepository: (id: string) => void;
   setConnectionCollapsed: (id: string, collapsed: boolean) => void;
   moveTreeItem: (source: TreeItem, target: TreeItem, placement: Placement) => boolean;
-  setTreeOpen: (value: boolean) => void;
 }
 
 const defaults: Preferences = {
@@ -77,7 +75,6 @@ const defaults: Preferences = {
   appearance: DEFAULT_APPEARANCE,
   codeAppearance: DEFAULT_CODE_APPEARANCE,
   layout: DEFAULT_LAYOUT,
-  treeOpen: true,
   collapsedConnectionIds: [],
   connectionOrder: [],
   repositoryOrderByConnection: {},
@@ -112,7 +109,6 @@ function readPreferences(value: unknown): Preferences & { codeAppearanceNotice: 
     codeAppearance: code.preferences,
     codeAppearanceNotice: code.notice,
     layout: readLayoutPreferences(saved.layout),
-    treeOpen: typeof saved.treeOpen === 'boolean' ? saved.treeOpen : true,
     collapsedConnectionIds: stringIds(saved.collapsedConnectionIds),
     connectionOrder: stringIds(saved.connectionOrder),
     repositoryOrderByConnection: Object.fromEntries(
@@ -339,7 +335,6 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           });
         return true;
       },
-      setTreeOpen: (treeOpen) => set({ treeOpen }),
     }),
     {
       name: 'alune-workspace',
@@ -348,7 +343,6 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       storage: createJSONStorage(() => createWorkspaceStorage()),
       partialize: ({
         repositorySession,
-        treeOpen,
         collapsedConnectionIds,
         connectionOrder,
         repositoryOrderByConnection,
@@ -358,7 +352,6 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         collectionViews,
       }) => ({
         repositorySession,
-        treeOpen,
         collapsedConnectionIds,
         connectionOrder,
         repositoryOrderByConnection,

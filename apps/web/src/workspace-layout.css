@@ -1162,8 +1162,7 @@
 }
 
 /* Keep the navigation quiet so the selected file and code carry the emphasis. */
-.sidebar-nav-item__icon,
-.sidebar-workspace__icon {
+.sidebar-nav-item__icon {
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -1173,16 +1172,6 @@
   min-width: 18px;
   border: 0;
   border-radius: 4px;
-}
-.sidebar-workspace__toggle {
-  background: transparent;
-  border: 0;
-  font-size: 11px;
-  min-height: 28px;
-  color: var(--text-muted);
-}
-.sidebar-workspace__toggle > .sidebar-workspace__icon {
-  display: none;
 }
 .sidebar-divider {
   background: transparent;
@@ -1194,7 +1183,49 @@
 .tree-node--connection {
   background: transparent;
   border-color: transparent;
-  font-weight: 500;
+  font-weight: 600;
+  position: relative;
+  min-height: 34px;
+  padding: 0 6px 0 18px;
+}
+.tree-node--connection > .tree-sort-handle {
+  position: absolute;
+  left: 0;
+  width: 14px;
+}
+.tree-node--connection > .tree-node__action {
+  min-height: 32px;
+}
+.tree-node--connection:hover,
+.tree-node--connection:focus-within {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.tree-node__chevron {
+  display: grid;
+  place-items: center;
+  transition: transform var(--motion-hover) var(--ease-enter);
+}
+.tree-group--expanded > .tree-node--connection .tree-node__chevron {
+  transform: rotate(90deg);
+}
+.tree-node__meta {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+/* Keep children, selection and sort handles inside their connection's branch. */
+.tree-group__repositories {
+  min-width: 0;
+  margin: 2px 0 6px 24px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.tree-group__repositories > .tree-node + .tree-node {
+  margin-top: 2px;
+}
+.tree-group__repositories > .tree-empty {
+  padding: 8px 16px;
+  font-size: 11px;
 }
 .tree-node--repo.tree-node--selected {
   background: var(--sidebar-active);
@@ -1211,7 +1242,7 @@
 }
 .tree-node--repo > .tree-sort-handle {
   position: absolute;
-  left: -2px;
+  left: 0;
   width: 14px;
 }
 .tree-node--repo > .tree-node__action {

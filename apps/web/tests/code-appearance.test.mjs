@@ -183,7 +183,7 @@ test('restore rejects mismatched, missing, corrupt and duplicate themes while pr
 test('install/select/restart/uninstall/reset preserves per-mode choices, appearance and unrelated workspace state', async () => {
   await reset({
     appearance: { theme: 'system', reduceMotion: true },
-    treeOpen: false,
+    collapsedConnectionIds: ['b'],
     connectionOrder: ['b', 'a'],
     layout: { sidebarWidth: 310 },
   });
@@ -213,7 +213,7 @@ test('install/select/restart/uninstall/reset preserves per-mode choices, appeara
     ...DEFAULT_CODE_APPEARANCE,
     customThemes: [light],
   });
-  for (const key of ['appearance', 'treeOpen', 'connectionOrder'])
+  for (const key of ['appearance', 'collapsedConnectionIds', 'connectionOrder'])
     assert.deepEqual(workspace.getState()[key], before[key]);
   assert.ok(!('codeAppearanceNotice' in JSON.parse(saved.get('alune-workspace')).state));
 });

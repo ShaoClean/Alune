@@ -37,7 +37,6 @@ test('missing/corrupt appearance defaults to system without coercing malformed v
 test('appearance survives reload and layout reset without changing existing workspace preferences', async () => {
   const existing = {
     layout: { sidebarWidth: 310, changesWidth: 420, diffMode: 'split' },
-    treeOpen: false,
     connectionOrder: ['b', 'a'],
     collapsedConnectionIds: ['b'],
     repositoryOrderByConnection: { a: ['r2', 'r1'] },
