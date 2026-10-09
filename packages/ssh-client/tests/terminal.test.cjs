@@ -26,7 +26,7 @@ function fixture() {
 
 for (const cwd of [
   'D:\\workspace\\mt_business_daemon',
-  "D:/工作区/[repo] ' ; $env:USERNAME & %TEMP%",
+  "D:/工作区/[repo] ' ; $variable & %TEMP%",
   '/D:/workspace/repo',
   '\\\\server\\share\\repo',
   '//server/share/repo',

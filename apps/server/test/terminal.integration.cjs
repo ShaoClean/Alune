@@ -322,7 +322,7 @@ for (const shell of ['cmd.exe', 'powershell.exe']) {
       const root = fs.mkdtempSync(
         path.join(os.tmpdir(), 'alune-ssh-terminal-'),
       );
-      const cwd = path.join(root, "中文 [repo] ' ; $env:USERNAME & %TEMP%");
+      const cwd = path.join(root, "中文 [repo] ' ; $variable & %TEMP%");
       fs.mkdirSync(cwd);
       const remote = await terminalSSH('windows', { shell });
       const connection = new SSHConnection(remote.options);
