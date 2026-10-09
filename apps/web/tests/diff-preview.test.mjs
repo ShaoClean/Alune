@@ -261,7 +261,10 @@ test('the inspector and History keep separate Diff slots that load and clear ind
   assert.equal(ws().commitDiff.diff, 'commit');
   assert.equal(ws().commitDiff.partialDiff, null);
   assert.equal(ws().diff, 'worktree', 'a late commit response must not reach the inspector');
+  assert.equal(ws().partialDiff.revision, undefined, 'line actions wait for an opt-in');
+  await store.getState().preparePartialDiff('repo', { file: 'new' });
   assert.equal(ws().partialDiff.revision, 'validated');
+  assert.equal(ws().commitDiff.diff, 'commit', 'validating the inspector leaves History alone');
 
   store.getState().clearDiff('repo', 'commit');
   assert.equal(ws().commitDiff.diff, '');
@@ -293,6 +296,8 @@ test('a retained inspector Diff refreshes in place when its panel is shown again
   repositoryApi.diff = async (_id, options) =>
     options?.editable ? { diff: textPatch, revision: 'r1' } : textPatch;
   await store.getState().fetchDiff('repo', { file: 'new' });
+  await store.getState().preparePartialDiff('repo', { file: 'new' });
+  assert.equal(ws().partialDiff.revision, 'r1');
   await store.getState().fetchDiff('repo', { commit: 'abc' }, 'commit');
   let resolve;
   repositoryApi.diff = async (_id, options) => {

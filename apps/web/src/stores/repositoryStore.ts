@@ -47,6 +47,14 @@ export const linearHistory = (filter: HistoryFilter) =>
   !!(filter.search || filter.author || filter.since || filter.until || filter.follow);
 
 const errorMessage = (error: any) => error.response?.data?.message || error.message || '请求失败';
+const diffComparisonKey = (id: string, params?: DiffOptions) =>
+  JSON.stringify([
+    id,
+    params?.file ?? null,
+    params?.staged ?? false,
+    params?.commit ?? null,
+    params?.parentCommit ?? null,
+  ]);
 
 type StatusJob = {
   id: string;
@@ -69,6 +77,8 @@ export type DiffSlot = 'worktree' | 'commit';
 export interface DiffState {
   diff: string;
   partialDiff: PartialDiffPreview | null;
+  /** The user opted in to line actions for this comparison (`diffKey`). */
+  partialDiffEnabled: boolean;
   diffLoading: boolean;
   diffRefreshing: boolean;
   diffKey: string | null;
@@ -78,6 +88,7 @@ export interface DiffState {
 const emptyDiff = (): DiffState => ({
   diff: '',
   partialDiff: null,
+  partialDiffEnabled: false,
   diffLoading: false,
   diffRefreshing: false,
   diffKey: null,
@@ -205,6 +216,8 @@ interface RepositoryState {
   setLogFilter: (id: string, filter: HistoryFilter) => Promise<void>;
   fetchCommitFiles: (id: string, commit: string, parentCommit?: string) => Promise<void>;
   fetchDiff: (id: string, params?: DiffOptions, slot?: DiffSlot) => Promise<void>;
+  /** Validates the shown worktree Diff for line actions once the user asks for them. */
+  preparePartialDiff: (id: string, params: DiffOptions) => Promise<void>;
   clearDiff: (id: string, slot?: DiffSlot) => void;
   fetchBranches: (id: string) => Promise<void>;
   fetchStashes: (id: string) => Promise<void>;
@@ -825,6 +838,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         !current ||
         (!current.diff &&
           !current.partialDiff &&
+          !current.partialDiffEnabled &&
           !current.diffLoading &&
           !current.diffRefreshing &&
           !current.diffKey &&
@@ -843,19 +857,16 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       const controller = new AbortController();
       requestBook.controller = controller;
       const current = () => requests.get(id) === workspaceBook && request === requestBook.request;
-      const diffKey = JSON.stringify([
-        id,
-        params?.file ?? null,
-        params?.staged ?? false,
-        params?.commit ?? null,
-        params?.parentCommit ?? null,
-      ]);
+      const diffKey = diffComparisonKey(id, params);
       const state = workspaceDiff(get().workspaces[id], slot);
       const refreshing = state.diffKey === diffKey && !state.diffLoading && !state.diffError;
+      // Line actions stay enabled only while the same comparison is refreshed.
+      const partialDiffEnabled = state.diffKey === diffKey && state.partialDiffEnabled;
       patchDiff(id, slot, {
         diffKey,
         diff: refreshing ? state.diff : '',
-        partialDiff: refreshing ? state.partialDiff : null,
+        partialDiff: refreshing && state.partialDiff ? { diff: state.diff } : null,
+        partialDiffEnabled,
         diffLoading: !refreshing,
         diffRefreshing: refreshing,
         diffError: null,
@@ -870,28 +881,11 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           diff,
           partialDiff: editable ? { diff } : null,
           diffLoading: false,
-          diffRefreshing: editable,
+          diffRefreshing: false,
           diffError: null,
         });
-        if (editable) {
-          try {
-            const response = await repositoryApi.diff(
-              id,
-              { ...params, editable: true },
-              controller.signal,
-            );
-            const partialDiff: PartialDiffPreview =
-              typeof response === 'string' ? { diff: response } : response;
-            if (current())
-              patchDiff(id, slot, { diff: partialDiff.diff, partialDiff, diffRefreshing: false });
-          } catch (error: any) {
-            if (current())
-              patchDiff(id, slot, {
-                partialDiff: { diff, unavailableReason: errorMessage(error) },
-                diffRefreshing: false,
-              });
-          }
-        }
+        if (editable && partialDiffEnabled && slot === 'worktree')
+          await get().preparePartialDiff(id, params!);
       } catch (err: any) {
         if (current())
           patchDiff(id, slot, {
@@ -900,6 +894,55 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             diffLoading: false,
             diffRefreshing: false,
             diffError: errorMessage(err),
+          });
+      } finally {
+        if (requestBook.controller === controller) requestBook.controller = null;
+      }
+    },
+
+    preparePartialDiff: async (id, params) => {
+      const workspace = get().workspaces[id];
+      if (
+        !opened(id) ||
+        !params.file ||
+        params.commit ||
+        params.parentCommit ||
+        workspace.diffKey !== diffComparisonKey(id, params) ||
+        !workspace.partialDiff ||
+        workspace.diffLoading ||
+        workspace.diffRefreshing ||
+        workspace.diffError ||
+        workspace.partialDiff.revision
+      )
+        return;
+      const workspaceBook = book(id);
+      const requestBook = workspaceBook.diff.worktree;
+      const request = ++requestBook.request;
+      requestBook.controller?.abort();
+      const controller = new AbortController();
+      requestBook.controller = controller;
+      const current = () => requests.get(id) === workspaceBook && request === requestBook.request;
+      const diff = workspace.diff;
+      patchDiff(id, 'worktree', {
+        partialDiffEnabled: true,
+        diffRefreshing: true,
+        partialDiff: { diff },
+      });
+      try {
+        const response = await repositoryApi.diff(
+          id,
+          { ...params, editable: true },
+          controller.signal,
+        );
+        const partialDiff: PartialDiffPreview =
+          typeof response === 'string' ? { diff: response } : response;
+        if (current())
+          patchDiff(id, 'worktree', { diff: partialDiff.diff, partialDiff, diffRefreshing: false });
+      } catch (error: any) {
+        if (current())
+          patchDiff(id, 'worktree', {
+            partialDiff: { diff, unavailableReason: errorMessage(error) },
+            diffRefreshing: false,
           });
       } finally {
         if (requestBook.controller === controller) requestBook.controller = null;

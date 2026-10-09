@@ -143,6 +143,7 @@ function RepositoryWorkspace({
     fetchStashes,
     fetchRemotes,
     fetchDiff,
+    preparePartialDiff,
     selectRepositoryFile,
   } = useRepositoryStore.getState();
   const clearDiff = useCallback(() => useRepositoryStore.getState().clearDiff(id), [id]);
@@ -154,15 +155,23 @@ function RepositoryWorkspace({
       null,
   );
   const status = useRepositoryStatusData(id);
-  const { diff, diffLoading, diffRefreshing, partialDiff, worktreeDiffRevision, diffError } =
-    useWorkspaceData(id, (workspace) => ({
-      diff: workspace.diff,
-      diffLoading: workspace.diffLoading,
-      diffRefreshing: workspace.diffRefreshing,
-      partialDiff: workspace.partialDiff,
-      worktreeDiffRevision: workspace.worktreeDiffRevision,
-      diffError: workspace.diffError,
-    }));
+  const {
+    diff,
+    diffLoading,
+    diffRefreshing,
+    partialDiff,
+    partialDiffEnabled,
+    worktreeDiffRevision,
+    diffError,
+  } = useWorkspaceData(id, (workspace) => ({
+    diff: workspace.diff,
+    diffLoading: workspace.diffLoading,
+    diffRefreshing: workspace.diffRefreshing,
+    partialDiff: workspace.partialDiff,
+    partialDiffEnabled: workspace.partialDiffEnabled,
+    worktreeDiffRevision: workspace.worktreeDiffRevision,
+    diffError: workspace.diffError,
+  }));
   const { error, errorPanel } = useWorkspaceData(id, (workspace) => ({
     error: workspace.error,
     errorPanel: workspace.errorPanel,
@@ -860,6 +869,12 @@ function RepositoryWorkspace({
                                   unavailableReason: partialDiff.unavailableReason,
                                   staged: selectedFile.staged,
                                   refreshing: diffRefreshing,
+                                  preparing: diffRefreshing && partialDiffEnabled,
+                                  onEnable: () =>
+                                    preparePartialDiff(id, {
+                                      file: selectedFile.path,
+                                      staged: selectedFile.staged,
+                                    }),
                                   onChanged: () => fetchStatus(id, true),
                                 }
                               : undefined
