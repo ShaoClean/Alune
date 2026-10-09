@@ -11,7 +11,7 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import { gitApi } from '../api';
-import { useRepositoryStore } from '../stores/repositoryStore';
+import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { useBranchSwitch } from '../hooks/useBranchSwitch';
 import { ToolbarButton } from '@alune/ui';
 import { NewBranchDialog } from './BranchesView';
@@ -35,7 +35,7 @@ export function BranchPicker({
 }) {
   const navigate = useNavigate();
   const message = useFeedbackMessage();
-  const branches = useRepositoryStore((state) => state.branches);
+  const branches = useWorkspaceData(repoId, (workspace) => workspace.branches);
   const fetchBranches = useRepositoryStore((state) => state.fetchBranches);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');

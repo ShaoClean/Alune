@@ -25,7 +25,7 @@ import {
   EyeInvisibleOutlined,
   ExportOutlined,
 } from '@ant-design/icons';
-import { useRepositoryStore } from '../stores/repositoryStore';
+import { useRepositoryStatusData, useRepositoryStore } from '../stores/repositoryStore';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { gitApi } from '../api';
 import { EmptyState, ErrorState, FileIcon, FolderIcon, LoadingState, PanelHeader } from '@alune/ui';
@@ -118,8 +118,11 @@ export function ChangesView({
     };
   }, [repoId]);
   const { entry, stale } = useRepositoryStatus(repoId);
-  const { status, fetchStatus, repositories } = useRepositoryStore();
-  const repoName = repositories.find((repo) => repo.id === repoId)?.name;
+  const status = useRepositoryStatusData(repoId);
+  const fetchStatus = useRepositoryStore((state) => state.fetchStatus);
+  const repoName = useRepositoryStore(
+    (state) => state.repositories.find((repo) => repo.id === repoId)?.name,
+  );
   const draft = useCommitDraftStore((state) => state.drafts[repoId] || EMPTY_DRAFT);
   const { updateDraft, clearSubmittedDraft } = useCommitDraftStore();
   const [discardConfirmed, setDiscardConfirmed] = useState(false);

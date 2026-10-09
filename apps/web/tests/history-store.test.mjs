@@ -20,9 +20,10 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 let store;
+const ws = (id = 'a') => store.getState().workspaces[id];
 beforeEach(() => {
   store = createRepositoryStore();
-  store.getState().resetWorkspace('a');
+  store.getState().activateWorkspace('a');
 });
 
 test('pages append once and use server offsets even when defensive deduplication removes a row', async () => {
@@ -32,15 +33,15 @@ test('pages append once and use server offsets even when defensive deduplication
     return calls.length === 1 ? page(['a', 'b'], true, 50) : page(['b', 'c'], false, 100);
   };
   await store.getState().fetchLog('a');
-  const generation = store.getState().logGeneration;
+  const generation = ws().logGeneration;
   await store.getState().fetchLog('a', 'more');
   assert.deepEqual(
-    store.getState().log.map((item) => item.hash),
+    ws().log.map((item) => item.hash),
     ['a', 'b', 'c'],
   );
   assert.deepEqual(calls[1], { count: 50, skip: 50, revision: 'r1' });
-  assert.equal(store.getState().logNextSkip, 100);
-  assert.equal(store.getState().logGeneration, generation);
+  assert.equal(ws().logNextSkip, 100);
+  assert.equal(ws().logGeneration, generation);
   await store.getState().fetchLog('a', 'more');
   assert.equal(calls.length, 2);
 });
@@ -57,19 +58,19 @@ test('duplicate loading clicks share one append and failures preserve data for r
   const first = store.getState().fetchLog('a', 'more');
   await store.getState().fetchLog('a', 'more');
   assert.equal(calls, 1);
-  assert.equal(store.getState().logLoadingMore, true);
+  assert.equal(ws().logLoadingMore, true);
   pending.reject(new Error('offline'));
   await first;
   assert.deepEqual(
-    store.getState().log.map((item) => item.hash),
+    ws().log.map((item) => item.hash),
     ['a'],
   );
-  assert.equal(store.getState().logError, 'offline');
-  assert.equal(store.getState().logErrorMode, 'more');
+  assert.equal(ws().logError, 'offline');
+  assert.equal(ws().logErrorMode, 'more');
   repositoryApi.log = async () => page(['b']);
   await store.getState().fetchLog('a', 'more');
   assert.deepEqual(
-    store.getState().log.map((item) => item.hash),
+    ws().log.map((item) => item.hash),
     ['a', 'b'],
   );
 });
@@ -85,16 +86,16 @@ test('refresh replaces only on success and supersedes an older append response',
   };
   await store.getState().fetchLog('a');
   assert.deepEqual(
-    store.getState().log.map((item) => item.hash),
+    ws().log.map((item) => item.hash),
     ['a'],
   );
-  assert.equal(store.getState().logErrorMode, 'refresh');
+  assert.equal(ws().logErrorMode, 'refresh');
   repositoryApi.log = async () => page(['new']);
   await store.getState().fetchLog('a');
   pending.resolve(page(['stale']));
   await append;
   assert.deepEqual(
-    store.getState().log.map((item) => item.hash),
+    ws().log.map((item) => item.hash),
     ['new'],
   );
 });
@@ -110,15 +111,15 @@ test('reference changes keep the visible history but prevent appending until ref
   await store.getState().fetchLog('a', 'more');
   await store.getState().fetchLog('a', 'more');
   assert.equal(calls, 1);
-  assert.equal(store.getState().logChanged, true);
-  assert.equal(store.getState().log[0].hash, 'a');
+  assert.equal(ws().logChanged, true);
+  assert.equal(ws().log[0].hash, 'a');
   repositoryApi.log = async () => page(['b'], false, 1, 'r2');
   await store.getState().fetchLog('a');
-  assert.equal(store.getState().logChanged, false);
-  assert.equal(store.getState().logRevision, 'r2');
+  assert.equal(ws().logChanged, false);
+  assert.equal(ws().logRevision, 'r2');
 });
 
-test('switching repositories aborts and discards stale reads and clears every pagination field', async () => {
+test('each tab keeps its own history while another is shown; closing a tab aborts its reads', async () => {
   const pending = deferred();
   let signal;
   repositoryApi.log = (_id, _options, incoming) => {
@@ -126,18 +127,36 @@ test('switching repositories aborts and discards stale reads and clears every pa
     return pending.promise;
   };
   const first = store.getState().fetchLog('a');
-  store.getState().resetWorkspace('b');
-  assert.equal(signal.aborted, true);
-  assert.equal(store.getState().logRevision, null);
+  store.getState().activateWorkspace('b');
+  assert.equal(signal.aborted, false, 'a hidden tab keeps loading');
   repositoryApi.log = async () => page(['b']);
   await store.getState().fetchLog('b');
   pending.resolve(page(['a'], true));
   await first;
   assert.deepEqual(
-    store.getState().log.map((item) => item.hash),
+    ws('a').log.map((item) => item.hash),
+    ['a'],
+  );
+  assert.equal(ws('a').logHasMore, true);
+  assert.deepEqual(
+    ws('b').log.map((item) => item.hash),
     ['b'],
   );
-  assert.equal(store.getState().logHasMore, false);
+  assert.equal(ws('b').logHasMore, false);
+  const late = deferred();
+  repositoryApi.log = (_id, _options, incoming) => {
+    signal = incoming;
+    return late.promise;
+  };
+  const closing = store.getState().fetchLog('a');
+  store.getState().disposeWorkspaces(['a']);
+  assert.equal(signal.aborted, true);
+  late.resolve(page(['late']));
+  await closing;
+  assert.equal(ws('a'), undefined, 'a late page cannot resurrect a closed tab');
+  store.getState().activateWorkspace('a');
+  assert.deepEqual(ws('a').log, []);
+  assert.equal(ws('a').logRevision, null);
 });
 
 test('commit-file failures belong only to the selected commit and cannot duplicate a global notice', async () => {
@@ -145,8 +164,8 @@ test('commit-file failures belong only to the selected commit and cannot duplica
     throw new Error('commit files unavailable');
   };
   await store.getState().fetchCommitFiles('a', 'commit-a');
-  assert.equal(store.getState().commitFilesError, 'commit files unavailable');
-  assert.equal(store.getState().error, null);
+  assert.equal(ws().commitFilesError, 'commit files unavailable');
+  assert.equal(ws().error, null);
 });
 
 test('blame jumps start at an older commit and pagination retains that revision scope', async () => {
@@ -163,7 +182,7 @@ test('blame jumps start at an older commit and pagination retains that revision 
   assert.deepEqual(calls[1], { count: 50, branch: 'old', skip: 50, revision: 'focused' });
   await store.getState().fetchLog('a');
   assert.equal(calls[2].branch, undefined);
-  assert.equal(store.getState().logBranch, undefined);
+  assert.equal(ws().logBranch, undefined);
 });
 
 test('filters reach every page, survive refreshes and are cleared by a jump to one commit', async () => {
@@ -192,11 +211,12 @@ test('filters reach every page, survive refreshes and are cleared by a jump to o
   assert.deepEqual(calls[2], expected);
   await store.getState().fetchLog('a', 'refresh', 'old');
   assert.deepEqual(calls[3], { count: 50, branch: 'old' });
-  assert.deepEqual(store.getState().logFilter, {});
+  assert.deepEqual(ws().logFilter, {});
   await store.getState().setLogFilter('a', { follow: true });
   assert.deepEqual(calls[4], { count: 50 }, 'rename tracking needs a file');
-  store.getState().resetWorkspace('b');
-  assert.deepEqual(store.getState().logFilter, {});
+  store.getState().activateWorkspace('b');
+  assert.deepEqual(ws('b').logFilter, {});
+  assert.deepEqual(ws('a').logFilter, { follow: true }, 'another tab keeps its filter');
 });
 
 test('filters that hide commits switch the graph to a chain; a path alone keeps the topology', async () => {

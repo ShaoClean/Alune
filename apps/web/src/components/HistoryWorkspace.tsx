@@ -1,6 +1,6 @@
 import { useCommitSignatures } from '../hooks/useCommitSignatures';
 import { CommitSignatureBadge } from './CommitSignatureBadge';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CommitFile, GraphCommit } from '@alune/shared';
 import { Button } from '@alune/ui';
@@ -10,8 +10,13 @@ import { repositoryApi } from '../api';
 import { DiffViewer } from './DiffViewer';
 import { FileIcon, ErrorState } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
-import { historyFilterActive, useRepositoryStore } from '../stores/repositoryStore';
+import {
+  historyFilterActive,
+  useRepositoryStore,
+  useWorkspaceData,
+} from '../stores/repositoryStore';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
+import { useRepositoryWorkspace } from '../hooks/useRepositoryWorkspace';
 import { CreateTagDialog } from './CreateTagDialog';
 
 const statuses = { added: 'A', modified: 'M', deleted: 'D', renamed: 'R', copied: 'C' };
@@ -27,22 +32,36 @@ const followedFile = (commit: GraphCommit): CommitFile | null =>
 
 export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targetHash?: string }) {
   const { compact, updateLayout } = useWorkspaceLayout();
+  const { fetchLog, fetchCommitFiles, fetchDiff } = useRepositoryStore.getState();
+  const clearDiff = useCallback(
+    () => useRepositoryStore.getState().clearDiff(repoId, 'commit'),
+    [repoId],
+  );
+  // False while another panel or tab is in front; this panel stays mounted meanwhile.
+  const shown = useRepositoryWorkspace()?.active ?? true;
   const {
     log,
     logGeneration,
     logBranch,
     logFilter,
-    fetchLog,
     commitFiles,
     commitFilesLoading,
     commitFilesError,
     diff,
     diffLoading,
     diffError,
-    fetchCommitFiles,
-    fetchDiff,
-    clearDiff,
-  } = useRepositoryStore();
+  } = useWorkspaceData(repoId, (workspace) => ({
+    log: workspace.log,
+    logGeneration: workspace.logGeneration,
+    logBranch: workspace.logBranch,
+    logFilter: workspace.logFilter,
+    commitFiles: workspace.commitFiles,
+    commitFilesLoading: workspace.commitFilesLoading,
+    commitFilesError: workspace.commitFilesError,
+    diff: workspace.commitDiff.diff,
+    diffLoading: workspace.commitDiff.diffLoading,
+    diffError: workspace.commitDiff.diffError,
+  }));
   const [jumpError, setJumpError] = useState<string>();
   const [jumpAttempt, setJumpAttempt] = useState(0);
   const [selected, setSelected] = useState<GraphCommit | null>(null);
@@ -92,7 +111,9 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
       ([commit]) => {
         if (!controller.signal.aborted) {
           setSelected(
-            useRepositoryStore.getState().log.find((item) => item.hash === commit.hash) ?? commit,
+            useRepositoryStore
+              .getState()
+              .workspaces[repoId]?.log.find((item) => item.hash === commit.hash) ?? commit,
           );
           setFile(null);
         }
@@ -126,7 +147,7 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
     if (selected) void fetchCommitFiles(repoId, selected.hash);
   }, [repoId, selected?.hash, fetchCommitFiles]);
   useLayoutEffect(() => {
-    if (selected) void fetchDiff(repoId, { commit: selected.hash, file: file?.path });
+    if (selected) void fetchDiff(repoId, { commit: selected.hash, file: file?.path }, 'commit');
     else clearDiff();
     return clearDiff;
   }, [repoId, selected?.hash, file?.path, fetchDiff, clearDiff]);
@@ -166,7 +187,7 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
           repoId={repoId}
           selectedHash={selected?.hash}
           revealHash={reveal}
-          visible={!selected || (!compact && !focusDiff)}
+          visible={shown && (!selected || (!compact && !focusDiff))}
           onSelectCommit={(commit) => {
             setSelected(commit);
             setFile(followedFile(commit));

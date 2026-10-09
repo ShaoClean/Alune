@@ -2,7 +2,8 @@ import { usePullRequestCenter } from '../stores/pullRequestCenter';
 import { CreatePullRequestDialog } from './CreatePullRequestDialog';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useWorkspaceLocation } from '../hooks/useRepositoryWorkspace';
 import { Button, DialogIcon, Empty, Input, Segmented, Select, Spin, Tag } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import type {
@@ -97,7 +98,7 @@ function RemotePullRequests({
   refreshToken: number;
 }) {
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useWorkspaceLocation();
   const message = useFeedbackMessage();
   const [creating, setCreating] = useState(
     () => new URLSearchParams(location.search).get('createPr') === '1',
@@ -609,7 +610,7 @@ export function PullRequestsView({
   refreshToken?: number;
 }) {
   const [remotes, setRemotes] = useState<PullRequestRemote[]>([]);
-  const location = useLocation();
+  const location = useWorkspaceLocation();
   const [selected, setSelected] = useState(
     () => new URLSearchParams(location.search).get('remote') || '',
   );

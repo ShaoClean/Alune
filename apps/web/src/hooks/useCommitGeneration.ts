@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useWorkspaceLocation } from './useRepositoryWorkspace';
 import { aiApi, aiError } from '../api/ai';
 import { defaultCommitModel, useAiSettingsStore } from '../stores/aiSettingsStore';
 import { useCommitDraftStore } from '../stores/commitDraftStore';
 
 export function useCommitGeneration(repoId: string, stagedSignature: string, stagedCount: number) {
-  const location = useLocation();
+  const location = useWorkspaceLocation();
   const navigate = useNavigate();
   const settings = useAiSettingsStore((state) => state.settings);
   const undo = useCommitDraftStore((state) => state.undo[repoId]);

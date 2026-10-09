@@ -11,7 +11,7 @@ import {
   ReloadOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
-import { useRepositoryStore } from '../stores/repositoryStore';
+import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { gitApi } from '../api';
 import { useBranchSwitch } from '../hooks/useBranchSwitch';
 import { ErrorState, EmptyState, PanelHeader, StatusBadge } from '@alune/ui';
@@ -21,11 +21,13 @@ import { DialogIcon } from '@alune/ui';
 import { TagsView } from './TagsView';
 
 function useBranchDialogContext(repoId: string) {
-  const branches = useRepositoryStore((state) => state.branches);
-  const repoName = useRepositoryStore((state) =>
-    state.currentRepo?.id === repoId
-      ? state.currentRepo?.name
-      : state.repositories.find((repo: any) => repo.id === repoId)?.name,
+  const branches = useWorkspaceData(repoId, (workspace) => workspace.branches);
+  const repoName = useRepositoryStore(
+    (state) =>
+      (
+        state.openRepositories.find((repo: any) => repo.id === repoId) ??
+        state.repositories.find((repo: any) => repo.id === repoId)
+      )?.name,
   );
   const localNames = useMemo(
     () => new Set<string>(branches.filter((b: any) => !b.isRemote).map((b: any) => b.name)),
@@ -114,7 +116,12 @@ interface Props {
 export function BranchesView({ repoId, onRefresh, refreshToken }: Props) {
   const navigate = useNavigate();
   const message = useFeedbackMessage();
-  const { branches, fetchBranches, error, errorPanel } = useRepositoryStore();
+  const fetchBranches = useRepositoryStore((state) => state.fetchBranches);
+  const { branches, error, errorPanel } = useWorkspaceData(repoId, (workspace) => ({
+    branches: workspace.branches,
+    error: workspace.error,
+    errorPanel: workspace.errorPanel,
+  }));
   // P02 reads the working tree so the merge prompt states the real number of changes.
   const changedFiles = useRepositoryStore(
     (state) => state.repositoryStatuses[repoId]?.data?.files.length ?? null,

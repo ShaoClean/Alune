@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Button, Input, Segmented, Switch } from '@alune/ui';
 import { FileOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
-import { historyFilterActive, useRepositoryStore } from '../stores/repositoryStore';
+import {
+  historyFilterActive,
+  useRepositoryStore,
+  useWorkspaceData,
+} from '../stores/repositoryStore';
 import type { HistoryFilter } from '../stores/repositoryStore';
 import { draftFilter, toDraft } from './history-filter';
 import type { Draft } from './history-filter';
@@ -17,7 +21,7 @@ const key = (filter: HistoryFilter) =>
 const same = (a: HistoryFilter, b: HistoryFilter) => key(a) === key(b);
 
 export function HistoryFilterBar({ repoId, actions }: { repoId: string; actions?: ReactNode }) {
-  const logFilter = useRepositoryStore((state) => state.logFilter);
+  const logFilter = useWorkspaceData(repoId, (workspace) => workspace.logFilter);
   const setLogFilter = useRepositoryStore((state) => state.setLogFilter);
   const [draft, setDraft] = useState(() => toDraft(logFilter));
   const applied = useRef(logFilter);

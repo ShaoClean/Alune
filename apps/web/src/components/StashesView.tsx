@@ -2,7 +2,7 @@ import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input } from '@alune/ui';
 import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
-import { useRepositoryStore } from '../stores/repositoryStore';
+import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { gitApi } from '../api';
 import { AlunePopconfirm } from '@alune/ui';
 import { AluneModal, CheckCard, DialogHints, Kbd } from '@alune/ui';
@@ -170,7 +170,12 @@ interface Props {
 
 export function StashesView({ repoId, onRefresh }: Props) {
   const message = useFeedbackMessage();
-  const { stashes, fetchStashes, error, errorPanel } = useRepositoryStore();
+  const fetchStashes = useRepositoryStore((state) => state.fetchStashes);
+  const { stashes, error, errorPanel } = useWorkspaceData(repoId, (workspace) => ({
+    stashes: workspace.stashes,
+    error: workspace.error,
+    errorPanel: workspace.errorPanel,
+  }));
   const repoName = useRepositoryStore(
     (state) => state.repositories.find((repo) => repo.id === repoId)?.name,
   );

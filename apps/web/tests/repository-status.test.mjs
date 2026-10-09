@@ -33,6 +33,8 @@ const deferred = () => {
 };
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 let store;
+const ws = (id) => store.getState().workspaces[id];
+const statusOf = (id) => store.getState().repositoryStatuses[id]?.data ?? null;
 beforeEach(() => {
   store = createRepositoryStore();
   workspace.setState(workspace.getInitialState(), true);
@@ -43,7 +45,13 @@ beforeEach(() => {
 });
 
 test('first list failure is distinct from an empty successful registry and from Git errors', async () => {
-  store.setState({ error: 'an unrelated Git error' });
+  store.getState().activateWorkspace('a');
+  store.setState((state) => ({
+    workspaces: {
+      ...state.workspaces,
+      a: { ...state.workspaces.a, error: 'an unrelated Git error' },
+    },
+  }));
   repositoryApi.list = async () => {
     throw new Error('registry offline');
   };
@@ -51,7 +59,7 @@ test('first list failure is distinct from an empty successful registry and from 
   assert.equal(store.getState().listLoaded, false);
   assert.equal(store.getState().listLoading, false);
   assert.equal(store.getState().listError, 'registry offline');
-  assert.equal(store.getState().error, 'an unrelated Git error');
+  assert.equal(ws('a').error, 'an unrelated Git error');
   repositoryApi.list = async () => [];
   await store.getState().fetchRepositories();
   assert.equal(store.getState().listLoaded, true);
@@ -95,7 +103,7 @@ test('background concurrency is bounded, the current repository has a reserved s
   const stops = ['a', 'b', 'c'].map((id) => store.getState().observeRepository(id));
   await flush();
   assert.deepEqual(calls, ['a', 'b']);
-  store.getState().resetWorkspace('current');
+  store.getState().activateWorkspace('current');
   const current = store.getState().fetchStatus('current');
   await flush();
   assert.deepEqual(calls, ['a', 'b', 'current']);
@@ -110,7 +118,7 @@ test('background concurrency is bounded, the current repository has a reserved s
   await current;
   await flush();
   assert.equal(store.getState().repositoryStatuses.a.phase, 'error');
-  assert.equal(store.getState().status.branch, 'active');
+  assert.equal(statusOf('current').branch, 'active');
   assert.equal(store.getState().repositories.length, 3);
   stops.forEach((stop) => stop());
 });
@@ -125,7 +133,7 @@ test('the current repository is promoted ahead of queued visible work', async ()
     return item.promise;
   };
   const stops = ['a', 'b', 'c', 'd'].map((id) => store.getState().observeRepository(id));
-  store.getState().resetWorkspace('d');
+  store.getState().activateWorkspace('d');
   const current = store.getState().fetchStatus('d');
   await flush();
   assert.deepEqual(calls, ['d', 'a', 'b']);
@@ -218,21 +226,21 @@ test('switching cancels the previous foreground read and ignores its late respon
   const a = deferred(),
     b = deferred();
   repositoryApi.status = (id) => (id === 'a' ? a.promise : b.promise);
-  store.getState().resetWorkspace('a');
+  store.getState().activateWorkspace('a');
   store.getState().setCurrentRepo(repo('a'));
   const first = store.getState().fetchStatus('a');
-  store.getState().resetWorkspace('b');
+  store.getState().activateWorkspace('b');
   store.getState().setCurrentRepo(repo('b'));
   const second = store.getState().fetchStatus('b');
   b.resolve(status('new'));
   await second;
   a.resolve(status('old'));
   await first;
-  assert.equal(store.getState().status.branch, 'new');
+  assert.equal(statusOf('b').branch, 'new');
   assert.equal(store.getState().currentRepo.id, 'b');
   assert.equal(store.getState().repositoryStatuses.a, undefined);
-  store.getState().resetWorkspace('a');
-  assert.equal(store.getState().status, null);
+  store.getState().activateWorkspace('a');
+  assert.equal(statusOf('a'), null);
 });
 
 test('deletion aborts pending status and late status or metadata cannot resurrect it', async () => {
@@ -243,7 +251,7 @@ test('deletion aborts pending status and late status or metadata cannot resurrec
     signal = abortSignal;
     return pending.promise;
   };
-  store.getState().resetWorkspace('a');
+  store.getState().activateWorkspace('a');
   store.getState().openRepository(repo('a'));
   const refresh = store.getState().fetchStatus('a');
   await flush();
@@ -259,7 +267,7 @@ test('deletion aborts pending status and late status or metadata cannot resurrec
     false,
   );
   assert.equal(store.getState().openRepositories.length, 0);
-  assert.equal(store.getState().status, null);
+  assert.equal(ws('a'), undefined);
   assert.equal(store.getState().currentRepo, null);
   assert.deepEqual(workspace.getState().repositoryOrderByConnection['host-a'], ['b']);
 });
@@ -292,7 +300,7 @@ test('deletion failure preserves the registered repository and workspace state',
 });
 
 test('a Git mutation waits for a pre-mutation read, then shares a fresh validation request', async () => {
-  store.getState().resetWorkspace('a');
+  store.getState().activateWorkspace('a');
   const pending = deferred();
   let calls = 0;
   repositoryApi.status = () =>
@@ -305,16 +313,16 @@ test('a Git mutation waits for a pre-mutation read, then shares a fresh validati
   pending.resolve(status('before-write'));
   await Promise.all([before, after, duplicate]);
   assert.equal(calls, 2);
-  assert.equal(store.getState().status.branch, 'after-write');
-  assert.equal(store.getState().worktreeDiffRevision, 1, 'shared validation invalidates once');
+  assert.equal(statusOf('a').branch, 'after-write');
+  assert.equal(ws('a').worktreeDiffRevision, 1, 'shared validation invalidates once');
 });
 
 test('background status and cached reopening do not invalidate the active Diff', async () => {
-  store.getState().resetWorkspace('a');
+  store.getState().activateWorkspace('a');
   await store.getState().fetchStatus('a');
-  store.getState().resetWorkspace();
-  store.getState().resetWorkspace('a');
-  const cached = store.getState().status;
+  store.getState().activateWorkspace();
+  store.getState().activateWorkspace('a');
+  const cached = statusOf('a');
   for (let cycle = 0; cycle < 3; cycle++) {
     store.setState((state) => ({
       repositoryStatuses: {
@@ -325,28 +333,28 @@ test('background status and cached reopening do not invalidate the active Diff',
     const unobserve = store.getState().observeRepository('a');
     await flush();
     unobserve();
-    assert.equal(store.getState().worktreeDiffRevision, 0);
+    assert.equal(ws('a').worktreeDiffRevision, 0);
   }
-  assert.notEqual(store.getState().status, cached, 'status itself still refreshes');
+  assert.notEqual(statusOf('a'), cached, 'status itself still refreshes');
   await store.getState().refreshRepositoryStatuses(['a']);
-  assert.equal(store.getState().worktreeDiffRevision, 1, 'manual refresh invalidates');
+  assert.equal(ws('a').worktreeDiffRevision, 1, 'manual refresh invalidates');
 });
 
 test('post-mutation status failure still invalidates the preview, background failure does not', async () => {
-  store.getState().resetWorkspace('a');
+  store.getState().activateWorkspace('a');
   await store.getState().fetchStatus('a');
   repositoryApi.status = async () => {
     throw new Error('offline');
   };
   await store.getState().fetchStatus('a');
-  assert.equal(store.getState().worktreeDiffRevision, 0);
+  assert.equal(ws('a').worktreeDiffRevision, 0);
   await store.getState().fetchStatus('a', true);
-  assert.equal(store.getState().worktreeDiffRevision, 1);
+  assert.equal(ws('a').worktreeDiffRevision, 1);
   assert.equal(store.getState().repositoryStatuses.a.phase, 'error');
 });
 
 test('cancelling a retry preserves a previously failed cache as stale until a successful read', async () => {
-  store.getState().resetWorkspace('a');
+  store.getState().activateWorkspace('a');
   await store.getState().fetchStatus('a');
   repositoryApi.status = async () => {
     throw new Error('offline');
@@ -356,13 +364,13 @@ test('cancelling a retry preserves a previously failed cache as stale until a su
   repositoryApi.status = () => pending.promise;
   const retry = store.getState().fetchStatus('a');
   await flush();
-  store.getState().resetWorkspace('b');
+  store.getState().activateWorkspace('b');
   await retry;
   pending.resolve(status('late'));
   await flush();
   assert.equal(store.getState().repositoryStatuses.a.stale, true);
   assert.equal(store.getState().repositoryStatuses.a.data.branch, 'main');
-  store.getState().resetWorkspace('a');
+  store.getState().activateWorkspace('a');
   repositoryApi.status = async () => status('recovered');
   await store.getState().fetchStatus('a');
   assert.equal(store.getState().repositoryStatuses.a.stale, false);

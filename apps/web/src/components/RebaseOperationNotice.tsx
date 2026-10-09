@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useRepositoryWorkspace } from '../hooks/useRepositoryWorkspace';
 import { AluneModal, Button, Input, useFeedbackMessage } from '@alune/ui';
 import type { RebaseConflict, RebaseState, RebaseResolution } from '@alune/shared';
 import { gitApi } from '../api';
@@ -202,10 +203,12 @@ export function RebaseOperationNotice({
   }, [state?.managed]);
   const pending = useRef(false);
   const pollingRevision = useRef(0);
+  const active = useRepositoryWorkspace()?.active ?? true;
+  // Survives hiding the tab, so a rebase that ends meanwhile still refreshes it.
+  const previousActive = useRef(false);
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
-    let previous = false;
     const read = async () => {
       clearTimeout(timer);
       const revision = ++pollingRevision.current;
@@ -218,16 +221,17 @@ export function RebaseOperationNotice({
         setState(value);
         setRunning(!!operation);
         setError((current) => (current.startsWith('读取变基状态失败：') ? '' : current));
-        if (previous && !value.active) callback.current();
-        previous = value.active;
+        if (previousActive.current && !value.active) callback.current();
+        previousActive.current = value.active;
       } catch (error: any) {
-        if (!stopped && previous) {
+        if (!stopped && previousActive.current) {
           setError(`读取变基状态失败：${error.message}`);
           setRunning(true);
         }
       }
-      if (!stopped && revision === pollingRevision.current)
-        timer = setTimeout(() => void read(), previous ? 2000 : 5000);
+      // A hidden tab only keeps watching a rebase it saw in progress.
+      if (!stopped && revision === pollingRevision.current && (active || previousActive.current))
+        timer = setTimeout(() => void read(), previousActive.current ? 2000 : 5000);
     };
     const changed = (event: Event) => {
       if ((event as CustomEvent<string>).detail !== repoId) return;
@@ -235,14 +239,14 @@ export function RebaseOperationNotice({
       void read();
     };
     window.addEventListener('alune:rebase-changed', changed);
-    void read();
+    if (active || previousActive.current) void read();
     return () => {
       stopped = true;
       pollingRevision.current++;
       clearTimeout(timer);
       window.removeEventListener('alune:rebase-changed', changed);
     };
-  }, [repoId]);
+  }, [repoId, active]);
 
   const control = async (action: 'continue' | 'skip' | 'abort') => {
     if (pending.current) return;

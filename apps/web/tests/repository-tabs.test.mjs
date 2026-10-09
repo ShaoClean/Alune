@@ -9,6 +9,15 @@ globalThis.localStorage = {
   removeItem: () => {},
 };
 const { createRepositoryStore } = await import('../src/stores/repositoryStore.ts');
+const { repositoryApi } = await import('../src/api/index.ts');
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
 const repo = (id) => ({ id, name: id, path: `/repos/${id}` });
 const ids = (store) => store.getState().openRepositories.map((item) => item.id);
 
@@ -99,12 +108,12 @@ test('switching workspaces retains each tab selection, including the staged side
     ['b', b],
   ]) {
     store.getState().openRepository(repo(id));
-    store.getState().resetWorkspace(id);
+    store.getState().activateWorkspace(id);
     store.getState().selectRepositoryFile(id, file);
-    store.getState().clearDiff();
-    store.getState().resetWorkspace();
+    store.getState().clearDiff(id);
+    store.getState().activateWorkspace();
   }
-  store.getState().resetWorkspace('a');
+  store.getState().activateWorkspace('a');
   assert.deepEqual(store.getState().selectedFiles, { a, b });
   store.getState().selectRepositoryFile('a', null);
   assert.deepEqual(store.getState().selectedFiles, { b });
@@ -125,4 +134,88 @@ test('closing or forgetting tabs discards only their selections and late updates
   store.getState().forgetRepositories(['c']);
   store.getState().selectRepositoryFile('c', file);
   assert.deepEqual(store.getState().selectedFiles, {});
+});
+
+test('showing another tab keeps every hidden tab’s loaded panels and preview', async () => {
+  const store = createRepositoryStore();
+  const ws = (id) => store.getState().workspaces[id];
+  repositoryApi.branches = async (id) => [{ name: `${id}-main` }];
+  repositoryApi.stashes = async (id) => [{ index: 0, message: `${id} stash` }];
+  repositoryApi.remotes = async (id) => [{ name: `${id}-origin` }];
+  repositoryApi.diff = async (id) => `${id} commit diff`;
+  for (const id of ['a', 'b']) {
+    store.getState().openRepository(repo(id));
+    store.getState().activateWorkspace(id);
+    await Promise.all([
+      store.getState().fetchBranches(id),
+      store.getState().fetchStashes(id),
+      store.getState().fetchRemotes(id),
+      store.getState().fetchDiff(id, { commit: 'abc' }),
+    ]);
+  }
+  const hidden = ws('a');
+  store.getState().activateWorkspace('a');
+  store.getState().activateWorkspace('b');
+  assert.equal(ws('a'), hidden, 'switching does not touch a hidden tab');
+  assert.deepEqual(ws('a').branches, [{ name: 'a-main' }]);
+  assert.deepEqual(ws('a').stashes, [{ index: 0, message: 'a stash' }]);
+  assert.deepEqual(ws('a').remotes, [{ name: 'a-origin' }]);
+  assert.equal(ws('a').diff, 'a commit diff');
+  assert.equal(ws('b').diff, 'b commit diff');
+  repositoryApi.branches = async () => {
+    throw new Error('b offline');
+  };
+  await store.getState().fetchBranches('b');
+  assert.equal(ws('b').error, 'b offline');
+  assert.equal(ws('a').error, null, 'one tab’s failure is not shown in another');
+});
+
+test('closing a tab drops its workspace and aborts its reads; late replies cannot restore it', async () => {
+  const store = createRepositoryStore();
+  const branches = deferred();
+  const diff = deferred();
+  let signal;
+  repositoryApi.branches = () => branches.promise;
+  repositoryApi.diff = (_id, _params, incoming) => {
+    signal = incoming;
+    return diff.promise;
+  };
+  store.getState().openRepository(repo('a'));
+  store.getState().openRepository(repo('b'));
+  store.getState().activateWorkspace('a');
+  store.getState().activateWorkspace('b');
+  const reads = [
+    store.getState().fetchBranches('a'),
+    store.getState().fetchDiff('a', { commit: 'abc' }),
+  ];
+  store.getState().closeRepository('a');
+  assert.equal(signal.aborted, true);
+  assert.equal(store.getState().workspaces.a, undefined);
+  assert.ok(store.getState().workspaces.b, 'other tabs stay open');
+  branches.resolve([{ name: 'late' }]);
+  diff.resolve('late diff');
+  await Promise.all(reads);
+  assert.equal(store.getState().workspaces.a, undefined);
+  store.getState().openRepository(repo('a'));
+  store.getState().activateWorkspace('a');
+  assert.deepEqual(store.getState().workspaces.a.branches, []);
+  assert.equal(store.getState().workspaces.a.diff, '');
+});
+
+test('a status read validating a Git write keeps running after its tab is hidden', async () => {
+  const store = createRepositoryStore();
+  const write = deferred();
+  repositoryApi.status = (id) =>
+    id === 'a' ? write.promise : Promise.resolve({ branch: id, files: [] });
+  store.getState().openRepository(repo('a'));
+  store.getState().activateWorkspace('a');
+  const validation = store.getState().fetchStatus('a', true);
+  await flush();
+  store.getState().activateWorkspace('b');
+  await store.getState().fetchStatus('b');
+  write.resolve({ branch: 'after-push', files: [] });
+  await validation;
+  assert.equal(store.getState().repositoryStatuses.a.data.branch, 'after-push');
+  assert.equal(store.getState().workspaces.a.worktreeDiffRevision, 1);
+  assert.equal(store.getState().workspaces.b.worktreeDiffRevision, 0);
 });
