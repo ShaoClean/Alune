@@ -324,6 +324,8 @@ for (const shell of ['cmd.exe', 'powershell.exe']) {
       );
       const cwd = path.join(root, "中文 [repo] ' ; $variable & %TEMP%");
       fs.mkdirSync(cwd);
+      const marker = randomUUID();
+      fs.writeFileSync(path.join(cwd, 'cwd-marker.txt'), marker);
       const remote = await terminalSSH('windows', { shell });
       const connection = new SSHConnection(remote.options);
       connection.on('error', () => {});
@@ -374,9 +376,10 @@ for (const shell of ['cmd.exe', 'powershell.exe']) {
       transport.resume();
       await until(() => output.includes('PS '));
       transport.resize(120, 35);
-      const literal = `'${cwd.replace(/'/g, "''")}'`;
+      // Windows may expand 8.3 path aliases in the prompt. Reading a unique
+      // relative file proves the working directory without comparing aliases.
       transport.write(
-        `if ((Get-Location).Path -eq ${literal}) { 'CWD_' + 'OK' } else { 'CWD_' + 'WRONG' }\r`,
+        `if ((Get-Content -LiteralPath './cwd-marker.txt') -eq '${marker}') { 'CWD_' + 'OK' } else { 'CWD_' + 'WRONG' }\r`,
       );
       await until(
         () => output.includes('CWD_OK') || output.includes('CWD_WRONG'),
