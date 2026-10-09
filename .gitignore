@@ -8,3 +8,4 @@ dist
 apps/desktop/release
 release-notes*.md
 /TODO.md
+.claude
