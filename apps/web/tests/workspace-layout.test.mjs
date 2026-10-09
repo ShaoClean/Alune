@@ -92,7 +92,8 @@ test('old tree preferences survive adding, saving, rehydrating and resetting lay
   assert.equal(workspace.getState().layout.diffMode, 'split');
   workspace.getState().resetLayout();
   assert.deepEqual(workspace.getState().layout, DEFAULT_LAYOUT);
-  assert.equal(workspace.getState().treeOpen, false);
+  assert.equal('treeOpen' in workspace.getState(), false);
+  assert.equal('treeOpen' in JSON.parse(saved.get('alune-workspace')).state, false);
   assert.deepEqual(workspace.getState().connectionOrder, ['b', 'a']);
   assert.deepEqual(workspace.getState().repositoryOrderByConnection, { a: ['r2', 'r1'] });
 });

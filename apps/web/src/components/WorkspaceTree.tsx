@@ -2,13 +2,7 @@ import { FeedbackNotice } from '@alune/ui';
 import { LOCAL_GROUP_ID, repositoryGroupId } from '../stores/repositorySource';
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
-import {
-  LaptopOutlined,
-  DownOutlined,
-  FolderOpenOutlined,
-  HolderOutlined,
-  RightOutlined,
-} from '@ant-design/icons';
+import { LaptopOutlined, HolderOutlined, RightOutlined } from '@ant-design/icons';
 import type { ConnectionStatusInfo, Repository } from '@alune/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
@@ -47,8 +41,6 @@ export function WorkspaceTree({
   onDeleteRepository,
 }: Props) {
   const {
-    treeOpen,
-    setTreeOpen,
     collapsedConnectionIds,
     setConnectionCollapsed,
     connectionOrder,
@@ -234,152 +226,137 @@ export function WorkspaceTree({
 
   return (
     <>
-      <button
-        type="button"
-        className="sidebar-workspace__toggle"
-        aria-expanded={treeOpen || Boolean(search)}
-        aria-controls="remote-workspace-tree"
-        onClick={() => {
-          finishDrag();
-          setTreeOpen(!treeOpen);
+      <div
+        id="remote-workspace-tree"
+        className="resource-tree"
+        ref={tree}
+        onDragOverCapture={autoScroll}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setDropTarget(null);
+            stopScroll();
+          }
+        }}
+        onClickCapture={(event) => {
+          if (dragSource.current || Date.now() < suppressClickUntil.current) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
         }}
       >
-        <FolderOpenOutlined className="sidebar-workspace__icon" />
-        <span>工作区</span>
-        <span className="sidebar-workspace__chevron">
-          {treeOpen ? <DownOutlined /> : <RightOutlined />}
-        </span>
-      </button>
-      {(treeOpen || search) && (
-        <div
-          id="remote-workspace-tree"
-          className="resource-tree"
-          ref={tree}
-          onDragOverCapture={autoScroll}
-          onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-              setDropTarget(null);
-              stopScroll();
-            }
-          }}
-          onClickCapture={(event) => {
-            if (dragSource.current || Date.now() < suppressClickUntil.current) {
-              event.preventDefault();
-              event.stopPropagation();
-            }
-          }}
-        >
-          {listError ? (
-            <FeedbackNotice
-              source="repository-list"
-              title="仓库列表加载失败"
-              description={listError}
-              actionLabel="重试"
-              onAction={fetchRepositories}
-            />
-          ) : (
-            !listLoaded && (
-              <div className="tree-empty" role="status">
-                正在加载已登记仓库…
+        {listError ? (
+          <FeedbackNotice
+            source="repository-list"
+            title="仓库列表加载失败"
+            description={listError}
+            actionLabel="重试"
+            onAction={fetchRepositories}
+          />
+        ) : (
+          !listLoaded && (
+            <div className="tree-empty" role="status">
+              正在加载已登记仓库…
+            </div>
+          )
+        )}
+        {groups.length === 0 && (
+          <div className="tree-empty">{search ? '没有匹配的仓库' : '暂无连接'}</div>
+        )}
+        {groups.map((connection) => {
+          const item: TreeItem = { kind: 'connection', id: connection.id };
+          const open = Boolean(search) || !collapsedConnectionIds.includes(connection.id);
+          const childrenId = `connection-repositories-${connection.id}`;
+          return (
+            <div
+              className={`tree-group${open ? ' tree-group--expanded' : ''}${dropClass(item)}${draggingClass(item)}`}
+              key={connection.id}
+              data-connection-id={connection.id}
+              onDragOver={(event) => dragOver(event, item)}
+              onDrop={(event) => drop(event, item)}
+            >
+              <div className="tree-node tree-node--connection">
+                {sortHandle(item, groups, connection.name)}
+                <button
+                  className="tree-node__action"
+                  type="button"
+                  aria-expanded={open}
+                  aria-controls={childrenId}
+                  onClick={() => setConnectionCollapsed(connection.id, open)}
+                >
+                  <span className="tree-node__chevron" aria-hidden="true">
+                    <RightOutlined />
+                  </span>
+                  {connection.id === LOCAL_GROUP_ID ? (
+                    <LaptopOutlined aria-label="本机" />
+                  ) : (
+                    <span
+                      role="img"
+                      aria-label={`连接状态：${connectionStatusLabel(statuses[connection.id])}`}
+                      title={[
+                        connectionStatusLabel(statuses[connection.id]),
+                        statuses[connection.id]?.error,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                      className={`connection-dot connection-dot--${connectionStatus(statuses[connection.id])}`}
+                    />
+                  )}
+                  <span className="tree-node__label" title={connection.name}>
+                    {connection.name}
+                  </span>
+                  <span className="tree-node__meta">{connection.repositories.length}</span>
+                </button>
               </div>
-            )
-          )}
-          {groups.length === 0 && (
-            <div className="tree-empty">{search ? '没有匹配的仓库' : '暂无连接'}</div>
-          )}
-          {groups.map((connection) => {
-            const item: TreeItem = { kind: 'connection', id: connection.id };
-            const open = Boolean(search) || !collapsedConnectionIds.includes(connection.id);
-            const childrenId = `connection-repositories-${connection.id}`;
-            return (
-              <div
-                className={`tree-group${dropClass(item)}${draggingClass(item)}`}
-                key={connection.id}
-                data-connection-id={connection.id}
-                onDragOver={(event) => dragOver(event, item)}
-                onDrop={(event) => drop(event, item)}
-              >
-                <div className="tree-node tree-node--connection">
-                  {sortHandle(item, groups, connection.name)}
-                  <button
-                    className="tree-node__action"
-                    type="button"
-                    aria-expanded={open}
-                    aria-controls={childrenId}
-                    onClick={() => setConnectionCollapsed(connection.id, open)}
-                  >
-                    <span className="tree-node__chevron">
-                      {open ? <DownOutlined /> : <RightOutlined />}
-                    </span>
-                    {connection.id === LOCAL_GROUP_ID ? (
-                      <LaptopOutlined aria-label="本机" />
-                    ) : (
-                      <span
-                        role="img"
-                        aria-label={`连接状态：${connectionStatusLabel(statuses[connection.id])}`}
-                        title={[
-                          connectionStatusLabel(statuses[connection.id]),
-                          statuses[connection.id]?.error,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                        className={`connection-dot connection-dot--${connectionStatus(statuses[connection.id])}`}
-                      />
-                    )}
-                    <span className="tree-node__label" title={connection.name}>
-                      {connection.name}
-                    </span>
-                    <span className="tree-node__meta">{connection.repositories.length}</span>
-                  </button>
-                </div>
-                <div id={childrenId} className="tree-group__repositories" hidden={!open}>
-                  {connection.repositories.map((repo) => {
-                    const accessibleName = repositoryAccessibleName(repo, connection.name);
-                    const repoItem: TreeItem = {
-                      kind: 'repository',
-                      id: repo.id,
-                      connectionId: connection.id,
-                    };
-                    return (
-                      <div
-                        className={`tree-node tree-node--repo${activeId === repo.id ? ' tree-node--selected' : ''}${dropClass(repoItem)}${draggingClass(repoItem)}`}
-                        key={repo.id}
-                        data-repository-id={repo.id}
-                        onDragOver={(event) => dragOver(event, repoItem)}
-                        onDrop={(event) => drop(event, repoItem)}
+              <div id={childrenId} className="tree-group__repositories" hidden={!open}>
+                {listLoaded && !listError && connection.repositories.length === 0 && (
+                  <div className="tree-empty">暂无仓库</div>
+                )}
+                {connection.repositories.map((repo) => {
+                  const accessibleName = repositoryAccessibleName(repo, connection.name);
+                  const repoItem: TreeItem = {
+                    kind: 'repository',
+                    id: repo.id,
+                    connectionId: connection.id,
+                  };
+                  return (
+                    <div
+                      className={`tree-node tree-node--repo${activeId === repo.id ? ' tree-node--selected' : ''}${dropClass(repoItem)}${draggingClass(repoItem)}`}
+                      key={repo.id}
+                      data-repository-id={repo.id}
+                      onDragOver={(event) => dragOver(event, repoItem)}
+                      onDrop={(event) => drop(event, repoItem)}
+                    >
+                      {sortHandle(repoItem, connection.repositories, accessibleName)}
+                      <RepositoryIdentityTooltip
+                        repo={repo}
+                        source={connection.name}
+                        disabled={Boolean(dragging)}
                       >
-                        {sortHandle(repoItem, connection.repositories, accessibleName)}
-                        <RepositoryIdentityTooltip
-                          repo={repo}
-                          source={connection.name}
-                          disabled={Boolean(dragging)}
+                        <button
+                          type="button"
+                          className="tree-node__action"
+                          aria-label={accessibleName}
+                          onClick={() => onOpenRepository(repo)}
+                          aria-current={activeId === repo.id ? 'page' : undefined}
                         >
-                          <button
-                            type="button"
-                            className="tree-node__action"
-                            aria-label={accessibleName}
-                            onClick={() => onOpenRepository(repo)}
-                            aria-current={activeId === repo.id ? 'page' : undefined}
-                          >
-                            <RepositoryIdentity repo={repo} label={workspaceLabels.get(repo.id)} />
-                            <RepositoryStatusIndicator id={repo.id} compact quiet />
-                          </button>
-                        </RepositoryIdentityTooltip>
-                        <WorkspaceRepositoryActions
-                          repo={repo}
-                          accessibleName={accessibleName}
-                          busy={Boolean(deletingRepositoryId)}
-                          onRemove={() => handleDelete(repo)}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+                          <RepositoryIdentity repo={repo} label={workspaceLabels.get(repo.id)} />
+                          <RepositoryStatusIndicator id={repo.id} compact quiet />
+                        </button>
+                      </RepositoryIdentityTooltip>
+                      <WorkspaceRepositoryActions
+                        repo={repo}
+                        accessibleName={accessibleName}
+                        busy={Boolean(deletingRepositoryId)}
+                        onRemove={() => handleDelete(repo)}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
       <span className="tree-sort-announcement" role="status" aria-live="polite">
         {announcement}
       </span>

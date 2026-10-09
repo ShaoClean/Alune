@@ -27,21 +27,18 @@ beforeEach(() => {
   storage.clear();
 });
 
-test('connection folds are independent and survive root folding and hydration', async () => {
+test('connection folds are independent and survive hydration', async () => {
   seed();
   const state = workspace.getState();
   assert.deepEqual(state.collapsedConnectionIds, []);
   state.setConnectionCollapsed('a', true);
   state.setConnectionCollapsed('b', true);
   state.setConnectionCollapsed('a', false);
-  state.setTreeOpen(false);
-  state.setTreeOpen(true);
   const saved = storage.get('alune-workspace');
   workspace.setState(workspace.getInitialState(), true);
   storage.set('alune-workspace', saved);
   await workspace.persist.rehydrate();
   assert.deepEqual(workspace.getState().collapsedConnectionIds, ['b']);
-  assert.equal(workspace.getState().treeOpen, true);
 });
 
 test('both levels reorder without changing open tabs, selection or repository ownership', () => {

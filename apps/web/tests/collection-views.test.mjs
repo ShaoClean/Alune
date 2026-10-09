@@ -53,7 +53,8 @@ test('independent view choices survive reload, list reconciliation and layout re
     connections: 'list',
   });
   assert.deepEqual(workspace.getState().appearance, existing.appearance);
-  assert.equal(workspace.getState().treeOpen, false);
+  assert.equal('treeOpen' in workspace.getState(), false);
+  assert.equal('treeOpen' in JSON.parse(saved.get('alune-workspace')).state, false);
   assert.deepEqual(JSON.parse(saved.get('alune-workspace')).state.collectionViews, {
     repositories: 'grid',
     connections: 'list',
