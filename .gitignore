@@ -1,6 +1,7 @@
 node_modules
 dist
 .turbo
+.claude/
 .env
 .env.local
 *.log
