@@ -10,6 +10,8 @@ export type PartialDiffControls = {
   staged: boolean;
   unavailableReason?: string;
   refreshing?: boolean;
+  preparing?: boolean;
+  onEnable?: () => Promise<void>;
   onChanged: () => Promise<void>;
 };
 
@@ -169,10 +171,23 @@ export function usePartialDiff(
   const toolbar = !enabled ? (
     controls?.refreshing ? (
       <div className="partial-diff-hint" role="status">
-        正在准备按行操作…
+        {controls.preparing ? '正在准备按行操作…' : '正在刷新差异…'}
       </div>
-    ) : controls?.unavailableReason ? (
-      <div className="partial-diff-hint">{controls.unavailableReason}</div>
+    ) : controls ? (
+      <div className="partial-diff-toolbar">
+        {controls.unavailableReason && (
+          <span className="partial-diff-hint">{controls.unavailableReason}</span>
+        )}
+        {controls.onEnable && (
+          <Button
+            size="small"
+            disabled={loading || busy}
+            onClick={() => void controls.onEnable?.()}
+          >
+            开启按行操作
+          </Button>
+        )}
+      </div>
     ) : null
   ) : (
     <div className="partial-diff-toolbar" aria-label="部分改动操作" aria-busy={busy}>

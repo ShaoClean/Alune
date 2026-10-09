@@ -46,6 +46,14 @@ export const linearHistory = (filter: HistoryFilter) =>
   !!(filter.search || filter.author || filter.since || filter.until || filter.follow);
 
 const errorMessage = (error: any) => error.response?.data?.message || error.message || '请求失败';
+const diffComparisonKey = (id: string, params?: DiffOptions) =>
+  JSON.stringify([
+    id,
+    params?.file ?? null,
+    params?.staged ?? false,
+    params?.commit ?? null,
+    params?.parentCommit ?? null,
+  ]);
 
 type StatusJob = {
   id: string;
@@ -86,6 +94,7 @@ interface RepositoryState {
   commitFilesError: string | null;
   diff: string;
   partialDiff: PartialDiffPreview | null;
+  partialDiffEnabled: boolean;
   diffLoading: boolean;
   diffRefreshing: boolean;
   diffKey: string | null;
@@ -123,6 +132,7 @@ interface RepositoryState {
   setLogFilter: (id: string, filter: HistoryFilter) => Promise<void>;
   fetchCommitFiles: (id: string, commit: string, parentCommit?: string) => Promise<void>;
   fetchDiff: (id: string, params?: DiffOptions) => Promise<void>;
+  preparePartialDiff: (id: string, params: DiffOptions) => Promise<void>;
   clearDiff: () => void;
   fetchBranches: (id: string) => Promise<void>;
   fetchStashes: (id: string) => Promise<void>;
@@ -298,6 +308,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     commitFilesError: null,
     diff: '',
     partialDiff: null,
+    partialDiffEnabled: false,
     diffLoading: false,
     diffRefreshing: false,
     diffKey: null,
@@ -610,6 +621,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         commitFilesError: null,
         diff: '',
         partialDiff: null,
+        partialDiffEnabled: false,
         diffLoading: false,
         diffRefreshing: false,
         diffKey: null,
@@ -732,6 +744,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       set({
         diff: '',
         partialDiff: null,
+        partialDiffEnabled: false,
         diffLoading: false,
         diffRefreshing: false,
         diffKey: null,
@@ -745,19 +758,15 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       diffController?.abort();
       const controller = new AbortController();
       diffController = controller;
-      const diffKey = JSON.stringify([
-        id,
-        params?.file ?? null,
-        params?.staged ?? false,
-        params?.commit ?? null,
-        params?.parentCommit ?? null,
-      ]);
+      const diffKey = diffComparisonKey(id, params);
       const state = get();
       const refreshing = state.diffKey === diffKey && !state.diffLoading && !state.diffError;
+      const partialDiffEnabled = state.diffKey === diffKey && state.partialDiffEnabled;
       set({
         diffKey,
         diff: refreshing ? state.diff : '',
-        partialDiff: refreshing ? state.partialDiff : null,
+        partialDiff: refreshing && state.partialDiff ? { diff: state.diff } : null,
+        partialDiffEnabled,
         diffLoading: !refreshing,
         diffRefreshing: refreshing,
         diffError: null,
@@ -772,28 +781,10 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           diff,
           partialDiff: editable ? { diff } : null,
           diffLoading: false,
-          diffRefreshing: editable,
+          diffRefreshing: false,
           diffError: null,
         });
-        if (editable) {
-          try {
-            const response = await repositoryApi.diff(
-              id,
-              { ...params, editable: true },
-              controller.signal,
-            );
-            const partialDiff: PartialDiffPreview =
-              typeof response === 'string' ? { diff: response } : response;
-            if (request === diffRequest)
-              set({ diff: partialDiff.diff, partialDiff, diffRefreshing: false });
-          } catch (error: any) {
-            if (request === diffRequest)
-              set({
-                partialDiff: { diff, unavailableReason: errorMessage(error) },
-                diffRefreshing: false,
-              });
-          }
-        }
+        if (editable && partialDiffEnabled) await get().preparePartialDiff(id, params!);
       } catch (err: any) {
         if (request === diffRequest)
           set({
@@ -802,6 +793,47 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             diffLoading: false,
             diffRefreshing: false,
             diffError: errorMessage(err),
+          });
+      } finally {
+        if (diffController === controller) diffController = null;
+      }
+    },
+
+    preparePartialDiff: async (id, params) => {
+      const state = get();
+      if (
+        !params.file ||
+        params.commit ||
+        params.parentCommit ||
+        state.diffKey !== diffComparisonKey(id, params) ||
+        !state.partialDiff ||
+        state.diffLoading ||
+        state.diffRefreshing ||
+        state.diffError ||
+        state.partialDiff.revision
+      )
+        return;
+      const request = ++diffRequest;
+      diffController?.abort();
+      const controller = new AbortController();
+      diffController = controller;
+      const diff = state.diff;
+      set({ partialDiffEnabled: true, diffRefreshing: true, partialDiff: { diff } });
+      try {
+        const response = await repositoryApi.diff(
+          id,
+          { ...params, editable: true },
+          controller.signal,
+        );
+        const partialDiff: PartialDiffPreview =
+          typeof response === 'string' ? { diff: response } : response;
+        if (request === diffRequest)
+          set({ diff: partialDiff.diff, partialDiff, diffRefreshing: false });
+      } catch (error: any) {
+        if (request === diffRequest)
+          set({
+            partialDiff: { diff, unavailableReason: errorMessage(error) },
+            diffRefreshing: false,
           });
       } finally {
         if (diffController === controller) diffController = null;
