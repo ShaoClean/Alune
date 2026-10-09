@@ -376,15 +376,16 @@ for (const shell of ['cmd.exe', 'powershell.exe']) {
       transport.resume();
       await until(() => output.includes('PS '));
       transport.resize(120, 35);
-      // Windows may expand 8.3 path aliases in the prompt. Reading a unique
-      // relative file proves the working directory without comparing aliases.
+      // A native program reading a unique relative file proves its working
+      // directory, independent of 8.3 aliases and PowerShell 5 provider globbing.
       transport.write(
-        `if ((Get-Content -LiteralPath './cwd-marker.txt') -eq '${marker}') { 'CWD_' + 'OK' } else { 'CWD_' + 'WRONG' }\r`,
+        `node -p "require('fs').readFileSync('cwd-marker.txt', 'utf8')"\r`,
       );
-      await until(
-        () => output.includes('CWD_OK') || output.includes('CWD_WRONG'),
-      );
-      assert.ok(output.includes('CWD_OK'), output);
+      try {
+        await until(() => output.includes(marker));
+      } catch (error) {
+        throw new Error(error.message + '\n' + output);
+      }
       transport.write('exit 7\r');
       await until(() => exitCode !== undefined || disconnected);
       assert.equal(disconnected, undefined);
