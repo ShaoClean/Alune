@@ -11,6 +11,7 @@ import { connectProxySocket, createProxyBridge } from './proxy-transport';
 import type { ProxySnapshot } from './proxy-transport';
 import { gitFileCommand, quotePosixArgument } from './git-shell';
 import { GitProxyError, proxyGitArguments, verifyLoopbackForward } from './proxy-git';
+import { terminalShellCommands } from './terminal-shell';
 
 export interface SSHConnectionOptions {
   host: string;
@@ -465,18 +466,18 @@ export class SSHConnection extends EventEmitter {
 
   // Long-lived PTYs do not occupy the short Git/SFTP queue. They still count
   // as active tasks, preventing a proxy reconnect from dropping live shells.
-  openTerminal(
+  async openTerminal(
     cwd: string,
     cols: number,
     rows: number,
     signal: AbortSignal,
   ): Promise<ClientChannel> {
-    const client = this._ensureConnected();
     signal.throwIfAborted();
-    if (!cwd.startsWith('/') || cwd.includes('\0')) throw new Error('终端需要有效的绝对启动目录。');
-    const command =
-      'cd -P "$1" || exit 125; shell=${SHELL:-/bin/sh}; ' +
-      '[ -x "$shell" ] || { printf "无法执行登录 shell\\n" >&2; exit 126; }; exec "$shell" -i';
+    const command = terminalShellCommands(cwd);
+    const check = await this.execCommand(command.check, undefined, signal);
+    if (check.exitCode !== 0) throw new Error(check.stderr || '无法访问启动目录或执行登录 shell。');
+    signal.throwIfAborted();
+    const client = this._ensureConnected();
     const release = this.holdTask();
     return new Promise((resolve, reject) => {
       let cancelled = false;
@@ -501,7 +502,7 @@ export class SSHConnection extends EventEmitter {
       signal.addEventListener('abort', abort, { once: true });
       try {
         client.exec(
-          `/bin/sh -c ${quotePosixArgument(command)} alune ${quotePosixArgument(cwd)}`,
+          command.start,
           { pty: { term: 'xterm-256color', cols, rows, width: 0, height: 0 } },
           (error, channel) => {
             cleanup();

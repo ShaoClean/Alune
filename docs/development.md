@@ -122,7 +122,7 @@ npm run pack -w desktop
 npm run test:terminals -w desktop -- --packaged
 ```
 
-测试使用临时 SQLite 与 Git 仓库；POSIX 环境另启动两个回环 SSH 服务，以真实 PTY 验证认证、特殊路径、输入/resize、隔离、关闭、断线和背压。Windows 集成测试验证 ConPTY；跨平台原生包任务见 `.github/workflows/terminal-tests.yml`。桌面测试覆盖真实输入、保留输出、退出码、L2 关闭确认与取消窗口关闭。系统 IME 和辅助技术需补充人工验收。
+测试使用临时 SQLite 与 Git 仓库；POSIX 环境另启动两个回环 SSH 服务，以真实 PTY 验证认证、特殊路径、输入/resize、隔离、关闭、断线和背压。Windows 集成测试验证 ConPTY，并通过分别以 cmd.exe 和 Windows PowerShell 为默认 shell 的回环 SSH 服务验证远端终端的特殊路径、目录检查、交互输入、退出码和连接复用；跨平台原生包任务见 `.github/workflows/terminal-tests.yml`。桌面测试覆盖真实输入、保留输出、退出码、L2 关闭确认与取消窗口关闭。系统 IME 和辅助技术需补充人工验收。
 
 `prepare` 会修复 node-pty 1.1.0 中 macOS 预编译 `spawn-helper` 的执行权限。桌面暂存目录独立重建 SQLite 与 node-pty，后者完整解包到 asar 外；不会改动开发服务器的 Node ABI。
 
