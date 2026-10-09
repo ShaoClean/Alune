@@ -319,8 +319,8 @@ for (const shell of ['cmd.exe', 'powershell.exe']) {
       const path = require('node:path');
       const { SSHConnection } = require('@alune/ssh-client');
       const { sshTerminal } = require('../dist/terminal/terminal-transport');
-      const root = fs.mkdtempSync(
-        path.join(os.tmpdir(), 'alune-ssh-terminal-'),
+      const root = fs.realpathSync(
+        fs.mkdtempSync(path.join(os.tmpdir(), 'alune-ssh-terminal-')),
       );
       const cwd = path.join(root, "中文 [repo] ' ; $variable & %TEMP%");
       fs.mkdirSync(cwd);
@@ -385,11 +385,15 @@ for (const shell of ['cmd.exe', 'powershell.exe']) {
       transport.write('exit 7\r');
       await until(() => exitCode !== undefined || disconnected);
       assert.equal(disconnected, undefined);
-      assert.equal(exitCode, 7);
+      // PowerShell -Command maps a native child's nonzero status to 1;
+      // cmd.exe preserves it. Report the status supplied by the SSH server.
+      assert.equal(exitCode, shell === 'powershell.exe' ? 1 : 7);
       transport.dispose();
       await until(() => connection.activeTasks === 0);
+      output = '';
       transport = await open(cwd);
       transport.resume();
+      await until(() => output.includes('PS '));
       transport.dispose();
       await until(() => connection.activeTasks === 0);
       // Terminal shutdown must leave the shared connection usable.
