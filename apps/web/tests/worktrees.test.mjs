@@ -66,7 +66,7 @@ test('a stale registry response cannot prune a worktree opened while refresh was
   );
 });
 
-test('out-of-order Diff and status never overwrite the active worktree', async () => {
+test('out-of-order Diff and status stay with their own worktree tab', async () => {
   const oldStatus = deferred();
   const oldDiff = deferred();
   repositoryApi.status = (id) =>
@@ -75,19 +75,24 @@ test('out-of-order Diff and status never overwrite the active worktree', async (
       : Promise.resolve({ branch: 'feature', files: [], ahead: 0, behind: 0 });
   repositoryApi.diff = (id) =>
     id === parent.id ? oldDiff.promise : Promise.resolve('feature diff');
-  store.getState().resetWorkspace(parent.id);
+  store.getState().activateWorkspace(parent.id);
   const status = store.getState().fetchStatus(parent.id);
   const diff = store.getState().fetchDiff(parent.id, { file: 'same.txt' });
   await flush();
-  store.getState().resetWorkspace(target.id);
+  store.getState().activateWorkspace(target.id);
   await store.getState().fetchStatus(target.id);
   await store.getState().fetchDiff(target.id, { file: 'same.txt' });
   oldStatus.resolve({ branch: 'main', files: [], ahead: 0, behind: 0 });
   oldDiff.resolve('main diff');
   await Promise.all([status, diff]);
   await flush();
-  assert.equal(store.getState().status.branch, 'feature');
-  assert.equal(store.getState().diff, 'feature diff');
+  assert.equal(store.getState().repositoryStatuses[target.id].data.branch, 'feature');
+  assert.equal(store.getState().workspaces[target.id].diff, 'feature diff');
+  assert.equal(
+    store.getState().workspaces[parent.id].diff,
+    'main diff',
+    'the hidden worktree keeps its own preview',
+  );
 });
 
 test('verified identity survives list refresh and optional identity read failure', async () => {

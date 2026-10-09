@@ -267,6 +267,18 @@
   outline-offset: -2px;
 }
 
+/* Each open repository tab stays mounted; only the active pane is shown. */
+.workspace-tab-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.workspace-tab-pane[hidden] {
+  display: none;
+}
+
 .workspace-page {
   display: flex;
   flex: 1;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useWorkspaceLocation } from '../hooks/useRepositoryWorkspace';
 import { Button } from '@alune/ui';
 import type { LfsStatus, SubmoduleInfo } from '@alune/shared';
 import { gitApi, repositoryApi } from '../api';
@@ -29,7 +30,7 @@ export function RepositoryExtensions({
   const [busy, setBusy] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useWorkspaceLocation();
   const origin = useRef(location.key);
   origin.current = location.key;
   const mounted = useRef(true);

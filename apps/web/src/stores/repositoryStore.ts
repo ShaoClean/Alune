@@ -1,5 +1,6 @@
 import type { PartialDiffPreview } from '@alune/shared';
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type { StateCreator } from 'zustand';
 import { REPOSITORY_STATUS_CACHE_MS } from '@alune/shared';
 import type { Repository, RepositoryStatus, GraphCommit, DiffOptions } from '@alune/shared';
@@ -59,11 +60,32 @@ type StatusJob = {
 
 export type SelectedRepositoryFile = { path: string; status: string; staged: boolean };
 
-interface RepositoryState {
-  repositories: any[];
-  openRepositories: any[];
-  currentRepo: any | null;
-  status: RepositoryStatus | null;
+/**
+ * Panels of one tab stay mounted, so each Diff reader has its own slot: `worktree` is the
+ * changes inspector, `commit` is History. Loading or clearing one leaves the other intact.
+ */
+export type DiffSlot = 'worktree' | 'commit';
+
+export interface DiffState {
+  diff: string;
+  partialDiff: PartialDiffPreview | null;
+  diffLoading: boolean;
+  diffRefreshing: boolean;
+  diffKey: string | null;
+  diffError: string | null;
+}
+
+const emptyDiff = (): DiffState => ({
+  diff: '',
+  partialDiff: null,
+  diffLoading: false,
+  diffRefreshing: false,
+  diffKey: null,
+  diffError: null,
+});
+
+/** What one repository tab has loaded. Each open tab keeps its own while hidden. */
+export interface WorkspaceData extends DiffState {
   log: GraphCommit[];
   logBranch?: string;
   logFilter: HistoryFilter;
@@ -84,13 +106,69 @@ interface RepositoryState {
   commitFiles: any[];
   commitFilesLoading: boolean;
   commitFilesError: string | null;
-  diff: string;
-  partialDiff: PartialDiffPreview | null;
-  diffLoading: boolean;
-  diffRefreshing: boolean;
-  diffKey: string | null;
+  /** The `commit` slot; the fields above it hold the `worktree` slot. */
+  commitDiff: DiffState;
   worktreeDiffRevision: number;
-  diffError: string | null;
+  error: string | null;
+  errorPanel: 'branches' | 'stashes' | 'remotes' | null;
+}
+
+export const emptyWorkspace = (): WorkspaceData => ({
+  log: [],
+  logBranch: undefined,
+  logFilter: {},
+  logLoading: false,
+  logLoadingMore: false,
+  logHasMore: false,
+  logNextSkip: 0,
+  logRevision: null,
+  logGeneration: 0,
+  logShallow: false,
+  logError: null,
+  logChanged: false,
+  logErrorMode: 'refresh',
+  remotesLoading: false,
+  branches: [],
+  stashes: [],
+  remotes: [],
+  commitFiles: [],
+  commitFilesLoading: false,
+  commitFilesError: null,
+  ...emptyDiff(),
+  commitDiff: emptyDiff(),
+  worktreeDiffRevision: 0,
+  error: null,
+  errorPanel: null,
+});
+
+/** Read by tabs whose workspace has not been opened yet, or was just closed. */
+export const EMPTY_WORKSPACE: Readonly<WorkspaceData> = Object.freeze({
+  ...emptyWorkspace(),
+  commitDiff: Object.freeze(emptyDiff()),
+});
+
+/** One slot's Diff as stored in a workspace. */
+export const workspaceDiff = (workspace: WorkspaceData, slot: DiffSlot = 'worktree'): DiffState =>
+  slot === 'commit' ? workspace.commitDiff : workspace;
+
+type DiffRequests = { request: number; controller: AbortController | null };
+
+type WorkspaceRequests = {
+  log: number;
+  logController: AbortController | null;
+  diff: Record<DiffSlot, DiffRequests>;
+  commitFiles: number;
+  branches: number;
+  stashes: number;
+  remotes: number;
+};
+
+interface RepositoryState {
+  repositories: any[];
+  openRepositories: any[];
+  /** The active tab's registration, for the shell around the workspaces. */
+  currentRepo: any | null;
+  workspaces: Record<string, WorkspaceData>;
   listLoading: boolean;
   listLoaded: boolean;
   listError: string | null;
@@ -100,8 +178,6 @@ interface RepositoryState {
   selectRepositoryFile: (id: string, file: SelectedRepositoryFile | null) => void;
   observeRepository: (id: string) => () => void;
   refreshRepositoryStatuses: (ids?: string[]) => Promise<void>;
-  error: string | null;
-  errorPanel: 'branches' | 'stashes' | 'remotes' | null;
   fetchRepositories: (connectionId?: string) => Promise<void>;
   scanRepositories: (connectionId: string, path: string) => Promise<string[]>;
   addRepository: (connectionId: string, path: string) => Promise<any>;
@@ -116,14 +192,20 @@ interface RepositoryState {
   closeRepositories: (ids: string[], preferredId?: string) => void;
   activateRepositoryTab: (id: string) => void;
   setCurrentRepo: (repo: any) => void;
-  resetWorkspace: (id?: string) => void;
+  /**
+   * Shows a tab's workspace: creates its data on first use and gives its status reads
+   * priority. Data of other open tabs stays as it was; nothing is cleared.
+   */
+  activateWorkspace: (id?: string) => void;
+  /** Drops a closed or removed tab's data and stops its requests. */
+  disposeWorkspaces: (ids: string[]) => void;
   fetchStatus: (id: string, afterMutation?: boolean) => Promise<void>;
   /** A `branch` (a jump to one commit's ancestry) clears the history filter. */
   fetchLog: (id: string, mode?: 'refresh' | 'more', branch?: string) => Promise<void>;
   setLogFilter: (id: string, filter: HistoryFilter) => Promise<void>;
   fetchCommitFiles: (id: string, commit: string, parentCommit?: string) => Promise<void>;
-  fetchDiff: (id: string, params?: DiffOptions) => Promise<void>;
-  clearDiff: () => void;
+  fetchDiff: (id: string, params?: DiffOptions, slot?: DiffSlot) => Promise<void>;
+  clearDiff: (id: string, slot?: DiffSlot) => void;
   fetchBranches: (id: string) => Promise<void>;
   fetchStashes: (id: string) => Promise<void>;
   fetchRemotes: (id: string) => Promise<void>;
@@ -132,15 +214,53 @@ interface RepositoryState {
 const repositoryState: StateCreator<RepositoryState> = (set, get) => {
   let listPromise: Promise<void> | null = null;
   let registryRevision = 0;
+  // The visible tab. Its status reads take the reserved slot.
   let workspaceId: string | null = null;
-  let logRequest = 0;
-  let logController: AbortController | null = null;
-  let diffRequest = 0;
-  let diffController: AbortController | null = null;
-  let commitFilesRequest = 0;
-  let branchRequest = 0;
-  let stashRequest = 0;
-  let remoteRequest = 0;
+  // Request generations per tab. A disposed tab's book is replaced, so its late
+  // responses cannot match a reopened tab even when the counters coincide.
+  const requests = new Map<string, WorkspaceRequests>();
+  const book = (id: string) => {
+    let entry = requests.get(id);
+    if (!entry) {
+      entry = {
+        log: 0,
+        logController: null,
+        diff: {
+          worktree: { request: 0, controller: null },
+          commit: { request: 0, controller: null },
+        },
+        commitFiles: 0,
+        branches: 0,
+        stashes: 0,
+        remotes: 0,
+      };
+      requests.set(id, entry);
+    }
+    return entry;
+  };
+  const opened = (id: string) => !removed.has(id) && !!get().workspaces[id];
+  /** Updates an open workspace; a disposed one stays disposed. */
+  const patch = (
+    id: string,
+    update: Partial<WorkspaceData> | ((workspace: WorkspaceData) => Partial<WorkspaceData>),
+  ) =>
+    set((state) => {
+      const workspace = state.workspaces[id];
+      if (!workspace) return state;
+      const next = typeof update === 'function' ? update(workspace) : update;
+      return { workspaces: { ...state.workspaces, [id]: { ...workspace, ...next } } };
+    });
+  const patchDiff = (
+    id: string,
+    slot: DiffSlot,
+    update: Partial<DiffState> | ((diff: DiffState) => Partial<DiffState>),
+  ) =>
+    patch(id, (workspace) => {
+      const next = typeof update === 'function' ? update(workspaceDiff(workspace, slot)) : update;
+      return slot === 'commit' ? { commitDiff: { ...workspace.commitDiff, ...next } } : next;
+    });
+  const invalidateDiff = (id: string) =>
+    patch(id, (workspace) => ({ worktreeDiffRevision: workspace.worktreeDiffRevision + 1 }));
 
   const jobs = new Map<string, StatusJob>();
   const visible = new Map<string, number>();
@@ -158,6 +278,17 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       job.controller.abort();
       job.resolve();
     }
+  };
+  // Drops a queued or running read without discarding the cache it would replace.
+  const releaseStatus = (id: string) => {
+    cancelStatus(id);
+    set((state) => {
+      const repositoryStatuses = { ...state.repositoryStatuses };
+      const previous = repositoryStatuses[id];
+      if (previous?.data) repositoryStatuses[id] = { ...previous, phase: 'success' };
+      else delete repositoryStatuses[id];
+      return { repositoryStatuses };
+    });
   };
   const drain = () => {
     // Reserve one of three slots for an explicitly opened workspace. Hidden or slow
@@ -200,13 +331,8 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
               state.currentRepo?.id === job.id
                 ? { ...state.currentRepo, ...summary }
                 : state.currentRepo,
-            ...(workspaceId === job.id
-              ? {
-                  status: data,
-                  worktreeDiffRevision: state.worktreeDiffRevision + (job.refreshDiff ? 1 : 0),
-                }
-              : {}),
           }));
+          if (job.refreshDiff) invalidateDiff(job.id);
         } catch (error) {
           if (jobs.get(job.id) !== job || removed.has(job.id)) return;
           updateStatus(job.id, {
@@ -216,8 +342,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             error: errorMessage(error),
           });
           // A failed status read must not leave a pre-mutation preview current.
-          if (workspaceId === job.id && job.refreshDiff)
-            set((state) => ({ worktreeDiffRevision: state.worktreeDiffRevision + 1 }));
+          if (job.refreshDiff) invalidateDiff(job.id);
         } finally {
           if (jobs.get(job.id) === job) jobs.delete(job.id);
           active--;
@@ -275,34 +400,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     repositories: [],
     openRepositories: [],
     currentRepo: null,
-    status: null,
-    log: [],
-    logBranch: undefined,
-    logFilter: {},
-    logLoading: false,
-    logLoadingMore: false,
-    logHasMore: false,
-    logNextSkip: 0,
-    logRevision: null,
-    logGeneration: 0,
-    logShallow: false,
-    logError: null,
-    logChanged: false,
-    logErrorMode: 'refresh',
-    remotesLoading: false,
-    branches: [],
-    stashes: [],
-    remotes: [],
-    commitFiles: [],
-    commitFilesLoading: false,
-    commitFilesError: null,
-    diff: '',
-    partialDiff: null,
-    diffLoading: false,
-    diffRefreshing: false,
-    diffKey: null,
-    worktreeDiffRevision: 0,
-    diffError: null,
+    workspaces: {},
     listLoading: false,
     listLoaded: false,
     listError: null,
@@ -317,8 +415,6 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         return { selectedFiles };
       });
     },
-    error: null,
-    errorPanel: null,
 
     observeRepository: (id) => {
       visible.set(id, (visible.get(id) || 0) + 1);
@@ -405,6 +501,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             listLoaded: true,
             listError: null,
           }));
+          get().disposeWorkspaces(Object.keys(get().workspaces).filter((id) => !ids.has(id)));
         } catch (err: any) {
           set({ listError: errorMessage(err), listLoading: false });
         }
@@ -445,6 +542,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     forgetRepositories: (ids) => {
       registryRevision++;
       useWorkspaceStore.getState().closeRepositoryTabs(ids);
+      get().disposeWorkspaces(ids);
       for (const id of ids) {
         removed.add(id);
         cancelStatus(id);
@@ -482,7 +580,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       registryRevision += 1;
       removed.add(id);
       cancelStatus(id);
-      if (workspaceId === id) get().resetWorkspace();
+      get().disposeWorkspaces([id]);
       useWorkspaceStore.getState().closeRepositoryTabs([id]);
       set((state) => ({
         repositoryStatuses: Object.fromEntries(
@@ -529,6 +627,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     // Only closes tabs; registrations, statuses and commit drafts stay intact.
     closeRepositories: (ids, preferredId) => {
       useWorkspaceStore.getState().closeRepositoryTabs(ids, preferredId);
+      get().disposeWorkspaces(ids);
       const closing = new Set(ids);
       set((state) => ({
         openRepositories: state.openRepositories.filter((repo) => !closing.has(repo.id)),
@@ -564,89 +663,73 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       useWorkspaceStore.getState().activateRepositoryTab(id);
     },
 
-    resetWorkspace: (id) => {
+    activateWorkspace: (id) => {
       const previousId = workspaceId;
-      workspaceId = id ?? null;
-      // Rapid switching must release the reserved slot for the newly active repo.
-      if (previousId && previousId !== workspaceId && jobs.get(previousId)?.foreground) {
-        cancelStatus(previousId);
-        set((state) => {
-          const repositoryStatuses = { ...state.repositoryStatuses };
-          const previous = repositoryStatuses[previousId];
-          if (previous?.data) repositoryStatuses[previousId] = { ...previous, phase: 'success' };
-          else delete repositoryStatuses[previousId];
-          return { repositoryStatuses };
-        });
+      workspaceId = id && !removed.has(id) ? id : null;
+      // Rapid switching must release the reserved slot for the newly active repo. A
+      // read validating a Git write keeps running: its tab is hidden, not closed.
+      const previous = previousId ? jobs.get(previousId) : undefined;
+      if (previousId && previousId !== workspaceId && previous?.foreground) {
+        if (previous.refreshDiff) previous.foreground = false;
+        else releaseStatus(previousId);
       }
-      logRequest += 1;
-      logController?.abort();
-      diffRequest += 1;
-      diffController?.abort();
-      commitFilesRequest += 1;
-      branchRequest += 1;
-      stashRequest += 1;
-      remoteRequest += 1;
-      set({
-        status: id ? (get().repositoryStatuses[id]?.data ?? null) : null,
-        log: [],
-        logBranch: undefined,
-        logFilter: {},
-        logLoading: false,
-        logLoadingMore: false,
-        logHasMore: false,
-        logNextSkip: 0,
-        logRevision: null,
-        logGeneration: get().logGeneration + 1,
-        logShallow: false,
-        logError: null,
-        logChanged: false,
-        logErrorMode: 'refresh',
-        remotesLoading: false,
-        branches: [],
-        stashes: [],
-        remotes: [],
-        commitFiles: [],
-        commitFilesLoading: false,
-        commitFilesError: null,
-        diff: '',
-        partialDiff: null,
-        diffLoading: false,
-        diffRefreshing: false,
-        diffKey: null,
-        worktreeDiffRevision: 0,
-        diffError: null,
-        error: null,
-        errorPanel: null,
-      });
+      if (workspaceId && !get().workspaces[workspaceId]) {
+        const opening = workspaceId;
+        requests.delete(opening);
+        set((state) => ({ workspaces: { ...state.workspaces, [opening]: emptyWorkspace() } }));
+      }
+    },
+
+    disposeWorkspaces: (ids) => {
+      const closing = new Set(ids.filter((id) => requests.has(id) || get().workspaces[id]));
+      if (!closing.size) return;
+      for (const id of closing) {
+        const entry = requests.get(id);
+        entry?.logController?.abort();
+        entry?.diff.worktree.controller?.abort();
+        entry?.diff.commit.controller?.abort();
+        requests.delete(id);
+        if (workspaceId === id) {
+          workspaceId = null;
+          if (jobs.get(id)?.foreground && !jobs.get(id)?.refreshDiff) releaseStatus(id);
+        }
+      }
+      set((state) => ({
+        workspaces: Object.fromEntries(
+          Object.entries(state.workspaces).filter(([id]) => !closing.has(id)),
+        ),
+      }));
     },
 
     fetchStatus: async (id, afterMutation = false) => {
-      if (workspaceId !== null && workspaceId !== id) return;
+      if (removed.has(id)) return;
       // A read begun before a Git write cannot validate that write. Share any
       // follow-up read, but wait out the older server request before starting it.
       if (afterMutation) {
         await jobs.get(id)?.promise;
-        if (workspaceId !== id || removed.has(id)) return;
+        if (removed.has(id)) return;
       }
-      await requestStatus(id, true, true, afterMutation);
+      await requestStatus(id, true, workspaceId === id, afterMutation);
     },
 
     fetchLog: async (id, mode = 'refresh', branch) => {
-      if (workspaceId !== null && workspaceId !== id) return;
+      if (!opened(id)) return;
       const append = mode === 'more';
-      const state = get();
+      const state = get().workspaces[id];
       if (
         append &&
         (state.logLoading || state.logLoadingMore || !state.logHasMore || state.logChanged)
       )
         return;
-      logController?.abort();
+      const requestBook = book(id);
+      requestBook.logController?.abort();
       const controller = new AbortController();
-      logController = controller;
-      const request = ++logRequest;
+      requestBook.logController = controller;
+      const request = ++requestBook.log;
+      const current = () => requests.get(id) === requestBook && request === requestBook.log;
       const filter = branch && !append ? {} : state.logFilter;
       const scope = append ? state.logBranch : branch;
-      set({
+      patch(id, {
         logLoading: !append,
         logLoadingMore: append,
         logError: null,
@@ -670,30 +753,30 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           },
           controller.signal,
         );
-        if (request !== logRequest) return;
-        set((current) => {
-          const seen = new Set(append ? current.log.map((commit) => commit.hash) : []);
+        if (!current()) return;
+        patch(id, (workspace) => {
+          const seen = new Set(append ? workspace.log.map((commit) => commit.hash) : []);
           const added = page.commits.filter((commit) => {
             if (seen.has(commit.hash)) return false;
             seen.add(commit.hash);
             return true;
           });
           return {
-            log: append ? [...current.log, ...added] : added,
+            log: append ? [...workspace.log, ...added] : added,
             logLoading: false,
             logLoadingMore: false,
             logError: null,
             logHasMore: page.hasMore,
-            logBranch: append ? current.logBranch : branch,
+            logBranch: append ? workspace.logBranch : branch,
             logNextSkip: page.nextSkip,
             logRevision: page.revision,
             logShallow: page.shallow,
-            logGeneration: current.logGeneration + (append ? 0 : 1),
+            logGeneration: workspace.logGeneration + (append ? 0 : 1),
           };
         });
       } catch (err: any) {
-        if (request === logRequest)
-          set({
+        if (current())
+          patch(id, {
             logError: errorMessage(err),
             logLoading: false,
             logLoadingMore: false,
@@ -703,22 +786,24 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     },
 
     setLogFilter: (id, filter) => {
-      if (workspaceId !== null && workspaceId !== id) return Promise.resolve();
-      set({ logFilter: filter, logBranch: undefined });
+      if (!opened(id)) return Promise.resolve();
+      patch(id, { logFilter: filter, logBranch: undefined });
       return get().fetchLog(id);
     },
 
     fetchCommitFiles: async (id, commit, parentCommit) => {
-      if (workspaceId !== null && workspaceId !== id) return;
-      const request = ++commitFilesRequest;
-      set({ commitFiles: [], commitFilesLoading: true, commitFilesError: null });
+      if (!opened(id)) return;
+      const requestBook = book(id);
+      const request = ++requestBook.commitFiles;
+      const current = () => requests.get(id) === requestBook && request === requestBook.commitFiles;
+      patch(id, { commitFiles: [], commitFilesLoading: true, commitFilesError: null });
       try {
         const commitFiles = await repositoryApi.commitFiles(id, commit, parentCommit);
-        if (request === commitFilesRequest)
-          set({ commitFiles, commitFilesLoading: false, commitFilesError: null });
+        if (current())
+          patch(id, { commitFiles, commitFilesLoading: false, commitFilesError: null });
       } catch (err: any) {
-        if (request === commitFilesRequest)
-          set({
+        if (current())
+          patch(id, {
             commitFiles: [],
             commitFilesLoading: false,
             commitFilesError: err.message,
@@ -726,25 +811,38 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       }
     },
 
-    clearDiff: () => {
-      diffRequest += 1;
-      diffController?.abort();
-      set({
-        diff: '',
-        partialDiff: null,
-        diffLoading: false,
-        diffRefreshing: false,
-        diffKey: null,
-        diffError: null,
-      });
+    clearDiff: (id, slot = 'worktree') => {
+      const requestBook = requests.get(id)?.diff[slot];
+      if (requestBook) {
+        requestBook.request += 1;
+        requestBook.controller?.abort();
+        requestBook.controller = null;
+      }
+      const workspace = get().workspaces[id];
+      const current = workspace && workspaceDiff(workspace, slot);
+      // Leaving a view that never showed a Diff must not notify every tab.
+      if (
+        !current ||
+        (!current.diff &&
+          !current.partialDiff &&
+          !current.diffLoading &&
+          !current.diffRefreshing &&
+          !current.diffKey &&
+          !current.diffError)
+      )
+        return;
+      patchDiff(id, slot, emptyDiff());
     },
 
-    fetchDiff: async (id, params) => {
-      if (workspaceId !== null && workspaceId !== id) return;
-      const request = ++diffRequest;
-      diffController?.abort();
+    fetchDiff: async (id, params, slot = 'worktree') => {
+      if (!opened(id)) return;
+      const workspaceBook = book(id);
+      const requestBook = workspaceBook.diff[slot];
+      const request = ++requestBook.request;
+      requestBook.controller?.abort();
       const controller = new AbortController();
-      diffController = controller;
+      requestBook.controller = controller;
+      const current = () => requests.get(id) === workspaceBook && request === requestBook.request;
       const diffKey = JSON.stringify([
         id,
         params?.file ?? null,
@@ -752,9 +850,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         params?.commit ?? null,
         params?.parentCommit ?? null,
       ]);
-      const state = get();
+      const state = workspaceDiff(get().workspaces[id], slot);
       const refreshing = state.diffKey === diffKey && !state.diffLoading && !state.diffError;
-      set({
+      patchDiff(id, slot, {
         diffKey,
         diff: refreshing ? state.diff : '',
         partialDiff: refreshing ? state.partialDiff : null,
@@ -764,11 +862,11 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       });
       try {
         const diff = await repositoryApi.diff(id, params, controller.signal);
-        if (request !== diffRequest) return;
+        if (!current()) return;
         // Reading must not wait for the snapshots required by partial writes.
         // The displayed patch has no actionable revision until validation finishes.
         const editable = !!(params?.file && !params.commit && !params.parentCommit);
-        set({
+        patchDiff(id, slot, {
           diff,
           partialDiff: editable ? { diff } : null,
           diffLoading: false,
@@ -784,19 +882,19 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             );
             const partialDiff: PartialDiffPreview =
               typeof response === 'string' ? { diff: response } : response;
-            if (request === diffRequest)
-              set({ diff: partialDiff.diff, partialDiff, diffRefreshing: false });
+            if (current())
+              patchDiff(id, slot, { diff: partialDiff.diff, partialDiff, diffRefreshing: false });
           } catch (error: any) {
-            if (request === diffRequest)
-              set({
+            if (current())
+              patchDiff(id, slot, {
                 partialDiff: { diff, unavailableReason: errorMessage(error) },
                 diffRefreshing: false,
               });
           }
         }
       } catch (err: any) {
-        if (request === diffRequest)
-          set({
+        if (current())
+          patchDiff(id, slot, {
             diff: '',
             partialDiff: null,
             diffLoading: false,
@@ -804,44 +902,50 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             diffError: errorMessage(err),
           });
       } finally {
-        if (diffController === controller) diffController = null;
+        if (requestBook.controller === controller) requestBook.controller = null;
       }
     },
 
     fetchBranches: async (id) => {
-      if (workspaceId !== null && workspaceId !== id) return;
-      const request = ++branchRequest;
-      set({ error: null });
+      if (!opened(id)) return;
+      const requestBook = book(id);
+      const request = ++requestBook.branches;
+      const current = () => requests.get(id) === requestBook && request === requestBook.branches;
+      patch(id, { error: null });
       try {
         const branches = await repositoryApi.branches(id);
-        if (request === branchRequest) set({ branches, error: null });
+        if (current()) patch(id, { branches, error: null });
       } catch (err: any) {
-        if (request === branchRequest) set({ error: err.message, errorPanel: 'branches' });
+        if (current()) patch(id, { error: err.message, errorPanel: 'branches' });
       }
     },
 
     fetchStashes: async (id) => {
-      if (workspaceId !== null && workspaceId !== id) return;
-      const request = ++stashRequest;
-      set({ error: null });
+      if (!opened(id)) return;
+      const requestBook = book(id);
+      const request = ++requestBook.stashes;
+      const current = () => requests.get(id) === requestBook && request === requestBook.stashes;
+      patch(id, { error: null });
       try {
         const stashes = await repositoryApi.stashes(id);
-        if (request === stashRequest) set({ stashes, error: null });
+        if (current()) patch(id, { stashes, error: null });
       } catch (err: any) {
-        if (request === stashRequest) set({ error: err.message, errorPanel: 'stashes' });
+        if (current()) patch(id, { error: err.message, errorPanel: 'stashes' });
       }
     },
 
     fetchRemotes: async (id) => {
-      if (workspaceId !== null && workspaceId !== id) return;
-      const request = ++remoteRequest;
-      set({ remotesLoading: true, error: null });
+      if (!opened(id)) return;
+      const requestBook = book(id);
+      const request = ++requestBook.remotes;
+      const current = () => requests.get(id) === requestBook && request === requestBook.remotes;
+      patch(id, { remotesLoading: true, error: null });
       try {
         const remotes = await repositoryApi.remotes(id);
-        if (request === remoteRequest) set({ remotes, remotesLoading: false, error: null });
+        if (current()) patch(id, { remotes, remotesLoading: false, error: null });
       } catch (err: any) {
-        if (request === remoteRequest)
-          set({ error: err.message, errorPanel: 'remotes', remotesLoading: false });
+        if (current())
+          patch(id, { error: err.message, errorPanel: 'remotes', remotesLoading: false });
       }
     },
   };
@@ -849,3 +953,17 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
 
 export const createRepositoryStore = () => create<RepositoryState>(repositoryState);
 export const useRepositoryStore = createRepositoryStore();
+
+/**
+ * Selects from one tab's workspace data, compared shallowly so a picked object is stable.
+ * A tab that has not been opened yet, or was just closed, reads the empty workspace.
+ */
+export function useWorkspaceData<T>(repoId: string, selector: (workspace: WorkspaceData) => T): T {
+  return useRepositoryStore(
+    useShallow((state) => selector(state.workspaces[repoId] ?? EMPTY_WORKSPACE)),
+  );
+}
+
+/** The latest status of a repository, shared by its tab and the sidebar. */
+export const useRepositoryStatusData = (repoId: string) =>
+  useRepositoryStore((state) => state.repositoryStatuses[repoId]?.data ?? null);

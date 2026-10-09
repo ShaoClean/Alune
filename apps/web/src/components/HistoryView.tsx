@@ -5,7 +5,12 @@ import type { CSSProperties, KeyboardEvent } from 'react';
 import type { GraphCommit, CommitReference } from '@alune/shared';
 import { FeedbackNotice, Button, Dropdown } from '@alune/ui';
 import { InteractiveRebaseDialog } from './InteractiveRebaseDialog';
-import { historyFilterActive, linearHistory, useRepositoryStore } from '../stores/repositoryStore';
+import {
+  historyFilterActive,
+  linearHistory,
+  useRepositoryStore,
+  useWorkspaceData,
+} from '../stores/repositoryStore';
 import { HistoryFilterBar } from './HistoryFilterBar';
 import { EmptyState, ErrorState } from '@alune/ui';
 import { formatRelativeDate } from './ui';
@@ -111,6 +116,8 @@ export function HistoryView({
   revealHash,
   visible = true,
 }: Props) {
+  const fetchLog = useRepositoryStore((state) => state.fetchLog);
+  const setLogFilter = useRepositoryStore((state) => state.setLogFilter);
   const {
     log,
     logLoading,
@@ -123,9 +130,19 @@ export function HistoryView({
     logChanged,
     logShallow,
     logFilter,
-    fetchLog,
-    setLogFilter,
-  } = useRepositoryStore();
+  } = useWorkspaceData(repoId, (workspace) => ({
+    log: workspace.log,
+    logLoading: workspace.logLoading,
+    logLoadingMore: workspace.logLoadingMore,
+    logHasMore: workspace.logHasMore,
+    logRevision: workspace.logRevision,
+    logGeneration: workspace.logGeneration,
+    logError: workspace.logError,
+    logErrorMode: workspace.logErrorMode,
+    logChanged: workspace.logChanged,
+    logShallow: workspace.logShallow,
+    logFilter: workspace.logFilter,
+  }));
   const filtered = historyFilterActive(logFilter);
   const linear = linearHistory(logFilter);
   const viewport = useRef<HTMLDivElement>(null);
@@ -152,7 +169,8 @@ export function HistoryView({
   }, [log, logGeneration, linear, logHasMore]);
 
   useEffect(() => {
-    if (!logRevision && !useRepositoryStore.getState().logLoading) void fetchLog(repoId);
+    if (!logRevision && !useRepositoryStore.getState().workspaces[repoId]?.logLoading)
+      void fetchLog(repoId);
   }, [repoId, fetchLog]);
   useEffect(() => {
     const element = viewport.current;

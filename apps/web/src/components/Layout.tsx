@@ -30,6 +30,8 @@ import { WorkspaceStatusBar } from './WorkspaceStatusBar';
 import { FeedbackNotice, FeedbackScope } from '@alune/ui';
 import { DesktopUpdateFeedback } from './UpdatePanel';
 import { useWorkspaceStore } from '../stores/workspaceStore';
+import { RepositoryWorkspaceHost } from '../pages/RepositoryDetailPage';
+import { workspaceListId } from '../hooks/useRepositoryWorkspace';
 
 const navItems = [
   { key: '/connections', label: '连接', icon: <ApartmentOutlined /> },
@@ -43,10 +45,11 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const isSettings = location.pathname.startsWith('/settings');
+  const activeRepositoryId = location.pathname.match(/^\/repositories\/([^/]+)/)?.[1];
   const [rightPanelAvailable, setRightPanelAvailable] = useState(true);
   const [repositoryToolbarSlot, setRepositoryToolbarSlot] = useState<HTMLDivElement | null>(null);
   const [terminalSlot, setTerminalSlot] = useState<HTMLDivElement | null>(null);
-  const outlet = useOutlet({ setRightPanelAvailable, repositoryToolbarSlot, setTerminalSlot });
+  const outlet = useOutlet();
   const workspaceOutlet = useRef(outlet);
   const workspaceFocus = useRef<HTMLElement | null>(null);
   const wasSettings = useRef(isSettings);
@@ -172,15 +175,24 @@ export function Layout() {
         .querySelector<HTMLButtonElement>('.app-tabbar [aria-controls="workspace-sidebar"]')
         ?.focus();
     }
+    const listId = activeRepositoryId && workspaceListId(activeRepositoryId);
     if (
+      listId &&
       !isSettings &&
       layout.changesCollapsed &&
-      document.querySelector('#workspace-list')?.contains(document.activeElement)
+      document.getElementById(listId)?.contains(document.activeElement)
     )
       document
-        .querySelector<HTMLButtonElement>('.app-tabbar [aria-controls="workspace-list"]')
+        .querySelector<HTMLButtonElement>(`.app-tabbar [aria-controls="${CSS.escape(listId)}"]`)
         ?.focus();
-  }, [sidebarVisible, compact, layout.changesCollapsed, isSettings, focusSettingsBack]);
+  }, [
+    sidebarVisible,
+    compact,
+    layout.changesCollapsed,
+    isSettings,
+    focusSettingsBack,
+    activeRepositoryId,
+  ]);
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -255,7 +267,6 @@ export function Layout() {
     return '/connections';
   }, [location.pathname]);
 
-  const activeRepositoryId = location.pathname.match(/^\/repositories\/([^/]+)/)?.[1];
   useLayoutEffect(() => {
     // Only address changes select a tab. A background status update may render the
     // old route between openRepository() and navigation; it must not undo that selection.
@@ -401,7 +412,7 @@ export function Layout() {
                 rightPanelAvailable && !layout.changesCollapsed && !(compact && terminalVisible)
               }
               disabled={!rightPanelAvailable}
-              controls="workspace-list"
+              controls={workspaceListId(activeRepositoryId)}
               onClick={() => {
                 if (compact && terminalVisible) {
                   useTerminalStore.setState({ visible: false });
@@ -563,6 +574,12 @@ export function Layout() {
               active={!isSettings}
             >
               {workspaceOutlet.current}
+              <RepositoryWorkspaceHost
+                activeId={workspaceRepositoryId}
+                setRightPanelAvailable={setRightPanelAvailable}
+                repositoryToolbarSlot={repositoryToolbarSlot}
+                setTerminalSlot={setTerminalSlot}
+              />
             </FeedbackScope>
           </div>
           {isSettings && (

@@ -34,6 +34,8 @@ module.exports = async ({ window }) => {
       })()`);
     }
   };
+  // Repository tabs opened by earlier smokes stay mounted but hidden; use the shown one.
+  const trigger = '.workspace-tab-pane:not([hidden]) [aria-label="放弃所有更改"]';
   const shell = 'document.querySelector(\'.a-dlg-shell[data-level="2"]\')';
   const visible = `(${shell}?.closest('.ant-modal-wrap') && getComputedStyle(${shell}.closest('.ant-modal-wrap')).display !== 'none')`;
   const gone = `!${visible}`;
@@ -80,7 +82,7 @@ module.exports = async ({ window }) => {
     execute('new Promise((resolve) => setTimeout(() => resolve(window.__dialogMotion), 1600))');
   const open = async () => {
     await execute(
-      '(() => { const trigger = document.querySelector(\'[aria-label="放弃所有更改"]\'); trigger.focus(); trigger.click(); })()',
+      `(() => { const trigger = document.querySelector(${JSON.stringify(trigger)}); trigger.focus(); trigger.click(); })()`,
     );
     await wait(visible);
     // The DOM becomes visible before the dialog's effect moves focus from the
@@ -111,7 +113,7 @@ module.exports = async ({ window }) => {
   try {
     await require('./smoke-window.cjs')(window);
     await wait(
-      'document.querySelector(\'[aria-label="放弃所有更改"]\') && !document.querySelector(\'[aria-label="放弃所有更改"]\').disabled',
+      `document.querySelector(${JSON.stringify(trigger)}) && !document.querySelector(${JSON.stringify(trigger)}).disabled`,
     );
 
     // L2: alertdialog, Cancel focused, ↵ disabled even after the acknowledgement.
@@ -135,7 +137,7 @@ module.exports = async ({ window }) => {
     await new Promise((resolve) => setTimeout(resolve, 300));
     assert.equal(await execute(visible), true);
     assert.equal(
-      await execute('Boolean(document.querySelector(\'[aria-label="放弃所有更改"]\'))'),
+      await execute(`Boolean(document.querySelector(${JSON.stringify(trigger)}))`),
       true,
     );
 

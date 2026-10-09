@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Empty, Input, Space, Typography } from '@alune/ui';
 import type { InputRef } from 'antd';
 import { PlusOutlined, CopyOutlined, LinkOutlined, ReloadOutlined } from '@ant-design/icons';
-import { useRepositoryStore } from '../stores/repositoryStore';
+import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { useConnectionStore } from '../stores/connectionStore';
 import { AluneModal } from '@alune/ui';
 import { DialogIcon } from '@alune/ui';
@@ -31,10 +31,12 @@ export function RemotesView({ repoId, onRefresh }: Props) {
   const [name, setName] = useState('origin');
   const [url, setUrl] = useState('');
   const [saving, setSaving] = useState(false);
-  const local = useRepositoryStore((state) => state.currentRepo?.source === 'local');
   const repo = useRepositoryStore(
-    (state) => state.repositories.find((item) => item.id === repoId) ?? state.currentRepo,
+    (state) =>
+      state.repositories.find((item) => item.id === repoId) ??
+      state.openRepositories.find((item) => item.id === repoId),
   );
+  const local = repo?.source === 'local';
   const connectionName = useConnectionStore(
     (state) => state.connections.find((item) => item.id === repo?.connectionId)?.name,
   );
@@ -53,13 +55,18 @@ export function RemotesView({ repoId, onRefresh }: Props) {
       setSaving(false);
     }
   };
+  const fetchRemotes = useRepositoryStore((state) => state.fetchRemotes);
   const {
     remotes,
     remotesLoading: loading,
-    fetchRemotes,
     error,
     errorPanel,
-  } = useRepositoryStore();
+  } = useWorkspaceData(repoId, (workspace) => ({
+    remotes: workspace.remotes,
+    remotesLoading: workspace.remotesLoading,
+    error: workspace.error,
+    errorPanel: workspace.errorPanel,
+  }));
 
   useEffect(() => {
     void fetchRemotes(repoId);

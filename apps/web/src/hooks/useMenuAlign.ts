@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useRepositoryWorkspace, workspaceListId } from './useRepositoryWorkspace';
 
 const GAP = 8;
 
@@ -7,14 +8,18 @@ const GAP = 8;
 // open menu never covers the list the user is reading.
 export function useMenuAlign() {
   const [offsetX, setOffsetX] = useState(0);
+  const repoId = useRepositoryWorkspace()?.repoId;
 
-  const measure = useCallback((trigger: HTMLElement | null) => {
-    const panel = document.querySelector('#workspace-list');
-    if (!trigger || !panel) return setOffsetX(0);
-    const triggerRight = trigger.getBoundingClientRect().right;
-    const panelLeft = panel.getBoundingClientRect().left;
-    setOffsetX(Math.min(0, Math.round(panelLeft - GAP - triggerRight)));
-  }, []);
+  const measure = useCallback(
+    (trigger: HTMLElement | null) => {
+      const panel = repoId && document.getElementById(workspaceListId(repoId));
+      if (!trigger || !panel) return setOffsetX(0);
+      const triggerRight = trigger.getBoundingClientRect().right;
+      const panelLeft = panel.getBoundingClientRect().left;
+      setOffsetX(Math.min(0, Math.round(panelLeft - GAP - triggerRight)));
+    },
+    [repoId],
+  );
 
   return {
     measure,

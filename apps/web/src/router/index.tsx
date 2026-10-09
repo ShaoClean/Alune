@@ -3,7 +3,6 @@ import { PullRequestCenterPage } from '../pages/PullRequestCenterPage';
 import { Layout } from '../components/Layout';
 import { ConnectionsPage } from '../pages/ConnectionsPage';
 import { RepositoriesPage } from '../pages/RepositoriesPage';
-import { RepositoryDetailPage } from '../pages/RepositoryDetailPage';
 import { RepositoryStartPage } from '../pages/RepositoryStartPage';
 
 export const router = createBrowserRouter([
@@ -30,8 +29,9 @@ export const router = createBrowserRouter([
         element: <RepositoriesPage />,
       },
       {
+        // Layout keeps every open repository tab mounted and shows the addressed one.
         path: 'repositories/:id',
-        element: <RepositoryDetailPage />,
+        element: null,
       },
     ],
   },

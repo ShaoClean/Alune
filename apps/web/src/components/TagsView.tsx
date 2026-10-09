@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import type { GitTag, RemoteTag } from '@alune/shared';
 import { gitApi } from '../api';
-import { useRepositoryStore } from '../stores/repositoryStore';
+import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { CreateTagDialog } from './CreateTagDialog';
 
 export function TagsView({
@@ -38,7 +38,7 @@ export function TagsView({
   const [checkoutMode, setCheckoutMode] = useState('branch');
   const [branch, setBranch] = useState('');
   const [pushAll, setPushAll] = useState(false);
-  const remotes = useRepositoryStore((state) => state.remotes);
+  const remotes = useWorkspaceData(repoId, (workspace) => workspace.remotes);
   const remoteRequest = useRef(0);
   const listRequest = useRef(0);
 

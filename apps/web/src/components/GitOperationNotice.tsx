@@ -1,6 +1,7 @@
 import { FeedbackNotice } from '@alune/ui';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
+import { useRepositoryWorkspace } from '../hooks/useRepositoryWorkspace';
 import { gitApi } from '../api';
 
 const labels: Record<string, string> = {
@@ -50,31 +51,34 @@ export function GitOperationNotice({
   const [cancelling, setCancelling] = useState(false);
   const callback = useRef(onFinished);
   callback.current = onFinished;
+  const active = useRepositoryWorkspace()?.active ?? true;
+  // Survives hiding the tab, so an operation that ends meanwhile still refreshes it.
+  const previous = useRef(false);
   useEffect(() => {
     let stopped = false;
-    let previous = false;
     let timer: ReturnType<typeof setTimeout>;
     const read = async () => {
       try {
         const value = await gitApi.operation(repoId);
         if (stopped) return;
         setOperation(value);
-        if (previous && !value) {
+        if (previous.current && !value) {
           setCancelling(false);
           callback.current();
         }
-        previous = !!value;
+        previous.current = !!value;
       } catch {
         /* Operation polling must not replace the workspace's own error state. */
       }
-      if (!stopped) timer = setTimeout(() => void read(), 1200);
+      // A hidden tab only keeps watching an operation it saw running.
+      if (!stopped && (active || previous.current)) timer = setTimeout(() => void read(), 1200);
     };
-    void read();
+    if (active || previous.current) void read();
     return () => {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [repoId]);
+  }, [repoId, active]);
   // Rebase has a persistent recovery panel; a transient notification can remain
   // open after Git pauses and obscure its conflict controls.
   if (!operation || ['interactive-rebase', 'rebase-conflict'].includes(operation.kind)) return null;

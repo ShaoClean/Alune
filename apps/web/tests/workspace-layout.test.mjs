@@ -111,36 +111,33 @@ test('commit drafts are isolated by repository and late submission completion pr
   assert.equal(useCommitDraftStore.getState().drafts.b.message, 'other repository');
 });
 
-test('late diffs and refreshes from previous repositories cannot replace the active workspace', async () => {
+test('late diffs and status land in their own tab and never replace the shown one', async () => {
+  const ws = (id) => repository.getState().workspaces[id];
   const pending = [];
-  let calls = 0;
-  repositoryApi.diff = async () => {
-    calls++;
-    return new Promise((resolve) => pending.push(resolve));
-  };
-  repository.getState().resetWorkspace('a');
-  const a = repository.getState().fetchDiff('a');
-  repository.getState().resetWorkspace('b');
-  const b = repository.getState().fetchDiff('b');
-  pending[1]('diff from b');
-  await b;
-  pending[0]('stale diff from a');
-  await a;
-  await repository.getState().fetchDiff('a');
-  assert.equal(calls, 2);
-  assert.equal(repository.getState().diff, 'diff from b');
-  let statusCalls = 0;
-  repositoryApi.status = async () => {
-    statusCalls++;
-    return { branch: 'b', files: [] };
-  };
-  await repository.getState().fetchStatus('b');
-  await repository.getState().fetchStatus('a');
-  assert.equal(statusCalls, 1);
-  assert.equal(repository.getState().status.branch, 'b');
+  repositoryApi.diff = async () => new Promise((resolve) => pending.push(resolve));
+  try {
+    repository.getState().activateWorkspace('a');
+    const a = repository.getState().fetchDiff('a');
+    repository.getState().activateWorkspace('b');
+    const b = repository.getState().fetchDiff('b');
+    pending[1]('diff from b');
+    await b;
+    pending[0]('late diff from a');
+    await a;
+    assert.equal(ws('b').diff, 'diff from b');
+    assert.equal(ws('a').diff, 'late diff from a', 'a hidden tab keeps its own preview');
+    repositoryApi.status = async (id) => ({ branch: id, files: [] });
+    await repository.getState().fetchStatus('b');
+    await repository.getState().fetchStatus('a');
+    assert.equal(repository.getState().repositoryStatuses.b.data.branch, 'b');
+    assert.equal(repository.getState().repositoryStatuses.a.data.branch, 'a');
+  } finally {
+    repository.getState().disposeWorkspaces(['a', 'b']);
+  }
 });
 
 test('deleting the selected file invalidates a pending diff so a late response cannot restore it', async () => {
+  const ws = () => repository.getState().workspaces['delete-fixture'];
   const original = repositoryApi.diff;
   let resolve;
   repositoryApi.diff = () =>
@@ -148,19 +145,19 @@ test('deleting the selected file invalidates a pending diff so a late response c
       resolve = done;
     });
   try {
-    repository.getState().resetWorkspace('delete-fixture');
+    repository.getState().activateWorkspace('delete-fixture');
     const pending = repository
       .getState()
       .fetchDiff('delete-fixture', { file: 'new.txt', staged: true });
-    repository.getState().clearDiff();
-    assert.equal(repository.getState().diffLoading, false);
+    repository.getState().clearDiff('delete-fixture');
+    assert.equal(ws().diffLoading, false);
     resolve('obsolete added file content');
     await pending;
-    assert.equal(repository.getState().diff, '');
-    assert.equal(repository.getState().diffError, null);
+    assert.equal(ws().diff, '');
+    assert.equal(ws().diffError, null);
   } finally {
     repositoryApi.diff = original;
-    repository.getState().resetWorkspace();
+    repository.getState().disposeWorkspaces(['delete-fixture']);
   }
 });
 

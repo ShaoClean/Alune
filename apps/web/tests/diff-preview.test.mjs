@@ -14,9 +14,10 @@ const { createRepositoryStore } = await import('../src/stores/repositoryStore.ts
 const { repositoryApi } = await import('../src/api/index.ts');
 const { DiffViewer } = await import('../src/components/DiffViewer.tsx');
 let store;
+const ws = () => store.getState().workspaces.repo;
 beforeEach(() => {
   store = createRepositoryStore();
-  store.getState().resetWorkspace('repo');
+  store.getState().activateWorkspace('repo');
 });
 const textPatch =
   'diff --git a/new b/new\nnew file mode 100644\n--- /dev/null\n+++ b/new\n@@ -0,0 +1,2 @@\n+hello\n+++ looks like a header\n';
@@ -74,15 +75,15 @@ test('the latest file/side wins when older successes and failures arrive late', 
   const first = store.getState().fetchDiff('repo', { file: 'new', staged: false });
   const second = store.getState().fetchDiff('repo', { file: 'new', staged: true });
   const third = store.getState().fetchDiff('repo', { file: 'other', staged: false });
-  assert.equal(store.getState().diff, '');
-  assert.equal(store.getState().diffLoading, true);
+  assert.equal(ws().diff, '');
+  assert.equal(ws().diffLoading, true);
   pending[2].resolve('current');
   await third;
   pending[1].reject(new Error('stale error'));
   pending[0].resolve('stale content');
   await Promise.all([first, second]);
-  assert.equal(store.getState().diff, 'current');
-  assert.equal(store.getState().diffError, null);
+  assert.equal(ws().diff, 'current');
+  assert.equal(ws().diffError, null);
 });
 
 test('closing or losing the selected file invalidates pending requests and clears errors', async () => {
@@ -92,21 +93,21 @@ test('closing or losing the selected file invalidates pending requests and clear
       resolve = done;
     });
   const pending = store.getState().fetchDiff('repo', { file: 'new' });
-  store.getState().clearDiff();
+  store.getState().clearDiff('repo');
   resolve(textPatch);
   await pending;
-  assert.equal(store.getState().diff, '');
-  assert.equal(store.getState().diffLoading, false);
+  assert.equal(ws().diff, '');
+  assert.equal(ws().diffLoading, false);
   repositoryApi.diff = async () => {
     throw Object.assign(new Error('Request failed with status code 400'), {
       response: { data: { message: '文件或差异超出预览限制（1 MiB）' } },
     });
   };
   await store.getState().fetchDiff('repo', { file: 'large' });
-  assert.match(store.getState().diffError, /1 MiB/);
-  assert.equal(store.getState().error, null, 'preview failures must not hide the repository');
-  store.getState().clearDiff();
-  assert.equal(store.getState().diffError, null);
+  assert.match(ws().diffError, /1 MiB/);
+  assert.equal(ws().error, null, 'preview failures must not hide the repository');
+  store.getState().clearDiff('repo');
+  assert.equal(ws().diffError, null);
 });
 
 test('line numbers follow each hunk and do not advance for patch metadata', () => {
@@ -145,16 +146,16 @@ test('refreshing the same comparison keeps readable content until the latest res
       : new Promise((resolve, reject) => pending.push({ resolve, reject }));
   const first = store.getState().fetchDiff('repo', { staged: false, file: 'new' });
   const second = store.getState().fetchDiff('repo', { file: 'new' });
-  assert.equal(store.getState().diff, textPatch);
-  assert.equal(store.getState().diffLoading, false);
-  assert.equal(store.getState().diffRefreshing, true);
+  assert.equal(ws().diff, textPatch);
+  assert.equal(ws().diffLoading, false);
+  assert.equal(ws().diffRefreshing, true);
   pending[1].resolve('updated patch');
   await second;
   pending[0].reject(new Error('late refresh error'));
   await first;
-  assert.equal(store.getState().diff, 'updated patch');
-  assert.equal(store.getState().diffRefreshing, false);
-  assert.equal(store.getState().diffError, null);
+  assert.equal(ws().diff, 'updated patch');
+  assert.equal(ws().diffRefreshing, false);
+  assert.equal(ws().diffError, null);
 });
 
 test('failed refresh hides outdated content, exposes the error and permits retry', async () => {
@@ -164,14 +165,14 @@ test('failed refresh hides outdated content, exposes the error and permits retry
     throw new Error('offline');
   };
   await store.getState().fetchDiff('repo', { file: 'new' });
-  assert.equal(store.getState().diff, '');
-  assert.equal(store.getState().diffError, 'offline');
-  assert.equal(store.getState().diffRefreshing, false);
+  assert.equal(ws().diff, '');
+  assert.equal(ws().diffError, 'offline');
+  assert.equal(ws().diffRefreshing, false);
   repositoryApi.diff = async () => '';
   await store.getState().fetchDiff('repo', { file: 'new' });
-  assert.equal(store.getState().diff, '');
-  assert.equal(store.getState().diffError, null);
-  assert.equal(store.getState().diffLoading, false);
+  assert.equal(ws().diff, '');
+  assert.equal(ws().diffError, null);
+  assert.equal(ws().diffLoading, false);
 });
 
 test('changing repository, file, side, commit or parent never retains another comparison', async () => {
@@ -192,9 +193,9 @@ test('changing repository, file, side, commit or parent never retains another co
             resolve = done;
           });
     const request = store.getState().fetchDiff('repo', params);
-    assert.equal(store.getState().diff, '');
-    assert.equal(store.getState().diffLoading, true);
-    assert.equal(store.getState().diffRefreshing, false);
+    assert.equal(ws().diff, '');
+    assert.equal(ws().diffLoading, true);
+    assert.equal(ws().diffRefreshing, false);
     resolve(textPatch);
     await request;
   }
@@ -204,12 +205,13 @@ test('changing repository, file, side, commit or parent never retains another co
       resolve = done;
     });
   const refresh = store.getState().fetchDiff('repo', comparisons.at(-1));
-  store.getState().resetWorkspace('other-repo');
+  store.getState().disposeWorkspaces(['repo']);
   resolve('late refresh');
   await refresh;
-  assert.equal(store.getState().diff, '');
-  assert.equal(store.getState().diffRefreshing, false);
-  assert.equal(store.getState().diffKey, null);
+  store.getState().activateWorkspace('repo');
+  assert.equal(ws().diff, '');
+  assert.equal(ws().diffRefreshing, false);
+  assert.equal(ws().diffKey, null);
 });
 
 test('视图切换只显示图标，并保留可访问名称与选中态', () => {
@@ -237,4 +239,90 @@ test('视图切换只显示图标，并保留可访问名称与选中态', () =>
   assert.equal(items[1].checked, true, 'splitView keeps driving the selected option');
   assert.equal(items[1].selected, true);
   assert.equal(items[0].checked, false);
+});
+
+test('the inspector and History keep separate Diff slots that load and clear independently', async () => {
+  const pending = [];
+  repositoryApi.diff = (_id, options, signal) =>
+    options?.editable
+      ? Promise.resolve({ diff: 'worktree', revision: 'validated' })
+      : new Promise((resolve, reject) => pending.push({ options, signal, resolve, reject }));
+  const commit = store.getState().fetchDiff('repo', { commit: 'abc', file: 'new' }, 'commit');
+  const worktree = store.getState().fetchDiff('repo', { file: 'new' });
+  assert.equal(pending[0].signal.aborted, false, 'a worktree request must not abort History');
+  assert.equal(ws().commitDiff.diffLoading, true);
+  assert.equal(ws().diffLoading, true);
+  pending[1].resolve('worktree');
+  await worktree;
+  assert.equal(ws().diff, 'worktree');
+  assert.equal(ws().commitDiff.diff, '', 'a worktree response must not reach History');
+  pending[0].resolve('commit');
+  await commit;
+  assert.equal(ws().commitDiff.diff, 'commit');
+  assert.equal(ws().commitDiff.partialDiff, null);
+  assert.equal(ws().diff, 'worktree', 'a late commit response must not reach the inspector');
+  assert.equal(ws().partialDiff.revision, 'validated');
+
+  store.getState().clearDiff('repo', 'commit');
+  assert.equal(ws().commitDiff.diff, '');
+  assert.equal(ws().diff, 'worktree', 'leaving History keeps the inspector Diff');
+  store.getState().clearDiff('repo');
+  assert.equal(ws().diff, '');
+  assert.equal(ws().partialDiff, null);
+});
+
+test('clearing one slot invalidates only its own pending request', async () => {
+  const pending = [];
+  repositoryApi.diff = (_id, options, signal) =>
+    new Promise((resolve) => pending.push({ options, signal, resolve }));
+  const commit = store.getState().fetchDiff('repo', { commit: 'abc' }, 'commit');
+  const worktree = store.getState().fetchDiff('repo', { file: 'new' });
+  store.getState().clearDiff('repo');
+  assert.equal(pending[1].signal.aborted, true);
+  assert.equal(pending[0].signal.aborted, false);
+  pending[1].resolve('stale worktree');
+  pending[0].resolve('commit');
+  await Promise.all([commit, worktree]);
+  assert.equal(ws().diff, '');
+  assert.equal(ws().diffLoading, false);
+  assert.equal(ws().commitDiff.diff, 'commit');
+  assert.equal(ws().commitDiff.diffLoading, false);
+});
+
+test('a retained inspector Diff refreshes in place when its panel is shown again', async () => {
+  repositoryApi.diff = async (_id, options) =>
+    options?.editable ? { diff: textPatch, revision: 'r1' } : textPatch;
+  await store.getState().fetchDiff('repo', { file: 'new' });
+  await store.getState().fetchDiff('repo', { commit: 'abc' }, 'commit');
+  let resolve;
+  repositoryApi.diff = async (_id, options) => {
+    if (options?.editable) return { diff: textPatch, revision: 'r2' };
+    return new Promise((done) => {
+      resolve = done;
+    });
+  };
+  const refresh = store.getState().fetchDiff('repo', { file: 'new' });
+  assert.equal(ws().diff, textPatch, 'the shown Diff stays while it revalidates');
+  assert.equal(ws().diffLoading, false);
+  assert.equal(ws().diffRefreshing, true);
+  resolve(textPatch);
+  await refresh;
+  assert.equal(ws().partialDiff.revision, 'r2');
+  assert.equal(ws().commitDiff.diff, textPatch);
+});
+
+test('closing a tab stops pending requests in both Diff slots', () => {
+  const signals = [];
+  repositoryApi.diff = (_id, _options, signal) => {
+    signals.push(signal);
+    return new Promise(() => {});
+  };
+  void store.getState().fetchDiff('repo', { file: 'new' });
+  void store.getState().fetchDiff('repo', { commit: 'abc' }, 'commit');
+  store.getState().disposeWorkspaces(['repo']);
+  assert.deepEqual(
+    signals.map((signal) => signal.aborted),
+    [true, true],
+  );
+  assert.equal(store.getState().workspaces.repo, undefined);
 });
