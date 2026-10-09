@@ -73,6 +73,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     diffLoading,
     diffRefreshing,
     partialDiff,
+    partialDiffEnabled,
     worktreeDiffRevision,
     diffError,
     setCurrentRepo,
@@ -84,6 +85,7 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
     fetchStashes,
     fetchRemotes,
     fetchDiff,
+    preparePartialDiff,
     clearDiff,
     selectedFiles,
     selectRepositoryFile,
@@ -713,6 +715,12 @@ function RepositoryWorkspace({ id }: { id: string | undefined }) {
                           unavailableReason: partialDiff.unavailableReason,
                           staged: selectedFile.staged,
                           refreshing: diffRefreshing,
+                          preparing: diffRefreshing && partialDiffEnabled,
+                          onEnable: () =>
+                            preparePartialDiff(id!, {
+                              file: selectedFile.path,
+                              staged: selectedFile.staged,
+                            }),
                           onChanged: () => fetchStatus(id!, true),
                         }
                       : undefined

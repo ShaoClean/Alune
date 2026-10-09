@@ -56,3 +56,34 @@ test('history remains read only; staged comparison offers only unstage', () => {
   assert.match(staged, /取消暂存所选行/);
   assert.doesNotMatch(staged, /放弃此块|放弃所选行/);
 });
+
+for (const splitView of [false, true]) {
+  test(`${splitView ? 'split' : 'unified'} offers an enable button before preparation`, () => {
+    const props = {
+      diff,
+      repoId: 'test',
+      filePath: 'a.txt',
+      splitView,
+      partial: { staged: false, onEnable: async () => {}, onChanged: async () => {} },
+    };
+    const html = renderToStaticMarkup(React.createElement(DiffViewer, props));
+    assert.match(html, /开启按行操作/);
+    assert.doesNotMatch(html, /正在准备按行操作|data-partial-line|暂存此块|暂存所选行/);
+    const preparing = renderToStaticMarkup(
+      React.createElement(DiffViewer, {
+        ...props,
+        partial: { ...props.partial, refreshing: true, preparing: true },
+      }),
+    );
+    assert.match(preparing, /正在准备按行操作/);
+    assert.doesNotMatch(preparing, /开启按行操作|data-partial-line/);
+    const failed = renderToStaticMarkup(
+      React.createElement(DiffViewer, {
+        ...props,
+        partial: { ...props.partial, unavailableReason: '校验失败' },
+      }),
+    );
+    assert.match(failed, /校验失败/);
+    assert.match(failed, /开启按行操作/);
+  });
+}
