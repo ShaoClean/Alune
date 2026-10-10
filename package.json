@@ -1,6 +1,6 @@
 {
   "name": "alune",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "private": true,
   "scripts": {
     "prepare": "node scripts/install-hooks.mjs && node scripts/prepare-pty.mjs",
