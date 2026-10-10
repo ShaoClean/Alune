@@ -150,6 +150,15 @@ function ensureRuntime(id: string): Runtime {
   const runtime = { terminal, fit, element, lines: 0, sequence: 0 };
   runtimes.set(id, runtime);
   terminal.open(element);
+  // xterm 6 only reveals its scrollbar while scrolling; keep it visible once
+  // there is history to scroll, but not as a full-height slider without any.
+  const syncScrollable = () => {
+    const scrollable = String(terminal.buffer.active.baseY > 0);
+    if (element.dataset.scrollable !== scrollable) element.dataset.scrollable = scrollable;
+  };
+  terminal.onWriteParsed(syncScrollable);
+  terminal.onResize(syncScrollable);
+  terminal.buffer.onBufferChange(syncScrollable);
   terminal.onData((data) => {
     void request('terminal:input', { sessionId: id, data })
       .then(() => patch(id, { inputError: undefined }))

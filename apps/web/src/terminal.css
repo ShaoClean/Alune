@@ -206,6 +206,10 @@
 .terminal-emulator .xterm {
   height: 100%;
 }
+.terminal-emulator[data-scrollable='true'] .xterm-scrollable-element > .scrollbar.vertical {
+  opacity: 1;
+  pointer-events: auto;
+}
 .terminal-notice,
 .terminal-truncated {
   flex: none;
