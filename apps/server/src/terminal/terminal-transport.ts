@@ -135,14 +135,6 @@ export async function sshTerminal(
   signal: AbortSignal,
   callbacks: TerminalCallbacks,
 ): Promise<TerminalTransport> {
-  const check = await connection.execCommand(
-    'test -x "${SHELL:-/bin/sh}"',
-    cwd,
-    signal,
-  );
-  if (check.exitCode !== 0)
-    throw new Error(check.stderr || '无法访问启动目录或执行登录 shell。');
-  signal.throwIfAborted();
   const channel: ClientChannel = await connection.openTerminal(
     cwd,
     cols,

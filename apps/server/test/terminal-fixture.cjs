@@ -6,7 +6,7 @@ const { generateKeyPairSync, randomBytes } = require('node:crypto');
 const { Server } = require('ssh2');
 const pty = require('node-pty');
 
-async function terminalSSH(name) {
+async function terminalSSH(name, { shell = '/bin/sh' } = {}) {
   const { privateKey } = generateKeyPairSync('rsa', {
     modulusLength: 2048,
     privateKeyEncoding: { type: 'pkcs1', format: 'pem' },
@@ -50,8 +50,20 @@ async function terminalSSH(name) {
             GIT_CONFIG_NOSYSTEM: '1',
             GIT_CONFIG_GLOBAL: '/dev/null',
           };
+          const args =
+            shell === 'cmd.exe'
+              ? ['/d', '/s', '/c', info.command]
+              : shell === 'powershell.exe'
+                ? [
+                    '-NoLogo',
+                    '-NoProfile',
+                    '-NonInteractive',
+                    '-Command',
+                    info.command,
+                  ]
+                : ['-c', info.command];
           if (dimensions) {
-            child = pty.spawn('/bin/sh', ['-c', info.command], {
+            child = pty.spawn(shell, args, {
               cwd: os.tmpdir(),
               env,
               cols: dimensions.cols,
@@ -69,7 +81,7 @@ async function terminalSSH(name) {
               channel.end();
             });
           } else {
-            child = spawn('/bin/sh', ['-c', info.command], { env });
+            child = spawn(shell, args, { env });
             processes.add(child);
             child.stdout.pipe(channel, { end: false });
             child.stderr.pipe(channel.stderr, { end: false });
@@ -164,7 +176,12 @@ async function createTerminalFixture({
     await app.close();
     if (database.open) database.close();
     for (const remote of remotes) await remote.close();
-    fs.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    fs.rmSync(root, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
     if (originalShell === undefined) delete process.env.SHELL;
     else process.env.SHELL = originalShell;
     if (originalPrompt === undefined) delete process.env.PS1;

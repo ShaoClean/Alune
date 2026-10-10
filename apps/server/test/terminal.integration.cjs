@@ -2,7 +2,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const { io } = require('socket.io-client');
-const { createTerminalFixture } = require('./terminal-fixture.cjs');
+const {
+  createTerminalFixture,
+  terminalSSH,
+} = require('./terminal-fixture.cjs');
 const until = async (check, timeout = 10_000) => {
   const start = Date.now();
   while (!check()) {
@@ -305,3 +308,103 @@ test(
     }
   },
 );
+
+for (const shell of ['cmd.exe', 'powershell.exe']) {
+  test(
+    `Windows SSH via ${shell} supports literal paths, interactive input and exit`,
+    { skip: process.platform !== 'win32', timeout: 60_000 },
+    async (t) => {
+      const fs = require('node:fs');
+      const os = require('node:os');
+      const path = require('node:path');
+      const { SSHConnection } = require('@alune/ssh-client');
+      const { sshTerminal } = require('../dist/terminal/terminal-transport');
+      const root = fs.realpathSync(
+        fs.mkdtempSync(path.join(os.tmpdir(), 'alune-ssh-terminal-')),
+      );
+      const cwd = path.join(root, "中文 [repo] ' ; $variable & %TEMP%");
+      fs.mkdirSync(cwd);
+      const marker = randomUUID();
+      fs.writeFileSync(path.join(cwd, 'cwd-marker.txt'), marker);
+      const remote = await terminalSSH('windows', { shell });
+      const connection = new SSHConnection(remote.options);
+      connection.on('error', () => {});
+      let transport;
+      t.after(async () => {
+        transport?.dispose();
+        connection.disconnect();
+        await remote.close();
+        fs.rmSync(root, {
+          recursive: true,
+          force: true,
+          maxRetries: 10,
+          retryDelay: 100,
+        });
+      });
+      await connection.connect();
+      const controller = new AbortController();
+      let output = '';
+      let exitCode;
+      let disconnected;
+      const callbacks = {
+        data: (data) => {
+          output += data;
+        },
+        exit: (code) => {
+          exitCode = code;
+        },
+        disconnect: (message) => {
+          disconnected = message;
+        },
+      };
+      const open = (directory) =>
+        sshTerminal(
+          connection,
+          directory,
+          160,
+          30,
+          controller.signal,
+          callbacks,
+        );
+      await assert.rejects(open(path.join(cwd, 'missing')));
+      const file = path.join(root, 'file.txt');
+      fs.writeFileSync(file, 'not a directory');
+      await assert.rejects(open(file));
+      assert.equal(connection.activeTasks, 0);
+      // SFTP's drive path must resolve to the same directory as Windows/Git paths.
+      transport = await open('/' + cwd.replace(/\\/g, '/'));
+      transport.resume();
+      await until(() => output.includes('PS '));
+      transport.resize(120, 35);
+      // A native program reading a unique relative file proves its working
+      // directory, independent of 8.3 aliases and PowerShell 5 provider globbing.
+      transport.write(
+        `node -p "require('fs').readFileSync('cwd-marker.txt', 'utf8')"\r`,
+      );
+      try {
+        await until(() => output.includes(marker));
+      } catch (error) {
+        throw new Error(error.message + '\n' + output);
+      }
+      transport.write('exit 7\r');
+      await until(() => exitCode !== undefined || disconnected);
+      assert.equal(disconnected, undefined);
+      // PowerShell -Command maps a native child's nonzero status to 1;
+      // cmd.exe preserves it. Report the status supplied by the SSH server.
+      assert.equal(exitCode, shell === 'powershell.exe' ? 1 : 7);
+      transport.dispose();
+      await until(() => connection.activeTasks === 0);
+      output = '';
+      transport = await open(cwd);
+      transport.resume();
+      await until(() => output.includes('PS '));
+      transport.dispose();
+      await until(() => connection.activeTasks === 0);
+      // Terminal shutdown must leave the shared connection usable.
+      const result = await connection.execCommand(
+        'powershell -NoProfile -NonInteractive -Command "exit 0"',
+      );
+      assert.equal(result.exitCode, 0);
+    },
+  );
+}
