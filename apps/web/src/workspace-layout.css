@@ -1541,6 +1541,7 @@
   color: var(--text-muted);
   text-align: right;
   padding-right: 8px;
+  white-space: nowrap;
   font-size: 10px;
   user-select: none;
 }
