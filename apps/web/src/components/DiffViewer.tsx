@@ -182,7 +182,9 @@ export function DiffViewer({
     [lines],
   );
   const highlighted = useDiffHighlight(lines, diff?.length ?? 0, filePath);
-  const gutterWidth = `${Math.max(4, String(lines.reduce((max, line) => Math.max(max, line.oldLine ?? 0, line.newLine ?? 0), 0)).length + 1)}ch`;
+  const maxLineNumber = lines.reduce((max, line) => Math.max(max, line.oldLine ?? 0, line.newLine ?? 0), 0);
+  // Reserve digit width plus the number's horizontal padding, so 3+ digit lines never wrap.
+  const gutterWidth = `calc(${Math.max(2, String(maxLineNumber).length)}ch + 16px)`;
   const language = fileLanguage(filePath ?? title ?? '');
   const rawHighlightable =
     !diff && Boolean(language) && oldCode.length + newCode.length <= HIGHLIGHT_MAX_CHARS;
