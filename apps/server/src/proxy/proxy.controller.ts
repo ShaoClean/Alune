@@ -160,7 +160,7 @@ export class ProxyController {
             );
             if (result.exitCode !== 0)
               throw new BadRequestException(
-                '远端 Git 连接测试失败，请检查代理、仓库权限、SSH 密钥与 known_hosts，以及远端 Python 3 / OpenSSH。',
+                '远端 Git 连接测试失败，请检查代理、仓库权限、SSH 密钥与 known_hosts，以及远端 OpenSSH；SSH 远程地址还需 nc、ncat、connect、socat 或 Python 3 之一。',
               );
           }
           message = `远端 Git 测试成功，已通过转发只读验证 ${urls.length} 个地址。`;

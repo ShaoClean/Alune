@@ -250,7 +250,8 @@ export async function createProxyBridge(snapshot: () => ProxySnapshot) {
         Number(target.port || 80),
         downstream as net.Socket,
       );
-      downstream.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+      // Older OpenBSD-derived nc (macOS) accepts only an HTTP/1.0 status line.
+      downstream.write('HTTP/1.0 200 Connection Established\r\n\r\n');
       if (head.length) upstream.write(head);
       downstream.once('close', () => upstream.destroy());
       upstream.once('close', () => downstream.destroy());

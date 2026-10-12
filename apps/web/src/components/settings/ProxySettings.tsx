@@ -564,9 +564,8 @@ export function ProxySettings() {
                   连接继续使用原配置，断线自动重连也沿用原配置。点击“重新连接并应用”后切换。
                 </p>
                 <p>
-                  远端 Git 通过 SSH
-                  回环转发复用本机代理，认证信息留在本机。服务器需要允许转发，并提供 Python 3 和
-                  OpenSSH。
+                  远端 Git 通过 SSH 回环转发复用本机代理，认证信息留在本机。服务器需要允许转发并提供
+                  OpenSSH；SSH 协议的远程地址还需 nc、ncat、connect、socat 或 Python 3 其中之一。
                 </p>
                 <p className="settings-field-hint">
                   独立服务部署时，“本机”指运行 Alune 服务的主机。浏览器所在电脑的 127.0.0.1
