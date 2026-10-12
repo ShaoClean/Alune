@@ -24,7 +24,7 @@
 
 远端 Git 的 fetch、pull、push、读取远程引用经 SSH 回环转发复用本机代理。远端不接收代理凭据。Git 代理参数、SSH ProxyCommand 与环境只作用于当前命令，不修改远端用户全局配置；已有仓库级代理覆盖也会在命令期间被覆盖。SSH remote 保留服务器密钥验证和仓库认证，禁用控制连接复用与额外跳板，避免复用其他网络路径。
 
-服务器需允许 `tcpip-forward` 并接受 `127.0.0.1` 监听（建议 `GatewayPorts no` 或 `clientspecified`），提供 `python3`、Git 和 OpenSSH。Linux 从 `/proc/net/tcp*` 核实监听范围；其他系统需 `netstat -an`。发现通配地址、缺少工具、权限不足或禁止转发时明确失败，关闭转发入口，不自动安装工具。Windows SSH 路径使用 PowerShell 传递当前进程环境；Windows 远端还需可在 SSH 会话中调用的 `python3`、OpenSSH 和 `netstat`。
+服务器需允许 `tcpip-forward` 并接受 `127.0.0.1` 监听（建议 `GatewayPorts no` 或 `clientspecified`），提供 Git 和 OpenSSH。即使 `GatewayPorts yes` 把入口扩大到通配地址，Alune 也只接受 sshd 报告来源为回环地址的转发连接，其他来源一律拒绝，不依赖远端工具核实监听范围。HTTP(S) remote 无需额外工具；SSH remote 的 ProxyCommand 依次尝试支持 `-X` 的 OpenBSD `nc`、`ncat`、`connect`（Git for Windows 自带）、`socat` 和 `python3`，任一可用即可；全部缺失时仅 SSH remote 明确失败，不自动安装工具。Windows SSH 路径使用 PowerShell 传递当前进程环境；Windows 远端还需可在 SSH 会话中调用的 Git for Windows 与 OpenSSH。
 
 “SSH 已连接”和“远端 Git 可用”分别显示。设置页的 Git 连接测试用于远端仓库，仅读取所选仓库所有 fetch / push 地址的引用，不执行提交、fetch、pull 或 push。支持 HTTP(S) 和 SSH remote；`git://`、自定义 Git 传输助手等不允许绕过此代理。
 

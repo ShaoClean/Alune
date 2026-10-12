@@ -83,7 +83,7 @@ async function socksProxy({ credentials, map = (_host, port) => ({ host: '127.0.
   return { ...await listen(server), records };
 }
 
-async function forwardingSSH({ deny = false, wildcard = false, environment = {} } = {}) {
+async function forwardingSSH({ deny = false, wildcard = false, originator, environment = {} } = {}) {
   const key = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' });
   const forwards = new Map();
   const clients = new Set();
@@ -97,7 +97,7 @@ async function forwardingSSH({ deny = false, wildcard = false, environment = {} 
       if (name === 'cancel-tcpip-forward') { forwards.get(info.bindPort)?.close(); forwards.delete(info.bindPort); owned.delete(info.bindPort); accept(); return; }
       if (name !== 'tcpip-forward' || deny) return reject();
       const listener = net.createServer((socket) => {
-        client.forwardOut(info.bindAddr, listener.address().port, '127.0.0.1', socket.remotePort, (error, channel) => {
+        client.forwardOut(info.bindAddr, listener.address().port, originator ?? socket.remoteAddress.replace(/^::ffff:/, ''), socket.remotePort, (error, channel) => {
           if (error) return socket.destroy();
           socket.on('error', () => channel.destroy()); channel.on('error', () => socket.destroy());
           socket.on('close', () => channel.destroy()); channel.on('close', () => socket.destroy());

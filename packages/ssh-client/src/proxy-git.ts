@@ -4,45 +4,13 @@ import { deflateSync } from 'node:zlib';
 
 export class GitProxyError extends Error {}
 
+export const isLoopbackAddress = (address: string) =>
+  /^127\.\d+\.\d+\.\d+$/.test(address) ||
+  /^::ffff:127\.\d+\.\d+\.\d+$/i.test(address) ||
+  address === '::1';
+
 const python = (script: string) =>
   `python3 -c "exec(__import__('zlib').decompress(__import__('base64').b64decode('${deflateSync(script).toString('base64')}')))"`;
-
-// This helper has no credentials and installs no files on the remote machine.
-// Check the actual listener: sshd GatewayPorts=yes can override a loopback bind.
-const checkListener = `import os,sys,subprocess
-p=int(sys.argv[1]); found=[]
-if os.path.exists('/proc/net/tcp'):
- for f in ['/proc/net/tcp','/proc/net/tcp6']:
-  if not os.path.exists(f): continue
-  for line in open(f).readlines()[1:]:
-   a=line.split()
-   if a[3]=='0A' and int(a[1].split(':')[1],16)==p: found.append(a[1].split(':')[0]=='0100007F')
-else:
- for line in subprocess.check_output(['netstat','-an'],text=True).splitlines():
-  a=line.split()
-  if 'LISTEN' not in line.upper(): continue
-  for v in a:
-   if v.endswith(':'+str(p)) or v.endswith('.'+str(p)):
-    found.append(v in ['127.0.0.1:'+str(p),'127.0.0.1.'+str(p)]); break
-sys.exit(0 if found and all(found) else 71)
-`;
-
-export async function verifyLoopbackForward(connection: SSHConnection, port: number) {
-  const result = await connection.execCommand(
-    `${python(checkListener)} ${port}`,
-    undefined,
-    AbortSignal.timeout(15_000),
-    { maxOutputBytes: 16_384 },
-  );
-  if (result.exitCode === 71)
-    throw new GitProxyError(
-      '无法确认远端入口仅监听 127.0.0.1，已关闭转发；请检查 GatewayPorts 设置和监听权限。',
-    );
-  if (result.exitCode !== 0)
-    throw new GitProxyError(
-      '远端 Git 代理需要可执行的 Python 3，以及读取监听端口的权限（非 Linux 系统还需 netstat）；请由管理员配置后重新连接。',
-    );
-}
 
 const connectScript = `import os,socket,sys,threading
 s=socket.create_connection(('127.0.0.1',int(sys.argv[3])),20)
@@ -72,6 +40,24 @@ while True:
  sys.stdout.buffer.write(d);sys.stdout.buffer.flush()
 `;
 
+// ProxyCommand runs under the remote user's $SHELL; sh -c keeps the probe POSIX
+// even for fish. Avoid backslashes and percent signs: fish single quotes and ssh
+// token expansion would alter them. Git for Windows ships connect.exe; Python
+// stays last so hosts without netcat-style tools keep working.
+export function sshProxyCommand(port: number) {
+  const script = [
+    'h=$1 p=$2',
+    `if nc -h 2>&1 | grep -q -e -X; then exec nc -X connect -x 127.0.0.1:${port} "$h" "$p"; fi`,
+    `if command -v ncat >/dev/null 2>&1; then exec ncat --proxy 127.0.0.1:${port} --proxy-type http "$h" "$p"; fi`,
+    `if command -v connect >/dev/null 2>&1; then exec connect -H 127.0.0.1:${port} "$h" "$p"; fi`,
+    `case $h in *:*) ;; *) if command -v socat >/dev/null 2>&1; then exec socat - "PROXY:127.0.0.1:$h:$p,proxyport=${port}"; fi;; esac`,
+    `if command -v python3 >/dev/null 2>&1; then exec ${python(connectScript)} "$h" "$p" ${port}; fi`,
+    'echo "Alune: 远端缺少 SSH 代理工具（nc、ncat、connect、socat 或 python3 任一），SSH 协议的远程地址无法经代理连接；HTTPS 远程地址不受影响。" >&2',
+    'exit 1',
+  ].join('; ');
+  return `sh -c ${quotePosixArgument(script)} alune %h %p`;
+}
+
 export async function proxyGitArguments(
   connection: SSHConnection,
   path: string,
@@ -98,7 +84,7 @@ export async function proxyGitArguments(
     .split('\n')
     .filter(Boolean)
     .flatMap((key) => ['-c', `${key}=${proxy}`]);
-  const sshProxy = `${python(connectScript)} %h %p ${port}`;
+  const sshProxy = sshProxyCommand(port);
   const ssh = `ssh -o ${quotePosixArgument(`ProxyCommand=${sshProxy}`)} -o ProxyJump=none -o ControlMaster=no -o ControlPath=none -o CanonicalizeHostname=no -o ProxyUseFdpass=no -o BatchMode=yes -o ConnectTimeout=20 -o PermitLocalCommand=no`;
   return gitFileCommand(
     path,

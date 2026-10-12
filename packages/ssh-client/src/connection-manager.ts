@@ -10,7 +10,7 @@ import type { GitProxyStatus } from '@alune/shared';
 import { connectProxySocket, createProxyBridge } from './proxy-transport';
 import type { ProxySnapshot } from './proxy-transport';
 import { gitFileCommand, quotePosixArgument } from './git-shell';
-import { GitProxyError, proxyGitArguments, verifyLoopbackForward } from './proxy-git';
+import { GitProxyError, isLoopbackAddress, proxyGitArguments } from './proxy-git';
 import { terminalShellCommands } from './terminal-shell';
 
 export interface SSHConnectionOptions {
@@ -271,10 +271,13 @@ export class SSHConnection extends EventEmitter {
       }
       this.forwardPort = port;
       this.forwardListener = (info, accept, reject) => {
+        // sshd GatewayPorts=yes can widen the loopback bind; sshd reports each
+        // originator, so refuse anything that did not come from the remote host itself.
         if (
           this.client !== client ||
           info.destIP !== '127.0.0.1' ||
-          info.destPort !== this.forwardPort
+          info.destPort !== this.forwardPort ||
+          !isLoopbackAddress(info.srcIP)
         )
           return reject();
         const channel = accept();
@@ -292,8 +295,6 @@ export class SSHConnection extends EventEmitter {
         channel.pipe(socket).pipe(channel);
       };
       client.on('tcp connection', this.forwardListener);
-      await verifyLoopbackForward(this, port);
-      if (this.client !== client || !this.connected) throw new Error();
       this.forwarding = 'ready';
     })()
       .catch((error) => {

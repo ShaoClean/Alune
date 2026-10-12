@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
+const net = require('node:net');
 const { connectProxySocket, createProxyDispatcher, createProxyBridge, SSHConnection } = require('../dist');
 const { listen, httpProxy, socksProxy, forwardingSSH } = require('./helpers/proxy-fixture.cjs');
 
@@ -60,13 +61,29 @@ test('SSH connects through the proxy; forwarding, busy tasks, and disconnect cle
   assert.equal(server.forwards.size, 0);
 });
 
-test('forwarding denied or forced wildcard binding leaves SSH usable and closes the listener', { skip: process.platform === 'win32' }, async (t) => {
-  for (const options of [{ deny: true }, { wildcard: true }]) {
-    const server = await forwardingSSH(options), proxy = await httpProxy(); t.after(server.close); t.after(proxy.close);
+test('denied forwarding leaves SSH usable and closes the listener', { skip: process.platform === 'win32' }, async (t) => {
+  const server = await forwardingSSH({ deny: true }), proxy = await httpProxy(); t.after(server.close); t.after(proxy.close);
+  const connection = new SSHConnection({ host: '127.0.0.1', port: server.port, username: 'test', proxy: config(proxy.port) }); connection.on('error', () => {}); t.after(() => connection.disconnect());
+  await connection.connect(); await assert.rejects(connection.prepareGitProxy());
+  assert.equal(connection.connected, true); assert.equal(connection.forwarding, 'denied');
+  await new Promise((resolve) => setTimeout(resolve, 100)); assert.equal(server.forwards.size, 0);
+  assert.equal((await connection.execCommand('printf ssh-ok')).stdout, 'ssh-ok');
+});
+
+test('a wildcard-bound forward only relays connections that originate on the remote host', { skip: process.platform === 'win32' }, async (t) => {
+  const origin = await listen(net.createServer((socket) => socket.pipe(socket))); t.after(origin.close);
+  for (const [originator, relayed] of [['203.0.113.5', false], ['127.0.0.1', true]]) {
+    const server = await forwardingSSH({ wildcard: true, originator }), proxy = await httpProxy(); t.after(server.close); t.after(proxy.close);
     const connection = new SSHConnection({ host: '127.0.0.1', port: server.port, username: 'test', proxy: config(proxy.port) }); connection.on('error', () => {}); t.after(() => connection.disconnect());
-    await connection.connect(); await assert.rejects(connection.prepareGitProxy());
-    assert.equal(connection.connected, true); assert.equal(connection.forwarding, options.deny ? 'denied' : 'error');
-    await new Promise((resolve) => setTimeout(resolve, 100)); assert.equal(server.forwards.size, 0);
-    assert.equal((await connection.execCommand('printf ssh-ok')).stdout, 'ssh-ok');
+    await connection.connect(); await connection.prepareGitProxy();
+    assert.equal(connection.forwarding, 'ready');
+    const [port] = server.forwards.keys();
+    const socket = net.connect(port, '127.0.0.1'); socket.on('error', () => {});
+    socket.write(`CONNECT 127.0.0.1:${origin.port} HTTP/1.1\r\nHost: 127.0.0.1:${origin.port}\r\n\r\n`);
+    let reply = '';
+    socket.on('data', (data) => { reply += data; socket.end(); });
+    await new Promise((resolve) => socket.once('close', resolve));
+    assert.equal(reply.startsWith('HTTP/1.0 200'), relayed, reply);
+    assert.equal(proxy.records.filter((entry) => entry.port === origin.port).length, relayed ? 1 : 0);
   }
 });
