@@ -1634,7 +1634,9 @@
 }
 .status-bar__progress {
   display: inline-flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(520px, 50vw);
   align-items: center;
   gap: 5px;
   margin-left: 8px;
@@ -1645,6 +1647,11 @@
   border-radius: 10px;
   font-size: 11px;
   white-space: nowrap;
+}
+.status-bar__progress-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .repository-switcher {
   display: inline-flex;

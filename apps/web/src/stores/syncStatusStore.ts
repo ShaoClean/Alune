@@ -7,14 +7,16 @@ export interface SyncState {
   operation: SyncOperation | null;
   force: boolean;
   detail: string | null;
+  progress: string | null;
 }
 
 interface SyncStatusState extends SyncState {
   startSync: (repoId: string, operation: SyncOperation, options?: { force?: boolean }) => void;
   finishSync: (repoId: string) => void;
+  setProgress: (repoId: string, progress: string | null) => void;
 }
 
-const idle: SyncState = { repoId: null, operation: null, force: false, detail: null };
+const idle: SyncState = { repoId: null, operation: null, force: false, detail: null, progress: null };
 
 const operationLabels: Record<SyncOperation, string> = {
   fetch: '获取',
@@ -42,8 +44,16 @@ export const useSyncStatusStore = create<SyncStatusState>((set) => ({
       operation,
       force: Boolean(options?.force),
       detail: syncDetail(operation, options?.force),
+      progress: null,
     }),
   // Only the workspace that started the operation may clear it.
   finishSync: (repoId) =>
     set((state) => (state.repoId === repoId ? { ...idle } : state)),
+  // Git's own progress line (e.g. LFS transfers) for the operation in flight.
+  setProgress: (repoId, progress) =>
+    set((state) =>
+      state.repoId === repoId && state.operation && state.progress !== progress
+        ? { progress }
+        : state,
+    ),
 }));
