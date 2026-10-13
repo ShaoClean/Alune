@@ -144,6 +144,37 @@ export function RepositoryTabs({
     };
   }, []);
 
+  // Mouse wheels only emit deltaY; trackpads' horizontal swipes keep native scrolling.
+  // React's onWheel is passive, so preventDefault needs a native listener.
+  const hasTabs = repositories.length > 0;
+  useEffect(() => {
+    const container = scroll.current;
+    if (!container) return;
+    const wheel = (event: WheelEvent) => {
+      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      if (container.scrollWidth <= container.clientWidth) return;
+      event.preventDefault();
+      // Line-mode wheels (Firefox) report 3 lines per notch; one notch moves about one tab.
+      const unit =
+        event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? container.clientWidth
+          : event.deltaMode === WheelEvent.DOM_DELTA_LINE
+            ? (container.querySelector<HTMLElement>('[data-repository-tab]')?.offsetWidth ?? 40) / 3
+            : 1;
+      container.scrollLeft += event.deltaY * unit;
+    };
+    container.addEventListener('wheel', wheel, { passive: false });
+    return () => container.removeEventListener('wheel', wheel);
+  }, [hasTabs]);
+
+  // Covers clicks, sidebar opens, newly opened repositories and focus moving after a close.
+  useEffect(() => {
+    if (!activeId) return;
+    scroll.current
+      ?.querySelector<HTMLElement>(`[data-repository-tab="${CSS.escape(activeId)}"]`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeId, hasTabs]);
+
   const autoScroll = (clientX: number) => {
     pointerX.current = clientX;
     if (scrollFrame.current !== null) return;
