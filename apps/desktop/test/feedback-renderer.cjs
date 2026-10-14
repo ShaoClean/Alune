@@ -46,11 +46,21 @@ app.whenReady().then(async () => {
       setter.call(node, value);
       node.dispatchEvent(new Event('input', { bubbles: true }));
     }),
+    // sendInputEvent returns before the page handles the key; wait for its keyup so a late
+    // Escape cannot close the next dialog the test opens.
     press: async (value, key) => {
-      await resolve((node) => node.focus())(value);
+      await resolve((node) => {
+        node.focus();
+        window.__pressed = false;
+        window.addEventListener('keyup', () => (window.__pressed = true), {
+          once: true,
+          capture: true,
+        });
+      })(value);
       window.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
       if (key === 'Enter') window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
       window.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
+      await waitForFunction(() => window.__pressed);
     },
   };
   try {
