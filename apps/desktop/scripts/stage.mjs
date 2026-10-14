@@ -68,6 +68,9 @@ function run(command, args) {
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status || 1);
 }
+// npm keeps an installed file: dependency whose version is unchanged, so a
+// re-stage would leave stale workspace builds; drop them to force a fresh copy.
+await rm(path.join(target, 'node_modules/@alune'), { recursive: true, force: true });
 // Install and rebuild inside the staged app: the web server's Node ABI stays intact.
 run('npm', [
   'install',
