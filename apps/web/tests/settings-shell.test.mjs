@@ -24,7 +24,7 @@ test('settings reuse workspace navigation and have no independent full-screen sh
   assert.doesNotMatch(layout, /display: isSettings \? 'none'/);
 });
 
-test('all eleven settings dropdowns use named, explicitly associated antd inputs', () => {
+test('all twelve settings dropdowns use named, explicitly associated antd inputs', () => {
   const files = readdirSync(new URL('../src/components/settings/', import.meta.url))
     .filter((file) => file.endsWith('.tsx'))
     .map((file) => source(`components/settings/${file}`));
@@ -32,7 +32,7 @@ test('all eleven settings dropdowns use named, explicitly associated antd inputs
   const selects = files.flatMap((file) =>
     [...file.matchAll(/<Select\b[\s\S]*?\/>/g)].map((match) => ({ markup: match[0], file })),
   );
-  assert.equal(selects.length, 11);
+  assert.equal(selects.length, 12);
   for (const { markup, file } of selects) {
     const id = markup.match(/id="([^"]+)"/)?.[1];
     assert.ok(id);

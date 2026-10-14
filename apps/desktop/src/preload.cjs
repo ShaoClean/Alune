@@ -34,3 +34,9 @@ contextBridge.exposeInMainWorld('aluneWorkspace', {
   },
   clear: () => ipcRenderer.invoke('workspace:clear'),
 });
+
+contextBridge.exposeInMainWorld('aluneLogs', {
+  openWindow: () => ipcRenderer.invoke('logs:open-window'),
+  openDirectory: () => ipcRenderer.invoke('logs:open-directory'),
+  chooseDirectory: () => ipcRenderer.invoke('logs:choose-directory'),
+});

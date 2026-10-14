@@ -19,6 +19,7 @@ import { ProxyService } from '../proxy/proxy.service';
 import type { ProxyConnectionStatus } from '@alune/shared';
 import { EventsGateway } from '../events/events.gateway';
 import { TerminalRegistry } from '../terminal/terminal-registry';
+import { logger } from '../logging/logger';
 
 @Injectable()
 export class ConnectionService implements OnModuleDestroy {
@@ -67,7 +68,32 @@ export class ConnectionService implements OnModuleDestroy {
     const info: ConnectionStatusInfo = { status, error, updatedAt };
     this.statuses.set(id, info);
     this.events.emitConnectionStatus(id, status, error, info.updatedAt);
+    this._logStatus(id, status, error);
     return info;
+  }
+
+  private _logStatus(
+    id: string,
+    status: ConnectionActivityStatus,
+    error?: string,
+  ) {
+    let target: { name?: string; host?: string; port?: number } | undefined;
+    try {
+      target = this.db
+        .prepare('SELECT name, host, port FROM connections WHERE id = ?')
+        .get(id) as typeof target;
+    } catch {}
+    const context = {
+      connectionId: id,
+      ...target,
+      ...(error ? { error } : {}),
+    };
+    if (status === 'error') logger.error('ssh', 'SSH 连接失败', context);
+    else if (status === 'connecting')
+      logger.debug('ssh', '正在建立 SSH 连接', context);
+    else if (status === 'connected') logger.info('ssh', 'SSH 已连接', context);
+    else if (status === 'disconnected')
+      logger.info('ssh', 'SSH 已断开', context);
   }
 
   getStatus(id: string): ConnectionStatusInfo {

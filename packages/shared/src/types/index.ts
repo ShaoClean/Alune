@@ -11,3 +11,4 @@ export * from './blame';
 export * from './tags';
 export * from './rebase';
 export * from './pull-request-center';
+export * from './logging';

@@ -56,6 +56,7 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   assert.deepEqual(await window.webContents.executeJavaScript(`Object.keys(window.desktopUpdates).sort()`),
     ['cancel', 'check', 'download', 'getState', 'install', 'openFile', 'revealFile', 'subscribe'].sort());
   assert.equal(await window.webContents.executeJavaScript(`typeof window.desktopUpdates.send`), 'undefined');
+  await require('./logs-smoke.cjs')({ window, origin, token });
   await require('./ai-smoke.cjs')({ backend, origin, token, window });
   await openUpdateSettings(window);
   await waitForUI(window, `document.querySelector('[data-testid="update-panel"]') && document.body.innerText.includes('检查更新')`);

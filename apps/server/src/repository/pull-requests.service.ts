@@ -8,6 +8,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { traceHttp } from '../logging/logger';
 import type {
   PullRequestAccount,
   PullRequestItem,
@@ -375,16 +376,26 @@ export class PullRequestsService {
         credential.assertCurrent();
         if (options) writeDispatched = true;
         options?.onDispatch?.();
-        const response = await fetch(url, {
-          ...(options
-            ? { method: options.method, body: JSON.stringify(options.body) }
-            : {}),
-          headers: options
-            ? { ...headers, 'Content-Type': 'application/json' }
-            : headers,
-          signal,
-          redirect: 'error',
-        });
+        const response = await traceHttp(
+          'platform',
+          options?.method || 'GET',
+          url,
+          { provider: query.provider, repositoryId: id },
+          () =>
+            fetch(url, {
+              ...(options
+                ? {
+                    method: options.method,
+                    body: JSON.stringify(options.body),
+                  }
+                : {}),
+              headers: options
+                ? { ...headers, 'Content-Type': 'application/json' }
+                : headers,
+              signal,
+              redirect: 'error',
+            }),
+        );
         try {
           if (!options) credential.assertCurrent();
         } catch (error) {
