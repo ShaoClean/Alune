@@ -22,6 +22,10 @@ export interface SSHConnectionOptions {
   privateKeyPath?: string;
   passphrase?: string;
   readyTimeout?: number;
+  // A NAT or VPN can drop an idle connection without closing it; keepalives
+  // notice that so the next request reconnects instead of hanging.
+  keepaliveInterval?: number;
+  keepaliveCountMax?: number;
   proxy?: ProxySnapshot;
 }
 
@@ -90,6 +94,8 @@ export class SSHConnection extends EventEmitter {
     this.options = {
       port: 22,
       readyTimeout: 20000,
+      keepaliveInterval: 15000,
+      keepaliveCountMax: 3,
       ...options,
     };
   }
@@ -700,6 +706,8 @@ export class SSHConnection extends EventEmitter {
       port: this.options.port,
       username: this.options.username,
       readyTimeout: this.options.readyTimeout,
+      keepaliveInterval: this.options.keepaliveInterval,
+      keepaliveCountMax: this.options.keepaliveCountMax,
     };
 
     if (this.options.password) {
