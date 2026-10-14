@@ -132,25 +132,31 @@ test('未知状态不显示虚假的零改动，干净仓库明确显示零', ()
   assert.ok(clean.some((item) => item.label === '当前分支 游离 HEAD，切换分支'));
 });
 
-test('执行同步时拉取与推送都不可用，只有对应操作标记忙碌', () => {
-  for (const [operation, label] of [
-    ['fetch', null],
-    ['pull', '拉取'],
-    ['push', '推送'],
+test('执行同步时其他同步按钮不可用，运行中的拉取或推送可点击取消', () => {
+  for (const [operation, running, cancel] of [
+    ['fetch', null, null],
+    ['pull', '拉取', '取消拉取'],
+    ['push', '推送', '取消推送'],
   ]) {
     const items = buttons(render({ syncing: operation }));
-    for (const item of items.filter((item) => ['拉取', '推送'].includes(item.label))) {
-      assert.match(item.attributes, /aria-disabled="true"/);
-      assert.match(item.attributes, new RegExp(`aria-busy="${item.label === label}"`));
+    const sync = items.filter((item) => ['拉取', '推送', '取消拉取', '取消推送'].includes(item.label));
+    assert.equal(sync.length, 2);
+    for (const item of sync) {
+      const busy = item.label === cancel;
+      assert.match(item.attributes, new RegExp(`aria-disabled="${!busy}"`));
+      assert.match(item.attributes, new RegExp(`aria-busy="${busy}"`));
     }
+    if (running) assert.ok(items.some((item) => item.label === cancel));
   }
+  const cancelling = buttons(render({ syncing: 'pull', cancelling: true }));
+  assert.match(cancelling.find((item) => item.label === '取消拉取').attributes, /aria-disabled="true"/);
 });
 
 test('推送执行中按钮内联显示转圈与文案，强制推送有独立文案', () => {
-  const pushing = buttons(render({ syncing: 'push' })).find((item) => item.label === '推送');
+  const pushing = buttons(render({ syncing: 'push' })).find((item) => item.label === '取消推送');
   assert.equal(pushing.text, '推送中…');
   const forcing = buttons(render({ syncing: 'push', syncingForce: true })).find(
-    (item) => item.label === '推送',
+    (item) => item.label === '取消强制推送',
   );
   assert.equal(forcing.text, '强制推送中…');
 });

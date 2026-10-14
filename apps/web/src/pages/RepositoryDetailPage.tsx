@@ -215,6 +215,7 @@ function RepositoryWorkspace({
   );
   const [syncing, setSyncing] = useState<SyncOperation | null>(null);
   const [syncingForce, setSyncingForce] = useState(false);
+  const [syncCancelling, setSyncCancelling] = useState(false);
   const [context, setContext] = useState<RepositoryContext | null>(null);
   const [managedRebase, setManagedRebase] = useState<string | null>(null);
   const [syncError, setSyncError] = useState('');
@@ -233,6 +234,7 @@ function RepositoryWorkspace({
   const [pullRequestsRefresh, setPullRequestsRefresh] = useState(0);
   const startSync = useSyncStatusStore((state) => state.startSync);
   const finishSync = useSyncStatusStore((state) => state.finishSync);
+  const setSyncProgress = useSyncStatusStore((state) => state.setProgress);
 
   // Showing a tab makes it current again; its loaded data is kept, only status revalidates.
   useLayoutEffect(() => {
@@ -458,7 +460,18 @@ function RepositoryWorkspace({
     } finally {
       setSyncing(null);
       setSyncingForce(false);
+      setSyncCancelling(false);
       finishSync(id);
+    }
+  };
+
+  const cancelSync = async () => {
+    setSyncCancelling(true);
+    try {
+      await gitApi.cancel(id);
+    } catch (err: any) {
+      setSyncCancelling(false);
+      message.error(err.message);
     }
   };
 
@@ -664,9 +677,11 @@ function RepositoryWorkspace({
                 activePanel={activePanel}
                 syncing={syncing}
                 syncingForce={syncingForce}
+                cancelling={syncCancelling}
                 refreshing={refreshing}
                 onSelect={selectPanel}
                 onSync={(operation, options) => void requestSync(operation, options)}
+                onCancelSync={() => void cancelSync()}
                 onRefresh={() => void refreshFromToolbar()}
                 onBranchSwitched={() => void handleRefresh(true)}
               />,
@@ -698,7 +713,16 @@ function RepositoryWorkspace({
               </Button>
             </div>
           )}
-          <GitOperationNotice key={id} repoId={id} onFinished={() => void handleRefresh()} />
+          <GitOperationNotice
+            key={id}
+            repoId={id}
+            onFinished={() => void handleRefresh()}
+            onOperation={(operation) => {
+              if (operation?.kind !== 'pull' && operation?.kind !== 'push') return;
+              setSyncProgress(id, operation.progress || null);
+              if (operation.cancelling) setSyncCancelling(true);
+            }}
+          />
           <RebaseOperationNotice
             key={`rebase:${id}`}
             repoId={id}

@@ -29,6 +29,7 @@ export function WorkspaceStatusBar({
   const terminalCount = useTerminalStore((state) => state.sessions.length);
   const syncDetail = useSyncStatusStore((state) => state.detail);
   const syncRepoId = useSyncStatusStore((state) => state.repoId);
+  const syncProgress = useSyncStatusStore((state) => state.progress);
   // Only surface the progress of the repository this status bar describes.
   const progress = repository && syncRepoId === repository.id ? syncDetail : null;
   const [longRunning, setLongRunning] = useState(false);
@@ -73,9 +74,12 @@ export function WorkspaceStatusBar({
           </span>
         )}
         {progress && (
-          <span className="status-bar__progress" role="status">
+          <span className="status-bar__progress" role="status" title={syncProgress || undefined}>
             <SyncOutlined spin />
             {longRunning ? `仍在运行 · ${progress}` : progress}
+            {syncProgress && (
+              <span className="status-bar__progress-detail">· {syncProgress}</span>
+            )}
           </span>
         )}
       </div>

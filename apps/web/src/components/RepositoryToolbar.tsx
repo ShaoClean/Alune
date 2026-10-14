@@ -112,9 +112,11 @@ export function RepositoryToolbar({
   activePanel,
   syncing,
   syncingForce = false,
+  cancelling = false,
   refreshing = false,
   onSelect,
   onSync,
+  onCancelSync,
   onRefresh,
   onBranchSwitched,
   tier: forcedTier,
@@ -124,9 +126,11 @@ export function RepositoryToolbar({
   activePanel: RepositoryPanel;
   syncing: SyncOperation | null;
   syncingForce?: boolean;
+  cancelling?: boolean;
   refreshing?: boolean;
   onSelect: (panel: RepositoryPanel) => void;
   onSync: (operation: SyncOperation, options?: { force?: boolean; tags?: boolean }) => void;
+  onCancelSync?: () => void;
   onRefresh: () => void;
   onBranchSwitched: () => void | Promise<void>;
   tier?: 'full' | 'compact' | 'condensed' | 'minimal';
@@ -143,6 +147,11 @@ export function RepositoryToolbar({
   const behind = status?.behind;
   const ahead = status?.ahead;
   const busy = syncing !== null;
+  // A running pull or push is cancelled from the button that shows it.
+  const syncTooltip = (running: string) => (cancelling ? '正在取消…' : `${running} · 点击取消`);
+  const cancelSync = () => {
+    if (!cancelling) onCancelSync?.();
+  };
   const iconOnlyActions = tier !== 'full';
   const { nav, labelled, edges, measureEdges } = useFittedViews(tier !== 'minimal', changes);
 
@@ -291,18 +300,19 @@ export function RepositoryToolbar({
         </ToolbarButton>
         <ToolbarButton
           variant="action"
-          label="拉取"
+          label={syncing === 'pull' ? '取消拉取' : '拉取'}
           tooltip={
             syncing === 'pull'
-              ? '拉取中…'
+              ? syncTooltip('拉取中…')
               : status
                 ? `拉取 · 落后 ${status.behind} 个提交`
                 : '拉取 · 状态未知'
           }
-          aria-disabled={busy}
+          aria-disabled={syncing === 'pull' ? cancelling : busy}
           aria-busy={syncing === 'pull'}
           onClick={() => {
-            if (!busy) onSync('pull');
+            if (syncing === 'pull') cancelSync();
+            else if (!busy) onSync('pull');
           }}
         >
           {syncing === 'pull' ? <LoadingOutlined /> : <DownloadOutlined />}
@@ -316,20 +326,19 @@ export function RepositoryToolbar({
           <ToolbarButton
             variant="primary"
             className="toolbar-split__main"
-            label="推送"
+            label={syncing === 'push' ? (syncingForce ? '取消强制推送' : '取消推送') : '推送'}
             tooltip={
               syncing === 'push'
-                ? syncingForce
-                  ? '强制推送中…'
-                  : '推送中…'
+                ? syncTooltip(syncingForce ? '强制推送中…' : '推送中…')
                 : status
                   ? `推送 · 领先 ${status.ahead} 个提交`
                   : '推送 · 状态未知'
             }
-            aria-disabled={busy}
+            aria-disabled={syncing === 'push' ? cancelling : busy}
             aria-busy={syncing === 'push'}
             onClick={() => {
-              if (!busy) onSync('push');
+              if (syncing === 'push') cancelSync();
+              else if (!busy) onSync('push');
             }}
           >
             {syncing === 'push' ? <LoadingOutlined /> : <UploadOutlined />}

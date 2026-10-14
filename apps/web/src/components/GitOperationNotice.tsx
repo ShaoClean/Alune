@@ -34,23 +34,34 @@ const labels: Record<string, string> = {
   'conflict-abort': '中止操作',
   'resolve-conflict': '解决冲突',
 };
+
+export type GitOperation = {
+  kind: string;
+  startedAt: number;
+  progress?: string;
+  cancelling: boolean;
+};
+
+// Frequent operations whose progress is shown where they were started (file rows,
+// toolbar sync buttons, status bar), so a notice would only interrupt the next step.
+export const QUIET_OPERATIONS = new Set(['stage', 'unstage', 'pull', 'push']);
+
 export function GitOperationNotice({
   repoId,
   onFinished,
+  onOperation,
 }: {
   repoId: string;
   onFinished: () => void;
+  onOperation?: (operation: GitOperation | null) => void;
 }) {
   const message = useFeedbackMessage();
-  const [operation, setOperation] = useState<{
-    kind: string;
-    startedAt: number;
-    progress?: string;
-    cancelling: boolean;
-  } | null>(null);
+  const [operation, setOperation] = useState<GitOperation | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const callback = useRef(onFinished);
   callback.current = onFinished;
+  const report = useRef(onOperation);
+  report.current = onOperation;
   const active = useRepositoryWorkspace()?.active ?? true;
   // Survives hiding the tab, so an operation that ends meanwhile still refreshes it.
   const previous = useRef(false);
@@ -62,6 +73,7 @@ export function GitOperationNotice({
         const value = await gitApi.operation(repoId);
         if (stopped) return;
         setOperation(value);
+        report.current?.(value);
         if (previous.current && !value) {
           setCancelling(false);
           callback.current();
@@ -81,7 +93,12 @@ export function GitOperationNotice({
   }, [repoId, active]);
   // Rebase has a persistent recovery panel; a transient notification can remain
   // open after Git pauses and obscure its conflict controls.
-  if (!operation || ['interactive-rebase', 'rebase-conflict'].includes(operation.kind)) return null;
+  if (
+    !operation ||
+    QUIET_OPERATIONS.has(operation.kind) ||
+    ['interactive-rebase', 'rebase-conflict'].includes(operation.kind)
+  )
+    return null;
   return (
     <FeedbackNotice
       source="git-operation"
