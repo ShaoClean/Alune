@@ -1,11 +1,11 @@
-import { useFeedbackMessage } from '@alune/ui';
+import type { DialogBadgeProps } from '@alune/ui';
+import { useFeedbackMessage, DialogBadge, DialogList, DialogListItem } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@alune/ui';
 import type { NewFileDeletionPreview } from '@alune/shared';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { AluneModal } from '@alune/ui';
-import { DialogIcon } from '@alune/ui';
 import { DialogCard, DialogNote, DialogPath, DialogProgress } from '@alune/ui';
 
 interface Props {
@@ -85,7 +85,7 @@ export function DeleteNewFileDialog({ repoId, path, onClose, onFileChanged }: Pr
   };
 
   const name = path.split(/[\\/]/).filter(Boolean).pop() || path;
-  const badge = checking
+  const badge: { text: string; tone?: DialogBadgeProps['tone']; title?: string } | null = checking
     ? { text: '…' }
     : !preview
       ? null
@@ -123,20 +123,15 @@ export function DeleteNewFileDialog({ repoId, path, onClose, onFileChanged }: Pr
       }
     >
       <DialogCard>
-        <div className="dlg-list">
-          <div className="dlg-list-item">
-            <DialogIcon name="file-plus" />
-            <div className="dlg-list-main">
-              <strong>{name}</strong>
-              <DialogPath path={path} />
-            </div>
+        <DialogList>
+          <DialogListItem icon="file-plus" title={name} detail={<DialogPath path={path} />}>
             {badge ? (
-              <span className="dlg-badge is-mono" data-tone={badge.tone} title={badge.title}>
+              <DialogBadge mono tone={badge.tone} title={badge.title}>
                 {badge.text}
-              </span>
+              </DialogBadge>
             ) : null}
-          </div>
-        </div>
+          </DialogListItem>
+        </DialogList>
       </DialogCard>
       {checking && <DialogProgress label="正在核验远端文件和暂存内容…" />}
       {preview && (

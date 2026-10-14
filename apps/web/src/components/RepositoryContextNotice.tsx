@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Input } from '@alune/ui';
+import { Input, DialogField } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import type { RepositoryContext } from '@alune/shared';
 import { gitApi, repositoryApi } from '../api';
@@ -167,8 +167,7 @@ export function RepositoryContextNotice({
             {authorError}
           </DialogNote>
         )}
-        <label className="dlg-fld" htmlFor="git-author-name">
-          <span className="dlg-fld-label">姓名</span>
+        <DialogField label="姓名" htmlFor="git-author-name">
           <Input
             id="git-author-name"
             data-autofocus
@@ -177,12 +176,30 @@ export function RepositoryContextNotice({
             prefix={<DialogIcon name="user" />}
             onChange={(event) => setName(event.target.value)}
           />
-        </label>
-        <label className="dlg-fld" htmlFor="git-author-email">
-          <span className="dlg-fld-label">邮箱</span>
+        </DialogField>
+        <DialogField
+          label="邮箱"
+          htmlFor="git-author-email"
+          mono
+          status={name.trim() && email.trim() ? 'ok' : undefined}
+          hint={
+            name.trim() && email.trim() ? (
+              <>
+                将以 <code>git config --local</code> 写入 <code>user.name</code> 和{' '}
+                <code>user.email</code>
+              </>
+            ) : (
+              <>
+                填写后，提交记录会显示为{' '}
+                <code>
+                  {name.trim() || '姓名'} &lt;{email.trim() || '邮箱'}&gt;
+                </code>
+              </>
+            )
+          }
+        >
           <Input
             id="git-author-email"
-            className="dlg-mono-input"
             type="email"
             value={email}
             placeholder="you@example.com"
@@ -191,21 +208,7 @@ export function RepositoryContextNotice({
             prefix={<DialogIcon name="mail" />}
             onChange={(event) => setEmail(event.target.value)}
           />
-          {name.trim() && email.trim() ? (
-            <span className="dlg-fld-hint is-ok">
-              <DialogIcon name="check" />
-              将以 <code>git config --local</code> 写入 <code>user.name</code> 和{' '}
-              <code>user.email</code>
-            </span>
-          ) : (
-            <span className="dlg-fld-hint">
-              填写后，提交记录会显示为{' '}
-              <code>
-                {name.trim() || '姓名'} &lt;{email.trim() || '邮箱'}&gt;
-              </code>
-            </span>
-          )}
-        </label>
+        </DialogField>
       </AluneModal>
     </>
   );

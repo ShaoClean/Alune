@@ -1,7 +1,17 @@
 import { AmendCommitDialog } from './AmendCommitDialog';
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import type { ShowHistory } from './WorkspaceFileMenu';
-import { FeedbackNotice } from '@alune/ui';
+import {
+  FeedbackNotice,
+  DialogBadge,
+  DialogList,
+  DialogListItem,
+  DialogHints,
+  Kbd,
+  OrbButton,
+  RepoRow,
+  CountBadge,
+} from '@alune/ui';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, MoonLoader, Tooltip, type TooltipProps } from '@alune/ui';
@@ -497,14 +507,14 @@ export function ChangesView({
                   <p className="a-pop-path">
                     <DialogPath path={file.path} />
                     {file.additions ? (
-                      <span className="dlg-badge is-mono" data-tone="success">
+                      <DialogBadge mono tone="success">
                         +{file.additions}
-                      </span>
+                      </DialogBadge>
                     ) : null}
                     {file.deletions ? (
-                      <span className="dlg-badge is-mono" data-tone="danger">
+                      <DialogBadge mono tone="danger">
                         −{file.deletions}
-                      </span>
+                      </DialogBadge>
                     ) : null}
                   </p>
                   <CheckCard
@@ -574,7 +584,7 @@ export function ChangesView({
           >
             {closedGroups[title] ? <RightOutlined /> : <DownOutlined />}
             {staged ? <CheckOutlined /> : <FolderOpenOutlined />} {title}{' '}
-            <span className="count-badge">{groupFiles.length}</span>
+            <CountBadge>{groupFiles.length}</CountBadge>
           </button>
           {conflicts ? (
             <span className="change-group__hint">选择文件逐块解决</span>
@@ -630,11 +640,11 @@ export function ChangesView({
           title={`${changeKindLabel(directoryFile)}详情`}
           onCancel={() => setDirectoryFile(null)}
           hints={
-            <p className="a-dlg-hints">
+            <DialogHints>
               <span>
-                <kbd className="dlg-kbd">Esc</kbd> 关闭
+                <Kbd>Esc</Kbd> 关闭
               </span>
-            </p>
+            </DialogHints>
           }
           footer={
             <>
@@ -647,31 +657,22 @@ export function ChangesView({
                 </Button>
               )}
               {changeActions(directoryFile).open && (
-                <Button
-                  type="primary"
-                  className="has-orb"
+                <OrbButton
+                  icon="arrow-up-right"
                   loading={loading}
                   onClick={() => void openChangeRepository(directoryFile)}
                 >
-                  <span>{directoryFile.kind === 'worktree' ? '打开 Worktree' : '打开仓库'}</span>
-                  <span className="dlg-orb" aria-hidden="true">
-                    <DialogIcon name="arrow-up-right" />
-                  </span>
-                </Button>
+                  {directoryFile.kind === 'worktree' ? '打开 Worktree' : '打开仓库'}
+                </OrbButton>
               )}
             </>
           }
         >
           <DialogCard>
-            <div className="dlg-card-row">
-              <span className="dlg-repo-tile" aria-hidden="true">
-                <DialogIcon name="folder" />
-              </span>
-              <div className="dlg-repo-meta">
-                <strong>{directoryFile.path.replace(/\/$/, '')}</strong>
-                <DialogPath path={directoryFile.repositoryPath || directoryFile.path} />
-              </div>
-            </div>
+            <RepoRow
+              name={directoryFile.path.replace(/\/$/, '')}
+              path={directoryFile.repositoryPath || directoryFile.path}
+            />
           </DialogCard>
           <p className="dlg-text">
             {directoryFile.kind === 'directory' || !directoryFile.kind
@@ -711,17 +712,14 @@ export function ChangesView({
             </DialogStats>
           </DialogCard>
           <DialogCard>
-            <div className="dlg-list is-scroll">
+            <DialogList scroll>
               {stagePlan.skipped.map((file) => (
-                <div className="dlg-list-item" key={file.path}>
-                  <DialogIcon name={kindIcon(file)} />
-                  <div className="dlg-list-main">
-                    <strong>{file.path.replace(/\/$/, '')}</strong>
-                    <span className="dlg-path">
-                      {changeKindLabel(file) || '文件'} ·{' '}
-                      {file.kind ? '有独立的 Git 状态' : '无法在此暂存'}
-                    </span>
-                  </div>
+                <DialogListItem
+                  key={file.path}
+                  icon={kindIcon(file)}
+                  title={file.path.replace(/\/$/, '')}
+                  detail={`${changeKindLabel(file) || '文件'} · ${file.kind ? '有独立的 Git 状态' : '无法在此暂存'}`}
+                >
                   {changeActions(file).open && (
                     <Button
                       size="small"
@@ -731,9 +729,9 @@ export function ChangesView({
                       打开仓库
                     </Button>
                   )}
-                </div>
+                </DialogListItem>
               ))}
-            </div>
+            </DialogList>
           </DialogCard>
         </AluneModal>
       )}

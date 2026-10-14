@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Input, MoonLoader } from '@alune/ui';
+import { Button, Input, MoonLoader, DialogField, DialogBadge } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
 import { repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -104,14 +104,21 @@ export function OpenLocalRepository({ open, onClose }: { open: boolean; onClose:
       onOk={() => confirm()}
       onCancel={onClose}
     >
-      <div className="dlg-fld">
-        <label className="dlg-fld-label" htmlFor="local-repo-path">
-          仓库目录
-        </label>
+      <DialogField
+        label="仓库目录"
+        htmlFor="local-repo-path"
+        mono
+        hint={
+          !path && (
+            <>
+              也可以直接粘贴 Windows 路径，例如 <code>C:\Projects\repository</code>
+            </>
+          )
+        }
+      >
         <div className="dlg-inp-group">
           <Input
             id="local-repo-path"
-            className="dlg-mono-input"
             prefix={<DialogIcon name="folder" />}
             suffix={
               window.aluneWorkspace?.chooseDirectory ? (
@@ -149,19 +156,14 @@ export function OpenLocalRepository({ open, onClose }: { open: boolean; onClose:
             <span>{checking ? '检查中' : '检查仓库'}</span>
           </Button>
         </div>
-        {!path && (
-          <span className="dlg-fld-hint">
-            也可以直接粘贴 Windows 路径，例如 <code>C:\Projects\repository</code>
-          </span>
-        )}
-      </div>
+      </DialogField>
       {checking && <DialogProgress label="正在读取仓库状态、分支与远程…" />}
       {inspection && (
         <DialogCard>
           <RepoRow name={inspection.name} path={inspection.path}>
-            <span className="dlg-badge" data-tone="success" style={{ marginLeft: 'auto' }}>
+            <DialogBadge tone="success" style={{ marginLeft: 'auto' }}>
               本机
-            </span>
+            </DialogBadge>
           </RepoRow>
           <div className="dlg-card-divide" />
           <DialogStats>

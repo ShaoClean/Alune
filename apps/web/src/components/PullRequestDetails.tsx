@@ -1,10 +1,10 @@
 import { useCodeTheme } from './useCodeTheme';
 import { useDiffHighlight } from './useDiffHighlight';
-import { FeedbackScope } from '@alune/ui';
+import { FeedbackScope, EmptyState } from '@alune/ui';
 import { FeedbackAlert } from '@alune/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button, DialogIcon, Empty, FileIcon, Select, Spin, Tabs, Tag } from '@alune/ui';
+import { Button, DialogIcon, FileIcon, Select, Spin, Tabs, Tag } from '@alune/ui';
 import type {
   PullRequestDetailQuery,
   PullRequestDetail,
@@ -337,7 +337,7 @@ function Files({
       )}
       <LoadState context="files" {...resource} />
       {!resource.loading && !resource.error && !resource.items.length && (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有可展示的变动文件" />
+        <EmptyState compact title="没有可展示的变动文件" />
       )}
       {file && (
         <div className="pull-request-files__layout">
@@ -603,7 +603,7 @@ function Discussions({
       <h3>{title}</h3>
       <LoadState context={kind} {...resource} />
       {!resource.loading && !resource.error && !threads.length && (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={`暂无${title}`} />
+        <EmptyState compact title={`暂无${title}`} />
       )}
       {threads.map((thread) => (
         <DiscussionThread key={thread.id} thread={thread} />
@@ -714,7 +714,7 @@ function DetailContent({
                       {detail.description.trim() ? (
                         <MarkdownContent text={detail.description} />
                       ) : (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无描述" />
+                        <EmptyState compact title="暂无描述" />
                       )}
                     </div>
                   </section>

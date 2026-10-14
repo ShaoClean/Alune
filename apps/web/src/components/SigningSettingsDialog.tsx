@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { SigningConfig } from '@alune/shared';
-import { AluneModal, Button, DialogNote, Input, Select, Switch } from '@alune/ui';
+import { AluneModal, Button, DialogNote, Input, Select, Switch, DialogField } from '@alune/ui';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 
@@ -69,10 +69,7 @@ export function SigningSettingsDialog({
               ? '提交和验证均在 SSH 远端执行，密钥路径、GPG／SSH agent 和验证信任配置必须在远端可用。'
               : '使用本机 Git、密钥与 agent。GPG 口令请通过系统 pinentry 弹窗或终端解锁。'}
           </DialogNote>
-          <div className="dlg-fld">
-            <span className="dlg-fld-label" id="signing-enabled">
-              签名提交（commit.gpgsign）
-            </span>
+          <DialogField label="签名提交（commit.gpgsign）" labelId="signing-enabled">
             <Switch
               style={{ justifySelf: 'start' }}
               aria-labelledby="signing-enabled"
@@ -80,11 +77,8 @@ export function SigningSettingsDialog({
               disabled={busy}
               onChange={(enabled) => setConfig({ ...config, enabled })}
             />
-          </div>
-          <div className="dlg-fld">
-            <span className="dlg-fld-label" id="signing-format">
-              签名格式（gpg.format）
-            </span>
+          </DialogField>
+          <DialogField label="签名格式（gpg.format）" labelId="signing-format">
             <Select
               aria-labelledby="signing-format"
               value={config.format}
@@ -104,9 +98,11 @@ export function SigningSettingsDialog({
                   : []),
               ]}
             />
-          </div>
-          <label className="dlg-fld">
-            <span className="dlg-fld-label">签名密钥（user.signingkey）</span>
+          </DialogField>
+          <DialogField
+            label="签名密钥（user.signingkey）"
+            hint="填写密钥标识或路径，不要粘贴私钥内容。留空会移除此仓库的密钥覆盖。"
+          >
             <Input
               aria-label="签名密钥"
               value={config.signingKey}
@@ -120,10 +116,7 @@ export function SigningSettingsDialog({
               }
               onChange={(event) => setConfig({ ...config, signingKey: event.target.value })}
             />
-            <span className="dlg-fld-hint">
-              填写密钥标识或路径，不要粘贴私钥内容。留空会移除此仓库的密钥覆盖。
-            </span>
-          </label>
+          </DialogField>
           <DialogNote title="标签与验证">
             附注标签在提交签名或 tag.gpgsign 开启时签名；轻量标签不签名。 当前 tag.gpgsign：
             {config.tagEnabled ? '开启' : '关闭'}。

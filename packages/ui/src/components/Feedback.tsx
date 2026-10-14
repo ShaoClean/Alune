@@ -8,6 +8,7 @@ import type { FeedbackEntry } from '../stores/feedbackStore';
 import { DialogHints, Kbd } from './AluneModal';
 import { DialogIcon } from './DialogIcons';
 import { MoonLoader } from './MoonLoader';
+import { DialogBadge } from './DialogFields';
 import type { DialogIconName } from './DialogIcons';
 import { FeedbackContext } from './feedback-context';
 import { StatusButton } from './StatusButton';
@@ -318,7 +319,7 @@ function FeedbackCenter({
             <div className="feedback-inbox-core">
               <div className="feedback-inbox-head">
                 <strong>通知与提示</strong>
-                <span className="dlg-badge is-mono">{entries.length}</span>
+                <DialogBadge mono>{entries.length}</DialogBadge>
                 <button
                   type="button"
                   className="dlg-icon-btn"
@@ -462,10 +463,9 @@ function FeedbackCenter({
                   </div>
                 ) : null}
                 <div className="feedback-context">
-                  <span className="dlg-badge is-mono">
-                    <DialogIcon name="clock" />
+                  <DialogBadge mono icon="clock">
                     <time dateTime={new Date(current.at).toISOString()}>{clock(current.at)}</time>
-                  </span>
+                  </DialogBadge>
                 </div>
                 {current.content && (
                   <div id="feedback-description" className="feedback-description">

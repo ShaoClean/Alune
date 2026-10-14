@@ -618,6 +618,7 @@
 :is(.a-dlg, .a-pop, .feedback-dialog) .ant-btn.ant-btn-dangerous:not(.ant-btn-primary)::before {
   background: color-mix(in srgb, var(--red) 10%, transparent);
 }
+.ant-btn.has-orb,
 :is(.a-dlg, .a-pop, .feedback-dialog) .ant-btn.has-orb {
   padding-right: 4px;
 }
@@ -673,6 +674,7 @@
   padding: 0 12px;
   font-size: 12.5px;
 }
+.ant-btn.ant-btn-sm.has-orb,
 :is(.a-dlg, .a-pop, .feedback-dialog) .ant-btn.ant-btn-sm.has-orb {
   padding-right: 3px;
 }
@@ -828,7 +830,8 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 16%, transparent);
 }
 .a-dlg .dlg-mono-input input,
-.a-dlg input.dlg-mono-input {
+.a-dlg input.dlg-mono-input,
+.dlg-fld.is-mono :is(input.ant-input, textarea.ant-input) {
   font-family: var(--dlg-font-mono);
   font-size: 12.5px;
 }

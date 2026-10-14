@@ -23,12 +23,14 @@ export function DialogCard({
   );
 }
 
-/** Path with the last segment emphasised. */
-export function DialogPath({ path, className }: { path: string; className?: string }) {
-  const match = /^(.*?[\\/])?([^\\/]+)[\\/]?$/.exec(path);
+/** Path with the last segment emphasised; children replace it for composed refs (a → b). */
+export function DialogPath({ path, className, children }: DialogPathProps) {
+  const match = path === undefined ? null : /^(.*?[\\/])?([^\\/]+)[\\/]?$/.exec(path);
   return (
     <span className={className ? `dlg-path ${className}` : 'dlg-path'} title={path}>
-      {match ? (
+      {children !== undefined ? (
+        children
+      ) : match ? (
         <>
           {match[1]}
           <b>{match[2]}</b>
@@ -40,17 +42,8 @@ export function DialogPath({ path, className }: { path: string; className?: stri
   );
 }
 
-export function RepoRow({
-  name,
-  path,
-  icon = 'folder',
-  children,
-}: {
-  name: ReactNode;
-  path?: string;
-  icon?: DialogIconName;
-  children?: ReactNode;
-}) {
+/** Tile, name and path; `meta` adds lines under the path, children trail on the right. */
+export function RepoRow({ name, path, meta, icon = 'folder', children }: RepoRowProps) {
   return (
     <div className="dlg-card-row">
       <span className="dlg-repo-tile" aria-hidden="true">
@@ -58,7 +51,12 @@ export function RepoRow({
       </span>
       <div className="dlg-repo-meta">
         <strong>{name}</strong>
-        {path ? <DialogPath path={path} /> : null}
+        {path === undefined || path === null || path === '' ? null : typeof path === 'string' ? (
+          <DialogPath path={path} />
+        ) : (
+          <DialogPath>{path}</DialogPath>
+        )}
+        {meta}
       </div>
       {children}
     </div>
@@ -266,11 +264,13 @@ export type DialogCardProps = {
   className?: string;
 };
 
-export type DialogPathProps = { path: string; className?: string };
+export type DialogPathProps = { path?: string; className?: string; children?: ReactNode };
 
 export type RepoRowProps = {
   name: ReactNode;
-  path?: string;
+  /** A string is split into folder and name; other content keeps the path styling. */
+  path?: ReactNode;
+  meta?: ReactNode;
   icon?: DialogIconName;
   children?: ReactNode;
 };

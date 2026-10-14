@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Button, DialogIcon, Empty, Input, Select, Segmented, Spin } from '@alune/ui';
+import { Button, DialogIcon, Input, Select, Segmented, Spin, EmptyState } from '@alune/ui';
 import type {
   PullRequestAccount,
   PullRequestCenterItem,
@@ -583,9 +583,9 @@ export function PullRequestCenterPage() {
             )}
             {!entry?.items.length && !entry?.loading && !entry?.error && (
               <div className="pr-center-empty">
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={
+                <EmptyState
+                  compact
+                  title={
                     entry?.discovery?.repositoryCount === 0
                       ? '尚未添加仓库'
                       : entry?.page?.nextCursor

@@ -229,11 +229,11 @@ export function RepositoryToolbar({
               }
               active={active}
               aria-current={active ? 'page' : undefined}
+              text={labelled && view.label}
+              count={count}
               onClick={() => onSelect(view.key)}
             >
               {view.icon}
-              {labelled && <span className="toolbar-button__label">{view.label}</span>}
-              {count !== undefined && <span className="toolbar-count">{count}</span>}
             </ToolbarButton>
           );
         })}
@@ -306,15 +306,14 @@ export function RepositoryToolbar({
           }
           aria-disabled={busy}
           aria-busy={syncing === 'pull'}
+          text={!iconOnlyActions && (syncing === 'pull' ? '拉取中…' : '拉取')}
+          count={!!behind && behind}
+          countTone="behind"
           onClick={() => {
             if (!busy) onSync('pull');
           }}
         >
           {syncing === 'pull' ? <MoonLoader /> : <DownloadOutlined />}
-          {!iconOnlyActions && (
-            <span className="toolbar-button__label">{syncing === 'pull' ? '拉取中…' : '拉取'}</span>
-          )}
-          {!!behind && <span className="toolbar-count toolbar-count--behind">{behind}</span>}
         </ToolbarButton>
 
         <span className="toolbar-split">
@@ -333,17 +332,16 @@ export function RepositoryToolbar({
             }
             aria-disabled={busy}
             aria-busy={syncing === 'push'}
+            text={
+              !iconOnlyActions &&
+              (syncing === 'push' ? (syncingForce ? '强制推送中…' : '推送中…') : '推送')
+            }
+            count={!iconOnlyActions && !!ahead && ahead}
             onClick={() => {
               if (!busy) onSync('push');
             }}
           >
             {syncing === 'push' ? <MoonLoader /> : <UploadOutlined />}
-            {!iconOnlyActions && (
-              <span className="toolbar-button__label">
-                {syncing === 'push' ? (syncingForce ? '强制推送中…' : '推送中…') : '推送'}
-              </span>
-            )}
-            {!iconOnlyActions && !!ahead && <span className="toolbar-count">{ahead}</span>}
           </ToolbarButton>
           <Dropdown
             trigger={['click']}

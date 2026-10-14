@@ -1,4 +1,4 @@
-import { useFeedbackMessage } from '@alune/ui';
+import { useFeedbackMessage, DialogField } from '@alune/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { Button, Dropdown, Input } from '@alune/ui';
@@ -378,11 +378,15 @@ function WorkspaceFileDialog({
       </DialogCard>
       {checking && <DialogProgress label="正在核验工作区文件与暂存内容…" />}
       {!deleting && (
-        <label className="dlg-fld">
-          <span className="dlg-fld-label">新文件名</span>
+        <DialogField
+          label="新文件名"
+          mono
+          hintId={nameHintId}
+          status={nameError ? 'error' : undefined}
+          hint={nameError || (unchanged ? '名称未变化' : '在当前目录内重命名，不覆盖已有文件。')}
+        >
           <Input
             autoFocus
-            className="dlg-mono-input"
             prefix={<DialogIcon name="pencil" />}
             aria-label="新文件名"
             aria-describedby={nameHintId}
@@ -395,14 +399,7 @@ function WorkspaceFileDialog({
             onFocus={(event) => event.target.select()}
             onChange={(event) => setName(event.target.value)}
           />
-          <span
-            id={nameHintId}
-            className={nameError ? 'dlg-fld-hint is-error' : 'dlg-fld-hint'}
-            role="status"
-          >
-            {nameError || (unchanged ? '名称未变化' : '在当前目录内重命名，不覆盖已有文件。')}
-          </span>
-        </label>
+        </DialogField>
       )}
       {deleting ? (
         <>

@@ -1,4 +1,4 @@
-import { FeedbackAlert } from '@alune/ui';
+import { FeedbackAlert, DialogField, CountBadge } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Switch, Tag, Select } from '@alune/ui';
@@ -67,7 +67,7 @@ export function ProviderSettings({ settings }: { settings: AiSettings }) {
       <section ref={listRef} className="provider-list" aria-label="AI 服务商列表">
         <div className="settings-section-heading">
           <strong>服务商</strong>
-          <span className="count-badge">{settings.providers.length}</span>
+          <CountBadge>{settings.providers.length}</CountBadge>
         </div>
         <Input
           aria-label="搜索服务商"
@@ -497,7 +497,7 @@ function ProviderForm({
       <section className="provider-models" aria-label="模型列表">
         <div className="settings-section-heading">
           <h2>
-            模型 <span className="count-badge">{draft.models.length}</span>
+            模型 <CountBadge>{draft.models.length}</CountBadge>
           </h2>
           <div className="settings-inline-actions">
             <Button
@@ -591,12 +591,13 @@ function ProviderForm({
         hintVerb={modelEditor?.originalId === null ? '添加' : '应用'}
         destroyOnHidden
       >
-        <label className="dlg-fld">
-          <span className="dlg-fld-label">
-            <span>模型 ID</span>
-          </span>
+        <DialogField
+          label="模型 ID"
+          mono
+          status={modelIdError ? 'error' : undefined}
+          hint={modelIdError || '必须与服务商文档一致，不能包含空格'}
+        >
           <Input
-            className="dlg-mono-input"
             aria-label="模型 ID"
             data-autofocus
             value={modelEditor?.id ?? ''}
@@ -612,20 +613,13 @@ function ProviderForm({
               setModelError(null);
             }}
           />
-          {modelIdError ? (
-            <span className="dlg-fld-hint is-error" role="alert">
-              <DialogIcon name="warning" />
-              {modelIdError}
-            </span>
-          ) : (
-            <span className="dlg-fld-hint">必须与服务商文档一致，不能包含空格</span>
-          )}
-        </label>
-        <label className="dlg-fld">
-          <span className="dlg-fld-label">
-            <span>显示名称</span>
-            <small>可选</small>
-          </span>
+        </DialogField>
+        <DialogField
+          label="显示名称"
+          extra="可选"
+          status={modelError?.field === 'name' ? 'error' : undefined}
+          hint={modelError?.field === 'name' && modelError.message}
+        >
           <Input
             aria-label="模型显示名称"
             value={modelEditor?.name ?? ''}
@@ -640,13 +634,7 @@ function ProviderForm({
               setModelError(null);
             }}
           />
-          {modelError?.field === 'name' && (
-            <span className="dlg-fld-hint is-error" role="alert">
-              <DialogIcon name="warning" />
-              {modelError.message}
-            </span>
-          )}
-        </label>
+        </DialogField>
         {modelEditor?.originalId && isDefaultModel(modelEditor.originalId) && (
           <DialogNote tone="warning" title="这是当前默认提交模型">
             更改 ID 并保存配置后，需要在「提交生成」中重新选择默认模型。

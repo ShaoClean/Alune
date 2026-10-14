@@ -1,4 +1,4 @@
-import { FeedbackNotice } from '@alune/ui';
+import { FeedbackNotice, DialogField, DialogFieldRow, DialogBadges, DialogBadge } from '@alune/ui';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
@@ -373,7 +373,7 @@ export function ConnectionsPage() {
               data-autofocus
             />
           </Form.Item>
-          <div className="dlg-fld-row is-end">
+          <DialogFieldRow end>
             <Form.Item
               name="host"
               label="主机"
@@ -398,7 +398,7 @@ export function ConnectionsPage() {
             >
               <Input className="dlg-mono-input" inputMode="numeric" autoComplete="off" />
             </Form.Item>
-          </div>
+          </DialogFieldRow>
           <Form.Item
             name="username"
             label="用户名"
@@ -412,12 +412,11 @@ export function ConnectionsPage() {
               spellCheck={false}
             />
           </Form.Item>
-          <div className="dlg-fld">
-            <span className="dlg-fld-label">认证方式</span>
+          <DialogField label="认证方式">
             <Form.Item name="authType" noStyle>
               <AuthTypeCards />
             </Form.Item>
-          </div>
+          </DialogField>
           <Form.Item
             noStyle
             shouldUpdate={(previous, current) => previous.authType !== current.authType}
@@ -428,7 +427,7 @@ export function ConnectionsPage() {
                   <Input.Password prefix={<DialogIcon name="lock" />} autoComplete="off" />
                 </Form.Item>
               ) : getFieldValue('authType') === 'privateKey' ? (
-                <div className="dlg-fld-row">
+                <DialogFieldRow>
                   <Form.Item name="privateKeyPath" label="私钥路径">
                     <Input
                       className="dlg-mono-input"
@@ -448,7 +447,7 @@ export function ConnectionsPage() {
                   >
                     <Input.Password autoComplete="off" />
                   </Form.Item>
-                </div>
+                </DialogFieldRow>
               ) : (
                 <DialogNote tone="info" icon="shield" quiet>
                   <p>
@@ -492,13 +491,13 @@ function DeleteConnectionConfirm({
       }
       extra={
         listLoaded && linked.length ? (
-          <span className="dlg-badges">
+          <DialogBadges>
             {linked.map((repo: any) => (
-              <span key={repo.id} className="dlg-badge is-mono" title={repo.path}>
+              <DialogBadge key={repo.id} mono title={repo.path}>
                 {repo.name}
-              </span>
+              </DialogBadge>
             ))}
-          </span>
+          </DialogBadges>
         ) : undefined
       }
       okText="删除连接"

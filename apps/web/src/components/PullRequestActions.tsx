@@ -1,4 +1,4 @@
-import { FeedbackAlert } from '@alune/ui';
+import { FeedbackAlert, DialogField, DialogBadge, RepoRow } from '@alune/ui';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Button, Dropdown, Input, Segmented, Spin } from '@alune/ui';
 import type {
@@ -378,45 +378,46 @@ export function ReviewActionBar({
         {view && (
           <>
             <DialogCard>
-              <div className="dlg-card-row">
-                <span className="dlg-repo-tile" aria-hidden="true">
-                  <DialogIcon name="pr" />
-                </span>
-                <div className="dlg-repo-meta">
-                  <strong>
-                    {isClose && summary?.title
-                      ? summary.title
-                      : `目标分支：${view.snapshot.targetBranch}`}
-                  </strong>
-                  {summary?.sourceBranch ? (
-                    <span className="dlg-path">
+              <RepoRow
+                icon="pr"
+                name={
+                  isClose && summary?.title
+                    ? summary.title
+                    : `目标分支：${view.snapshot.targetBranch}`
+                }
+                path={
+                  summary?.sourceBranch ? (
+                    <>
                       {summary.sourceBranch} → <b>{view.snapshot.targetBranch}</b>
-                    </span>
+                    </>
                   ) : isClose ? (
-                    <span className="dlg-path">
+                    <>
                       目标分支 <b>{view.snapshot.targetBranch}</b>
-                    </span>
-                  ) : null}
-                </div>
+                    </>
+                  ) : undefined
+                }
+              >
                 {!isClose &&
                   (view.snapshot.merge.allowed ? (
-                    <span className="dlg-badge dlg-push-end" data-tone="success">
-                      <DialogIcon name="check" />
+                    <DialogBadge icon="check" className="dlg-push-end" tone="success">
                       可合并
-                    </span>
+                    </DialogBadge>
                   ) : (
-                    <span className="dlg-badge dlg-push-end" data-tone="warning">
-                      <DialogIcon name="clock" />
+                    <DialogBadge icon="clock" className="dlg-push-end" tone="warning">
                       暂不可合并
-                    </span>
+                    </DialogBadge>
                   ))}
-              </div>
+              </RepoRow>
             </DialogCard>
             {view.action === 'merge' && view.snapshot.mergeMethods.length > 0 && (
-              <div className="dlg-fld">
-                <span className="dlg-fld-label" id={methodLabelId}>
-                  合并方式
-                </span>
+              <DialogField
+                label="合并方式"
+                labelId={methodLabelId}
+                hint={
+                  selectedMethod &&
+                  mergeMethodHint(selectedMethod, query.provider, view.snapshot.targetBranch)
+                }
+              >
                 <Segmented<PullRequestMergeMethod>
                   block
                   id="review-merge-method"
@@ -426,12 +427,7 @@ export function ReviewActionBar({
                   onChange={setMethod}
                   disabled={review.pending}
                 />
-                {selectedMethod && (
-                  <p className="dlg-fld-hint">
-                    {mergeMethodHint(selectedMethod, query.provider, view.snapshot.targetBranch)}
-                  </p>
-                )}
-              </div>
+              </DialogField>
             )}
             {!isClose && (
               <DialogNote quiet icon="shield">

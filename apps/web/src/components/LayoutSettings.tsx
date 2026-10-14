@@ -1,4 +1,4 @@
-import { Button, Segmented, Switch } from '@alune/ui';
+import { Button, Segmented, Switch, DialogField } from '@alune/ui';
 import type { CSSProperties } from 'react';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { CHANGES_MAX, CHANGES_MIN, SIDEBAR_MAX, SIDEBAR_MIN } from '../stores/workspaceLayout';
@@ -71,13 +71,7 @@ export function LayoutSettings({ open, onClose }: { open: boolean; onClose: () =
         <span>面板宽度</span>
         <small>窗口较小时自动适配</small>
       </p>
-      <label className="dlg-fld">
-        <span className="dlg-fld-label">
-          <span>工作区宽度</span>
-          <small>
-            <output>{layout.sidebarWidth} px</output>
-          </small>
-        </span>
+      <DialogField label="工作区宽度" extra={<output>{layout.sidebarWidth} px</output>}>
         <input
           type="range"
           aria-label="工作区宽度"
@@ -90,14 +84,8 @@ export function LayoutSettings({ open, onClose }: { open: boolean; onClose: () =
           value={layout.sidebarWidth}
           onChange={(event) => updateLayout({ sidebarWidth: Number(event.target.value) })}
         />
-      </label>
-      <label className="dlg-fld">
-        <span className="dlg-fld-label">
-          <span>右侧面板宽度</span>
-          <small>
-            <output>{layout.changesWidth} px</output>
-          </small>
-        </span>
+      </DialogField>
+      <DialogField label="右侧面板宽度" extra={<output>{layout.changesWidth} px</output>}>
         <input
           type="range"
           aria-label="右侧面板宽度"
@@ -109,7 +97,7 @@ export function LayoutSettings({ open, onClose }: { open: boolean; onClose: () =
           value={layout.changesWidth}
           onChange={(event) => updateLayout({ changesWidth: Number(event.target.value) })}
         />
-      </label>
+      </DialogField>
       <p className="dlg-sub">
         <span>差异视图</span>
         <small>也可在差异工具栏切换</small>

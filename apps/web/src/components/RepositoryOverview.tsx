@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button, Pagination } from '@alune/ui';
+import { Button, Pagination, CountBadge } from '@alune/ui';
 import { ArrowRightOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { Repository } from '@alune/shared';
 import { useNavigate } from 'react-router-dom';
@@ -600,7 +600,7 @@ export function RepositoryOverview({
         <header>
           <div>
             <h3>
-              需要关注的仓库 <span className="count-badge">{attentionRows.length}</span>
+              需要关注的仓库 <CountBadge>{attentionRows.length}</CountBadge>
             </h3>
             <p>工作区状态与同步信息为当前快照。</p>
           </div>

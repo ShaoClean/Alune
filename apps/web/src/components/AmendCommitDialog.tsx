@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AluneModal, Button, DialogNote, Input } from '@alune/ui';
+import { AluneModal, Button, DialogNote, Input, DialogField } from '@alune/ui';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 
@@ -77,8 +77,7 @@ export function AmendCommitDialog({
         </DialogNote>
       )}
       {!head && !error && <p role="status">正在读取上一次提交…</p>}
-      <label className="dlg-fld">
-        <span className="dlg-fld-label">提交信息</span>
+      <DialogField label="提交信息">
         <Input.TextArea
           aria-label="修改后的提交信息"
           value={message}
@@ -86,7 +85,7 @@ export function AmendCommitDialog({
           disabled={!head || busy}
           onChange={(event) => setMessage(event.target.value)}
         />
-      </label>
+      </DialogField>
     </AluneModal>
   );
 }

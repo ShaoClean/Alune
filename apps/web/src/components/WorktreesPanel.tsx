@@ -1,4 +1,4 @@
-import { FeedbackNotice } from '@alune/ui';
+import { FeedbackNotice, DialogField, DialogBadge, RepoRow, DialogLedger } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
 import { Button, Dropdown, Input, Tooltip } from '@alune/ui';
@@ -8,7 +8,7 @@ import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { AluneModal } from '@alune/ui';
 import { DialogIcon } from '@alune/ui';
-import { DialogCard, DialogNote, DialogPath } from '@alune/ui';
+import { DialogCard, DialogNote } from '@alune/ui';
 
 const errorMessage = (error: any) => error.response?.data?.message || error.message || '读取失败';
 const baseName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() || path;
@@ -373,11 +373,9 @@ export function WorktreesPanel({
         busyText="正在创建…"
         okDisabled={!newPath || !newBranch.trim()}
       >
-        <label className="dlg-fld" htmlFor="worktree-path">
-          <span className="dlg-fld-label">完整目录路径</span>
+        <DialogField label="完整目录路径" htmlFor="worktree-path" mono>
           <Input
             id="worktree-path"
-            className="dlg-mono-input"
             data-autofocus
             autoComplete="off"
             spellCheck={false}
@@ -385,12 +383,10 @@ export function WorktreesPanel({
             value={newPath}
             onChange={(event) => setNewPath(event.target.value)}
           />
-        </label>
-        <label className="dlg-fld" htmlFor="worktree-branch">
-          <span className="dlg-fld-label">新分支名称</span>
+        </DialogField>
+        <DialogField label="新分支名称" htmlFor="worktree-branch" mono>
           <Input
             id="worktree-branch"
-            className="dlg-mono-input"
             autoComplete="off"
             spellCheck={false}
             prefix={<DialogIcon name="branch" />}
@@ -398,24 +394,24 @@ export function WorktreesPanel({
             onChange={(event) => setNewBranch(event.target.value)}
             placeholder="feature/new-worktree"
           />
-        </label>
+        </DialogField>
         {newPath.trim() && newBranch.trim() ? (
           <DialogCard>
-            <div className="dlg-card-row">
-              <span className="dlg-repo-tile" aria-hidden="true">
-                <DialogIcon name="tree" />
-              </span>
-              <div className="dlg-repo-meta">
-                <strong>
-                  {baseName(newPath.trim())} <span className="dlg-badge">新建</span>
-                </strong>
-                <DialogPath path={newPath.trim()} />
+            <RepoRow
+              icon="tree"
+              name={
+                <>
+                  {baseName(newPath.trim())} <DialogBadge>新建</DialogBadge>
+                </>
+              }
+              path={newPath.trim()}
+              meta={
                 <span className="dlg-fld-hint is-ok">
                   <DialogIcon name="branch" />
                   {newBranch.trim()} · 基于当前 HEAD
                 </span>
-              </div>
-            </div>
+              }
+            />
           </DialogCard>
         ) : null}
         {mutationError && (
@@ -440,55 +436,36 @@ export function WorktreesPanel({
         acknowledge="我确认不需要此目录中的文件"
       >
         {removing && (
-          <DialogCard>
-            <div className="dlg-card-row">
-              <span className="dlg-repo-tile" aria-hidden="true">
-                <DialogIcon name="tree" />
-              </span>
-              <div className="dlg-repo-meta">
-                <strong>{baseName(removing.path)}</strong>
-                <DialogPath path={removing.path} />
-                {removing.branch || removing.detached ? (
-                  <span className="dlg-fld-hint">
-                    <DialogIcon name="branch" />
-                    {removing.branch || '游离 HEAD · ' + removing.head?.slice(0, 8)}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-            <div className="dlg-card-divide">
-              <div className="dlg-ledger">
-                <div data-tone="danger">
-                  <h4>将删除</h4>
-                  <ul>
-                    <li>
-                      <DialogIcon name="folder" />
-                      <span>磁盘上的工作目录</span>
-                    </li>
-                    <li>
-                      <DialogIcon name="link" />
-                      <span>仓库中的 Worktree 登记</span>
-                    </li>
-                  </ul>
-                </div>
-                <div data-tone="success">
-                  <h4>将保留</h4>
-                  <ul>
-                    {removing.branch ? (
-                      <li>
-                        <DialogIcon name="branch" />
-                        <span>分支 {removing.branch}</span>
-                      </li>
-                    ) : null}
-                    <li>
-                      <DialogIcon name="commit" />
-                      <span>已提交的全部内容</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </DialogCard>
+          <>
+            <DialogCard>
+              <RepoRow
+                icon="tree"
+                name={baseName(removing.path)}
+                path={removing.path}
+                meta={
+                  removing.branch || removing.detached ? (
+                    <span className="dlg-fld-hint">
+                      <DialogIcon name="branch" />
+                      {removing.branch || '游离 HEAD · ' + removing.head?.slice(0, 8)}
+                    </span>
+                  ) : null
+                }
+              />
+            </DialogCard>
+            <DialogLedger
+              changeTitle="将删除"
+              change={[
+                { icon: 'folder', text: '磁盘上的工作目录' },
+                { icon: 'link', text: '仓库中的 Worktree 登记' },
+              ]}
+              keep={[
+                ...(removing.branch
+                  ? [{ icon: 'branch' as const, text: `分支 ${removing.branch}` }]
+                  : []),
+                { icon: 'commit', text: '已提交的全部内容' },
+              ]}
+            />
+          </>
         )}
         <DialogNote quiet icon="shield">
           存在改动、未跟踪或忽略文件时会拒绝删除。请先在此 Worktree 中提交或储藏。

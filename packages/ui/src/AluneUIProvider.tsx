@@ -8,6 +8,7 @@ import { FeedbackProvider } from './components/Feedback';
 import { AluneConfirmProvider } from './components/AluneModal';
 import { DialogIcon } from './components/DialogIcons';
 import { MoonLoader } from './components/MoonLoader';
+import { EmptyState } from './components/ui';
 
 export interface AluneUIProviderProps {
   theme: 'light' | 'dark';
@@ -35,6 +36,10 @@ const popoverConfig = { arrow: false, classNames: { root: 'a-pop' } };
 // Every Ant Design wait state shares the moon-phase loader.
 const spinConfig = { indicator: <MoonLoader /> };
 const buttonConfig = { loadingIcon: <MoonLoader /> };
+// Empty states share the moon: direct <Empty> and the lists inside Select, Table and friends.
+const emptyConfig = { image: <span className="dlg-empty-moon" aria-hidden="true" /> };
+const renderEmpty = (componentName?: string) =>
+  componentName === 'Table.filter' ? null : <EmptyState compact title="暂无数据" />;
 
 function resolveTheme(theme: 'light' | 'dark', reduceMotion: boolean): ThemeConfig {
   // CSS owns the palette; Ant Design's portals use exactly the same resolved colors.
@@ -138,6 +143,8 @@ export function AluneUIProvider({ theme, reduceMotion = false, children }: Alune
         popover={popoverConfig}
         spin={spinConfig}
         button={buttonConfig}
+        empty={emptyConfig}
+        renderEmpty={renderEmpty}
       >
         <App component={false}>
           <FeedbackProvider>

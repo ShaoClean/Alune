@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useFeedbackMessage } from '@alune/ui';
+import { useFeedbackMessage, ToolbarCount } from '@alune/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InputRef } from 'antd';
 import { Input, MoonLoader, Popover } from '@alune/ui';
@@ -150,7 +150,7 @@ export function BranchPicker({
           {item.isCurrent ? <CheckOutlined /> : switching === item.name ? <MoonLoader /> : null}
         </span>
         <span className="branch-picker__name">{item.name}</span>
-        {item.isCurrent && !!behind && <span className="toolbar-count">↓{behind}</span>}
+        {item.isCurrent && !!behind && <ToolbarCount>↓{behind}</ToolbarCount>}
       </div>
     );
   };

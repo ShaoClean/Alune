@@ -354,6 +354,212 @@
       "description": "可访问名称或展示文案。"
     }
   ],
+  "DialogFieldProps": [
+    {
+      "name": "label",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "extra",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "额外内容或操作。"
+    },
+    {
+      "name": "hint",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "确认提示。"
+    },
+    {
+      "name": "status",
+      "type": "\"error\" | \"ok\"",
+      "required": false,
+      "default": "—",
+      "description": "状态关键字，同时保留文字表达。"
+    },
+    {
+      "name": "hintId",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "Id for the hint so the control can reference it with aria-describedby."
+    },
+    {
+      "name": "labelId",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "Id of the label text, for controls labelled with aria-labelledby."
+    },
+    {
+      "name": "htmlFor",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "Id of the control the label points at."
+    },
+    {
+      "name": "mono",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "Monospace input text for paths, refs and keys."
+    },
+    {
+      "name": "className",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "附加 CSS 类名。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "DialogFieldRowProps": [
+    {
+      "name": "end",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "DialogBadgeProps": [
+    {
+      "name": "style",
+      "type": "CSSProperties",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "tone",
+      "type": "Tone",
+      "required": false,
+      "default": "—",
+      "description": "语义色调。"
+    },
+    {
+      "name": "mono",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "icon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": false,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "DialogListProps": [
+    {
+      "name": "as",
+      "type": "\"div\" | \"ul\"",
+      "required": false,
+      "default": "'div'",
+      "description": ""
+    },
+    {
+      "name": "scroll",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "className",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "附加 CSS 类名。"
+    },
+    {
+      "name": "aria-label",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "DialogListItemProps": [
+    {
+      "name": "icon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": false,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "detail",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "Text gets the muted path styling; pass <DialogPath path /> to emphasise the last segment."
+    },
+    {
+      "name": "done",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "Dims a finished item."
+    },
+    {
+      "name": "className",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "附加 CSS 类名。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
   "DialogEyebrow": [
     {
       "name": "label",
@@ -980,6 +1186,273 @@
       "description": "渲染的子内容。"
     }
   ],
+  "FeedbackAlertProps": [
+    {
+      "name": "source",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "来源标识；与 scope 和 context 一起确定去重身份。"
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "message",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "title 的兼容替代。"
+    },
+    {
+      "name": "description",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "type",
+      "type": "\"error\" | \"warning\" | \"info\" | \"success\"",
+      "required": false,
+      "default": "'info'",
+      "description": "反馈语义类型。"
+    },
+    {
+      "name": "action",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "操作节点。"
+    },
+    {
+      "name": "context",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "反馈上下文说明。"
+    },
+    {
+      "name": "eventKey",
+      "type": "string | number | object",
+      "required": false,
+      "default": "—",
+      "description": "修订标识，同一身份与修订不重复提示。"
+    }
+  ],
+  "PanelHeaderProps": [
+    {
+      "name": "title",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "count",
+      "type": "number",
+      "required": false,
+      "default": "—",
+      "description": "数量，0 也会显示。"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "icon",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "extra",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "额外内容或操作。"
+    }
+  ],
+  "CommandButtonProps": [
+    {
+      "name": "label",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    },
+    {
+      "name": "danger",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "危险操作样式。"
+    },
+    {
+      "name": "onClick",
+      "type": "(() => void)",
+      "required": false,
+      "default": "—",
+      "description": "点击回调，由宿主执行操作。"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": "禁用操作。"
+    }
+  ],
+  "StatusBadgeProps": [
+    {
+      "name": "status",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "状态关键字，同时保留文字表达。"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "subtle",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "弱化状态外观。"
+    }
+  ],
+  "FileIconProps": [
+    {
+      "name": "path",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "文件或目录路径，只读取名称，不访问文件系统。"
+    }
+  ],
+  "FolderIconProps": [
+    {
+      "name": "open",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "受控开启状态。"
+    },
+    {
+      "name": "variant",
+      "type": "\"folder\" | \"link\" | \"repository\"",
+      "required": false,
+      "default": "'folder'",
+      "description": "视觉或内容变体。"
+    }
+  ],
+  "EmptyStateProps": [
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "action",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "操作节点。"
+    },
+    {
+      "name": "compact",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": ""
+    }
+  ],
+  "CountBadgeProps": [
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "渲染的子内容。"
+    }
+  ],
+  "LoadingStateProps": [
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "'正在加载工作区…'",
+      "description": "可访问名称或展示文案。"
+    }
+  ],
+  "ErrorStateProps": [
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "'无法加载当前页面'",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "description",
+      "type": "string | null",
+      "required": false,
+      "default": "—",
+      "description": "辅助说明。"
+    },
+    {
+      "name": "onRetry",
+      "type": "(() => void)",
+      "required": false,
+      "default": "—",
+      "description": "重试回调，状态更新由宿主负责。"
+    },
+    {
+      "name": "announce",
+      "type": "boolean",
+      "required": false,
+      "default": "true",
+      "description": "是否同时发布反馈。"
+    }
+  ],
+  "RefBadgeProps": [
+    {
+      "name": "value",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "受控值。"
+    }
+  ],
   "AluneUIProviderProps": [
     {
       "name": "theme",
@@ -1110,64 +1583,6 @@
       "description": "渲染的子内容。"
     }
   ],
-  "FeedbackAlertProps": [
-    {
-      "name": "source",
-      "type": "string",
-      "required": true,
-      "default": "—",
-      "description": "来源标识；与 scope 和 context 一起确定去重身份。"
-    },
-    {
-      "name": "title",
-      "type": "ReactNode",
-      "required": false,
-      "default": "—",
-      "description": "标题或主文案。"
-    },
-    {
-      "name": "message",
-      "type": "ReactNode",
-      "required": false,
-      "default": "—",
-      "description": "title 的兼容替代。"
-    },
-    {
-      "name": "description",
-      "type": "ReactNode",
-      "required": false,
-      "default": "—",
-      "description": "辅助说明。"
-    },
-    {
-      "name": "type",
-      "type": "\"error\" | \"warning\" | \"info\" | \"success\"",
-      "required": false,
-      "default": "'info'",
-      "description": "反馈语义类型。"
-    },
-    {
-      "name": "action",
-      "type": "ReactNode",
-      "required": false,
-      "default": "—",
-      "description": "操作节点。"
-    },
-    {
-      "name": "context",
-      "type": "string",
-      "required": false,
-      "default": "—",
-      "description": "反馈上下文说明。"
-    },
-    {
-      "name": "eventKey",
-      "type": "string | number | object",
-      "required": false,
-      "default": "—",
-      "description": "修订标识，同一身份与修订不重复提示。"
-    }
-  ],
   "LedgerItem": [
     {
       "name": "icon",
@@ -1248,7 +1663,7 @@
     {
       "name": "path",
       "type": "string",
-      "required": true,
+      "required": false,
       "default": "—",
       "description": "文件或目录路径，只读取名称，不访问文件系统。"
     },
@@ -1258,6 +1673,13 @@
       "required": false,
       "default": "—",
       "description": "附加 CSS 类名。"
+    },
+    {
+      "name": "children",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "渲染的子内容。"
     }
   ],
   "RepoRowProps": [
@@ -1270,10 +1692,17 @@
     },
     {
       "name": "path",
-      "type": "string",
+      "type": "ReactNode",
       "required": false,
       "default": "—",
       "description": "文件或目录路径，只读取名称，不访问文件系统。"
+    },
+    {
+      "name": "meta",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": ""
     },
     {
       "name": "icon",
@@ -1479,6 +1908,22 @@
       "description": "禁用操作。"
     }
   ],
+  "OrbButtonProps": [
+    {
+      "name": "icon",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "required": true,
+      "default": "—",
+      "description": "图标内容或图标名。"
+    },
+    {
+      "name": "loading",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": ""
+    }
+  ],
   "PanelToggleProps": [
     {
       "name": "side",
@@ -1551,52 +1996,36 @@
       "required": false,
       "default": "'nav'",
       "description": "视觉或内容变体。"
-    }
-  ],
-  "PanelHeaderProps": [
+    },
     {
-      "name": "title",
-      "type": "string",
-      "required": true,
+      "name": "text",
+      "type": "ReactNode",
+      "required": false,
       "default": "—",
-      "description": "标题或主文案。"
+      "description": "Visible text after the icon; omit for icon-only buttons."
     },
     {
       "name": "count",
-      "type": "number",
+      "type": "ReactNode",
       "required": false,
       "default": "—",
       "description": "数量，0 也会显示。"
     },
     {
-      "name": "description",
-      "type": "string",
+      "name": "countTone",
+      "type": "\"behind\"",
       "required": false,
       "default": "—",
-      "description": "辅助说明。"
-    },
-    {
-      "name": "icon",
-      "type": "ReactNode",
-      "required": false,
-      "default": "—",
-      "description": "图标内容或图标名。"
-    },
-    {
-      "name": "extra",
-      "type": "ReactNode",
-      "required": false,
-      "default": "—",
-      "description": "额外内容或操作。"
+      "description": ""
     }
   ],
-  "CommandButtonProps": [
+  "ToolbarCountProps": [
     {
-      "name": "label",
-      "type": "string",
-      "required": true,
+      "name": "tone",
+      "type": "\"behind\"",
+      "required": false,
       "default": "—",
-      "description": "可访问名称或展示文案。"
+      "description": "语义色调。"
     },
     {
       "name": "children",
@@ -1604,146 +2033,6 @@
       "required": true,
       "default": "—",
       "description": "渲染的子内容。"
-    },
-    {
-      "name": "danger",
-      "type": "boolean",
-      "required": false,
-      "default": "false",
-      "description": "危险操作样式。"
-    },
-    {
-      "name": "onClick",
-      "type": "(() => void)",
-      "required": false,
-      "default": "—",
-      "description": "点击回调，由宿主执行操作。"
-    },
-    {
-      "name": "disabled",
-      "type": "boolean",
-      "required": false,
-      "default": "—",
-      "description": "禁用操作。"
-    }
-  ],
-  "StatusBadgeProps": [
-    {
-      "name": "status",
-      "type": "string",
-      "required": true,
-      "default": "—",
-      "description": "状态关键字，同时保留文字表达。"
-    },
-    {
-      "name": "label",
-      "type": "string",
-      "required": false,
-      "default": "—",
-      "description": "可访问名称或展示文案。"
-    },
-    {
-      "name": "subtle",
-      "type": "boolean",
-      "required": false,
-      "default": "false",
-      "description": "弱化状态外观。"
-    }
-  ],
-  "FileIconProps": [
-    {
-      "name": "path",
-      "type": "string",
-      "required": true,
-      "default": "—",
-      "description": "文件或目录路径，只读取名称，不访问文件系统。"
-    }
-  ],
-  "FolderIconProps": [
-    {
-      "name": "open",
-      "type": "boolean",
-      "required": false,
-      "default": "false",
-      "description": "受控开启状态。"
-    },
-    {
-      "name": "variant",
-      "type": "\"folder\" | \"link\" | \"repository\"",
-      "required": false,
-      "default": "'folder'",
-      "description": "视觉或内容变体。"
-    }
-  ],
-  "EmptyStateProps": [
-    {
-      "name": "title",
-      "type": "string",
-      "required": true,
-      "default": "—",
-      "description": "标题或主文案。"
-    },
-    {
-      "name": "description",
-      "type": "string",
-      "required": false,
-      "default": "—",
-      "description": "辅助说明。"
-    },
-    {
-      "name": "action",
-      "type": "ReactNode",
-      "required": false,
-      "default": "—",
-      "description": "操作节点。"
-    }
-  ],
-  "LoadingStateProps": [
-    {
-      "name": "label",
-      "type": "string",
-      "required": false,
-      "default": "'正在加载工作区…'",
-      "description": "可访问名称或展示文案。"
-    }
-  ],
-  "ErrorStateProps": [
-    {
-      "name": "title",
-      "type": "string",
-      "required": false,
-      "default": "'无法加载当前页面'",
-      "description": "标题或主文案。"
-    },
-    {
-      "name": "description",
-      "type": "string | null",
-      "required": false,
-      "default": "—",
-      "description": "辅助说明。"
-    },
-    {
-      "name": "onRetry",
-      "type": "(() => void)",
-      "required": false,
-      "default": "—",
-      "description": "重试回调，状态更新由宿主负责。"
-    },
-    {
-      "name": "announce",
-      "type": "boolean",
-      "required": false,
-      "default": "true",
-      "description": "是否同时发布反馈。"
-    }
-  ],
-  "RefBadgeProps": [
-    {
-      "name": "value",
-      "type": "string",
-      "required": true,
-      "default": "—",
-      "description": "受控值。"
     }
   ],
   "FeedbackMessageApi": [
