@@ -223,6 +223,14 @@
     "source": "packages/ui/src/components/FeedbackNotice.tsx",
     "type": true
   },
+  "MoonLoader": {
+    "source": "packages/ui/src/components/MoonLoader.tsx",
+    "type": false
+  },
+  "MoonLoaderProps": {
+    "source": "packages/ui/src/components/MoonLoader.tsx",
+    "type": true
+  },
   "PanelToggle": {
     "source": "packages/ui/src/components/PanelToggle.tsx",
     "type": false

@@ -338,6 +338,22 @@
       "description": "展示名称。"
     }
   ],
+  "MoonLoaderProps": [
+    {
+      "name": "size",
+      "type": "number | \"small\" | \"default\" | \"large\"",
+      "required": false,
+      "default": "—",
+      "description": "预设尺寸或数字宽度。"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    }
+  ],
   "DialogEyebrow": [
     {
       "name": "label",
@@ -540,11 +556,18 @@
       "description": "取消回调，宿主更新受控状态。"
     },
     {
-      "name": "danger",
-      "type": "boolean",
+      "name": "body",
+      "type": "\"default\" | \"flush\" | \"tight\" | \"scroll\"",
       "required": false,
       "default": "—",
-      "description": "危险操作样式。"
+      "description": "正文内边距或滚动方式。"
+    },
+    {
+      "name": "footer",
+      "type": "ReactNode",
+      "required": false,
+      "default": "—",
+      "description": "替换操作行，null 移除整个页脚。"
     },
     {
       "name": "title",
@@ -554,11 +577,11 @@
       "description": "标题或主文案。"
     },
     {
-      "name": "footer",
-      "type": "ReactNode",
+      "name": "danger",
+      "type": "boolean",
       "required": false,
       "default": "—",
-      "description": "替换操作行，null 移除整个页脚。"
+      "description": "危险操作样式。"
     },
     {
       "name": "level",
@@ -671,13 +694,6 @@
       "required": false,
       "default": "—",
       "description": "必须输入的目标文字与匹配说明。"
-    },
-    {
-      "name": "body",
-      "type": "\"default\" | \"flush\" | \"tight\" | \"scroll\"",
-      "required": false,
-      "default": "—",
-      "description": "正文内边距或滚动方式。"
     },
     {
       "name": "initialFocus",
@@ -1763,7 +1779,7 @@
   "ButtonProps": [
     {
       "name": "type",
-      "type": "\"link\" | \"default\" | \"text\" | \"primary\" | \"dashed\"",
+      "type": "\"link\" | \"text\" | \"default\" | \"primary\" | \"dashed\"",
       "required": false,
       "default": "default",
       "description": "按钮类型。"

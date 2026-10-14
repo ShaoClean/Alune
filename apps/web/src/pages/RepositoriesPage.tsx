@@ -8,7 +8,7 @@ import {
 } from '../stores/repositorySource';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Input, Select, Space } from '@alune/ui';
+import { Button, Input, MoonLoader, Select, Space } from '@alune/ui';
 import {
   BranchesOutlined,
   DeleteOutlined,
@@ -482,7 +482,7 @@ export function RepositoriesPage() {
               if (!scanLoading) void handleScan();
             }}
           >
-            {scanLoading ? <span className="dlg-moonload" aria-hidden="true" /> : null}
+            {scanLoading ? <MoonLoader /> : null}
             <span>{scanLoading ? '扫描中' : '开始扫描'}</span>
           </Button>
         </div>

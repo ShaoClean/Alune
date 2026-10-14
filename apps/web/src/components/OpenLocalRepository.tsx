@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Input } from '@alune/ui';
+import { Button, Input, MoonLoader } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
 import { repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -145,7 +145,7 @@ export function OpenLocalRepository({ open, onClose }: { open: boolean; onClose:
               if (!busy) void inspect();
             }}
           >
-            {checking ? <span className="dlg-moonload" aria-hidden="true" /> : null}
+            {checking ? <MoonLoader /> : null}
             <span>{checking ? '检查中' : '检查仓库'}</span>
           </Button>
         </div>

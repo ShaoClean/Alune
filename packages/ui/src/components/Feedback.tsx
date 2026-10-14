@@ -7,6 +7,7 @@ import { createFeedbackStore } from '../stores/feedbackStore';
 import type { FeedbackEntry } from '../stores/feedbackStore';
 import { DialogHints, Kbd } from './AluneModal';
 import { DialogIcon } from './DialogIcons';
+import { MoonLoader } from './MoonLoader';
 import type { DialogIconName } from './DialogIcons';
 import { FeedbackContext } from './feedback-context';
 import { StatusButton } from './StatusButton';
@@ -536,7 +537,7 @@ function FeedbackCenter({
                       <span>{current.actionLabel}</span>
                       <span className="dlg-orb" aria-hidden="true">
                         {current.busy ? (
-                          <span className="dlg-moonload" />
+                          <MoonLoader />
                         ) : (
                           <DialogIcon
                             name={

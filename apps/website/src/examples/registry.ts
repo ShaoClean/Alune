@@ -120,6 +120,11 @@ export const examples: ExampleDefinition[] = [
     height: 380,
   },
   {
+    id: 'moon-loader',
+    title: '月相加载',
+    height: 380,
+  },
+  {
     id: 'spin',
     title: '加载',
     height: 380,

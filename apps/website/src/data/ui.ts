@@ -144,6 +144,17 @@ export const documents: UIDocument[] = [
     keywords: ['LoadingState', '加载状态', 'UI', 'LoadingState', 'LoadingStateProps'],
   },
   {
+    slug: 'moon-loader',
+    title: 'MoonLoader',
+    subtitle: '月相加载',
+    description: 'Alune 统一的等待指示，Spin、按钮 loading 与 LoadingState 默认使用它。',
+    exports: ['MoonLoader', 'MoonLoaderProps'],
+    source: 'packages/ui/src/components/MoonLoader.tsx',
+    examples: ['moon-loader'],
+    category: 'Alune 组件',
+    keywords: ['MoonLoader', '月相加载', '加载', 'loading', 'MoonLoaderProps'],
+  },
+  {
     slug: 'error-state',
     title: 'ErrorState',
     subtitle: '失败与重试',
@@ -567,7 +578,8 @@ export const documents: UIDocument[] = [
     slug: 'spin',
     title: 'Spin',
     subtitle: '加载',
-    description: 'Alune 月光主题下的加载，直接保留 Ant Design 原有属性、类型与行为。',
+    description:
+      'AluneUIProvider 将默认指示替换为 MoonLoader，其余保留 Ant Design 原有属性、类型与行为。',
     exports: ['Spin', 'SpinProps'],
     source: 'packages/ui/src/index.ts',
     examples: ['spin'],

@@ -2,12 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InputRef } from 'antd';
-import { Input, Popover } from '@alune/ui';
+import { Input, MoonLoader, Popover } from '@alune/ui';
 import {
   BranchesOutlined,
   CheckOutlined,
   DownOutlined,
-  LoadingOutlined,
   PlusOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
@@ -148,11 +147,7 @@ export function BranchPicker({
         onClick={() => choose(item)}
       >
         <span className="branch-picker__check">
-          {item.isCurrent ? (
-            <CheckOutlined />
-          ) : switching === item.name ? (
-            <LoadingOutlined />
-          ) : null}
+          {item.isCurrent ? <CheckOutlined /> : switching === item.name ? <MoonLoader /> : null}
         </span>
         <span className="branch-picker__name">{item.name}</span>
         {item.isCurrent && !!behind && <span className="toolbar-count">↓{behind}</span>}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { KeyboardEvent, ReactElement, WheelEvent } from 'react';
 import { SigningSettingsDialog } from './SigningSettingsDialog';
 import { SafetyCertificateOutlined } from '@ant-design/icons';
-import { Dropdown } from '@alune/ui';
+import { Dropdown, MoonLoader } from '@alune/ui';
 import {
   BranchesOutlined,
   CloudDownloadOutlined,
@@ -13,7 +13,6 @@ import {
   HistoryOutlined,
   InboxOutlined,
   PullRequestOutlined,
-  LoadingOutlined,
   ReloadOutlined,
   TagOutlined,
   WarningOutlined,
@@ -31,7 +30,13 @@ import { syncLabel } from '../stores/syncStatusStore';
 import type { SyncOperation } from '../stores/syncStatusStore';
 
 export type RepositoryPanel =
-  'changes' | 'files' | 'history' | 'branches' | 'stashes' | 'remotes' | 'pull-requests';
+  | 'changes'
+  | 'files'
+  | 'history'
+  | 'branches'
+  | 'stashes'
+  | 'remotes'
+  | 'pull-requests';
 export type { SyncOperation };
 
 type ViewItem = { key: RepositoryPanel; label: string; icon: ReactElement };
@@ -287,7 +292,7 @@ export function RepositoryToolbar({
             if (!busy && !refreshing) onRefresh();
           }}
         >
-          {refreshing ? <LoadingOutlined /> : <ReloadOutlined />}
+          {refreshing ? <MoonLoader /> : <ReloadOutlined />}
         </ToolbarButton>
         <ToolbarButton
           variant="action"
@@ -305,7 +310,7 @@ export function RepositoryToolbar({
             if (!busy) onSync('pull');
           }}
         >
-          {syncing === 'pull' ? <LoadingOutlined /> : <DownloadOutlined />}
+          {syncing === 'pull' ? <MoonLoader /> : <DownloadOutlined />}
           {!iconOnlyActions && (
             <span className="toolbar-button__label">{syncing === 'pull' ? '拉取中…' : '拉取'}</span>
           )}
@@ -332,7 +337,7 @@ export function RepositoryToolbar({
               if (!busy) onSync('push');
             }}
           >
-            {syncing === 'push' ? <LoadingOutlined /> : <UploadOutlined />}
+            {syncing === 'push' ? <MoonLoader /> : <UploadOutlined />}
             {!iconOnlyActions && (
               <span className="toolbar-button__label">
                 {syncing === 'push' ? (syncingForce ? '强制推送中…' : '推送中…') : '推送'}

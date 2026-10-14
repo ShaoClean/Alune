@@ -16,6 +16,7 @@ import type { ModalProps } from 'antd';
 import { Provider as MotionProvider } from '@rc-component/motion';
 import { useUIAppearance } from '../appearance';
 import { DialogIcon } from './DialogIcons';
+import { MoonLoader } from './MoonLoader';
 import type { DialogIconName } from './DialogIcons';
 
 /**
@@ -493,15 +494,11 @@ export function AluneModal({
         if (!busy) submit();
       }}
     >
-      {busy && !withOrb ? <span className="dlg-moonload" aria-hidden="true" /> : null}
+      {busy && !withOrb ? <MoonLoader /> : null}
       <span>{okLabel}</span>
       {withOrb ? (
         <span className="dlg-orb" aria-hidden="true">
-          {busy ? (
-            <span className="dlg-moonload" />
-          ) : (
-            <DialogIcon name={okIcon as DialogIconName} />
-          )}
+          {busy ? <MoonLoader /> : <DialogIcon name={okIcon as DialogIconName} />}
         </span>
       ) : null}
     </Button>

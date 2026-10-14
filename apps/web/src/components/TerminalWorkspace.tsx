@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Button, Tooltip, Dropdown, AluneModal, useAluneConfirm } from '@alune/ui';
+import { Button, Tooltip, Dropdown, AluneModal, MoonLoader, useAluneConfirm } from '@alune/ui';
 import {
   CodeOutlined,
   PlusOutlined,
@@ -14,7 +14,6 @@ import {
   UnorderedListOutlined,
   CheckCircleOutlined,
   WarningOutlined,
-  LoadingOutlined,
   EllipsisOutlined,
 } from '@ant-design/icons';
 import type { Repository, TerminalSession } from '@alune/shared';
@@ -493,7 +492,7 @@ function TerminalPanel({
                 {session.state === 'running' ? (
                   <CheckCircleOutlined />
                 ) : session.state === 'connecting' ? (
-                  <LoadingOutlined />
+                  <MoonLoader />
                 ) : (
                   <WarningOutlined />
                 )}

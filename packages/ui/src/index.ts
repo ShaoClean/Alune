@@ -57,6 +57,8 @@ export { feedbackText, FeedbackAlert } from './components/FeedbackAlert';
 export type { FeedbackAlertProps } from './components/FeedbackAlert';
 export { FeedbackScope, FeedbackNotice } from './components/FeedbackNotice';
 export type { FeedbackScopeProps, FeedbackNoticeProps } from './components/FeedbackNotice';
+export { MoonLoader } from './components/MoonLoader';
+export type { MoonLoaderProps } from './components/MoonLoader';
 export { PanelToggle } from './components/PanelToggle';
 export type { PanelToggleProps } from './components/PanelToggle';
 export { StatusButton } from './components/StatusButton';

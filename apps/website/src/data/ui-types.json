@@ -5,6 +5,7 @@
   "FeedbackStore": "export type FeedbackStore = ReturnType<typeof createFeedbackStore>;",
   "DialogIconName": "export type DialogIconName = keyof typeof icons;",
   "DialogIconProps": "export type DialogIconProps = { name: DialogIconName } & Omit<SVGProps<SVGSVGElement>, 'name'>;",
+  "MoonLoaderProps": "export type MoonLoaderProps = Omit<ComponentProps<'span'>, 'children'> & {\n  /** small 14px · default 20px · large 32px, or any pixel size. Omit to follow the host (Spin, orb). */\n  size?: keyof typeof sizes | number;\n  /** Announced as a status; without it the loader is decorative. */\n  label?: string;\n};",
   "DialogLevel": "export type DialogLevel = 0 | 1 | 2;",
   "DialogTone": "export type DialogTone = 'default' | 'info' | 'success' | 'warning' | 'danger';",
   "DialogSize": "export type DialogSize = 'sm' | 'md' | 'lg' | 'xl';",

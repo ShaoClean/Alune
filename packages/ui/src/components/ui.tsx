@@ -3,7 +3,8 @@ import { FeedbackContext } from './feedback-context';
 import { ScopeContext } from './FeedbackNotice';
 import { FeedbackAlert } from './FeedbackAlert';
 import type { ReactNode } from 'react';
-import { Empty, Spin, Tag, Tooltip, Typography } from 'antd';
+import { Empty, Tag, Tooltip, Typography } from 'antd';
+import { MoonLoader } from './MoonLoader';
 import typescriptIcon from 'material-icon-theme/icons/typescript.svg?url';
 import reactTypescriptIcon from 'material-icon-theme/icons/react_ts.svg?url';
 import javascriptIcon from 'material-icon-theme/icons/javascript.svg?url';
@@ -200,8 +201,8 @@ export function EmptyState({
 
 export function LoadingState({ label = '正在加载工作区…' }: { label?: string }) {
   return (
-    <div className="loading-state">
-      <Spin />
+    <div className="loading-state" role="status">
+      <MoonLoader size="default" />
       <span>{label}</span>
     </div>
   );

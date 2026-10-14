@@ -4,7 +4,7 @@ import type { ShowHistory } from './WorkspaceFileMenu';
 import { FeedbackNotice } from '@alune/ui';
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Button, Input, Tooltip, type TooltipProps } from '@alune/ui';
+import { Button, Input, MoonLoader, Tooltip, type TooltipProps } from '@alune/ui';
 import { AlunePopconfirm } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
 import { changeActions, changeKindLabel, type FileStatus } from '@alune/shared';
@@ -20,7 +20,6 @@ import {
   DownOutlined,
   RightOutlined,
   UndoOutlined,
-  LoadingOutlined,
   SettingOutlined,
   EyeInvisibleOutlined,
   ExportOutlined,
@@ -858,7 +857,7 @@ export function ChangesView({
                 disabled={busy || ai.generating}
                 onClick={() => void ai.generate()}
               >
-                {ai.generating ? <LoadingOutlined spin /> : <Sparkles />}
+                {ai.generating ? <MoonLoader /> : <Sparkles />}
               </button>
             </Tooltip>
           }
