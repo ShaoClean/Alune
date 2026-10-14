@@ -20,6 +20,7 @@ const {
   saveWorkspacePreferences,
 } = require('./workspace-preferences.cjs');
 const { createExternalLinkHandler } = require('./external-links.cjs');
+const { createLogWindow } = require('./log-window.cjs');
 
 const smokeTest = process.argv.includes('--smoke-test');
 app.setName('Alune');
@@ -30,6 +31,13 @@ if (smokeTest) {
   app.setPath('userData', process.env.ALUNE_SMOKE_DIR);
 } else {
   app.setPath('userData', path.join(app.getPath('appData'), 'Alune'));
+}
+// The embedded server and this process share one log store rooted here.
+process.env.ALUNE_DATA_DIR = app.getPath('userData');
+
+// Loaded lazily: the second instance quits before writing anything.
+function appLog() {
+  return require('./server/logging/logger.js');
 }
 
 let backend;
@@ -42,6 +50,13 @@ let terminalClosePending = false;
 const token = randomBytes(32).toString('hex');
 const windowStatePath = path.join(app.getPath('userData'), 'window.json');
 const iconPath = path.join(__dirname, 'assets', 'icon.png');
+const logWindow = createLogWindow({
+  BrowserWindow,
+  getOrigin: () => origin,
+  iconPath,
+  openExternal: smokeTest ? (url) => require('./smoke.cjs').openExternal(url) : (url) => shell.openExternal(url),
+  show: !smokeTest,
+});
 
 function createWindow() {
   let state = {};
@@ -113,6 +128,8 @@ function createWindow() {
   });
   window.on('closed', () => {
     window = null;
+    // The log viewer belongs to the main window; it must not keep the app alive alone.
+    logWindow.close();
   });
   return window.loadURL(origin);
 }
@@ -122,6 +139,21 @@ async function start() {
   const dataDir = app.getPath('userData');
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   process.env.ALUNE_DATA_DIR = dataDir;
+  const { logger, errorContext } = appLog();
+  require('./server/logging/redact.js').registerSecret(token);
+  logger.info('app', 'Alune 启动', {
+    version: app.getVersion(),
+    platform: process.platform,
+    arch: process.arch,
+    electron: process.versions.electron,
+    packaged: app.isPackaged,
+  });
+  process.on('uncaughtExceptionMonitor', (error, source) =>
+    logger.error('process', `未捕获异常（${source}）`, errorContext(error)),
+  );
+  process.on('unhandledRejection', (reason) =>
+    logger.error('process', '未处理的 Promise 拒绝', errorContext(reason)),
+  );
   const standaloneDatabase = path.join(os.homedir(), '.alune', 'alune.db');
   const databasePath = path.join(dataDir, 'alune.db');
   const tokenImportMarker = path.join(dataDir, 'access-token-import-pending');
@@ -219,9 +251,24 @@ async function start() {
           .takeInstallError(path.join(dataDir, 'updates'))
           .catch((error) => {
             console.error('读取上次更新结果失败', error);
+            logger.warn('update', '读取上次更新结果失败', errorContext(error));
             return '无法读取上次更新结果，请重新检查更新。';
           })
       : null;
+  let lastUpdateStatus = updates.getState().status;
+  updates.on('state', (state) => {
+    if (state.status === lastUpdateStatus) return;
+    lastUpdateStatus = state.status;
+    const context = {
+      status: state.status,
+      ...(state.latestVersion ? { latestVersion: state.latestVersion } : {}),
+      ...(state.background !== undefined ? { background: state.background } : {}),
+    };
+    if (state.status === 'error')
+      logger.error('update', '自动更新失败', { ...context, ...state.error });
+    else if (state.status === 'checking') logger.debug('update', '正在检查更新', context);
+    else logger.info('update', `更新状态：${state.status}`, context);
+  });
   if (installError)
     updates.setState({ status: 'error', error: { action: 'check', message: installError } });
   registerUpdateIPC({
@@ -257,15 +304,37 @@ async function start() {
       value,
     );
   });
+  const trustedLogSender = (event) =>
+    isTrustedWorkspaceSender(event, window?.webContents, origin) ||
+    isTrustedWorkspaceSender(event, logWindow.contents(), origin);
+  ipcMain.handle('logs:open-window', (event) => {
+    if (!trustedLogSender(event)) throw new Error('Log access denied');
+    logWindow.open();
+  });
+  ipcMain.handle('logs:open-directory', async (event) => {
+    if (!trustedLogSender(event)) throw new Error('Log access denied');
+    return openLogDirectory();
+  });
+  ipcMain.handle('logs:choose-directory', async (event) => {
+    if (!isTrustedWorkspaceSender(event, window?.webContents, origin))
+      throw new Error('Log access denied');
+    const result = await dialog.showOpenDialog(window, {
+      title: '选择日志目录',
+      buttonLabel: '使用此目录',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    return result.canceled ? null : result.filePaths[0] || null;
+  });
   const desktopSession = session.fromPartition('alune-desktop');
   const { canWriteClipboard } = require('./clipboard-permissions.cjs');
+  const canWrite = (contents, permission, requestingUrl) =>
+    canWriteClipboard(contents, permission, requestingUrl, window?.webContents, origin) ||
+    canWriteClipboard(contents, permission, requestingUrl, logWindow.contents(), origin);
   desktopSession.setPermissionRequestHandler((contents, permission, callback, details) =>
-    callback(
-      canWriteClipboard(contents, permission, details.requestingUrl, window?.webContents, origin),
-    ),
+    callback(canWrite(contents, permission, details.requestingUrl)),
   );
   desktopSession.setPermissionCheckHandler((contents, permission, requestingOrigin) =>
-    canWriteClipboard(contents, permission, requestingOrigin, window?.webContents, origin),
+    canWrite(contents, permission, requestingOrigin),
   );
   // Keep the per-launch credential in the main process, including WebSocket upgrades.
   desktopSession.webRequest.onBeforeSendHeaders(
@@ -328,6 +397,18 @@ async function start() {
         ],
       },
       { role: 'windowMenu' },
+      {
+        label: '帮助',
+        role: 'help',
+        submenu: [
+          {
+            label: '查看日志',
+            accelerator: 'CmdOrCtrl+Shift+L',
+            click: () => logWindow.open(),
+          },
+          { label: '打开日志目录', click: () => void openLogDirectory() },
+        ],
+      },
     ]),
   );
   await createWindow();
@@ -384,8 +465,11 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
     quitting = true;
+    appLog().logger.info('app', 'Alune 正在退出');
     const timeout = setTimeout(() => {
       console.error('关闭本地服务超时');
+      appLog().logger.error('app', '关闭本地服务超时');
+      appLog().logStore().flush();
       app.exit(1);
     }, 5000);
     closeBackend()
@@ -413,6 +497,18 @@ function closeBackend() {
       });
   }
   return closingBackend;
+}
+
+async function openLogDirectory() {
+  const { logStore, logger } = appLog();
+  const directory = logStore().settings().directory;
+  if (smokeTest) return directory;
+  const error = await shell.openPath(directory);
+  if (error) {
+    logger.warn('app', '无法打开日志目录', { directory, error });
+    throw new Error(`无法打开日志目录：${error}`);
+  }
+  return directory;
 }
 
 function terminalRegistry() {
@@ -496,6 +592,11 @@ async function confirmTerminalShutdown() {
 
 function fail(error) {
   console.error(error);
+  try {
+    const { logger, errorContext, logStore } = appLog();
+    logger.error('app', 'Alune 启动失败', errorContext(error));
+    logStore().flush();
+  } catch {}
   if (!smokeTest) dialog.showErrorBox('Alune 启动失败', error.message || String(error));
   app.exit(1);
 }

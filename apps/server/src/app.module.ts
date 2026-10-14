@@ -13,6 +13,7 @@ import { SecretsModule } from './secrets/secrets.module';
 import { ProxyModule } from './proxy/proxy.module';
 import { ProxyController } from './proxy/proxy.controller';
 import { TerminalModule } from './terminal/terminal.module';
+import { LoggingModule } from './logging/logging.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { TerminalModule } from './terminal/terminal.module';
     FileModule,
     EventsModule,
     TerminalModule,
+    LoggingModule,
   ],
   controllers: [AppController, ProxyController],
   providers: [AppService],

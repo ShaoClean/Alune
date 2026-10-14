@@ -10,6 +10,7 @@ import {
   SkinOutlined,
   KeyOutlined,
   GlobalOutlined,
+  ProfileOutlined,
 } from '@ant-design/icons';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
 import type { useDesktopUpdates } from '../../hooks/useDesktopUpdates';
@@ -20,6 +21,7 @@ import { UpdatePanelContent } from '../UpdatePanel';
 import { Sparkles } from '../Sparkles';
 import { AccessTokenSettings } from './AccessTokenSettings';
 import { ProxySettings } from './ProxySettings';
+import { LoggingSettings } from './LoggingSettings';
 import '../../settings.css';
 
 const categories = [
@@ -29,6 +31,7 @@ const categories = [
   { id: 'layout', name: '布局', icon: <LayoutOutlined /> },
   { id: 'appearance', name: '外观', icon: <SkinOutlined /> },
   { id: 'proxy', name: '网络代理', icon: <GlobalOutlined /> },
+  { id: 'logs', name: '日志', icon: <ProfileOutlined /> },
   { id: 'updates', name: '版本更新', icon: <ReloadOutlined /> },
 ];
 
@@ -89,6 +92,8 @@ export function SettingsCenter({
         <AccessTokenSettings returnTo={returnTo} />
       ) : category.id === 'proxy' ? (
         <ProxySettings />
+      ) : category.id === 'logs' ? (
+        <LoggingSettings />
       ) : category.id === 'appearance' ? (
         <AppearanceSettings />
       ) : category.id === 'layout' ? (

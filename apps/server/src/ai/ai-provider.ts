@@ -1,5 +1,6 @@
 import { BadGatewayException, HttpException } from '@nestjs/common';
 import type { AiModel, AiProvider } from '@alune/shared';
+import { traceHttp } from '../logging/logger';
 
 const RESPONSE_MAX_BYTES = 1024 * 1024;
 
@@ -21,13 +22,22 @@ async function request(
     if (key) headers['x-goog-api-key'] = key;
   } else if (key) headers.Authorization = `Bearer ${key}`;
   try {
-    const response = await fetchImpl(`${provider.baseUrl}/${path}`, {
-      method: body ? 'POST' : 'GET',
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-      signal,
-      redirect: 'error',
-    });
+    const url = `${provider.baseUrl}/${path}`;
+    // Request and response bodies are never logged; only the endpoint and status.
+    const response = await traceHttp(
+      'ai',
+      body ? 'POST' : 'GET',
+      url,
+      { provider: provider.name, protocol: provider.protocol },
+      () =>
+        fetchImpl(url, {
+          method: body ? 'POST' : 'GET',
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          signal,
+          redirect: 'error',
+        }),
+    );
     if (!response.ok) {
       await response.body?.cancel();
       const message =

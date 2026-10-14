@@ -18,14 +18,29 @@ import './theme.css';
 import './dialogs.css';
 import { initializeAppearance } from './appearance';
 import { hydrateWorkspace } from './stores/workspaceStore';
+import { installClientErrorReporting } from './logging/clientErrors';
+import { LogViewerRoot } from './pages/LogViewerPage';
 
-// Mount only after asynchronous desktop preferences have been restored.
-void hydrateWorkspace().then(() => {
-  const disposeAppearance = initializeAppearance();
-  if (import.meta.hot) import.meta.hot.dispose(disposeAppearance);
+installClientErrorReporting();
+
+// The log viewer is a standalone window/tab: it never hydrates or writes the
+// workspace preferences owned by the main window.
+if (window.location.pathname === '/logs') {
+  document.title = 'Alune 日志';
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <App />
+      <LogViewerRoot />
     </React.StrictMode>,
   );
-});
+} else {
+  // Mount only after asynchronous desktop preferences have been restored.
+  void hydrateWorkspace().then(() => {
+    const disposeAppearance = initializeAppearance();
+    if (import.meta.hot) import.meta.hot.dispose(disposeAppearance);
+    ReactDOM.createRoot(document.getElementById('root')!).render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>,
+    );
+  });
+}

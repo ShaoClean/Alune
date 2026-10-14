@@ -801,3 +801,12 @@
     flex-wrap: wrap;
   }
 }
+.logging-path {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.logging-actions {
+  justify-content: flex-start;
+  margin-top: 12px;
+}

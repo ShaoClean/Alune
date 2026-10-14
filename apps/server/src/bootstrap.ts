@@ -6,6 +6,9 @@ import * as path from 'node:path';
 import { AppModule } from './app.module';
 import type { AiSecretStorage } from './ai/secret-storage';
 import { TerminalRegistry } from './terminal/terminal-registry';
+import { AluneNestLogger } from './logging/nest-logger';
+import { errorContext, logger, logStore } from './logging/logger';
+import { registerSecret } from './logging/redact';
 
 export interface ServerOptions {
   port?: number;
@@ -17,10 +20,16 @@ export interface ServerOptions {
 }
 
 export async function startServer(options: ServerOptions = {}) {
+  if (options.token) registerSecret(options.token);
+  logStore();
   // Desktop shutdown must close keep-alive and upgraded sockets before an installer can run.
   const app = await NestFactory.create(
     AppModule.register(options.aiSecretStorage),
-    { abortOnError: false, forceCloseConnections: Boolean(options.token) },
+    {
+      abortOnError: false,
+      forceCloseConnections: Boolean(options.token),
+      logger: new AluneNestLogger(),
+    },
   );
   try {
     const terminals = app.get(TerminalRegistry);
@@ -95,8 +104,13 @@ export async function startServer(options: ServerOptions = {}) {
     }
 
     await app.listen(options.port ?? 3000, options.host ?? '127.0.0.1');
+    logger.info('server', '本地服务已启动', {
+      url: await app.getUrl(),
+      mode: options.desktop ? 'desktop' : 'web',
+    });
     return app;
   } catch (error) {
+    logger.error('server', '本地服务启动失败', errorContext(error));
     await app.close();
     throw error;
   }

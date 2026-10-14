@@ -18,6 +18,7 @@ import { realpath } from 'node:fs/promises';
 import { ConnectionService } from '../connection/connection.service';
 import { RepositoryService } from '../repository/repository.service';
 import { ProxyService } from '../proxy/proxy.service';
+import { errorContext, logger, type LogContext } from '../logging/logger';
 import {
   GitSubmodules,
   WorkspaceFileActions,
@@ -145,8 +146,15 @@ export class GitService implements OnModuleDestroy {
     );
     timer.unref();
     let release: (() => void) | undefined;
+    const started = performance.now();
+    const context: LogContext = { repositoryId: id, operation: kind };
+    logger.debug('git', `Git 操作开始：${kind}`, context);
     try {
       const repo = await this.repoService.get(id);
+      Object.assign(context, {
+        repository: repo.name,
+        location: repo.source || 'ssh',
+      });
       const transport = await this.transport(repo, controller.signal);
       let progressTail = '';
       const recordProgress = (chunk: string) => {
@@ -169,23 +177,26 @@ export class GitService implements OnModuleDestroy {
         withSftp: transport.withSftp.bind(transport),
         hasAnyPath: transport.hasAnyPath?.bind(transport),
         execGit: (path, args, signal, options) =>
-          runGit(transport, path, args, signal, {
-            ...options,
-            environment: {
-              ...options?.environment,
-              ...(['push', 'pull'].includes(kind)
-                ? { GIT_LFS_FORCE_PROGRESS: '1' }
-                : {}),
-            },
-            onStdout: (chunk) => {
-              options?.onStdout?.(chunk);
-              recordProgress(chunk);
-            },
-            onStderr: (chunk) => {
-              options?.onStderr?.(chunk);
-              recordProgress(chunk);
-            },
-          }),
+          this.traceGit(
+            args,
+            runGit(transport, path, args, signal, {
+              ...options,
+              environment: {
+                ...options?.environment,
+                ...(['push', 'pull'].includes(kind)
+                  ? { GIT_LFS_FORCE_PROGRESS: '1' }
+                  : {}),
+              },
+              onStdout: (chunk) => {
+                options?.onStdout?.(chunk);
+                recordProgress(chunk);
+              },
+              onStderr: (chunk) => {
+                options?.onStderr?.(chunk);
+                recordProgress(chunk);
+              },
+            }),
+          ),
       };
       if (repo.connectionId)
         release = this.connectionService
@@ -208,8 +219,29 @@ export class GitService implements OnModuleDestroy {
         throw new ConflictException(
           '请先完成或中止当前交互式变基，再执行其他 Git 操作。',
         );
-      return await operation(new GitCommands(connection), repo, connection);
+      const result = await operation(
+        new GitCommands(connection),
+        repo,
+        connection,
+      );
+      logger.info('git', `Git 操作完成：${kind}`, {
+        ...context,
+        durationMs: Math.round(performance.now() - started),
+      });
+      return result;
     } catch (error) {
+      const failure = {
+        ...context,
+        durationMs: Math.round(performance.now() - started),
+        ...errorContext(error),
+      };
+      // Cancellations and request validation are expected; real Git failures are errors.
+      if (
+        controller.signal.aborted ||
+        (error instanceof HttpException && error.getStatus() < 500)
+      )
+        logger.warn('git', `Git 操作未完成：${kind}`, failure);
+      else logger.error('git', `Git 操作失败：${kind}`, failure);
       if (error instanceof HttpException) throw error;
       if (kind === 'delete-file')
         throw new HttpException(
@@ -226,6 +258,39 @@ export class GitService implements OnModuleDestroy {
       release?.();
       this.active.delete(id);
     }
+  }
+
+  private traceGit<T extends { exitCode: number | null }>(
+    args: string[],
+    running: Promise<T>,
+  ): Promise<T> {
+    if (!logger.enabled('DEBUG')) return running;
+    const started = performance.now();
+    // Subcommand and option names only: other arguments can carry messages,
+    // paths or URLs, and option values are dropped for the same reason.
+    const command = [
+      args[0],
+      ...args
+        .slice(1, 6)
+        .map((arg) => arg.split('=')[0])
+        .filter((arg) => /^--?[A-Za-z][\w-]{0,40}$/.test(arg)),
+    ].join(' ');
+    return running.then(
+      (result) => {
+        logger.debug('git', `git ${command}`, {
+          exitCode: result.exitCode,
+          durationMs: Math.round(performance.now() - started),
+        });
+        return result;
+      },
+      (error) => {
+        logger.debug('git', `git ${command}`, {
+          durationMs: Math.round(performance.now() - started),
+          ...errorContext(error),
+        });
+        throw error;
+      },
+    );
   }
 
   operation(id: string) {
