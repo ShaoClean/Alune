@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { BlameLine, BlameOptions, BlameResult } from '@alune/shared';
-import { Button, ErrorState, FeedbackNotice, Popover, Spin } from '@alune/ui';
+import { Button, ErrorState, FeedbackNotice, Popover, Spin, EmptyState } from '@alune/ui';
 import { CodeView } from './CodeView';
 import { fileLanguage } from './file-language';
 import { repositoryApi } from '../api';
@@ -293,10 +293,7 @@ export function BlameView({
         />
       )}
       {data?.kind === 'unavailable' && (
-        <div className="empty-state">
-          <h3>无法逐行追溯</h3>
-          <p>{data.message}</p>
-        </div>
+        <EmptyState title="无法逐行追溯" description={data.message} />
       )}
       {data?.kind === 'ready' && (
         <CodeView

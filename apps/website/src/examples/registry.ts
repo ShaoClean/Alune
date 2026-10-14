@@ -15,6 +15,11 @@ export const examples: ExampleDefinition[] = [
     height: 720,
   },
   {
+    id: 'dialog-fields',
+    title: '弹窗字段、标签与列表',
+    height: 860,
+  },
+  {
     id: 'dialog-parts',
     title: '弹窗内容组合',
     height: 780,
@@ -117,6 +122,11 @@ export const examples: ExampleDefinition[] = [
   {
     id: 'space',
     title: '间距',
+    height: 380,
+  },
+  {
+    id: 'moon-loader',
+    title: '月相加载',
     height: 380,
   },
   {

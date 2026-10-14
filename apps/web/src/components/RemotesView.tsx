@@ -1,7 +1,7 @@
-import { useFeedbackMessage } from '@alune/ui';
+import { useFeedbackMessage, DialogField, DialogBadges, EmptyState } from '@alune/ui';
 import { gitApi } from '../api';
 import { useEffect, useRef, useState } from 'react';
-import { Button, Empty, Input, Space, Typography } from '@alune/ui';
+import { Button, Input, Space, Typography } from '@alune/ui';
 import type { InputRef } from 'antd';
 import { PlusOutlined, CopyOutlined, LinkOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
@@ -107,7 +107,7 @@ export function RemotesView({ repoId, onRefresh }: Props) {
           onRetry={() => void fetchRemotes(repoId)}
         />
       ) : remotes.length === 0 && !loading ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无配置远程仓库" />
+        <EmptyState compact title="暂无配置远程仓库" />
       ) : (
         <div className="remote-list">
           {remotes.map((remote: any) => (
@@ -172,25 +172,19 @@ export function RemotesView({ repoId, onRefresh }: Props) {
         busyText="正在添加…"
         okDisabled={!name.trim() || !url.trim()}
       >
-        <label className="dlg-fld" htmlFor="remote-name">
-          <span className="dlg-fld-label">名称</span>
+        <DialogField label="名称" htmlFor="remote-name" mono>
           <Input
             id="remote-name"
-            className="dlg-mono-input"
             value={name}
             autoComplete="off"
             spellCheck={false}
             onChange={(event) => setName(event.target.value)}
           />
-        </label>
-        <div className="dlg-fld">
-          <label className="dlg-fld-label" htmlFor="remote-url">
-            地址
-          </label>
+        </DialogField>
+        <DialogField label="地址" htmlFor="remote-url" mono>
           <Input
             ref={urlRef}
             id="remote-url"
-            className="dlg-mono-input"
             data-autofocus
             placeholder="git@github.com:team/repository.git"
             value={url}
@@ -199,7 +193,7 @@ export function RemotesView({ repoId, onRefresh }: Props) {
             prefix={<DialogIcon name="globe" />}
             onChange={(event) => setUrl(event.target.value)}
           />
-          <div className="dlg-badges" role="group" aria-label="地址前缀">
+          <DialogBadges role="group" aria-label="地址前缀">
             {URL_PREFIXES.map((prefix) => (
               <Button
                 key={prefix.value}
@@ -215,8 +209,8 @@ export function RemotesView({ repoId, onRefresh }: Props) {
                 {prefix.label}
               </Button>
             ))}
-          </div>
-        </div>
+          </DialogBadges>
+        </DialogField>
       </AluneModal>
       {remotes.length > 0 && (
         <Space className="panel-footnote">

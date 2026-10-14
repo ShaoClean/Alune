@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StatusBadge, RefBadge, EmptyState, LoadingState, ErrorState } from '@alune/ui';
+import { StatusBadge, RefBadge, CountBadge, EmptyState, LoadingState, ErrorState } from '@alune/ui';
 
 export default function Example() {
   const [attempts, setAttempts] = useState(0);
@@ -17,11 +17,19 @@ export default function Example() {
           <RefBadge value="tag: v0.6.0" />
           <RefBadge value="origin/main" />
         </div>
+        <div className="example-row">
+          <span>
+            需要关注的仓库 <CountBadge>3</CountBadge>
+          </span>
+        </div>
       </section>
       <section className="example-group">
         <h2 className="example-title">空内容</h2>
         <div className="example-panel">
           <EmptyState title="暂无记录" description="完成操作后显示内容。" />
+        </div>
+        <div className="example-panel">
+          <EmptyState compact title="此远端暂无开放中的 PR/MR" />
         </div>
       </section>
       <section className="example-group">

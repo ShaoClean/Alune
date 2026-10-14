@@ -1,4 +1,4 @@
-import { useFeedbackMessage } from '@alune/ui';
+import { useFeedbackMessage, DialogField } from '@alune/ui';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { Input } from '@alune/ui';
 import { gitApi } from '../api';
@@ -49,11 +49,9 @@ export function BranchConflictFields({
         ]}
       />
       {mode === 'create' && (
-        <label className="dlg-fld">
-          <span className="dlg-fld-label">新的本地分支名称</span>
+        <DialogField label="新的本地分支名称" mono hint={missing && '请输入新的本地分支名称'}>
           <Input
             autoFocus
-            className="dlg-mono-input"
             prefix={<DialogIcon name="branch" />}
             aria-label="新的本地分支名称"
             placeholder={`${localName}-2`}
@@ -62,8 +60,7 @@ export function BranchConflictFields({
             value={newName}
             onChange={(event) => setNewName(event.target.value)}
           />
-          {missing && <span className="dlg-fld-hint">请输入新的本地分支名称</span>}
-        </label>
+        </DialogField>
       )}
     </>
   );

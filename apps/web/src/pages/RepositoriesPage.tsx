@@ -1,4 +1,4 @@
-import { useFeedbackMessage } from '@alune/ui';
+import { useFeedbackMessage, DialogBadge, DialogList, DialogListItem, CountBadge } from '@alune/ui';
 import { OpenLocalRepository } from '../components/OpenLocalRepository';
 import { RemoveRepositoryConfirm } from '../components/AlunePopconfirm';
 import {
@@ -8,7 +8,7 @@ import {
 } from '../stores/repositorySource';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Input, Select, Space } from '@alune/ui';
+import { Button, Input, MoonLoader, Select, Space } from '@alune/ui';
 import {
   BranchesOutlined,
   DeleteOutlined,
@@ -263,9 +263,7 @@ export function RepositoriesPage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </Space>
-          <span className="count-badge">
-            {listLoaded ? `${visibleRepositories.length} 个` : '—'}
-          </span>
+          <CountBadge>{listLoaded ? `${visibleRepositories.length} 个` : '—'}</CountBadge>
         </div>
         {listError && (
           <ErrorState
@@ -482,7 +480,7 @@ export function RepositoriesPage() {
               if (!scanLoading) void handleScan();
             }}
           >
-            {scanLoading ? <span className="dlg-moonload" aria-hidden="true" /> : null}
+            {scanLoading ? <MoonLoader /> : null}
             <span>{scanLoading ? '扫描中' : '开始扫描'}</span>
           </Button>
         </div>
@@ -495,23 +493,22 @@ export function RepositoriesPage() {
               {scannedPath ? <small>{scannedPath}</small> : null}
             </p>
             <DialogCard>
-              <div className={scanResults.length > 4 ? 'dlg-list is-scroll' : 'dlg-list'}>
+              <DialogList scroll={scanResults.length > 4}>
                 {scanResults.map((path) => {
                   const added = repositories.some(
                     (repo: any) => repo.connectionId === connectionId && repo.path === path,
                   );
                   return (
-                    <div className="dlg-list-item" key={path}>
-                      <DialogIcon name="folder" />
-                      <div className="dlg-list-main">
-                        <strong>{pathName(path)}</strong>
-                        <DialogPath path={path} />
-                      </div>
+                    <DialogListItem
+                      key={path}
+                      icon="folder"
+                      title={pathName(path)}
+                      detail={<DialogPath path={path} />}
+                    >
                       {added ? (
-                        <span className="dlg-badge" data-tone="success">
-                          <DialogIcon name="check" />
+                        <DialogBadge icon="check" tone="success">
                           已添加
-                        </span>
+                        </DialogBadge>
                       ) : (
                         <Button
                           className="dlg-btn-xs"
@@ -522,10 +519,10 @@ export function RepositoriesPage() {
                           添加
                         </Button>
                       )}
-                    </div>
+                    </DialogListItem>
                   );
                 })}
-              </div>
+              </DialogList>
             </DialogCard>
           </>
         ) : (

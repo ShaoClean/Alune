@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AluneModal, Button, Input, Select, Spin } from '@alune/ui';
+import { AluneModal, Button, Input, Select, Spin, DialogField } from '@alune/ui';
 import type {
   CreatePullRequest,
   CreatedPullRequest,
@@ -191,8 +191,7 @@ export function CreatePullRequestDialog({
           <span>
             源分支 <code>{preview?.sourceBranch || query.sourceBranch || '当前分支'}</code>
           </span>
-          <label className="dlg-fld">
-            <span className="dlg-fld-label">目标分支</span>
+          <DialogField label="目标分支">
             <Input
               aria-label="目标分支"
               list="pr-create-branches"
@@ -208,7 +207,7 @@ export function CreatePullRequestDialog({
                 <option key={name} value={name} />
               ))}
             </datalist>
-          </label>
+          </DialogField>
           <Button disabled={Boolean(busy)} onClick={() => void refresh(target)}>
             预览改动
           </Button>
@@ -268,8 +267,7 @@ export function CreatePullRequestDialog({
             </div>
           </details>
         )}
-        <label className="dlg-fld">
-          <span className="dlg-fld-label">标题</span>
+        <DialogField label="标题">
           <Input
             aria-label="PR/MR 标题"
             value={title}
@@ -277,9 +275,8 @@ export function CreatePullRequestDialog({
             disabled={busy === 'create'}
             onChange={(e) => setTitle(e.target.value)}
           />
-        </label>
-        <label className="dlg-fld">
-          <span className="dlg-fld-label">描述</span>
+        </DialogField>
+        <DialogField label="描述">
           <Input.TextArea
             aria-label="PR/MR 描述"
             value={description}
@@ -288,7 +285,7 @@ export function CreatePullRequestDialog({
             disabled={busy === 'create'}
             onChange={(e) => setDescription(e.target.value)}
           />
-        </label>
+        </DialogField>
         <div className="pr-create__ai">
           <p>
             AI 将接收所选分支的提交信息、文件路径、可用文本 Diff 和目标分支中的 PR/MR 模板（
@@ -358,8 +355,7 @@ export function CreatePullRequestDialog({
                 ['标签', labels, setLabels, preview?.options.labels],
               ] as const
             ).map(([label, value, setValue, options]) => (
-              <label key={label} className="dlg-fld">
-                <span className="dlg-fld-label">{label}</span>
+              <DialogField key={label} label={label}>
                 <Select
                   mode="multiple"
                   aria-label={label}
@@ -370,7 +366,7 @@ export function CreatePullRequestDialog({
                   placeholder={options?.length ? '可不选' : '当前无可选项或权限不足'}
                   optionFilterProp="label"
                 />
-              </label>
+              </DialogField>
             ))}
           </div>
         </details>

@@ -136,6 +136,9 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+.pr-center-empty > .empty-state {
+  padding: 0;
+}
 .pr-center-empty {
   display: flex;
   flex-direction: column;

@@ -1,4 +1,10 @@
-import { useFeedbackMessage } from '@alune/ui';
+import {
+  useFeedbackMessage,
+  DialogField,
+  DialogFieldRow,
+  DialogBadge,
+  DialogPath,
+} from '@alune/ui';
 import type { RepositoryContext } from '@alune/shared';
 import { RepositoryContextNotice } from '../components/RepositoryContextNotice';
 import { GitOperationNotice } from '../components/GitOperationNotice';
@@ -528,9 +534,7 @@ function RepositoryWorkspace({
           <>
             <DialogCard>
               <RepoRow name={repository?.name} path={repository?.path}>
-                {current.upstream ? (
-                  <span className="dlg-badge is-mono">{current.upstream}</span>
-                ) : null}
+                {current.upstream ? <DialogBadge mono>{current.upstream}</DialogBadge> : null}
               </RepoRow>
             </DialogCard>
             <DialogNote quiet icon="shield">
@@ -793,9 +797,8 @@ function RepositoryWorkspace({
               });
             }}
           >
-            <div className="dlg-fld-row">
-              <label className="dlg-fld">
-                <span className="dlg-fld-label">远程</span>
+            <DialogFieldRow>
+              <DialogField label="远程">
                 <Select
                   id="git-sync-remote"
                   aria-label="远程"
@@ -804,34 +807,32 @@ function RepositoryWorkspace({
                   onChange={setRemote}
                   options={context?.remotes.map((item) => ({ value: item.name, label: item.name }))}
                 />
-              </label>
-              <label className="dlg-fld">
-                <span className="dlg-fld-label">远程分支</span>
+              </DialogField>
+              <DialogField label="远程分支" mono>
                 <Input
                   id="git-sync-branch"
-                  className="dlg-mono-input"
                   value={remoteBranch}
                   autoComplete="off"
                   spellCheck={false}
                   data-autofocus
                   onChange={(event) => setRemoteBranch(event.target.value)}
                 />
-              </label>
-            </div>
+              </DialogField>
+            </DialogFieldRow>
             <DialogCard>
               <div className="dlg-card-row">
                 {syncSelection?.operation === 'push' ? (
-                  <span className="dlg-path">
+                  <DialogPath>
                     <b>{status?.branch}</b> → {remote}/<b>{remoteBranch.trim()}</b>
-                  </span>
+                  </DialogPath>
                 ) : (
-                  <span className="dlg-path">
+                  <DialogPath>
                     {remote}/<b>{remoteBranch.trim()}</b> → <b>{status?.branch}</b>
-                  </span>
+                  </DialogPath>
                 )}
-                <span className="dlg-badge is-mono" style={{ marginLeft: 'auto' }}>
+                <DialogBadge mono style={{ marginLeft: 'auto' }}>
                   {syncSelection?.operation === 'push' ? '--set-upstream' : '--no-edit'}
-                </span>
+                </DialogBadge>
               </div>
             </DialogCard>
           </AluneModal>

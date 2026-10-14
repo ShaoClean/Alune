@@ -1,7 +1,7 @@
 import { RepositoryExtensions } from './RepositoryExtensions';
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import type { ShowHistory } from './WorkspaceFileMenu';
-import { FeedbackAlert } from '@alune/ui';
+import { FeedbackAlert, EmptyState } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
@@ -692,10 +692,7 @@ function FilesNotice({
   action?: { label: string; onClick: () => void };
 }) {
   return empty ? (
-    <div className="empty-state">
-      <h3>{title}</h3>
-      <p>{children}</p>
-    </div>
+    <EmptyState title={title} description={children} />
   ) : (
     <FeedbackAlert
       context={context}

@@ -24,6 +24,24 @@ export type {
 export { AlunePopconfirm } from './components/AlunePopconfirm';
 export type { AlunePopconfirmProps } from './components/AlunePopconfirm';
 export { DialogIcon } from './components/DialogIcons';
+export {
+  DialogField,
+  DialogFieldRow,
+  DialogBadge,
+  DialogBadges,
+  DialogList,
+  DialogListItem,
+} from './components/DialogFields';
+export type {
+  DialogFieldProps,
+  DialogFieldRowProps,
+  DialogBadgeProps,
+  DialogBadgesProps,
+  DialogListProps,
+  DialogListItemProps,
+} from './components/DialogFields';
+export { OrbButton } from './components/OrbButton';
+export type { OrbButtonProps } from './components/OrbButton';
 export type { DialogIconName, DialogIconProps } from './components/DialogIcons';
 export {
   DialogCard,
@@ -57,12 +75,18 @@ export { feedbackText, FeedbackAlert } from './components/FeedbackAlert';
 export type { FeedbackAlertProps } from './components/FeedbackAlert';
 export { FeedbackScope, FeedbackNotice } from './components/FeedbackNotice';
 export type { FeedbackScopeProps, FeedbackNoticeProps } from './components/FeedbackNotice';
+export { MoonLoader } from './components/MoonLoader';
+export type { MoonLoaderProps } from './components/MoonLoader';
 export { PanelToggle } from './components/PanelToggle';
 export type { PanelToggleProps } from './components/PanelToggle';
 export { StatusButton } from './components/StatusButton';
 export type { StatusButtonProps } from './components/StatusButton';
-export { ToolbarButton } from './components/ToolbarButton';
-export type { ToolbarButtonVariant, ToolbarButtonProps } from './components/ToolbarButton';
+export { ToolbarButton, ToolbarCount } from './components/ToolbarButton';
+export type {
+  ToolbarButtonVariant,
+  ToolbarButtonProps,
+  ToolbarCountProps,
+} from './components/ToolbarButton';
 export {
   PanelHeader,
   CommandButton,
@@ -70,6 +94,7 @@ export {
   FileIcon,
   FolderIcon,
   EmptyState,
+  CountBadge,
   LoadingState,
   ErrorState,
   RefBadge,
@@ -81,6 +106,7 @@ export type {
   FileIconProps,
   FolderIconProps,
   EmptyStateProps,
+  CountBadgeProps,
   LoadingStateProps,
   ErrorStateProps,
   RefBadgeProps,

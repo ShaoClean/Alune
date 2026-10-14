@@ -1,7 +1,14 @@
-import { FeedbackAlert } from '@alune/ui';
+import {
+  FeedbackAlert,
+  DialogField,
+  DialogList,
+  DialogListItem,
+  DialogPath,
+  EmptyState,
+} from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useState } from 'react';
-import { Button, Empty, Input, Spin } from '@alune/ui';
+import { Button, Input, Spin } from '@alune/ui';
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { AccessToken } from '@alune/shared';
@@ -25,7 +32,7 @@ function AssociationTarget({ target }: { target: string }) {
     // Not a URL (for example an scp-style remote); show it as given.
   }
   return (
-    <span className="dlg-path" title={target}>
+    <DialogPath path={target}>
       {host && path ? (
         <>
           {host}/<b>{path}</b>
@@ -33,7 +40,7 @@ function AssociationTarget({ target }: { target: string }) {
       ) : (
         target
       )}
-    </span>
+    </DialogPath>
   );
 }
 
@@ -41,19 +48,16 @@ function AssociationTarget({ target }: { target: string }) {
 function TokenAssociations({ token }: { token: AccessToken }) {
   return (
     <DialogCard>
-      <ul className="dlg-list is-scroll" aria-label={`“${token.name}”关联的仓库远端`}>
+      <DialogList as="ul" scroll aria-label={`“${token.name}”关联的仓库远端`}>
         {token.associations.map((a) => (
-          <li className="dlg-list-item" key={`${a.repositoryId}:${a.remote}`}>
-            <DialogIcon name="link" />
-            <div className="dlg-list-main">
-              <strong>
-                {a.repositoryName} · {a.remote}
-              </strong>
-              <AssociationTarget target={a.target} />
-            </div>
-          </li>
+          <DialogListItem
+            key={`${a.repositoryId}:${a.remote}`}
+            icon="link"
+            title={`${a.repositoryName} · ${a.remote}`}
+            detail={<AssociationTarget target={a.target} />}
+          />
         ))}
-      </ul>
+      </DialogList>
     </DialogCard>
   );
 }
@@ -208,15 +212,19 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
       {loading && !settings ? (
         <Spin aria-label="正在读取访问令牌" />
       ) : settings && !settings.tokens.length ? (
-        <Empty description="还没有保存令牌">
-          <Button
-            type="primary"
-            disabled={!settings.secretStorage.available}
-            onClick={() => edit(null)}
-          >
-            添加第一个令牌
-          </Button>
-        </Empty>
+        <EmptyState
+          compact
+          title="还没有保存令牌"
+          action={
+            <Button
+              type="primary"
+              disabled={!settings.secretStorage.available}
+              onClick={() => edit(null)}
+            >
+              添加第一个令牌
+            </Button>
+          }
+        />
       ) : (
         settings && (
           <>
@@ -274,9 +282,7 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
                 </li>
               ))}
             </ul>
-            {!tokens.length && (
-              <Empty description="没有匹配的令牌" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            )}
+            {!tokens.length && <EmptyState compact title="没有匹配的令牌" />}
           </>
         )
       )}
@@ -299,11 +305,7 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
         hintVerb="保存"
         destroyOnHidden
       >
-        <label className="dlg-fld">
-          <span className="dlg-fld-label">
-            <span>令牌名称</span>
-            <small>最多 50 字</small>
-          </span>
+        <DialogField label="令牌名称" extra="最多 50 字">
           <Input
             data-autofocus
             aria-label="令牌名称"
@@ -315,14 +317,18 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
             onChange={(e) => setName(e.target.value)}
             placeholder="例如：公司 GitLab"
           />
-        </label>
+        </DialogField>
         {replaceValue ? (
-          <label className="dlg-fld">
-            <span className="dlg-fld-label">
-              <span>令牌值</span>
-            </span>
+          <DialogField
+            label="令牌值"
+            mono
+            hint={
+              editor?.token && (
+                <>保存后，{editor.token.associations.length} 个仓库远端关联的新请求会使用新值。</>
+              )
+            }
+          >
             <Input
-              className="dlg-mono-input"
               aria-label="令牌值"
               type={showValue ? 'text' : 'password'}
               autoComplete="off"
@@ -351,20 +357,19 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
                 </button>
               }
             />
-            {editor?.token && (
-              <span className="dlg-fld-hint">
-                保存后，{editor.token.associations.length} 个仓库远端关联的新请求会使用新值。
-              </span>
-            )}
-          </label>
+          </DialogField>
         ) : (
-          <div className="dlg-fld">
-            <span className="dlg-fld-label">
-              <span>令牌值</span>
-              <small>已保存</small>
-            </span>
+          <DialogField
+            label="令牌值"
+            extra="已保存"
+            mono
+            hint={
+              editor?.token && (
+                <>更换后，{editor.token.associations.length} 个仓库远端关联的新请求会使用新值。</>
+              )
+            }
+          >
             <Input
-              className="dlg-mono-input"
               aria-label="已保存的令牌值"
               disabled
               value="••••••••••••••••"
@@ -381,12 +386,7 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
                 </Button>
               }
             />
-            {editor?.token && (
-              <span className="dlg-fld-hint">
-                更换后，{editor.token.associations.length} 个仓库远端关联的新请求会使用新值。
-              </span>
-            )}
-          </div>
+          </DialogField>
         )}
         {notice && (
           <DialogNote

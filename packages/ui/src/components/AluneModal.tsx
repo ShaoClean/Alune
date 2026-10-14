@@ -16,6 +16,8 @@ import type { ModalProps } from 'antd';
 import { Provider as MotionProvider } from '@rc-component/motion';
 import { useUIAppearance } from '../appearance';
 import { DialogIcon } from './DialogIcons';
+import { MoonLoader } from './MoonLoader';
+import { DialogField } from './DialogFields';
 import type { DialogIconName } from './DialogIcons';
 
 /**
@@ -493,15 +495,11 @@ export function AluneModal({
         if (!busy) submit();
       }}
     >
-      {busy && !withOrb ? <span className="dlg-moonload" aria-hidden="true" /> : null}
+      {busy && !withOrb ? <MoonLoader /> : null}
       <span>{okLabel}</span>
       {withOrb ? (
         <span className="dlg-orb" aria-hidden="true">
-          {busy ? (
-            <span className="dlg-moonload" />
-          ) : (
-            <DialogIcon name={okIcon as DialogIconName} />
-          )}
+          {busy ? <MoonLoader /> : <DialogIcon name={okIcon as DialogIconName} />}
         </span>
       ) : null}
     </Button>
@@ -647,19 +645,26 @@ export function AluneModal({
             <div className="a-dlg-form-content" hidden={!!feedback}>
               {children}
               {typedConfirm ? (
-                <label className="dlg-fld">
-                  <span className="dlg-fld-label">
-                    <span>
-                      {typedConfirm.label ?? (
-                        <>
-                          输入 <code>{typedConfirm.value}</code> 以确认
-                        </>
-                      )}
-                    </span>
-                    <small>区分大小写</small>
-                  </span>
+                <DialogField
+                  label={
+                    typedConfirm.label ?? (
+                      <>
+                        输入 <code>{typedConfirm.value}</code> 以确认
+                      </>
+                    )
+                  }
+                  extra="区分大小写"
+                  mono
+                  status={typedMismatch ? 'error' : typedMatch ? 'ok' : undefined}
+                  hint={
+                    typedMismatch
+                      ? (typedConfirm.mismatch ?? '输入内容不一致')
+                      : typedMatch
+                        ? (typedConfirm.match ?? '输入一致')
+                        : undefined
+                  }
+                >
                   <Input
-                    className="dlg-mono-input"
                     value={typed}
                     placeholder={typedConfirm.placeholder ?? typedConfirm.value}
                     prefix={typedConfirm.icon ? <DialogIcon name={typedConfirm.icon} /> : undefined}
@@ -675,18 +680,7 @@ export function AluneModal({
                     aria-invalid={typedMismatch || undefined}
                     onChange={(event) => setTyped(event.target.value)}
                   />
-                  {typedMismatch ? (
-                    <span className="dlg-fld-hint is-error" role="status">
-                      <DialogIcon name="warning" />
-                      {typedConfirm.mismatch ?? '输入内容不一致'}
-                    </span>
-                  ) : typedMatch ? (
-                    <span className="dlg-fld-hint is-ok" role="status">
-                      <DialogIcon name="check" />
-                      {typedConfirm.match ?? '输入一致'}
-                    </span>
-                  ) : null}
-                </label>
+                </DialogField>
               ) : null}
               {acknowledge !== undefined ? (
                 <CheckCard

@@ -1,4 +1,4 @@
-import { useFeedbackMessage } from '@alune/ui';
+import { useFeedbackMessage, DialogField, DialogBadge, DialogBadges } from '@alune/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input } from '@alune/ui';
 import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -87,18 +87,15 @@ function StashDiff({ diff }: { diff: string }) {
   const dels = files.reduce((sum, file) => sum + file.dels, 0);
   return (
     <>
-      <div className="dlg-badges">
-        <span className="dlg-badge">
-          <DialogIcon name="file" />
-          {files.length} 个文件
-        </span>
-        <span className="dlg-badge is-mono" data-tone="success" aria-label={`新增 ${adds} 行`}>
+      <DialogBadges>
+        <DialogBadge icon="file">{files.length} 个文件</DialogBadge>
+        <DialogBadge mono tone="success" aria-label={`新增 ${adds} 行`}>
           +{adds}
-        </span>
-        <span className="dlg-badge is-mono" data-tone="danger" aria-label={`删除 ${dels} 行`}>
+        </DialogBadge>
+        <DialogBadge mono tone="danger" aria-label={`删除 ${dels} 行`}>
           −{dels}
-        </span>
-      </div>
+        </DialogBadge>
+      </DialogBadges>
       <DialogCard>
         <div className="stash-diff" tabIndex={0} aria-label="储藏差异内容">
           <div className="diff-unified-view">
@@ -108,23 +105,19 @@ function StashDiff({ diff }: { diff: string }) {
                   <DialogIcon name={file.added ? 'file-plus' : 'file'} />
                   <DialogPath path={file.path} />
                   {file.added ? (
-                    <span className="dlg-badge" data-tone="success">
-                      新文件
-                    </span>
+                    <DialogBadge tone="success">新文件</DialogBadge>
                   ) : file.deleted ? (
-                    <span className="dlg-badge" data-tone="danger">
-                      已删除
-                    </span>
+                    <DialogBadge tone="danger">已删除</DialogBadge>
                   ) : null}
                   {file.adds || file.dels ? (
-                    <span className="dlg-badges">
-                      <span className="dlg-badge is-mono" data-tone="success">
+                    <DialogBadges>
+                      <DialogBadge mono tone="success">
                         +{file.adds}
-                      </span>
-                      <span className="dlg-badge is-mono" data-tone="danger">
+                      </DialogBadge>
+                      <DialogBadge mono tone="danger">
                         −{file.dels}
-                      </span>
-                    </span>
+                      </DialogBadge>
+                    </DialogBadges>
                   ) : null}
                 </div>
                 {file.lines.length ? (
@@ -432,11 +425,7 @@ export function StashesView({ repoId, onRefresh }: Props) {
         okText="创建储藏"
         busyText="正在储藏…"
       >
-        <label className="dlg-fld">
-          <span className="dlg-fld-label">
-            <span>备注</span>
-            <small>可选</small>
-          </span>
+        <DialogField label="备注" extra="可选">
           <Input
             data-autofocus
             placeholder="例如：设置页布局实验"
@@ -444,7 +433,7 @@ export function StashesView({ repoId, onRefresh }: Props) {
             prefix={<DialogIcon name="pencil" />}
             onChange={(event) => setStashMessage(event.target.value)}
           />
-        </label>
+        </DialogField>
         <CheckCard
           checked={includeUntracked}
           onChange={setIncludeUntracked}

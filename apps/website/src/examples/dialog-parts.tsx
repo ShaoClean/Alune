@@ -24,7 +24,11 @@ export default function Example() {
         <h2 className="example-title">仓库与变更摘要</h2>
         <div className="example-stack">
           <DialogCard pad>
-            <RepoRow name="示例项目" path="/example/alune" />
+            <RepoRow
+              name="示例项目"
+              path="/example/alune"
+              meta={<DialogPath>feature/example → main</DialogPath>}
+            />
             <DialogPath path="src/components/Example.tsx" />
             <DialogStats>
               <DialogStat value={3} label="文件" tone="info" />

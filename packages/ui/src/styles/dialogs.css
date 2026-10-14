@@ -618,6 +618,7 @@
 :is(.a-dlg, .a-pop, .feedback-dialog) .ant-btn.ant-btn-dangerous:not(.ant-btn-primary)::before {
   background: color-mix(in srgb, var(--red) 10%, transparent);
 }
+.ant-btn.has-orb,
 :is(.a-dlg, .a-pop, .feedback-dialog) .ant-btn.has-orb {
   padding-right: 4px;
 }
@@ -673,6 +674,7 @@
   padding: 0 12px;
   font-size: 12.5px;
 }
+.ant-btn.ant-btn-sm.has-orb,
 :is(.a-dlg, .a-pop, .feedback-dialog) .ant-btn.ant-btn-sm.has-orb {
   padding-right: 3px;
 }
@@ -695,21 +697,22 @@
   padding: 0;
 }
 
-/* Moon-phase loader: the lit edge circles once per 900ms. */
+/* Moon-phase loader: the lit edge circles once per 900ms.
+   Sized by font-size so Spin's dot sizes and MoonLoader's size prop scale the edge too. */
 .dlg-moonload {
   display: inline-block;
   flex: none;
-  width: 14px;
-  height: 14px;
+  font-size: 14px;
+  width: 1em;
+  height: 1em;
   border-radius: 50%;
   box-shadow:
-    inset -2.5px 0 0 0 currentColor,
+    inset -0.18em 0 0 0 currentColor,
     inset 0 0 0 1px color-mix(in srgb, currentColor 22%, transparent);
   animation: alune-moon-orbit 900ms var(--ease-orbit) infinite;
 }
 .dlg-orb .dlg-moonload {
-  width: 13px;
-  height: 13px;
+  font-size: 13px;
 }
 @keyframes alune-moon-orbit {
   to {
@@ -827,7 +830,8 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 16%, transparent);
 }
 .a-dlg .dlg-mono-input input,
-.a-dlg input.dlg-mono-input {
+.a-dlg input.dlg-mono-input,
+.dlg-fld.is-mono :is(input.ant-input, textarea.ant-input) {
   font-family: var(--dlg-font-mono);
   font-size: 12.5px;
 }

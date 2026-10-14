@@ -2366,23 +2366,6 @@
 .toolbar-split__toggle .anticon {
   font-size: 10px;
 }
-.toolbar-count {
-  display: inline-flex;
-  align-items: center;
-  height: 16px;
-  padding: 0 5px;
-  color: var(--text-muted);
-  background: var(--blue-soft);
-  border-radius: var(--radius-panel);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-}
-.toolbar-count--behind {
-  color: var(--orange);
-  background: var(--orange-soft);
-}
 .branch-pill {
   flex-shrink: 1;
   min-width: 0;

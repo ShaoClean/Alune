@@ -175,8 +175,8 @@
   overflow: hidden;
   min-height: 148px;
 }
-.pull-requests-results > .ant-empty {
-  margin-block: 48px;
+.pull-requests-results > .empty-state {
+  margin-block: 24px;
 }
 .pull-requests-loading {
   display: flex;

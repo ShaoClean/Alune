@@ -1,4 +1,4 @@
-import { FeedbackAlert } from '@alune/ui';
+import { FeedbackAlert, DialogPath } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Button, Input, Switch, Tag, Select } from '@alune/ui';
@@ -717,7 +717,7 @@ export function ProxySettings() {
                 <Fragment key={item.label}>
                   <dt>{item.label}</dt>
                   <dd>
-                    <span className="dlg-path">
+                    <DialogPath>
                       {item.from === undefined ? (
                         <b>{item.to}</b>
                       ) : (
@@ -725,7 +725,7 @@ export function ProxySettings() {
                           {item.from} → <b>{item.to}</b>
                         </>
                       )}
-                    </span>
+                    </DialogPath>
                   </dd>
                 </Fragment>
               ))}

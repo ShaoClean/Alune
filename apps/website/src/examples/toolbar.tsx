@@ -30,9 +30,23 @@ export default function Example() {
       <section className="example-group">
         <h2 className="example-title">操作与连接状态</h2>
         <Space wrap size="middle">
-          <ToolbarButton label="运行示例" variant="primary" onClick={() => setCount((n) => n + 1)}>
-            运行
+          <ToolbarButton
+            label="拉取"
+            variant="action"
+            text="拉取"
+            count={2}
+            countTone="behind"
+            onClick={() => setCount((n) => n + 1)}
+          >
+            <DialogIcon name="cloud-down" />
           </ToolbarButton>
+          <ToolbarButton
+            label="运行示例"
+            variant="primary"
+            text="运行"
+            count={count || undefined}
+            onClick={() => setCount((n) => n + 1)}
+          />
           <ToolbarButton label="不可用操作" variant="action" disabled>
             不可用
           </ToolbarButton>

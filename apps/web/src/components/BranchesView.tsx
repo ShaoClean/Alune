@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useFeedbackMessage } from '@alune/ui';
+import { useFeedbackMessage, DialogField, DialogBadge, DialogBadges } from '@alune/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Input } from '@alune/ui';
 import {
@@ -72,10 +72,23 @@ export function NewBranchDialog({
       onOk={onCreate}
       onCancel={onCancel}
     >
-      <label className="dlg-fld">
-        <span className="dlg-fld-label">分支名称</span>
+      <DialogField
+        label="分支名称"
+        mono
+        status={taken ? 'error' : undefined}
+        hint={
+          taken ? (
+            '已存在同名本地分支'
+          ) : current ? (
+            <>
+              从当前分支 <code>{current}</code> 创建，并立即切换
+            </>
+          ) : (
+            '从当前 HEAD 创建，并立即切换'
+          )
+        }
+      >
         <Input
-          className="dlg-mono-input"
           prefix={<DialogIcon name="branch" />}
           placeholder="feature/my-change"
           value={value}
@@ -86,23 +99,7 @@ export function NewBranchDialog({
           status={taken ? 'error' : undefined}
           onChange={(event) => onChange(event.target.value)}
         />
-        {taken ? (
-          <span className="dlg-fld-hint is-error" role="status">
-            <DialogIcon name="warning" />
-            已存在同名本地分支
-          </span>
-        ) : (
-          <span className="dlg-fld-hint">
-            {current ? (
-              <>
-                从当前分支 <code>{current}</code> 创建，并立即切换
-              </>
-            ) : (
-              '从当前 HEAD 创建，并立即切换'
-            )}
-          </span>
-        )}
-      </label>
+      </DialogField>
     </AluneModal>
   );
 }
@@ -230,17 +227,13 @@ export function BranchesView({ repoId, onRefresh, refreshToken }: Props) {
             description="如有冲突，会停在冲突状态，可以随时中止。"
             extra={
               changedFiles === null ? undefined : (
-                <span className="dlg-badges">
+                <DialogBadges>
                   {changedFiles === 0 ? (
-                    <span className="dlg-badge" data-tone="success">
-                      工作区干净
-                    </span>
+                    <DialogBadge tone="success">工作区干净</DialogBadge>
                   ) : (
-                    <span className="dlg-badge" data-tone="warning">
-                      {changedFiles} 项未提交改动
-                    </span>
+                    <DialogBadge tone="warning">{changedFiles} 项未提交改动</DialogBadge>
                   )}
-                </span>
+                </DialogBadges>
               )
             }
             hint={changedFiles ? '建议先储藏或提交当前改动。' : undefined}
@@ -388,11 +381,24 @@ export function BranchesView({ repoId, onRefresh, refreshToken }: Props) {
         onCancel={() => setRenameOpen(false)}
         afterClose={() => setRenaming(null)}
       >
-        <label className="dlg-fld">
-          <span className="dlg-fld-label">新名称</span>
+        <DialogField
+          label="新名称"
+          mono
+          status={
+            !renameValue || renameTaken ? 'error' : renameValue === renaming ? undefined : 'ok'
+          }
+          hint={
+            !renameValue
+              ? '请输入分支名称'
+              : renameValue === renaming
+                ? '名称未变化'
+                : renameTaken
+                  ? '已存在同名本地分支'
+                  : '名称未被占用，跟踪关系保持不变'
+          }
+        >
           <Input
             aria-label="新的分支名称"
-            className="dlg-mono-input"
             prefix={<DialogIcon name="pencil" />}
             value={rename}
             autoComplete="off"
@@ -402,25 +408,7 @@ export function BranchesView({ repoId, onRefresh, refreshToken }: Props) {
             status={renameTaken ? 'error' : undefined}
             onChange={(event) => setRename(event.target.value)}
           />
-          {!renameValue ? (
-            <span className="dlg-fld-hint is-error" role="status">
-              <DialogIcon name="warning" />
-              请输入分支名称
-            </span>
-          ) : renameValue === renaming ? (
-            <span className="dlg-fld-hint">名称未变化</span>
-          ) : renameTaken ? (
-            <span className="dlg-fld-hint is-error" role="status">
-              <DialogIcon name="warning" />
-              已存在同名本地分支
-            </span>
-          ) : (
-            <span className="dlg-fld-hint is-ok">
-              <DialogIcon name="check" />
-              名称未被占用，跟踪关系保持不变
-            </span>
-          )}
-        </label>
+        </DialogField>
       </AluneModal>
       <NewBranchDialog
         open={createModalVisible}

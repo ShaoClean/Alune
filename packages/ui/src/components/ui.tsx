@@ -3,7 +3,8 @@ import { FeedbackContext } from './feedback-context';
 import { ScopeContext } from './FeedbackNotice';
 import { FeedbackAlert } from './FeedbackAlert';
 import type { ReactNode } from 'react';
-import { Empty, Spin, Tag, Tooltip, Typography } from 'antd';
+import { Tag, Tooltip, Typography } from 'antd';
+import { MoonLoader } from './MoonLoader';
 import typescriptIcon from 'material-icon-theme/icons/typescript.svg?url';
 import reactTypescriptIcon from 'material-icon-theme/icons/react_ts.svg?url';
 import javascriptIcon from 'material-icon-theme/icons/javascript.svg?url';
@@ -49,7 +50,7 @@ export function PanelHeader({ title, count, description, icon, extra }: PanelHea
         <div>
           <div className="panel-header__title">
             {title}
-            {count !== undefined && <span className="count-badge">{count}</span>}
+            {count !== undefined && <CountBadge>{count}</CountBadge>}
           </div>
           {description && <Typography.Text type="secondary">{description}</Typography.Text>}
         </div>
@@ -179,29 +180,27 @@ export function FolderIcon({
   return <img className="file-icon" src={icon} alt="" aria-hidden="true" draggable={false} />;
 }
 
-export function EmptyState({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description?: string;
-  action?: ReactNode;
-}) {
+/** Moon-phase empty state; `compact` fits lists, tabs and sections inside a panel. */
+export function EmptyState({ title, description, action, compact }: EmptyStateProps) {
   return (
-    <div className="empty-state">
-      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={false} />
-      <Typography.Title level={4}>{title}</Typography.Title>
-      {description && <Typography.Paragraph type="secondary">{description}</Typography.Paragraph>}
+    <div className={compact ? 'empty-state is-compact' : 'empty-state'}>
+      <span className="dlg-empty-moon" aria-hidden="true" />
+      <h4>{title}</h4>
+      {description ? <p>{description}</p> : null}
       {action}
     </div>
   );
 }
 
+/** Neutral count pill next to a heading. */
+export function CountBadge({ children }: CountBadgeProps) {
+  return <span className="count-badge">{children}</span>;
+}
+
 export function LoadingState({ label = '正在加载工作区…' }: { label?: string }) {
   return (
-    <div className="loading-state">
-      <Spin />
+    <div className="loading-state" role="status">
+      <MoonLoader size="default" />
       <span>{label}</span>
     </div>
   );
@@ -291,10 +290,13 @@ export type FolderIconProps = {
 };
 
 export type EmptyStateProps = {
-  title: string;
-  description?: string;
+  title: ReactNode;
+  description?: ReactNode;
   action?: ReactNode;
+  compact?: boolean;
 };
+
+export type CountBadgeProps = { children: ReactNode };
 
 export type LoadingStateProps = { label?: string };
 

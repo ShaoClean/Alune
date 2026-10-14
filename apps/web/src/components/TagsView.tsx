@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AluneModal, Button, Input, Select, useFeedbackMessage } from '@alune/ui';
+import { AluneModal, Button, Input, Select, useFeedbackMessage, DialogField } from '@alune/ui';
 import {
   DeleteOutlined,
   PlusOutlined,
@@ -351,7 +351,7 @@ export function TagsView({
           )
         }
       >
-        <div className="dlg-fld">
+        <DialogField>
           <Select
             aria-label="标签检出方式"
             value={checkoutMode}
@@ -361,17 +361,16 @@ export function TagsView({
               { label: '直接检出 · 游离 HEAD', value: 'detached' },
             ]}
           />
-        </div>
+        </DialogField>
         {checkoutMode === 'branch' ? (
-          <label className="dlg-fld">
-            <span className="dlg-fld-label">新分支名称</span>
+          <DialogField label="新分支名称">
             <Input
               aria-label="从标签创建的分支名称"
               value={branch}
               onChange={(event) => setBranch(event.target.value)}
               placeholder="release/fix"
             />
-          </label>
+          </DialogField>
         ) : (
           <p className="tag-error">
             游离 HEAD 不属于任何分支。如果继续提交，请在离开前创建分支保留新提交。

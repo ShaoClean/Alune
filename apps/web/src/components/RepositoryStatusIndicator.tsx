@@ -1,12 +1,11 @@
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
-  LoadingOutlined,
   QuestionCircleOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { useRepositoryStatus, useRepositoryVisibility } from '../hooks/useRepositoryStatus';
-import { StatusBadge } from '@alune/ui';
+import { MoonLoader, StatusBadge } from '@alune/ui';
 
 export function RepositoryStatusIndicator({
   id,
@@ -46,7 +45,7 @@ export function RepositoryStatusIndicator({
       : `更新于 ${new Date(entry.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}`;
   const title = [label, updated, entry?.error].filter(Boolean).join(' · ');
   const Icon = busy
-    ? LoadingOutlined
+    ? MoonLoader
     : failed || stale
       ? WarningOutlined
       : !entry?.data

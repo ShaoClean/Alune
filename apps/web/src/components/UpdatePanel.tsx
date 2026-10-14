@@ -1,4 +1,4 @@
-import { FeedbackAlert } from '@alune/ui';
+import { FeedbackAlert, OrbButton } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { Button, Progress, Space, Spin, Typography } from '@alune/ui';
 import { CloudDownloadOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -6,8 +6,6 @@ import type { DesktopUpdates, UpdateState } from '../types/desktop-updates';
 import { ReleaseNotes } from './ReleaseNotes';
 import { AluneModal, DialogHints, Kbd } from '@alune/ui';
 import { DialogCard, DialogNote, DialogProgress, DialogStat, DialogStats } from '@alune/ui';
-import { DialogIcon } from '@alune/ui';
-import type { DialogIconName } from '@alune/ui';
 
 const labels: Record<UpdateState['status'], string> = {
   idle: '检查是否有新版本',
@@ -107,25 +105,6 @@ export function DesktopUpdateFeedback({
   );
 }
 
-function OrbButton({
-  icon,
-  children,
-  onClick,
-}: {
-  icon: DialogIconName;
-  children: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button type="primary" className="has-orb" autoFocus onClick={onClick}>
-      <span>{children}</span>
-      <span className="dlg-orb" aria-hidden="true">
-        <DialogIcon name={icon} />
-      </span>
-    </Button>
-  );
-}
-
 export function UpdatePanel({
   open,
   onClose,
@@ -180,6 +159,7 @@ export function UpdatePanel({
             ) : null}
             {canDownload && (
               <OrbButton
+                autoFocus
                 icon={state.error ? 'refresh' : 'download'}
                 onClick={() => void invoke('download')}
               >
@@ -187,7 +167,7 @@ export function UpdatePanel({
               </OrbButton>
             )}
             {ready && (
-              <OrbButton icon="refresh" onClick={() => void invoke('install')}>
+              <OrbButton icon="refresh" autoFocus onClick={() => void invoke('install')}>
                 重启安装
               </OrbButton>
             )}

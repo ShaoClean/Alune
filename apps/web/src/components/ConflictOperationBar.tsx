@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Tooltip, useAluneConfirm, useFeedbackMessage } from '@alune/ui';
+import { Button, Tooltip, useAluneConfirm, useFeedbackMessage, DialogPath } from '@alune/ui';
 import { DialogCard, DialogIcon, DialogNote } from '@alune/ui';
 import type { RepositoryOperationState } from '@alune/shared';
 import { gitApi } from '../api';
@@ -86,7 +86,7 @@ export function ConflictOperationBar({
         <DialogCard>
           <div className="dlg-card-row">
             <DialogIcon name="commit" />
-            <span className="dlg-path">{operation.subject}</span>
+            <DialogPath>{operation.subject}</DialogPath>
           </div>
         </DialogCard>
       ) : undefined,

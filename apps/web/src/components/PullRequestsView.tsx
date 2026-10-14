@@ -1,10 +1,10 @@
 import { usePullRequestCenter } from '../stores/pullRequestCenter';
 import { CreatePullRequestDialog } from './CreatePullRequestDialog';
-import { useFeedbackMessage } from '@alune/ui';
+import { useFeedbackMessage, EmptyState } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkspaceLocation } from '../hooks/useRepositoryWorkspace';
-import { Button, DialogIcon, Empty, Input, Segmented, Select, Spin, Tag } from '@alune/ui';
+import { Button, DialogIcon, Input, Segmented, Select, Spin, Tag } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import type {
   PullRequestFilter,
@@ -575,9 +575,9 @@ function RemotePullRequests({
                   ))}
                 </ul>
               ) : data && !loading && !error ? (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={state === 'open' ? '此远端暂无开放中的 PR/MR' : '此页暂无 PR/MR'}
+                <EmptyState
+                  compact
+                  title={state === 'open' ? '此远端暂无开放中的 PR/MR' : '此页暂无 PR/MR'}
                 />
               ) : null}
             </div>
@@ -728,7 +728,7 @@ export function PullRequestsView({
           refreshToken={listRefresh}
         />
       ) : loaded && !error && !loading ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="此仓库尚未配置远端" />
+        <EmptyState compact title="此仓库尚未配置远端" />
       ) : null}
     </section>
   );
