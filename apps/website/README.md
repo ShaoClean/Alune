@@ -34,7 +34,7 @@ npm run website:preview
 
 ## 文案、截图与品牌资产
 
-文案按 [README](../../README.md)、[工作区说明](../../docs/workspace.md) 和稳定版核验，当前核对版本为 v0.8.2。新增描述时注意：SSH Worktree 仅支持发现和打开；代码主题、字体和字号同时用于文件与文本 Diff；PR/MR 中心只汇总已添加仓库的受支持远端；AI 是可选功能，提交起草发送已暂存差异，PR/MR 起草发送所选分支的提交、Diff 与模板；代理覆盖范围见网络代理文档。
+文案按 [README](../../README.md)、[工作区说明](../../docs/workspace.md) 和稳定版核验，当前核对版本为 v0.9.0（截图仍为 v0.8.2 基线，v0.9.0 未改变截图中的界面布局）。新增描述时注意：SSH Worktree 仅支持发现和打开；代码主题、字体和字号同时用于文件与文本 Diff；PR/MR 中心只汇总已添加仓库的受支持远端；AI 是可选功能，提交起草发送已暂存差异，PR/MR 起草发送所选分支的提交、Diff 与模板；代理覆盖范围见网络代理文档。
 
 `src/assets/screenshots/` 的八张 PNG 均直接来自 [README-Screenshots-v0.8.2](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.8.2)，下载原址为 `https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.8.2/<文件名>.png`：
 
