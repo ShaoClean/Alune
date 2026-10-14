@@ -40,23 +40,28 @@ export function DesktopUpdateFeedback({
   error,
   invoke,
   onUpdates,
+  watching = false,
 }: {
   state: UpdateState | null;
   error: string | null;
   invoke: Invoke;
   onUpdates: () => void;
+  /** The settings update page is open and already shows every state. */
+  watching?: boolean;
 }) {
   const { busy, ready } = updateActions(state);
   const failure = error || state?.error?.message;
   const available = state?.status === 'available';
+  const downloaded = state?.status === 'downloaded';
+  // Only results that need the user become notices; progress lives on the settings page.
   const title = failure
     ? error
       ? '无法连接桌面更新服务'
       : '版本更新未完成'
-    : state?.supported && state.status !== 'idle'
+    : state?.supported && (available || downloaded)
       ? available
         ? `Alune v${state.latestVersion} 可用`
-        : labels[state.status]
+        : labels.downloaded
       : null;
   const action = error
     ? 'getState'
@@ -70,21 +75,17 @@ export function DesktopUpdateFeedback({
       source="desktop-update"
       title={title}
       description={failure || (available ? '新版本已发布，可查看更新说明并下载安装。' : undefined)}
-      type={
-        failure
-          ? 'error'
-          : state?.status === 'downloaded' || state?.status === 'not-available'
-            ? 'success'
-            : 'info'
-      }
+      type={failure ? 'error' : downloaded ? 'success' : 'info'}
       mode={failure ? 'modal' : 'manual'}
       icon="download"
-      autoOpen={Boolean(failure || (available && state?.background))}
+      autoOpen={!watching && Boolean(failure || (available && state?.background))}
+      // One unread result per version and outcome, however often the state is polled.
       eventKey={
         failure
-          ? `${error || state?.revision}`
-          : `${state?.currentVersion}:${state?.latestVersion}:${state?.status}`
+          ? `error:${error || `${state?.error?.action}:${failure}`}`
+          : `${state?.status}:${state?.latestVersion}`
       }
+      read={watching}
       resetOnClear={false}
       actionLabel={
         failure
@@ -95,7 +96,7 @@ export function DesktopUpdateFeedback({
               : action === 'download'
                 ? '重新下载'
                 : '检查更新'
-          : available || state?.status === 'downloaded'
+          : available || downloaded
             ? '查看更新'
             : undefined
       }

@@ -336,6 +336,7 @@ export function Layout() {
         error={updates.bridgeError}
         invoke={updates.invoke}
         onUpdates={() => openSettings('updates')}
+        watching={isSettings && settingsCategory.id === 'updates'}
       />
       <FeedbackNotice
         source="workspace-storage"

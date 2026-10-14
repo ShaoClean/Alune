@@ -46,6 +46,7 @@ export function FeedbackNotice({
   icon,
   actionIcon,
   resetOnClear = mode === 'modal',
+  read = false,
   content,
   actions,
 }: {
@@ -67,6 +68,8 @@ export function FeedbackNotice({
   /** Icon in the primary action's orb. */
   actionIcon?: DialogIconName;
   resetOnClear?: boolean;
+  /** The user is already looking at this result elsewhere, e.g. on its settings page. */
+  read?: boolean;
 }) {
   const store = useContext(FeedbackContext);
   const scope = useContext(ScopeContext);
@@ -103,6 +106,7 @@ export function FeedbackNotice({
       actionIcon,
       onAction: actionLabel ? () => callback.current?.() : undefined,
     });
+    if (read) store.getState().markRead([id]);
     // React StrictMode replays effects; let a new lease replace the old one first.
     return () => {
       queueMicrotask(() => store.getState().release(id, owner));
@@ -124,6 +128,7 @@ export function FeedbackNotice({
     icon,
     actionIcon,
     resetOnClear,
+    read,
     host?.id,
     host?.active,
   ]);
@@ -160,4 +165,5 @@ export type FeedbackNoticeProps = {
   /** Icon in the primary action's orb. */
   actionIcon?: DialogIconName;
   resetOnClear?: boolean;
+  read?: boolean;
 };

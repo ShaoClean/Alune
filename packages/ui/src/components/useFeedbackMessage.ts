@@ -1,41 +1,33 @@
-import { useContext, useEffect, useMemo } from 'react';
-import { FeedbackContext } from './feedback-context';
+import { useContext, useEffect, useMemo, useRef } from 'react';
+import { FeedbackContext, FeedbackHostContext, submittingFeedbackHost } from './feedback-context';
 import { ScopeContext } from './FeedbackNotice';
 import type { FeedbackEvent } from '../stores/feedbackStore';
 
 let sequence = 0;
-/** Operation feedback with source ownership, ordered delivery and stale callback protection. */
+/** One-off operation results; they outlive their source and stay in the inbox until cleared. */
 export function useFeedbackMessage() {
   const store = useContext(FeedbackContext);
   const scope = useContext(ScopeContext);
-  const owner = useMemo(
-    () => ({ active: scope.active, leases: new Map<string, number>() }),
-    [scope.id, scope.active],
-  );
+  const host = useContext(FeedbackHostContext);
+  // Late results still arrive after navigation, but must not interrupt another view.
+  const live = useRef({ visible: scope.active, host });
+  live.current.host = host;
   useEffect(() => {
-    owner.active = scope.active;
+    live.current.visible = scope.active;
     return () => {
-      owner.active = false;
-      queueMicrotask(() => {
-        if (owner.active) return; // StrictMode setup has renewed the same owner.
-        for (const [id, lease] of owner.leases) store?.getState().release(id, lease);
-        owner.leases.clear();
-      });
+      live.current.visible = false;
     };
-  }, [store, owner, scope.active]);
+  }, [scope.active]);
   return useMemo(() => {
     const publish = (type: FeedbackEvent['type']) => (title: string) => {
-      if (!store || !owner.active) return;
+      if (!store) return;
       const id = `operation:${++sequence}`;
-      // An error raised by a form belongs in that form's existing dialog.
-      // Success often closes a form in the same update and belongs to the global queue.
+      const { visible, host: owner } = live.current;
+      // A form keeps the errors of its own controls and submission. Success
+      // often closes the form in the same update and belongs to the inbox.
       const host =
-        type === 'success' || typeof document === 'undefined'
-          ? undefined
-          : Array.from(document.querySelectorAll<HTMLElement>('[data-feedback-host]'))
-              .filter((node) => node.getClientRects().length > 0)
-              .at(-1)?.dataset.feedbackHost;
-      const lease = store.getState().publish({
+        type === 'success' ? undefined : owner?.active ? owner.id : submittingFeedbackHost();
+      store.getState().publish({
         id,
         revision: id,
         scope: scope.id,
@@ -43,9 +35,10 @@ export function useFeedbackMessage() {
         title,
         type,
         mode: 'modal',
+        kind: 'event',
+        autoOpen: visible || Boolean(host),
         host,
       });
-      owner.leases.set(id, lease);
     };
     return {
       error: publish('error'),
@@ -53,7 +46,7 @@ export function useFeedbackMessage() {
       info: publish('info'),
       success: publish('success'),
     };
-  }, [store, owner, scope.id, scope.label]);
+  }, [store, scope.id, scope.label]);
 }
 
 export type FeedbackMessageApi = ReturnType<typeof useFeedbackMessage>;
