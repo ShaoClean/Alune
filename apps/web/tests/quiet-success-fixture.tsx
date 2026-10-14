@@ -6,7 +6,7 @@ import { FeedbackContext } from '../src/components/feedback-context';
 import { ChangesView } from '../src/components/ChangesView';
 import { gitApi, repositoryApi } from '../src/api';
 import { aiApi } from '../src/api/ai';
-import { useRepositoryStore } from '../src/stores/repositoryStore';
+import { useRepositoryStore, useWorkspaceData } from '../src/stores/repositoryStore';
 import type { FileStatus, Repository, RepositoryStatus } from '@alune/shared';
 import '@alune/ui/styles.css';
 import '../src/index.css';
@@ -53,17 +53,16 @@ for (const action of ['stage', 'unstage'] as const) {
 aiApi.settings = async () => {
   throw new Error('验收不调用 AI 服务');
 };
-useRepositoryStore.getState().resetWorkspace(repo.id);
+useRepositoryStore.getState().activateWorkspace(repo.id);
 useRepositoryStore.setState({
   currentRepo: repo,
   repositories: [repo],
-  status: status(),
   repositoryStatuses: { [repo.id]: { phase: 'success', data: status(), updatedAt: Date.now() } },
 });
 function Fixture() {
   const store = useContext(FeedbackContext)!;
   const [selected, setSelected] = useState<FileStatus | null>(null);
-  const revision = useRepositoryStore((s) => s.worktreeDiffRevision);
+  const revision = useWorkspaceData(repo.id, (w) => w.worktreeDiffRevision);
   useEffect(() => {
     const original = store.getState().publish;
     store.setState({
@@ -77,8 +76,8 @@ function Fixture() {
       reads,
       published,
       entries: store.getState().entries,
-      files: useRepositoryStore.getState().status?.files,
-      revision: useRepositoryStore.getState().worktreeDiffRevision,
+      files: useRepositoryStore.getState().repositoryStatuses[repo.id]?.data?.files,
+      revision: useRepositoryStore.getState().workspaces[repo.id]?.worktreeDiffRevision,
     });
     return () => {
       store.setState({ publish: original });
