@@ -3,7 +3,7 @@ import type { ReactNode, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, ConfigProvider } from 'antd';
 import { useStore } from 'zustand';
-import { createFeedbackStore } from '../stores/feedbackStore';
+import { createFeedbackStore, readKey } from '../stores/feedbackStore';
 import type { FeedbackEntry } from '../stores/feedbackStore';
 import { DialogHints, Kbd } from './AluneModal';
 import { DialogIcon } from './DialogIcons';
@@ -30,7 +30,7 @@ const BUTTONS = { autoInsertSpace: false };
 const FeedbackCenterContext = createContext<{
   inbox: boolean;
   entries: FeedbackEntry[];
-  viewed: ReadonlySet<string>;
+  read: ReadonlySet<string>;
   trigger: RefObject<HTMLButtonElement | null>;
   fullscreenLayer: Element | null;
   toggle: (onUpdates?: () => void) => void;
@@ -40,8 +40,8 @@ const FeedbackCenterContext = createContext<{
 export function FeedbackStatusButton({ onUpdates }: { onUpdates?: () => void }) {
   const center = useContext(FeedbackCenterContext);
   if (!center) return null;
-  const { entries, viewed, trigger, inbox, fullscreenLayer, toggle } = center;
-  const unread = entries.filter((entry) => !viewed.has(`${entry.id}:${entry.revision}`)).length;
+  const { entries, read, trigger, inbox, fullscreenLayer, toggle } = center;
+  const unread = entries.filter((entry) => !read.has(readKey(entry))).length;
   const button = (
     <StatusButton
       ref={trigger}
@@ -119,11 +119,11 @@ function FeedbackCenter({
   children: ReactNode;
 }) {
   const allEntries = useStore(store, (state) => state.entries);
+  const read = useStore(store, (state) => state.read);
   const entries = allEntries.filter((entry) => !entry.host);
   const [selected, setSelected] = useState<string | null>(null);
   const [inbox, setInbox] = useState(false);
   const [now, setNow] = useState(Date.now);
-  const [viewed, setViewed] = useState<ReadonlySet<string>>(() => new Set());
   const [blocked, setBlocked] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [fullscreenLayer, setFullscreenLayer] = useState<Element | null>(null);
@@ -139,10 +139,8 @@ function FeedbackCenter({
   const showInbox = inbox && !open && !blocked;
   useEffect(() => setCopyStatus(''), [current?.id, current?.revision]);
   useEffect(() => {
-    if (!open || !current) return;
-    const key = `${current.id}:${current.revision}`;
-    setViewed((seen) => (seen.has(key) ? seen : new Set(seen).add(key)));
-  }, [open, current?.id, current?.revision]);
+    if (open && current) store.getState().markRead([current.id]);
+  }, [store, open, current?.id, current?.revision]);
   useEffect(() => {
     const check = () => {
       setBlocked(
@@ -251,7 +249,7 @@ function FeedbackCenter({
       if (fullscreenLayer instanceof HTMLDialogElement) fullscreenLayer.close();
       if (entry.id === current?.id) close();
       store.getState().acknowledge(entry.id);
-      setViewed((seen) => new Set(seen).add(`${entry.id}:${entry.revision}`));
+      store.getState().markRead([entry.id]);
       setInbox(false);
     }
     void store.getState().run(entry.id);
@@ -266,6 +264,8 @@ function FeedbackCenter({
     inboxTrigger.current?.focus({ preventScroll: true });
   };
   const errors = entries.some((entry) => entry.type === 'error');
+  const unread = entries.filter((entry) => !read.has(readKey(entry))).length;
+  const clearable = entries.some((entry) => entry.kind === 'event' && read.has(readKey(entry)));
   const groups = entries.reduce<{ label: string; entries: FeedbackEntry[] }[]>((list, entry) => {
     const { label } = splitContext(entry.context);
     const group = list.find((item) => item.label === label);
@@ -282,7 +282,7 @@ function FeedbackCenter({
       value={{
         inbox: showInbox,
         entries,
-        viewed,
+        read,
         trigger: inboxTrigger,
         fullscreenLayer,
         toggle: (onUpdates) => (inbox ? closeInbox() : openInbox(onUpdates)),
@@ -329,7 +329,29 @@ function FeedbackCenter({
                   <DialogIcon name="x" />
                 </button>
               </div>
-              <p className="feedback-inbox-lead">按来源分组；问题解决或重试成功后自动移除。</p>
+              <p className="feedback-inbox-lead">
+                按来源分组；持续性问题解决后自动移除，操作结果保留到手动清除。
+              </p>
+              {entries.length > 0 && (
+                <div className="feedback-inbox-tools">
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={!unread}
+                    onClick={() => store.getState().markRead()}
+                  >
+                    全部已读
+                  </button>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={!clearable}
+                    onClick={() => store.getState().clearRead()}
+                  >
+                    清除已读
+                  </button>
+                </div>
+              )}
               <div className="feedback-list">
                 {!entries.length && <p className="feedback-inbox-empty">暂无通知与提示</p>}
                 {groups.map((group) => (
@@ -343,11 +365,7 @@ function FeedbackCenter({
                       return (
                         <div
                           key={entry.id}
-                          className={
-                            viewed.has(`${entry.id}:${entry.revision}`)
-                              ? 'fb-item'
-                              : 'fb-item is-new'
-                          }
+                          className={read.has(readKey(entry)) ? 'fb-item' : 'fb-item is-new'}
                           data-tone={TONES[entry.type]}
                         >
                           <span className="fb-glyph" aria-hidden="true">
@@ -370,6 +388,16 @@ function FeedbackCenter({
                               </span>
                               {summary ? <span className="fb-item-sub">{summary}</span> : null}
                             </button>
+                            {entry.kind === 'event' ? (
+                              <button
+                                type="button"
+                                className="dlg-icon-btn fb-item-dismiss"
+                                aria-label={`清除「${entry.title}」`}
+                                onClick={() => store.getState().dismiss(entry.id)}
+                              >
+                                <DialogIcon name="x" />
+                              </button>
+                            ) : null}
                             {entry.actionLabel ? (
                               <div className="fb-item-actions">
                                 <Button

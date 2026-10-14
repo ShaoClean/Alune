@@ -2018,6 +2018,33 @@
   gap: 6px;
   margin-top: 9px;
 }
+/* One-off results can be cleared; the button takes the unread dot's place on
+   hover and sits above the card overlay. */
+.fb-item-dismiss.dlg-icon-btn {
+  position: absolute;
+  top: 7px;
+  right: 5px;
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+}
+.fb-item:has(.fb-item-dismiss) .fb-item-head time {
+  margin-right: 20px;
+}
+.fb-item:is(:hover, :focus-within) .fb-item-dismiss {
+  opacity: 1;
+}
+.fb-item:is(:hover, :focus-within):has(.fb-item-dismiss)::after {
+  opacity: 0;
+}
+@media (hover: none) {
+  .fb-item-dismiss.dlg-icon-btn {
+    opacity: 1;
+  }
+  .fb-item:has(.fb-item-dismiss)::after {
+    opacity: 0;
+  }
+}
 .fb-item.is-new::after {
   content: '';
   position: absolute;
@@ -2086,6 +2113,26 @@
   font-size: 12px;
   line-height: 1.55;
   color: var(--text-muted);
+}
+.feedback-inbox-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 14px 6px;
+  font-size: 12px;
+}
+.feedback-inbox-tools button {
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: var(--blue);
+  background: transparent;
+  cursor: pointer;
+}
+.feedback-inbox-tools button:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.6;
 }
 .feedback-inbox-empty {
   padding: 24px 14px;

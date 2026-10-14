@@ -197,3 +197,53 @@ test('a new event from an acknowledged source follows already queued events', ()
     ['second', 'first'],
   );
 });
+
+test('read state follows the revision: a new revision of the same source is unread again', () => {
+  const store = createFeedbackStore().getState;
+  store().publish(event('update', 'available:1.0.1', { autoOpen: false }));
+  store().markRead(['update']);
+  assert.equal(store().read.has('update:available:1.0.1'), true);
+  store().publish(event('update', 'available:1.0.1', { autoOpen: false, busy: true }));
+  assert.equal(store().read.has('update:available:1.0.1'), true);
+  store().publish(event('update', 'downloaded:1.0.1', { autoOpen: false }));
+  assert.equal(store().read.has('update:downloaded:1.0.1'), false);
+});
+
+test('dialog-hosted results are never counted as read or unread in the inbox', () => {
+  const store = createFeedbackStore().getState;
+  store().publish(event('form', 'r1', { host: 'dialog' }));
+  store().markRead();
+  assert.equal(store().read.size, 0);
+});
+
+test('one-off results can be dismissed or cleared once read; ongoing conditions cannot', () => {
+  const store = createFeedbackStore().getState;
+  store().publish(event('state'));
+  store().publish(event('done', 'done', { kind: 'event', type: 'success' }));
+  store().publish(event('failed', 'failed', { kind: 'event' }));
+  store().dismiss('state');
+  assert.equal(store().entries.length, 3);
+  store().markRead(['state', 'done']);
+  store().clearRead();
+  assert.deepEqual(
+    store().entries.map((e) => e.id),
+    ['state', 'failed'],
+  );
+  store().dismiss('failed');
+  assert.deepEqual(
+    store().entries.map((e) => e.id),
+    ['state'],
+  );
+});
+
+test('the inbox keeps the latest one-off results without evicting ongoing conditions', async () => {
+  const { EVENT_LIMIT } = await import('../src/stores/feedbackStore.ts');
+  const store = createFeedbackStore().getState;
+  store().publish(event('state'));
+  for (let index = 0; index < EVENT_LIMIT + 5; index++)
+    store().publish(event(`operation:${index}`, `operation:${index}`, { kind: 'event' }));
+  const events = store().entries.filter((entry) => entry.kind === 'event');
+  assert.equal(events.length, EVENT_LIMIT);
+  assert.equal(events[0].id, 'operation:5');
+  assert.equal(store().entries[0].id, 'state');
+});

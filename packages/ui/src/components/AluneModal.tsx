@@ -1,11 +1,17 @@
 import { useStore } from 'zustand';
-import { FeedbackContext, FeedbackHostContext, emptyFeedbackStore } from './feedback-context';
+import {
+  FeedbackContext,
+  FeedbackHostContext,
+  emptyFeedbackStore,
+  registerFeedbackHost,
+} from './feedback-context';
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -312,6 +318,8 @@ export function AluneModal({
     ...okRest
   } = okButtonProps ?? {};
   const busy = Boolean(confirmLoading || pending || okLoading);
+  const submitting = useRef(false);
+  submitting.current = Boolean(open && (confirmLoading || okLoading));
   const typedValue = typed.trim();
   const typedMatch = typedConfirm !== undefined && typedValue === typedConfirm.value;
   const typedMismatch = typedConfirm !== undefined && typedValue !== '' && !typedMatch;
@@ -320,6 +328,11 @@ export function AluneModal({
   const okBlocked = Boolean(okDisabled || okPropDisabled || gated);
 
   const pendingRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!open) return;
+    // Claims messages raised by its own submission; a closing dialog claims none.
+    return registerFeedbackHost(hostId, () => submitting.current || pendingRef.current);
+  }, [open, hostId]);
   const submit = useCallback(() => {
     if (!onOk || pendingRef.current) return;
     pendingRef.current = true;

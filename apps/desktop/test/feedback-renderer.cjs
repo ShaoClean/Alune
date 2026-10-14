@@ -65,6 +65,12 @@ app.whenReady().then(async () => {
         await runNotificationChecks(page, (width, height) => window.setSize(width, height)),
       ),
     );
+    const { runNotificationRoutingChecks } =
+      await import('../../web/tests/notification-routing-browser.mjs');
+    console.log(
+      'Electron notification routing:',
+      JSON.stringify(await runNotificationRoutingChecks(page)),
+    );
     window.destroy();
     app.exit(0);
   } catch (error) {

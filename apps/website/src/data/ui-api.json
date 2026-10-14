@@ -101,6 +101,13 @@
       "description": "是否自动弹出详情；false 时仅进入通知与提示中心，动作失败仍会重新提示。"
     },
     {
+      "name": "kind",
+      "type": "\"state\" | \"event\"",
+      "required": false,
+      "default": "—",
+      "description": "`state` mirrors an ongoing condition and leaves with its source; `event` is a\none-off operation result that stays in the inbox until the user clears it."
+    },
+    {
       "name": "actionLabel",
       "type": "string",
       "required": false,
@@ -243,6 +250,13 @@
       "description": "是否自动弹出详情；false 时仅进入通知与提示中心，动作失败仍会重新提示。"
     },
     {
+      "name": "kind",
+      "type": "\"state\" | \"event\"",
+      "required": false,
+      "default": "—",
+      "description": "`state` mirrors an ongoing condition and leaves with its source; `event` is a\none-off operation result that stays in the inbox until the user clears it."
+    },
+    {
       "name": "actionLabel",
       "type": "string",
       "required": false,
@@ -285,6 +299,34 @@
       "required": true,
       "default": "—",
       "description": "当前反馈列表。"
+    },
+    {
+      "name": "read",
+      "type": "ReadonlySet<string>",
+      "required": true,
+      "default": "—",
+      "description": "Revisions the user has seen; a new revision of the same source is unread again."
+    },
+    {
+      "name": "markRead",
+      "type": "(ids?: string[]) => void",
+      "required": true,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "dismiss",
+      "type": "(id: string) => void",
+      "required": true,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "clearRead",
+      "type": "() => void",
+      "required": true,
+      "default": "—",
+      "description": ""
     },
     {
       "name": "updatePresentation",
@@ -1175,6 +1217,13 @@
       "required": false,
       "default": "mode === 'modal'",
       "description": "title 清空时是否允许同来源再次提示。"
+    },
+    {
+      "name": "read",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": ""
     }
   ],
   "FeedbackProviderProps": [
@@ -2847,7 +2896,7 @@
   "TitleProps": [
     {
       "name": "level",
-      "type": "1 | 2 | 5 | 3 | 4",
+      "type": "2 | 1 | 5 | 3 | 4",
       "required": false,
       "default": "1",
       "description": "标题层级 1～5，需符合文档结构。"
