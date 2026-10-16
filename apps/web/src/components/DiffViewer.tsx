@@ -7,6 +7,8 @@ import { FeedbackAlert } from '@alune/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Segmented } from '@alune/ui';
 import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
   CloseOutlined,
   CompressOutlined,
   DiffOutlined,
@@ -14,7 +16,12 @@ import {
   AimOutlined,
 } from '@ant-design/icons';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
-import { getNumberedDiffLines, getDiffNotice, getImageDiffKind } from './diff-lines';
+import {
+  getDiffChangeSegments,
+  getNumberedDiffLines,
+  getDiffNotice,
+  getImageDiffKind,
+} from './diff-lines';
 import type { CSSProperties, ReactNode } from 'react';
 import { useCodeTheme } from './useCodeTheme';
 import { useDiffHighlight } from './useDiffHighlight';
@@ -27,6 +34,7 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 import { SplitViewIcon, UnifiedViewIcon } from './DiffViewIcons';
 import { useDiffFullscreen } from './useDiffFullscreen';
 import { FindScope } from './FindWidget';
+import { useDiffChangeNavigation } from './useDiffChangeNavigation';
 
 const DIFF_MODES = [
   { value: 'unified' as const, label: '统一视图', icon: <UnifiedViewIcon /> },
@@ -235,9 +243,21 @@ export function DiffViewer({
     onFullscreenClose,
   } = useDiffFullscreen(bodyRef, JSON.stringify([comparisonKey, mode, title]));
   const hasDiff = Boolean(diff || oldCode || newCode);
+  const segments = useMemo(() => getDiffChangeSegments(lines), [lines]);
+  const segmentByLine = useMemo(
+    () => new Map(segments.flatMap((segment, index) => segment.map((line) => [line, index]))),
+    [segments],
+  );
+  const navigation = useDiffChangeNavigation(bodyRef, segments, textDiff && Boolean(diff));
+  const shownContent = useRef({ comparisonKey, title });
 
   useLayoutEffect(() => {
-    bodyRef.current?.scrollTo({ top: 0, left: 0 });
+    // Switching views keeps the current change in place; new content starts at the top.
+    const sameContent =
+      shownContent.current.comparisonKey === comparisonKey && shownContent.current.title === title;
+    shownContent.current = { comparisonKey, title };
+    if (sameContent && navigation.index >= 0) navigation.reveal(navigation.index, false);
+    else bodyRef.current?.scrollTo({ top: 0, left: 0 });
   }, [comparisonKey, mode, title]);
 
   const renderUnifiedDiff = () => {
@@ -251,7 +271,7 @@ export function DiffViewer({
           if (isRedundantDiffHeader(lines[index], multipleFiles)) return null;
           const className = `diff-code-row diff-code-row--${kind}${partialActions.selected.has(index) ? ' diff-row-selected' : ''}`;
           return (
-            <div className={className} key={index}>
+            <div className={className} key={index} data-change={segmentByLine.get(index)}>
               {kind !== 'meta' && (
                 <>
                   {partialActions.lineSelector(index, oldLine, newLine)}
@@ -295,7 +315,11 @@ export function DiffViewer({
             {partialActions.hunkActions(row.metaIndex)}
           </div>
         ) : (
-          <div className="diff-split-row" key={index}>
+          <div
+            className="diff-split-row"
+            key={index}
+            data-change={segmentByLine.get(row.leftIndex ?? row.rightIndex ?? -1)}
+          >
             <span
               className={`diff-split-cell diff-split-cell--${row.leftKind}${row.leftIndex !== undefined && partialActions.selected.has(row.leftIndex) ? ' diff-row-selected' : ''}`}
             >
@@ -478,12 +502,18 @@ export function DiffViewer({
       aria-modal={fullscreen || undefined}
       aria-label={fullscreen ? `${title || '差异预览'} · 全屏查看` : title || '差异预览'}
       tabIndex={fullscreen ? -1 : undefined}
-      onKeyDown={onFullscreenKeyDown}
+      onKeyDown={(event) => {
+        navigation.onKeyDown(event);
+        onFullscreenKeyDown(event);
+      }}
       onCancel={onFullscreenCancel}
       onClose={onFullscreenClose}
     >
       <div className="diff-shell__header">
-        <div className="diff-shell__title" title={title || '差异预览'}>
+        <div
+          className="diff-shell__title"
+          title={subtitle ? `${title || '差异预览'} · ${subtitle}` : title || '差异预览'}
+        >
           <DiffOutlined />
           <div className="diff-shell__filename">
             <span>{title || '差异预览'}</span>
@@ -491,6 +521,42 @@ export function DiffViewer({
           </div>
         </div>
         <div className="diff-toolbar">
+          {partialActions.toolbar}
+          {partialActions.menu}
+          {navigation.total > 0 && (
+            <div className="diff-change-nav" role="group" aria-label="改动导航">
+              <Button
+                type="text"
+                size="small"
+                icon={<ArrowUpOutlined />}
+                aria-label="上一处改动"
+                title="上一处改动 · Shift+Alt+F5"
+                onClick={navigation.prev}
+              />
+              <span
+                className="diff-change-nav__count"
+                role="status"
+                title={
+                  navigation.index >= 0
+                    ? `第 ${navigation.index + 1} 处，共 ${navigation.total} 处改动`
+                    : `共 ${navigation.total} 处改动`
+                }
+              >
+                {navigation.notice ??
+                  (navigation.index >= 0
+                    ? `${navigation.index + 1}/${navigation.total}`
+                    : `${navigation.total} 处`)}
+              </span>
+              <Button
+                type="text"
+                size="small"
+                icon={<ArrowDownOutlined />}
+                aria-label="下一处改动"
+                title="下一处改动 · Alt+F5"
+                onClick={navigation.next}
+              />
+            </div>
+          )}
           <span className="diff-mode">视图</span>
           <Segmented
             className="diff-view-switch"
@@ -538,13 +604,14 @@ export function DiffViewer({
           )}
         </div>
       </div>
-      {partialActions.toolbar}
       {partialActions.feedback}
       <FindScope focusTarget={bodyRef}>
         <div
           className={`diff-shell__body${textDiff ? ' code-diff' : ''}`}
           ref={bodyRef}
-          tabIndex={-1}
+          tabIndex={navigation.total ? 0 : -1}
+          role={navigation.total ? 'region' : undefined}
+          aria-label={navigation.total ? '差异内容' : undefined}
           style={
             textDiff
               ? ({ ...style, '--diff-gutter-width': gutterWidth } as CSSProperties)

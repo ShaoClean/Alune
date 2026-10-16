@@ -233,7 +233,6 @@
 }
 
 /* Partial Git operations share the same controls in inline and fullscreen Diff. */
-.partial-diff-toolbar,
 .partial-diff-confirm,
 .partial-diff-error {
   display: flex;
@@ -244,14 +243,89 @@
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
-.partial-diff-hint {
-  color: var(--text-muted);
-  font-size: 12px;
-  padding: 6px 12px;
+/* Line actions share the single-row Diff header and collapse before it could wrap. */
+.partial-diff-toolbar {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-right: 4px;
 }
-.partial-diff-toolbar .partial-diff-hint {
-  padding: 0;
-  margin-right: auto;
+.partial-diff-toolbar > .ant-btn {
+  flex-shrink: 0;
+}
+.partial-diff-hint {
+  min-width: 0;
+  max-width: 240px;
+  margin-right: 2px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diff-toolbar .partial-diff-more {
+  display: none;
+}
+.diff-change-nav {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+}
+.diff-change-nav__count {
+  min-width: 3.5em;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+@container diff-shell (max-width: 760px) {
+  .partial-diff-hint:not(.partial-diff-hint--busy) {
+    display: none;
+  }
+}
+@container diff-shell (max-width: 620px) {
+  .diff-toolbar .partial-diff-toolbar {
+    display: none;
+  }
+  .diff-toolbar .partial-diff-more {
+    display: inline-flex;
+  }
+}
+@container diff-shell (max-width: 420px) {
+  .diff-shell__filename small,
+  .diff-change-nav__count {
+    display: none;
+  }
+}
+/* A short pulse marks the change a navigation step just revealed. */
+.diff-change-flash {
+  position: relative;
+}
+.diff-change-flash::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: diff-change-flash 1.2s ease-out forwards;
+}
+@keyframes diff-change-flash {
+  from {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+    box-shadow: inset 3px 0 var(--accent);
+  }
+  to {
+    background: transparent;
+    box-shadow: inset 3px 0 transparent;
+  }
+}
+.diff-shell__body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .partial-diff-confirm > span {
   flex: 1 1 260px;

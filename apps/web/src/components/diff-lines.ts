@@ -65,3 +65,22 @@ export function getDiffNotice(diff: string): string | null {
   if (/^new file mode /m.test(diff)) return '新增空文件';
   return null;
 }
+
+/**
+ * Change navigation stops at each run of consecutive added/removed lines, not at
+ * `@@` headers, so a hunk with several edits yields several stops. "\ No newline"
+ * markers stay inside a run. Returns each run's line indexes, in patch order.
+ */
+export function getDiffChangeSegments(lines: NumberedDiffLine[]): number[][] {
+  const segments: number[][] = [];
+  let current: number[] | null = null;
+  lines.forEach((line, index) => {
+    if (line.kind === 'add' || line.kind === 'remove') {
+      if (!current) segments.push((current = []));
+      current.push(index);
+    } else if (!(line.kind === 'meta' && line.text.startsWith('\\'))) {
+      current = null;
+    }
+  });
+  return segments;
+}
