@@ -643,19 +643,17 @@
 }
 .workspace-body .diff-shell__header {
   flex: 0 0 auto;
-  flex-wrap: wrap;
   align-items: center;
-  min-height: 42px;
-  padding: 8px 12px;
 }
 .workspace-body .diff-shell__title {
-  flex: 1 1 140px;
+  flex: 1 1 0;
 }
 .workspace-body .diff-shell__title > span {
   max-width: 100%;
 }
 .workspace-body .diff-toolbar {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
   margin-left: auto;
 }
 .workspace-body .diff-mode {
@@ -990,6 +988,7 @@
   background: var(--surface);
 }
 .diff-shell {
+  container: diff-shell / inline-size;
   position: static;
   width: 100%;
   max-width: none;
@@ -1003,38 +1002,51 @@
 .diff-shell::backdrop {
   background: var(--code);
 }
+/* One 40px row: the filename and subtitle truncate, the toolbar never wraps. */
 .workspace-body .diff-shell__header {
   flex-wrap: nowrap;
-  min-height: 60px;
-  padding: 10px 14px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 10px 0 14px;
   background: var(--surface-muted);
 }
 .workspace-body .diff-shell__title {
-  flex: 1;
+  flex: 1 1 0;
   font-size: 12px;
 }
 .diff-shell__filename {
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: baseline;
+  gap: 6px;
 }
 .diff-shell__filename > span {
+  flex: 0 1 auto;
+  min-width: 4em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .diff-shell__filename small {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
   color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font:
     10px/1.5 -apple-system,
     BlinkMacSystemFont,
     sans-serif;
 }
+.diff-shell__filename small::before {
+  content: '·';
+  margin-right: 6px;
+}
 .diff-toolbar {
   flex-wrap: nowrap;
 }
-.diff-toolbar .ant-btn {
+.diff-toolbar .ant-btn.ant-btn-icon-only {
   width: 28px;
   padding: 0;
 }
@@ -1149,13 +1161,6 @@
   align-self: flex-start;
 }
 @media (max-width: 560px) {
-  .workspace-body .diff-shell__header {
-    flex-wrap: wrap;
-    gap: var(--space-control-gap);
-  }
-  .workspace-body .diff-shell__title {
-    flex-basis: 100%;
-  }
   .layout-settings__section {
     padding: 14px;
   }
@@ -1585,14 +1590,6 @@
 }
 .diff-unified-view {
   min-width: max-content;
-}
-@container (max-width: 560px) {
-  .workspace-body .diff-shell__header {
-    flex-wrap: wrap;
-  }
-  .workspace-body .diff-shell__title {
-    flex-basis: 100%;
-  }
 }
 
 .status-bar {
