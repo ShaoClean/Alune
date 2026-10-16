@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Button, FeedbackAlert } from '@alune/ui';
+import { Button, Dropdown, FeedbackAlert } from '@alune/ui';
+import type { MenuProps } from 'antd';
+import { EllipsisOutlined } from '@ant-design/icons';
 import { parsePatchHunks } from '@alune/shared';
 import type { PartialDiffAction, PartialDiffSelection } from '@alune/shared';
 import { gitApi } from '../api';
@@ -168,17 +170,45 @@ export function usePartialDiff(
       </span>
     );
   };
-  const toolbar = !enabled ? (
-    controls?.refreshing ? (
-      <div className="partial-diff-hint" role="status">
-        {controls.preparing ? '正在准备按行操作…' : '正在刷新差异…'}
-      </div>
-    ) : controls ? (
-      <div className="partial-diff-toolbar">
-        {controls.unavailableReason && (
-          <span className="partial-diff-hint">{controls.unavailableReason}</span>
+  const clearSelection = () => {
+    setSelected(new Set());
+    anchor.current = undefined;
+  };
+  const applySelected = () =>
+    void execute(controls!.staged ? 'unstage' : 'stage', { lines: [...selected] });
+  const discardSelected = () => discard({ lines: [...selected] });
+  const canEnable = !enabled && !controls?.refreshing && Boolean(controls?.onEnable);
+  const working = busy || (!enabled && !!controls?.refreshing);
+  const status = !enabled
+    ? controls?.refreshing
+      ? controls.preparing
+        ? '正在准备按行操作…'
+        : '正在刷新差异…'
+      : controls?.unavailableReason
+    : busy
+      ? '正在应用改动…'
+      : selected.size
+        ? `已选择 ${selected.size} 行`
+        : '勾选改动行 · Shift 连选';
+  // Rendered inside the Diff header; narrow headers swap the buttons for `menu`.
+  const toolbar =
+    controls && (status || canEnable || enabled) ? (
+      <div
+        className="partial-diff-toolbar"
+        role="group"
+        aria-label="部分改动操作"
+        aria-busy={working || undefined}
+      >
+        {status && (
+          <span
+            className={`partial-diff-hint${working ? ' partial-diff-hint--busy' : ''}`}
+            role="status"
+            title={status}
+          >
+            {status}
+          </span>
         )}
-        {controls.onEnable && (
+        {canEnable && (
           <Button
             size="small"
             disabled={loading || busy}
@@ -187,51 +217,77 @@ export function usePartialDiff(
             开启按行操作
           </Button>
         )}
+        {enabled && (
+          <>
+            <Button size="small" disabled={disabled || !selected.size} onClick={applySelected}>
+              {controls.staged ? '取消暂存所选行' : '暂存所选行'}
+            </Button>
+            {!controls.staged && (
+              <Button
+                size="small"
+                danger
+                disabled={disabled || !selected.size}
+                onClick={discardSelected}
+              >
+                放弃所选行
+              </Button>
+            )}
+            {selected.size > 0 && (
+              <Button size="small" type="text" disabled={disabled} onClick={clearSelection}>
+                清除选择
+              </Button>
+            )}
+          </>
+        )}
       </div>
-    ) : null
-  ) : (
-    <div className="partial-diff-toolbar" aria-label="部分改动操作" aria-busy={busy}>
-      <span className="partial-diff-hint" role="status">
-        {busy
-          ? '正在应用改动…'
-          : selected.size
-            ? `已选择 ${selected.size} 行`
-            : '勾选改动行 · Shift 连选'}
-      </span>
+    ) : null;
+  const menuItems: NonNullable<MenuProps['items']> = canEnable
+    ? [{ key: 'enable', label: '开启按行操作', disabled: loading || busy }]
+    : enabled
+      ? [
+          {
+            key: 'apply',
+            label: controls!.staged ? '取消暂存所选行' : '暂存所选行',
+            disabled: disabled || !selected.size,
+          },
+          ...(!controls!.staged
+            ? [
+                {
+                  key: 'discard',
+                  label: '放弃所选行',
+                  danger: true,
+                  disabled: disabled || !selected.size,
+                },
+              ]
+            : []),
+          { key: 'clear', label: '清除选择', disabled: disabled || !selected.size },
+        ]
+      : [];
+  const menu = menuItems.length ? (
+    <Dropdown
+      trigger={['click']}
+      // Fullscreen Diff is a modal in the top layer; keep the menu inside it.
+      getPopupContainer={(node) => node.closest('dialog') ?? document.body}
+      menu={{
+        items: status ? [{ type: 'group', label: status, children: menuItems }] : menuItems,
+        onClick: ({ key }) => {
+          if (key === 'enable') void controls?.onEnable?.();
+          if (key === 'apply') applySelected();
+          if (key === 'discard') discardSelected();
+          if (key === 'clear') clearSelection();
+        },
+      }}
+    >
       <Button
+        className="partial-diff-more"
+        type="text"
         size="small"
-        disabled={disabled || !selected.size}
-        onClick={() =>
-          void execute(controls!.staged ? 'unstage' : 'stage', { lines: [...selected] })
-        }
-      >
-        {controls!.staged ? '取消暂存所选行' : '暂存所选行'}
-      </Button>
-      {!controls!.staged && (
-        <Button
-          size="small"
-          danger
-          disabled={disabled || !selected.size}
-          onClick={() => discard({ lines: [...selected] })}
-        >
-          放弃所选行
-        </Button>
-      )}
-      {selected.size > 0 && (
-        <Button
-          size="small"
-          type="text"
-          disabled={disabled}
-          onClick={() => {
-            setSelected(new Set());
-            anchor.current = undefined;
-          }}
-        >
-          清除选择
-        </Button>
-      )}
-    </div>
-  );
+        icon={<EllipsisOutlined />}
+        aria-label="更多按行操作"
+        title={status ? `按行操作 · ${status}` : '按行操作'}
+      />
+    </Dropdown>
+  ) : null;
   const refreshButton = (
     <Button
       size="small"
@@ -293,5 +349,5 @@ export function usePartialDiff(
       )}
     </>
   );
-  return { enabled, selected, toolbar, feedback, lineSelector, hunkActions };
+  return { enabled, selected, toolbar, menu, feedback, lineSelector, hunkActions };
 }
