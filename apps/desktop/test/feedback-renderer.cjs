@@ -62,8 +62,23 @@ app.whenReady().then(async () => {
       window.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
       await waitForFunction(() => window.__pressed);
     },
+    // Sends a key to whatever has focus, with modifiers such as ['meta'] or ['shift'].
+    key: async (key, modifiers = []) => {
+      await evaluate(() => {
+        window.__pressed = false;
+        window.addEventListener('keyup', () => (window.__pressed = true), {
+          once: true,
+          capture: true,
+        });
+      });
+      window.webContents.sendInputEvent({ type: 'keyDown', keyCode: key, modifiers });
+      window.webContents.sendInputEvent({ type: 'keyUp', keyCode: key, modifiers });
+      await waitForFunction(() => window.__pressed);
+    },
   };
   try {
+    const { runFindChecks } = await import('../../web/tests/find-browser.mjs');
+    console.log('内容查找:', JSON.stringify(await runFindChecks(page)));
     const { runFeedbackChecks } = await import('../../web/tests/feedback-browser.mjs');
     const { runQuietSuccessChecks } = await import('../../web/tests/quiet-success-browser.mjs');
     console.log('静默成功反馈:', JSON.stringify(await runQuietSuccessChecks(page)));

@@ -33,6 +33,7 @@ import type { DiffImageOptions } from '@alune/shared';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { SplitViewIcon, UnifiedViewIcon } from './DiffViewIcons';
 import { useDiffFullscreen } from './useDiffFullscreen';
+import { FindScope } from './FindWidget';
 import { useDiffChangeNavigation } from './useDiffChangeNavigation';
 
 const DIFF_MODES = [
@@ -282,16 +283,14 @@ export function DiffViewer({
                   </span>
                 </>
               )}
-              <code>
-                {kind === 'meta' ? (
-                  line
-                ) : (
-                  <>
-                    {line.slice(0, 1)}
-                    {highlighted.tokens[index] ?? line.slice(1)}
-                  </>
-                )}
-              </code>
+              {kind === 'meta' ? (
+                <code>{line}</code>
+              ) : (
+                <code data-find-unit>
+                  <span data-find-ignore>{line.slice(0, 1)}</span>
+                  {highlighted.tokens[index] ?? line.slice(1)}
+                </code>
+              )}
               {kind === 'meta' && partialActions.hunkActions(index)}
             </div>
           );
@@ -328,7 +327,7 @@ export function DiffViewer({
               <span className="diff-line-number" aria-hidden="true">
                 {row.oldLine}
               </span>
-              <code>{row.left}</code>
+              <code data-find-unit={row.leftKind === 'empty' ? undefined : ''}>{row.left}</code>
             </span>
             <span
               className={`diff-split-cell diff-split-cell--${row.rightKind}${row.rightIndex !== undefined && partialActions.selected.has(row.rightIndex) ? ' diff-row-selected' : ''}`}
@@ -337,7 +336,7 @@ export function DiffViewer({
               <span className="diff-line-number" aria-hidden="true">
                 {row.newLine}
               </span>
-              <code>{row.right}</code>
+              <code data-find-unit={row.rightKind === 'empty' ? undefined : ''}>{row.right}</code>
             </span>
           </div>
         ),
@@ -606,19 +605,23 @@ export function DiffViewer({
         </div>
       </div>
       {partialActions.feedback}
-      <div
-        className={`diff-shell__body${textDiff ? ' code-diff' : ''}`}
-        ref={bodyRef}
-        tabIndex={navigation.total ? 0 : undefined}
-        role={navigation.total ? 'region' : undefined}
-        aria-label={navigation.total ? '差异内容' : undefined}
-        style={
-          textDiff ? ({ ...style, '--diff-gutter-width': gutterWidth } as CSSProperties) : undefined
-        }
-        data-code-theme={textDiff ? theme.id : undefined}
-      >
-        {renderDiffContent()}
-      </div>
+      <FindScope focusTarget={bodyRef}>
+        <div
+          className={`diff-shell__body${textDiff ? ' code-diff' : ''}`}
+          ref={bodyRef}
+          tabIndex={navigation.total ? 0 : -1}
+          role={navigation.total ? 'region' : undefined}
+          aria-label={navigation.total ? '差异内容' : undefined}
+          style={
+            textDiff
+              ? ({ ...style, '--diff-gutter-width': gutterWidth } as CSSProperties)
+              : undefined
+          }
+          data-code-theme={textDiff ? theme.id : undefined}
+        >
+          {renderDiffContent()}
+        </div>
+      </FindScope>
     </dialog>
   );
 }

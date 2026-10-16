@@ -29,6 +29,7 @@ import type { FileLanguage } from './file-language';
 import { CodeView } from './CodeView';
 import { BlameView } from './BlameView';
 import { MarkdownPreview } from './MarkdownPreview';
+import { FindScope } from './FindWidget';
 import { isMarkdownFile } from './markdown-resources';
 export { CodeView, HIGHLIGHT_MAX_CHARS } from './CodeView';
 import {
@@ -816,33 +817,35 @@ export function FilePreviewPane({
           </CommandButton>
         </div>
       </div>
-      <div className="files-preview__body">
-        {blameEnabled && repositoryId && file?.phase === 'ready' ? (
-          <BlameView
-            key={JSON.stringify([repositoryId, entry.path])}
-            repoId={repositoryId}
-            path={entry.path}
-            refreshToken={refreshToken}
-            contentRevision={preview?.kind === 'text' ? preview.content : JSON.stringify(preview)}
-            onVersionChange={setBlameVersion}
-            onSelectCommit={onSelectCommit}
-          />
-        ) : (
-          <PreviewBody
-            repositoryId={repositoryId}
-            entry={entry}
-            file={file}
-            preview={preview}
-            text={text}
-            language={language}
-            markdownMode={markdownMode}
-            onOpenFile={onOpenFile}
-            fragment={fragment}
-            refreshToken={refreshToken}
-            onRetry={onRetry}
-          />
-        )}
-      </div>
+      <FindScope>
+        <div className="files-preview__body">
+          {blameEnabled && repositoryId && file?.phase === 'ready' ? (
+            <BlameView
+              key={JSON.stringify([repositoryId, entry.path])}
+              repoId={repositoryId}
+              path={entry.path}
+              refreshToken={refreshToken}
+              contentRevision={preview?.kind === 'text' ? preview.content : JSON.stringify(preview)}
+              onVersionChange={setBlameVersion}
+              onSelectCommit={onSelectCommit}
+            />
+          ) : (
+            <PreviewBody
+              repositoryId={repositoryId}
+              entry={entry}
+              file={file}
+              preview={preview}
+              text={text}
+              language={language}
+              markdownMode={markdownMode}
+              onOpenFile={onOpenFile}
+              fragment={fragment}
+              refreshToken={refreshToken}
+              onRetry={onRetry}
+            />
+          )}
+        </div>
+      </FindScope>
     </div>
   );
 }

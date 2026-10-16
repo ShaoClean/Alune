@@ -122,7 +122,7 @@ export function CodeView({
           <pre className="files-code__gutter" aria-hidden="true">
             {gutter}
           </pre>
-          <pre className="files-code__content" data-language={language?.id}>
+          <pre className="files-code__content" data-language={language?.id} data-find-unit>
             <code>{result.tokens ?? text}</code>
           </pre>
         </div>

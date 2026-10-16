@@ -204,7 +204,13 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   );
 
   return (
-    <article ref={root} className="markdown-preview" aria-label="Markdown 预览" tabIndex={0}>
+    <article
+      ref={root}
+      className="markdown-preview"
+      aria-label="Markdown 预览"
+      tabIndex={0}
+      data-find-unit
+    >
       {notice && <FeedbackAlert source="markdown-link" context={path} type="info" title={notice} />}
       {content.length > MARKDOWN_PREVIEW_MAX_CHARS ? (
         <FeedbackAlert
