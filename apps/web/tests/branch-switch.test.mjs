@@ -62,42 +62,24 @@ test('远程分支切换静默刷新数据，并忽略重复点击', async (t) =
   assert.deepEqual(events, ['branches:repo', 'log:repo', 'refresh']);
 });
 
-for (const choice of ['existing', 'create', 'cancel']) {
-  test(`conflict choice: ${choice}`, async (t) => {
-    const calls = [];
-    const { hook, events } = setup(
-      t,
-      async (...args) => {
-        calls.push(args);
-        if (calls.length === 1) throw conflict;
-        return { branch: choice === 'existing' ? 'demo' : 'new/demo' };
-      },
-      (options) => {
-        if (choice === 'cancel') return false;
-        if (choice === 'create')
-          options.content.props.onChange({ existing: false, name: 'new/demo' });
-        options.onOk();
-        return true;
-      },
-    );
-    await hook.switchBranch('remotes/origin/demo', true);
-    assert.deepEqual(
-      calls,
-      choice === 'cancel'
-        ? [['repo', 'remotes/origin/demo', undefined, true]]
-        : [
-            ['repo', 'remotes/origin/demo', undefined, true],
-            [
-              'repo',
-              choice === 'existing' ? 'demo' : 'remotes/origin/demo',
-              choice === 'existing' ? undefined : 'new/demo',
-              choice === 'existing' ? false : true,
-            ],
-          ],
-    );
-    assert.equal(events.includes('refresh'), choice !== 'cancel');
-  });
-}
+test('名称冲突时直接切换到现有本地分支，不弹窗', async (t) => {
+  const calls = [];
+  const { hook, events } = setup(
+    t,
+    async (...args) => {
+      calls.push(args);
+      if (calls.length === 1) throw conflict;
+      return { branch: 'demo' };
+    },
+    () => assert.fail('不应弹出确认框'),
+  );
+  await hook.switchBranch('remotes/origin/demo', true);
+  assert.deepEqual(calls, [
+    ['repo', 'remotes/origin/demo', undefined, true],
+    ['repo', 'demo', undefined, false],
+  ]);
+  assert.deepEqual(events, ['branches:repo', 'log:repo', 'refresh']);
+});
 
 test('Git or connection errors are shown and release the pending guard', async (t) => {
   const { hook, events } = setup(t, async () => {
