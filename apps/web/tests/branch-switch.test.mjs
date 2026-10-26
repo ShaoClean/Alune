@@ -62,24 +62,33 @@ test('远程分支切换静默刷新数据，并忽略重复点击', async (t) =
   assert.deepEqual(events, ['branches:repo', 'log:repo', 'refresh']);
 });
 
-test('名称冲突时直接切换到现有本地分支，不弹窗', async (t) => {
-  const calls = [];
-  const { hook, events } = setup(
-    t,
-    async (...args) => {
-      calls.push(args);
-      if (calls.length === 1) throw conflict;
-      return { branch: 'demo' };
-    },
-    () => assert.fail('不应弹出确认框'),
-  );
-  await hook.switchBranch('remotes/origin/demo', true);
-  assert.deepEqual(calls, [
-    ['repo', 'remotes/origin/demo', undefined, true],
-    ['repo', 'demo', undefined, false],
-  ]);
-  assert.deepEqual(events, ['branches:repo', 'log:repo', 'refresh']);
-});
+for (const [upstream, notice] of [
+  [undefined, '已切换到现有本地分支“demo”，它未跟踪 origin/demo。'],
+  [
+    'refs/remotes/upstream/demo',
+    '已切换到现有本地分支“demo”，它未跟踪 origin/demo（当前跟踪 upstream/demo）。',
+  ],
+]) {
+  test(`名称冲突时直接切换到现有本地分支并提示（上游：${upstream ?? '无'}）`, async (t) => {
+    const calls = [];
+    const { hook, events } = setup(
+      t,
+      async (...args) => {
+        calls.push(args);
+        if (calls.length === 1)
+          throw { response: { data: { ...conflict.response.data, upstream } } };
+        return { branch: 'demo' };
+      },
+      () => assert.fail('不应弹出确认框'),
+    );
+    await hook.switchBranch('remotes/origin/demo', true);
+    assert.deepEqual(calls, [
+      ['repo', 'remotes/origin/demo', undefined, true],
+      ['repo', 'demo', undefined, false],
+    ]);
+    assert.deepEqual(events, ['branches:repo', 'log:repo', 'refresh', notice]);
+  });
+}
 
 test('Git or connection errors are shown and release the pending guard', async (t) => {
   const { hook, events } = setup(t, async () => {
