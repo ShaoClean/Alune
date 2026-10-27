@@ -761,7 +761,7 @@ export class GitService implements OnModuleDestroy {
         if (conflict.upstream === remoteRef) return switchLocal(conflict.name);
         throw new ConflictException({
           code: 'LOCAL_BRANCH_EXISTS',
-          message: `本地分支“${targetName}”已存在，但未跟踪所选远程分支。请选择切换到现有分支或换个名称创建。`,
+          message: `本地分支“${targetName}”已存在，但未跟踪所选远程分支。`,
           remoteRef,
           localName: targetName,
           upstream: conflict.upstream || undefined,
