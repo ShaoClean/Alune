@@ -34,21 +34,21 @@ npm run website:preview
 
 ## 文案、截图与品牌资产
 
-文案按 [README](../../README.md)、[工作区说明](../../docs/workspace.md) 和稳定版核验，当前核对版本为 v0.9.1（截图仍为 v0.8.2 基线，v0.9.0 与 v0.9.1 未改变截图中的界面布局）。新增描述时注意：SSH Worktree 仅支持发现和打开；代码主题、字体和字号同时用于文件与文本 Diff；PR/MR 中心只汇总已添加仓库的受支持远端；AI 是可选功能，提交起草发送已暂存差异，PR/MR 起草发送所选分支的提交、Diff 与模板；代理覆盖范围见网络代理文档。
+文案按 [README](../../README.md)、[工作区说明](../../docs/workspace.md) 和稳定版核验，当前核对版本为 v0.10.0（截图为 v0.10.0 基线）。新增描述时注意：SSH Worktree 仅支持发现和打开；代码主题、字体和字号同时用于文件与文本 Diff；PR/MR 中心只汇总已添加仓库的受支持远端；AI 是可选功能，提交起草发送已暂存差异，PR/MR 起草发送所选分支的提交、Diff 与模板；代理覆盖范围见网络代理文档。
 
-`src/assets/screenshots/` 的八张 PNG 均直接来自 [README-Screenshots-v0.8.2](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.8.2)，下载原址为 `https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.8.2/<文件名>.png`：
+`src/assets/screenshots/` 的八张 PNG 均直接来自 [README-Screenshots-v0.10.0](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.10.0)，下载原址为 `https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/<文件名>.png`：
 
 | 文件                                         | 展示内容                    |
 | -------------------------------------------- | --------------------------- |
 | `workspace-light.png` / `workspace-dark.png` | Diff、暂存与提交            |
 | `repositories.png`                           | 本机／SSH 仓库列表          |
-| `files.png`                                  | 文件阅读和代码主题          |
+| `files.png`                                  | 文件阅读、代码主题与查找    |
 | `history.png`                                | 提交历史与分支图            |
 | `terminal.png`                               | 仓库终端与实际 Git 命令输出 |
 | `pull-requests.png`                          | PR/MR 应用内审阅            |
 | `pull-request-center.png`                    | 跨仓库 PR/MR 中心与筛选     |
 
-截图对应 v0.8.2（界面代码基线 `63d3759`），使用临时仓库、本机测试 SSH 服务和演示数据，展示真实网页界面；PR/MR 托管平台响应为测试数据，终端使用认证隔离服务与真实演示仓库。桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
+截图对应 v0.10.0（界面代码基线 `a0bd6fd`），使用临时仓库、本机测试 SSH 服务和演示数据，展示真实网页界面；PR/MR 托管平台响应为测试数据，终端使用认证隔离服务与真实演示仓库。桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
 
 头像源图为 `apps/desktop/assets/alune.png`，官网的 `public/favicon.png`（64px）、`public/brand.png`（144px）、`public/og-image.png`（1200×630）由以下命令派生：
 
