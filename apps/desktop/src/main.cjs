@@ -49,7 +49,7 @@ let closingBackend;
 let terminalClosePending = false;
 const token = randomBytes(32).toString('hex');
 const windowStatePath = path.join(app.getPath('userData'), 'window.json');
-const iconPath = path.join(__dirname, 'assets', 'icon.png');
+const iconPath = path.join(__dirname, 'assets', process.platform === 'darwin' ? 'icon-mac.png' : 'icon.png');
 const logWindow = createLogWindow({
   BrowserWindow,
   getOrigin: () => origin,
