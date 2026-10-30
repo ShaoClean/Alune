@@ -17,12 +17,16 @@ if (width !== height || width < 1024) {
 // Keep the original illustration as the source of truth. Resvg scales its
 // pixels and alpha consistently for the desktop icon and the web brand mark.
 const artwork = source.toString('base64');
-function render(size) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${size}" height="${size}" viewBox="0 0 ${width} ${height}"><image width="${width}" height="${height}" xlink:href="data:image/png;base64,${artwork}"/></svg>`;
+function render(size, inset = 0) {
+  const offset = width * inset / size;
+  const extent = width - 2 * offset;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${size}" height="${size}" viewBox="0 0 ${width} ${height}"><image x="${offset}" y="${offset}" width="${extent}" height="${extent}" xlink:href="data:image/png;base64,${artwork}"/></svg>`;
   return new Resvg(svg).render().asPng();
 }
 const outputs = [
   ['apps/desktop/assets/icon.png', render(1024)],
+  // Match ChatGPT's macOS icon footprint: 824px artwork on a 1024px canvas.
+  ['apps/desktop/assets/icon-mac.png', render(1024, 100)],
   // Vite content-hashes this imported image, avoiding stale Electron favicons.
   ['apps/web/src/assets/favicon.png', render(64)],
 ];
