@@ -1,3 +1,4 @@
+import { WorkspaceHeaderContext } from './WorkspaceHeader';
 import { TerminalWorkspace } from './TerminalWorkspace';
 import { useTerminalStore } from '../stores/terminalState';
 import { useFeedbackMessage } from '@alune/ui';
@@ -45,6 +46,8 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const isSettings = location.pathname.startsWith('/settings');
+  const isPullRequestDetail = /^\/pull-requests\/[^/]+\/[^/]+/.test(location.pathname);
+  const [workspaceHeaderSlot, setWorkspaceHeaderSlot] = useState<HTMLDivElement | null>(null);
   const activeRepositoryId = location.pathname.match(/^\/repositories\/([^/]+)/)?.[1];
   const [rightPanelAvailable, setRightPanelAvailable] = useState(true);
   const [repositoryToolbarSlot, setRepositoryToolbarSlot] = useState<HTMLDivElement | null>(null);
@@ -386,6 +389,8 @@ export function Layout() {
             <span className="app-tabbar__title">
               设置 <span aria-hidden="true">/</span> <strong>{settingsCategory.name}</strong>
             </span>
+          ) : isPullRequestDetail ? (
+            <div ref={setWorkspaceHeaderSlot} className="app-tabbar__route-header" />
           ) : selectedKey === '/repositories' && openRepositories.length > 0 ? (
             <RepositoryTabs
               repositories={openRepositories}
@@ -561,7 +566,7 @@ export function Layout() {
 
         <main className="app-main" inert={compact && mobileNavOpen}>
           <div
-            className={`app-content${workspaceRepositoryId ? ' app-content--workspace' : ''}`}
+            className={`app-content${workspaceRepositoryId ? ' app-content--workspace' : ''}${isPullRequestDetail ? ' app-content--pr-detail' : ''}`}
             hidden={isSettings}
             inert={isSettings}
           >
@@ -574,7 +579,9 @@ export function Layout() {
               }
               active={!isSettings}
             >
-              {workspaceOutlet.current}
+              <WorkspaceHeaderContext.Provider value={workspaceHeaderSlot}>
+                {workspaceOutlet.current}
+              </WorkspaceHeaderContext.Provider>
               <RepositoryWorkspaceHost
                 activeId={workspaceRepositoryId}
                 setRightPanelAvailable={setRightPanelAvailable}
