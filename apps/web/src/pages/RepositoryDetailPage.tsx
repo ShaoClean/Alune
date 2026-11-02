@@ -163,6 +163,7 @@ function RepositoryWorkspace({
   const status = useRepositoryStatusData(id);
   const {
     diff,
+    diffFullFile,
     diffLoading,
     diffRefreshing,
     partialDiff,
@@ -171,6 +172,7 @@ function RepositoryWorkspace({
     diffError,
   } = useWorkspaceData(id, (workspace) => ({
     diff: workspace.diff,
+    diffFullFile: workspace.diffFullFile,
     diffLoading: workspace.diffLoading,
     diffRefreshing: workspace.diffRefreshing,
     partialDiff: workspace.partialDiff,
@@ -887,10 +889,19 @@ function RepositoryWorkspace({
                       ) : selectedFile ? (
                         <DiffViewer
                           diff={diff}
+                          fullFile={diffFullFile}
+                          onFullFileChange={(fullFile) =>
+                            void fetchDiff(id, {
+                              file: selectedFile.path,
+                              staged: selectedFile.staged,
+                              fullFile,
+                            })
+                          }
                           partial={
                             partialDiff
                               ? {
                                   revision: partialDiff.revision,
+                                  fullFile: diffFullFile,
                                   unavailableReason: partialDiff.unavailableReason,
                                   staged: selectedFile.staged,
                                   refreshing: diffRefreshing,

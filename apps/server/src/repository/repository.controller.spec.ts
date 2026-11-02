@@ -10,6 +10,17 @@ import { EventEmitter } from 'node:events';
 import type { Response } from 'express';
 
 describe('RepositoryController', () => {
+  it('forwards full-file scope for both read-only and editable previews', async () => {
+    const getDiff = jest.fn().mockResolvedValue('full patch');
+    const getEditableDiff = jest.fn().mockResolvedValue({ diff: 'full patch', revision: 'revision' });
+    const controller = new RepositoryController({ getDiff, getEditableDiff } as unknown as RepositoryService);
+    await controller.getDiff('fixture', { file: 'a.txt', fullFile: 'true' });
+    expect(getDiff).toHaveBeenLastCalledWith('fixture', expect.objectContaining({ fullFile: true }), expect.any(AbortSignal));
+    await controller.getDiff('fixture', { file: 'a.txt', staged: 'true', fullFile: 'true', editable: 'true' });
+    expect(getEditableDiff).toHaveBeenLastCalledWith('fixture', 'a.txt', true, true, expect.any(AbortSignal));
+    await controller.getDiff('fixture', { file: 'a.txt', fullFile: 'false', editable: 'true' });
+    expect(getEditableDiff).toHaveBeenLastCalledWith('fixture', 'a.txt', false, false, expect.any(AbortSignal));
+  });
   it('validates worktree selections and preserves useful status/open failures', async () => {
     const openWorktree = jest.fn().mockResolvedValue({ id: 'target' });
     const getWorktrees = jest.fn().mockResolvedValue([]);

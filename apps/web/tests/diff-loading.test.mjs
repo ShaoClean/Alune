@@ -176,3 +176,49 @@ test('switching file, repository, or staged side requires a new opt-in', async (
     assert.equal(calls.length, 3);
   }
 });
+
+
+test('full-file mode survives refresh and validates actions against the same scope', async () => {
+  const read = store.getState().fetchDiff('repo', { file: 'file.txt', fullFile: true });
+  assert.equal(calls[0].params.fullFile, true);
+  calls[0].resolve('full patch');
+  await read;
+  const prepare = store.getState().preparePartialDiff('repo', { file: 'file.txt' });
+  assert.equal(calls[1].params.fullFile, true);
+  calls[1].resolve({ diff: 'full validated', revision: 'full revision' });
+  await prepare;
+  const refresh = store.getState().fetchDiff('repo', { file: 'file.txt' });
+  assert.equal(calls[2].params.fullFile, true);
+  assert.equal(ws().partialDiff.revision, undefined);
+  calls[2].resolve('full refreshed');
+  await flush();
+  assert.equal(calls[3].params.fullFile, true);
+  calls[3].resolve({ diff: 'full refreshed validated', revision: 'new revision' });
+  await refresh;
+  const compact = store.getState().fetchDiff('repo', { file: 'file.txt', fullFile: false });
+  assert.equal(ws().partialDiff, null);
+  assert.equal(ws().diffLoading, true);
+  calls[4].resolve('compact patch');
+  await flush();
+  assert.equal(calls[5].params.fullFile, false);
+  calls[5].resolve({ diff: 'compact validated', revision: 'compact revision' });
+  await compact;
+  assert.equal(ws().diffFullFile, false);
+  assert.equal(ws().partialDiff.revision, 'compact revision');
+});
+
+test('switching scope cancels earlier reads; history and worktree scopes stay independent', async () => {
+  const full = store.getState().fetchDiff('repo', { file: 'file.txt', fullFile: true });
+  const compact = store.getState().fetchDiff('repo', { file: 'file.txt', fullFile: false });
+  assert.equal(calls[0].signal.aborted, true);
+  calls[1].resolve('compact');
+  await compact;
+  calls[0].resolve('late full patch');
+  await full;
+  assert.equal(ws().diff, 'compact');
+  const history = store.getState().fetchDiff('repo', { commit: 'abc', fullFile: true }, 'commit');
+  calls[2].resolve('history full patch');
+  await history;
+  assert.equal(ws().diffFullFile, false);
+  assert.equal(ws().commitDiff.diffFullFile, true);
+});

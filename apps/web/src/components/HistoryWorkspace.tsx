@@ -48,6 +48,7 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
     commitFilesLoading,
     commitFilesError,
     diff,
+    diffFullFile,
     diffLoading,
     diffError,
   } = useWorkspaceData(repoId, (workspace) => ({
@@ -59,6 +60,7 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
     commitFilesLoading: workspace.commitFilesLoading,
     commitFilesError: workspace.commitFilesError,
     diff: workspace.commitDiff.diff,
+    diffFullFile: workspace.commitDiff.diffFullFile,
     diffLoading: workspace.commitDiff.diffLoading,
     diffError: workspace.commitDiff.diffError,
   }));
@@ -364,6 +366,14 @@ export function HistoryWorkspace({ repoId, targetHash }: { repoId: string; targe
               </aside>
               <DiffViewer
                 diff={diff}
+                fullFile={diffFullFile}
+                onFullFileChange={(fullFile) =>
+                  void fetchDiff(repoId, {
+                    commit: selected.hash,
+                    file: file?.path,
+                    fullFile,
+                  }, 'commit')
+                }
                 loading={diffLoading}
                 comparisonKey={JSON.stringify([repoId, selected.hash, file?.path])}
                 repoId={repoId}

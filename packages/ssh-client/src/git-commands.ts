@@ -86,7 +86,7 @@ export class GitCommands {
       '--no-ext-diff',
       '--no-textconv',
       '--submodule=log',
-      '--unified=3',
+      options?.fullFile ? '--unified=2147483647' : '--unified=3',
     ];
     let args = ['diff', ...flags];
     let untracked = false;

@@ -75,6 +75,7 @@ export type SelectedRepositoryFile = { path: string; status: string; staged: boo
 export type DiffSlot = 'worktree' | 'commit';
 
 export interface DiffState {
+  diffFullFile: boolean;
   diff: string;
   partialDiff: PartialDiffPreview | null;
   /** The user opted in to line actions for this comparison (`diffKey`). */
@@ -86,6 +87,7 @@ export interface DiffState {
 }
 
 const emptyDiff = (): DiffState => ({
+  diffFullFile: false,
   diff: '',
   partialDiff: null,
   partialDiffEnabled: false,
@@ -859,10 +861,17 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       const current = () => requests.get(id) === workspaceBook && request === requestBook.request;
       const diffKey = diffComparisonKey(id, params);
       const state = workspaceDiff(get().workspaces[id], slot);
-      const refreshing = state.diffKey === diffKey && !state.diffLoading && !state.diffError;
+      const fullFile = params?.fullFile ?? state.diffFullFile;
+      params = { ...params, fullFile };
+      const refreshing =
+        state.diffKey === diffKey &&
+        state.diffFullFile === fullFile &&
+        !state.diffLoading &&
+        !state.diffError;
       // Line actions stay enabled only while the same comparison is refreshed.
       const partialDiffEnabled = state.diffKey === diffKey && state.partialDiffEnabled;
       patchDiff(id, slot, {
+        diffFullFile: fullFile,
         diffKey,
         diff: refreshing ? state.diff : '',
         partialDiff: refreshing && state.partialDiff ? { diff: state.diff } : null,
@@ -931,7 +940,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       try {
         const response = await repositoryApi.diff(
           id,
-          { ...params, editable: true },
+          { ...params, fullFile: workspace.diffFullFile, editable: true },
           controller.signal,
         );
         const partialDiff: PartialDiffPreview =

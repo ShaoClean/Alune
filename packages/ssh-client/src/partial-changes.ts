@@ -243,7 +243,7 @@ export class PartialChanges {
     const working = await this.worktree(root, file);
     return { head: head.stdout, index, tree, attributes, before, cached, working };
   }
-  private async read(root: string, file: string, staged: boolean) {
+  private async read(root: string, file: string, staged: boolean, fullFile = false) {
     // Objects are immutable by OID. Only reuse their bytes within this read;
     // HEAD, index entries, attributes and worktree bytes are still read twice.
     const blobs = new Map<string, string>();
@@ -259,7 +259,7 @@ export class PartialChanges {
       '--full-index',
       '--src-prefix=a/',
       '--dst-prefix=b/',
-      '--unified=3',
+      fullFile ? '--unified=2147483647' : '--unified=3',
       '--inter-hunk-context=0',
       '--diff-algorithm=myers',
       '--no-indent-heuristic',
@@ -275,14 +275,19 @@ export class PartialChanges {
     if (!hunks.length) throw new Unsupported('没有可按块或按行操作的文本改动。');
     return { state, diff, hunks, revision: hash([root, file, staged, state, diff]) };
   }
-  async preview(root: string, file: string, staged: boolean): Promise<PartialDiffPreview> {
+  async preview(
+    root: string,
+    file: string,
+    staged: boolean,
+    fullFile = false,
+  ): Promise<PartialDiffPreview> {
     try {
-      const { diff, revision } = await this.read(root, file, staged);
+      const { diff, revision } = await this.read(root, file, staged, fullFile);
       return { diff, revision };
     } catch (error) {
       if (!(error instanceof Unsupported)) throw error;
       return {
-        diff: await new GitCommands(this.connection).diff(root, { file, staged }),
+        diff: await new GitCommands(this.connection).diff(root, { file, staged, fullFile }),
         unavailableReason: error.message,
       };
     }
@@ -290,6 +295,7 @@ export class PartialChanges {
   async apply(root: string, request: PartialDiffRequest) {
     if (
       !request ||
+      (request.fullFile !== undefined && typeof request.fullFile !== 'boolean') ||
       !['stage', 'unstage', 'discard'].includes(request.action) ||
       typeof request.revision !== 'string' ||
       !/^[a-f0-9]{64}$/.test(request.revision)
@@ -300,7 +306,7 @@ export class PartialChanges {
     const staged = request.action === 'unstage';
     let current;
     try {
-      current = await this.read(root, request.file, staged);
+      current = await this.read(root, request.file, staged, request.fullFile);
     } catch (error) {
       if (error instanceof Unsupported) throw stale();
       throw error;

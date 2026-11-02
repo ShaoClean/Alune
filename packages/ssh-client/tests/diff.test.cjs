@@ -236,3 +236,27 @@ test('modified, deleted, renamed and initial/history diffs retain Git semantics'
   run(dir, 'config', 'diff.external', 'false');
   assert.match(await readOnlyDiff(dir, { file: '中文 renamed.txt' }), /\+edited after rename/);
 });
+
+
+test('full-file context includes unchanged head and tail for worktree, index and history', async () => {
+  const dir = repo();
+  const file = 'context.txt';
+  const original = Array.from({ length: 40 }, (_, i) => `line ${i + 1}\n`).join('');
+  write(dir, file, original);
+  run(dir, 'add', file);
+  run(dir, 'commit', '-qm', 'context base');
+  write(dir, file, original.replace('line 20\n', 'edited\n'));
+  const check = async (options) => {
+    const compact = await readOnlyDiff(dir, { file, ...options });
+    assert.doesNotMatch(compact, / line 1\n| line 40\n/);
+    const full = await readOnlyDiff(dir, { file, ...options, fullFile: true });
+    assert.match(full, / line 1\n/);
+    assert.match(full, / line 40\n/);
+    assert.match(full, /-line 20\n\+edited\n/);
+  };
+  await check({});
+  run(dir, 'add', file);
+  await check({ staged: true });
+  run(dir, 'commit', '-qm', 'edit');
+  await check({ commit: 'HEAD' });
+});

@@ -228,6 +228,7 @@ export class RepositoryController {
     const cancel = () => controller.abort();
     response?.once('close', cancel);
     const options: DiffOptions = {
+      fullFile: query.fullFile === true || query.fullFile === 'true',
       file: typeof query.file === 'string' ? query.file : undefined,
       staged:
         query.staged === true ||
@@ -248,6 +249,7 @@ export class RepositoryController {
           id,
           options.file,
           !!options.staged,
+          !!options.fullFile,
           controller.signal,
         );
       return await this.repoService.getDiff(id, options, controller.signal);

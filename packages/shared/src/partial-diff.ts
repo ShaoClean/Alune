@@ -7,6 +7,7 @@ export type PartialDiffPreview = {
   unavailableReason?: string;
 };
 export type PartialDiffRequest = {
+  fullFile?: boolean;
   file: string;
   action: PartialDiffAction;
   revision: string;
