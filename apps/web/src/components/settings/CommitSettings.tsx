@@ -1,4 +1,3 @@
-import { FeedbackAlert } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import { Button, Input, Select } from '@alune/ui';
@@ -53,20 +52,13 @@ export function CommitSettings({
         <fieldset disabled={busy} className="settings-fieldset">
           <h2>默认模型</h2>
           {!providers.length && (
-            <FeedbackAlert
-              source="CommitSettings-1"
-              type="info"
-              title="尚无已启用的模型"
-              description={
-                <span>
-                  在{' '}
-                  <button type="button" className="settings-text-button" onClick={onProviders}>
-                    AI 服务商
-                  </button>{' '}
-                  中配置并启用服务商和模型。
-                </span>
-              }
-            />
+            <p className="settings-field-hint">
+              尚无已启用的模型，请在
+              <button type="button" className="settings-text-button" onClick={onProviders}>
+                AI 服务商
+              </button>
+              中配置并启用服务商和模型。
+            </p>
           )}
           <div className="settings-form-row">
             <label htmlFor="commit-provider" className="settings-field">
@@ -157,12 +149,10 @@ export function CommitSettings({
                 : 'Describe the main changes and their purpose when a body is useful.'}
             </p>
           </div>
-          <FeedbackAlert
-            source="CommitSettings-2"
-            type="info"
-            title="仅已暂存改动"
-            description="暂存差异将发送给你选择的 AI 服务商。二进制文件仅提供变更信息；超过 96 KiB 时请减少暂存范围。生成后可编辑、撤销，由你主动提交。"
-          />
+          <p className="settings-field-hint">
+            仅已暂存改动：暂存差异将发送给你选择的 AI 服务商。二进制文件仅提供变更信息；超过 96 KiB
+            时请减少暂存范围。生成后可编辑、撤销，由你主动提交。
+          </p>
           <div className="settings-actions settings-actions--end">
             <Button htmlType="submit" type="primary" icon={<CheckOutlined />} loading={busy}>
               保存设置
