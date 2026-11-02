@@ -484,7 +484,7 @@ export function ReviewCommentComposer({
   return (
     <form
       className="pull-request-composer"
-      aria-label={inline ? '代码评论' : 'Overview 评论'}
+      aria-label={inline ? '代码评论' : '普通评论'}
       onSubmit={(event) => {
         event.preventDefault();
         void review.submit('comment');
@@ -504,13 +504,13 @@ export function ReviewCommentComposer({
               disabled={review.pending}
               onClick={() => review.select(undefined, review.actions?.revision || '')}
             >
-              改为 Overview 评论
+              改为 普通评论
             </Button>
           </p>
         ) : (
           <>
             <Input.TextArea
-              aria-label={inline ? '代码评论内容' : 'Overview 评论内容'}
+              aria-label={inline ? '代码评论内容' : '普通评论内容'}
               value={review.draft.body}
               disabled={review.pending}
               onChange={(event) => review.updateBody(event.target.value)}

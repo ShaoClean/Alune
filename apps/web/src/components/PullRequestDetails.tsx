@@ -2,7 +2,7 @@ import { useCodeTheme } from './useCodeTheme';
 import { useDiffHighlight } from './useDiffHighlight';
 import { FeedbackScope, EmptyState } from '@alune/ui';
 import { FeedbackAlert } from '@alune/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react';
 import type { ReactNode } from 'react';
 import { Button, DialogIcon, FileIcon, Select, Spin, Tabs, Tag } from '@alune/ui';
 import type {
@@ -623,6 +623,7 @@ function DetailContent({
   onChanged,
   navigation,
   tools,
+  contextDetails,
 }: {
   repoId: string;
   query: PullRequestDetailQuery;
@@ -633,11 +634,14 @@ function DetailContent({
   onChanged: () => void;
   navigation: ReactNode;
   tools: ReactNode;
+  contextDetails?: ReactNode;
 }) {
   const load = useCallback(
     (signal: AbortSignal) => repositoryApi.pullRequestDetail(repoId, query, signal),
     [repoId, query, refresh],
   );
+  const [infoOpen, setInfoOpen] = useState(false);
+  const infoId = useId();
   const resource = useResource(load);
   const review = useReviewActions(repoId, query, refresh, onChanged);
   const [selectedFile, setSelectedFile] = useState<string | null>(
@@ -661,9 +665,11 @@ function DetailContent({
       label={`PR/MR ${query.number}`}
     >
       <header className="pull-request-detail__header">
-        <div className="pull-request-detail__navigation" role="group" aria-label="返回与切换请求">
-          {navigation}
-        </div>
+        {navigation && (
+          <div className="pull-request-detail__navigation" role="group" aria-label="返回与切换请求">
+            {navigation}
+          </div>
+        )}
         <div className="pull-request-detail__summary">
           <div className="pull-request-detail__heading">
             <h2 tabIndex={-1} ref={heading} title={summary?.title}>
@@ -688,105 +694,195 @@ function DetailContent({
             </div>
           )}
         </div>
-        <div className="pull-request-detail__tools">
-          <div className="pull-request-detail__utilities" role="group" aria-label="查看与刷新">
-            {tools}
-          </div>
-          <ReviewActionBar review={review} query={query} summary={summary} />
-        </div>
       </header>
       <LoadState context="detail" {...resource} />
-      <Tabs
-        className="pull-request-detail__tabs"
-        destroyOnHidden
-        activeKey={tab}
-        onChange={onTabChange}
-        items={[
-          {
-            key: 'overview',
-            label: '概览',
-            children: (
-              <div className="pull-request-overview">
-                {detail && (
-                  <section className="pull-request-description" aria-label="合并请求描述">
-                    <h3>描述</h3>
-                    <div className="release-notes pull-request-markdown">
-                      {detail.description.trim() ? (
-                        <MarkdownContent text={detail.description} />
-                      ) : (
-                        <EmptyState compact title="暂无描述" />
-                      )}
-                    </div>
-                  </section>
-                )}
-                <Discussions
-                  key={`overview:${refresh}`}
-                  posted={review.posted}
+      <div className="pull-request-detail__toolbar">
+        <nav
+          role="tablist"
+          aria-label="审阅内容"
+          className="pull-request-detail__view-tabs"
+          onKeyDown={(event) => {
+            const keys = ['files', 'discussions', 'overview'];
+            const index = keys.indexOf(tab);
+            const next =
+              event.key === 'ArrowRight'
+                ? (index + 1) % keys.length
+                : event.key === 'ArrowLeft'
+                  ? (index + keys.length - 1) % keys.length
+                  : event.key === 'Home'
+                    ? 0
+                    : event.key === 'End'
+                      ? keys.length - 1
+                      : -1;
+            if (next < 0) return;
+            event.preventDefault();
+            onTabChange(keys[next]);
+            event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+          }}
+        >
+          {[
+            ['files', `文件变动${detail?.fileCount != null ? ` (${detail.fileCount})` : ''}`],
+            ['discussions', '评论与讨论'],
+            ['overview', '概览'],
+          ].map(([key, label]) => (
+            <Button
+              key={key}
+              type="text"
+              role="tab"
+              id={`${infoId}-tabs-tab-${key}`}
+              aria-controls={`${infoId}-tabs-panel-${key}`}
+              aria-selected={tab === key}
+              tabIndex={tab === key ? 0 : -1}
+              aria-pressed={tab === key}
+              onClick={() => onTabChange(key)}
+            >
+              {label}
+            </Button>
+          ))}
+        </nav>
+        <div className="pull-request-detail__tools">
+          <Button
+            type="text"
+            aria-expanded={infoOpen}
+            aria-controls={infoId}
+            onClick={() => setInfoOpen(!infoOpen)}
+          >
+            {infoOpen ? '收起详情' : '详情侧栏'}
+          </Button>
+          <ReviewActionBar review={review} query={query} summary={summary} />
+        </div>
+      </div>
+      <div
+        className={`pull-request-detail__workspace${infoOpen ? ' pull-request-detail__workspace--info' : ''}`}
+      >
+        <Tabs
+          id={`${infoId}-tabs`}
+          className="pull-request-detail__tabs"
+          renderTabBar={() => <></>}
+          destroyOnHidden
+          activeKey={tab}
+          onChange={onTabChange}
+          items={[
+            {
+              key: 'overview',
+              label: '概览',
+              children: (
+                <div className="pull-request-overview">
+                  {detail && (
+                    <section className="pull-request-description" aria-label="合并请求描述">
+                      <h3>描述</h3>
+                      <div className="release-notes pull-request-markdown">
+                        {detail.description.trim() ? (
+                          <MarkdownContent text={detail.description} />
+                        ) : (
+                          <EmptyState compact title="暂无描述" />
+                        )}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: 'files',
+              className: 'pull-request-files-tab',
+              label: `文件变动${detail?.fileCount != null ? ` (${detail.fileCount})` : ''}`,
+              children: detail && (
+                <Files
+                  key={detail.revision}
+                  revision={detail.revision}
+                  selected={selectedFile}
+                  onFileChange={setSelectedFile}
+                  review={review}
+                  refresh={refresh}
                   repoId={repoId}
                   query={query}
-                  kind="comments"
-                  title={query.provider === 'github' ? '评论' : '评论与代码讨论'}
+                  notice={detail?.filesNotice}
+                  expectedCount={detail?.fileCount}
                 />
-                <ReviewCommentComposer review={review} />
-              </div>
-            ),
-          },
-          {
-            key: 'files',
-            className: 'pull-request-files-tab',
-            label: `文件变动${detail?.fileCount != null ? ` (${detail.fileCount})` : ''}`,
-            children: detail && (
-              <Files
-                key={detail.revision}
-                revision={detail.revision}
-                selected={selectedFile}
-                onFileChange={setSelectedFile}
-                review={review}
-                refresh={refresh}
-                repoId={repoId}
-                query={query}
-                notice={detail?.filesNotice}
-                expectedCount={detail?.fileCount}
-              />
-            ),
-          },
-          {
-            key: 'discussions',
-            label: '评论与讨论',
-            children: (
-              <div className="pull-request-discussion-view">
-                <Discussions
-                  key={`comments:${refresh}`}
-                  posted={review.posted}
-                  repoId={repoId}
-                  query={query}
-                  kind="comments"
-                  title={query.provider === 'github' ? '评论' : '评论与代码讨论'}
-                />
-                {query.provider === 'github' && (
-                  <>
-                    <Discussions
-                      key={`reviews:${refresh}`}
-                      repoId={repoId}
-                      query={query}
-                      kind="reviews"
-                      title="Review 记录"
-                    />
-                    <Discussions
-                      key={`code:${refresh}`}
-                      posted={review.posted}
-                      repoId={repoId}
-                      query={query}
-                      kind="code"
-                      title="代码行讨论"
-                    />
-                  </>
-                )}
-              </div>
-            ),
-          },
-        ]}
-      />
+              ),
+            },
+            {
+              key: 'discussions',
+              label: '评论与讨论',
+              children: (
+                <div className="pull-request-discussion-view">
+                  <Discussions
+                    key={`comments:${refresh}`}
+                    posted={review.posted}
+                    repoId={repoId}
+                    query={query}
+                    kind="comments"
+                    title={query.provider === 'github' ? '评论' : '评论与代码讨论'}
+                  />
+                  <ReviewCommentComposer review={review} />
+                  {query.provider === 'github' && (
+                    <>
+                      <Discussions
+                        key={`reviews:${refresh}`}
+                        repoId={repoId}
+                        query={query}
+                        kind="reviews"
+                        title="Review 记录"
+                      />
+                      <Discussions
+                        key={`code:${refresh}`}
+                        posted={review.posted}
+                        repoId={repoId}
+                        query={query}
+                        kind="code"
+                        title="代码行讨论"
+                      />
+                    </>
+                  )}
+                </div>
+              ),
+            },
+          ]}
+        />
+        <aside
+          id={infoId}
+          className="pull-request-detail__info"
+          aria-label="请求详情"
+          hidden={!infoOpen}
+        >
+          <section>
+            <h3>合并与检查</h3>
+            <p>
+              {review.loading
+                ? '正在检查操作权限…'
+                : review.actions?.merge.allowed
+                  ? '可以合并'
+                  : review.actions?.merge.reason || '暂不可合并'}
+            </p>
+            {review.error && <p role="alert">{review.error}</p>}
+            {summary && <PullRequestBranches {...summary} />}
+          </section>
+          <section>
+            <h3>描述摘要</h3>
+            <div className="release-notes pull-request-detail__description-preview">
+              <MarkdownContent text={detail?.description.trim() || '暂无描述'} />
+            </div>
+            <Button type="text" onClick={() => onTabChange('overview')}>
+              查看完整描述
+            </Button>
+          </section>
+          <section>
+            <h3>参与者</h3>
+            <p>作者：{summary?.author || '—'}</p>
+          </section>
+          {contextDetails && (
+            <section>
+              <h3>仓库与访问配置</h3>
+              {contextDetails}
+            </section>
+          )}
+          <section>
+            <h3>更多操作</h3>
+            <div className="pull-request-detail__utilities">{tools}</div>
+          </section>
+        </aside>
+      </div>
     </FeedbackScope>
   );
 }
@@ -798,6 +894,8 @@ export function PullRequestDetails({
   number,
   token,
   selectionVersion,
+  contextDetails,
+  showNavigation = true,
   items,
   refreshToken,
   onOpen,
@@ -810,6 +908,8 @@ export function PullRequestDetails({
   number: number;
   token: string | null;
   selectionVersion?: string;
+  contextDetails?: ReactNode;
+  showNavigation?: boolean;
   items: PullRequestItem[];
   refreshToken: number;
   onOpen: (number: number) => void;
@@ -817,7 +917,7 @@ export function PullRequestDetails({
   onChanged: () => void;
 }) {
   const [refresh, setRefresh] = useState(0);
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState('files');
   const query = useMemo(
     () => ({
       remote: remote.name,
@@ -834,28 +934,33 @@ export function PullRequestDetails({
   return (
     <div className="pull-request-detail" aria-label="PR/MR 详情">
       <DetailContent
+        contextDetails={contextDetails}
         navigation={
-          <>
-            <Button
-              type="text"
-              icon={<DialogIcon name="arrow-right" className="pull-request-back-icon" />}
-              onClick={onBack}
-              aria-label="返回列表"
-              title="返回列表"
-            />
-            <Select
-              variant="borderless"
-              aria-label="切换 PR/MR"
-              value={number}
-              onChange={onOpen}
-              labelRender={() => `${provider === 'github' ? '#' : '!'}${number}`}
-              popupMatchSelectWidth={360}
-              options={(item ? items : [{ number, title: '当前条目' }, ...items]).map((entry) => ({
-                value: entry.number,
-                label: `${provider === 'github' ? '#' : '!'}${entry.number} ${entry.title}`,
-              }))}
-            />
-          </>
+          showNavigation && (
+            <>
+              <Button
+                type="text"
+                icon={<DialogIcon name="arrow-right" className="pull-request-back-icon" />}
+                onClick={onBack}
+                aria-label="返回列表"
+                title="返回列表"
+              />
+              <Select
+                variant="borderless"
+                aria-label="切换 PR/MR"
+                value={number}
+                onChange={onOpen}
+                labelRender={() => `${provider === 'github' ? '#' : '!'}${number}`}
+                popupMatchSelectWidth={360}
+                options={(item ? items : [{ number, title: '当前条目' }, ...items]).map(
+                  (entry) => ({
+                    value: entry.number,
+                    label: `${provider === 'github' ? '#' : '!'}${entry.number} ${entry.title}`,
+                  }),
+                )}
+              />
+            </>
+          )
         }
         tools={
           <>

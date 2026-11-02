@@ -1,3 +1,4 @@
+import { WorkspaceHeader } from '../components/WorkspaceHeader';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -227,54 +228,50 @@ function CenterDetail({
   const identityMissing = Boolean(source.remote?.selection?.tokenId && context && !context.account);
   return (
     <section className="pr-center-detail" aria-label="中心 PR/MR 详情">
-      <header className="pr-center-detail__bar">
-        <Button onClick={() => navigate(centerListUrl(query))}>← 返回 PR/MR 中心</Button>
-        <span className="pr-center-project">
-          {remote.host} / <strong>{remote.project}</strong> ·{' '}
-          {source.provider === 'github' ? '#' : '!'}
-          {number}
-        </span>
-        <Button
-          type="text"
-          onClick={() =>
-            navigate(
-              `/repositories/${source.repositoryId}?panel=pull-requests&remote=${encodeURIComponent(remote.name)}`,
-            )
-          }
-        >
-          打开所属仓库
-        </Button>
-      </header>
-      <div className="pr-center-actor">
-        <span>
-          操作账号：
-          {context
-            ? context.account
-              ? `${context.account.host} / @${context.account.username}`
-              : identityMissing
-                ? '账号未识别'
-                : '匿名（只读）'
-            : '正在确认…'}
-        </span>
-        {alternatives.length > 1 && (
+      <WorkspaceHeader>
+        <nav className="pr-center-detail__bar" aria-label="PR/MR 导航">
+          <Button type="text" onClick={() => navigate(centerListUrl(query))}>
+            ← PR/MR 中心
+          </Button>
+          <span className="pr-center-project">
+            {remote.host} / <strong>{remote.project}</strong>
+          </span>
           <Select
-            aria-label="切换操作账号及来源"
-            value={source.id}
-            onChange={(id) => open(alternatives.find((s) => s.id === id)!)}
-            options={alternatives.map((s) => ({
-              value: s.id,
-              label: `${s.account ? `@${s.account.username}` : s.remote?.selection?.tokenId ? '关联账号' : '匿名'} · ${s.repositoryName} · ${s.remote!.name} · ${s.location}`,
-            }))}
+            className="pr-center-request-picker"
+            variant="borderless"
+            aria-label="切换 PR/MR"
+            value={number}
+            onChange={(value) => open(source, value)}
+            labelRender={() => `${source.provider === 'github' ? '#' : '!'}${number}`}
+            popupMatchSelectWidth={360}
+            options={[
+              ...(!items.some(
+                (item) => item.projectKey === source.projectKey && item.number === number,
+              )
+                ? [
+                    {
+                      value: number,
+                      label: `${source.provider === 'github' ? '#' : '!'}${number} 当前条目`,
+                    },
+                  ]
+                : []),
+              ...items
+                .filter((item) => item.projectKey === source.projectKey)
+                .map((item) => ({
+                  value: item.number,
+                  label: `${source.provider === 'github' ? '#' : '!'}${item.number} ${item.title}`,
+                })),
+            ]}
           />
-        )}
-        <Button type="text" onClick={onSources}>
-          访问配置
-        </Button>
-      </div>
+        </nav>
+      </WorkspaceHeader>
       {error ? (
         <div className="pr-center-notice" role="alert">
           {error}
           <Button onClick={() => setRetry((n) => n + 1)}>重试</Button>
+          <Button type="text" onClick={onSources}>
+            访问配置
+          </Button>
           {(expectedVersion !== (remote.selection?.version || '') ||
             expectedTarget !== remote.webUrl) && (
             <Button onClick={() => open(source)}>确认使用当前来源</Button>
@@ -284,6 +281,9 @@ function CenterDetail({
         <div className="pr-center-notice" role="alert">
           {context?.identityNotice} 请确认账号后再打开审阅操作。
           <Button onClick={() => setRetry((n) => n + 1)}>重新确认</Button>
+          <Button type="text" onClick={onSources}>
+            访问配置
+          </Button>
         </div>
       ) : !context ? (
         <div className="pr-center-empty">
@@ -294,9 +294,50 @@ function CenterDetail({
         <PullRequestDetails
           key={`${source.id}:${expectedVersion}:${number}`}
           repoId={source.repositoryId}
+          showNavigation={false}
           remote={remote}
           provider={source.provider!}
           number={number}
+          contextDetails={
+            <>
+              <div className="pr-center-actor">
+                <span>
+                  操作账号：
+                  {context
+                    ? context.account
+                      ? `${context.account.host} / @${context.account.username}`
+                      : identityMissing
+                        ? '账号未识别'
+                        : '匿名（只读）'
+                    : '正在确认…'}
+                </span>
+                {alternatives.length > 1 && (
+                  <Select
+                    aria-label="切换操作账号及来源"
+                    value={source.id}
+                    onChange={(id) => open(alternatives.find((s) => s.id === id)!)}
+                    options={alternatives.map((s) => ({
+                      value: s.id,
+                      label: `${s.account ? `@${s.account.username}` : s.remote?.selection?.tokenId ? '关联账号' : '匿名'} · ${s.repositoryName} · ${s.remote!.name} · ${s.location}`,
+                    }))}
+                  />
+                )}
+                <Button type="text" onClick={onSources}>
+                  访问配置
+                </Button>
+              </div>
+              <Button
+                type="text"
+                onClick={() =>
+                  navigate(
+                    `/repositories/${source.repositoryId}?panel=pull-requests&remote=${encodeURIComponent(remote.name)}`,
+                  )
+                }
+              >
+                打开所属仓库
+              </Button>
+            </>
+          }
           token={null}
           selectionVersion={expectedVersion}
           items={items.filter((item) => item.projectKey === source.projectKey)}

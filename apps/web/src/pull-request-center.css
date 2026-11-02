@@ -327,3 +327,78 @@
 .pr-center-detail .pull-request-files-tab {
   overflow: hidden;
 }
+
+/* Source identity is grouped in the optional detail panel, not a second header. */
+.pr-center-detail__bar {
+  padding: 4px 12px;
+  gap: 8px;
+  min-height: 36px;
+  border-color: var(--hair);
+}
+.pr-center-project {
+  font-size: 11px;
+}
+.pull-request-detail__info .pr-center-actor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  gap: 8px;
+  border: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.pull-request-detail__info .pr-center-actor > .ant-select {
+  width: 100%;
+  min-width: 0;
+}
+.pull-request-detail__info .pr-center-actor > .ant-btn {
+  align-self: flex-start;
+}
+
+/* Detail breadcrumbs occupy the application title bar, never another content row. */
+.app-tabbar__route-header {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+.app-tabbar__route-header:empty::before {
+  content: 'PR/MR 中心';
+  padding-inline: 20px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.app-tabbar__route-header .pr-center-detail__bar {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  flex-wrap: nowrap;
+  padding: 0 12px;
+}
+.app-tabbar__route-header .pr-center-project {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  order: initial;
+}
+.app-content.app-content--pr-detail {
+  padding: 0;
+}
+.app-tabbar__route-header .pr-center-project {
+  flex: 0 1 auto;
+}
+.pr-center-request-picker {
+  width: 86px;
+  flex-shrink: 0;
+}
+.pr-center-detail .pull-request-detail__header {
+  grid-template-columns: minmax(0, 1fr);
+}
+.pr-center-detail .pull-request-detail__summary {
+  grid-row: auto;
+}

@@ -157,3 +157,38 @@ test('line guidance leaves disabled-state explanations to the feedback dialog', 
     assert.equal(render(review), '');
   assert.equal(render(allowed, { fileNotice: '部分 Diff 缺失' }), '');
 });
+
+test('details open in file review with collapsed context and retain discussion navigation', async () => {
+  const { PullRequestDetails } = await import('../src/components/PullRequestDetails.tsx');
+  const html = renderToStaticMarkup(
+    createElement(PullRequestDetails, {
+      repoId: 'layout-fixture',
+      remote: { name: 'origin', webUrl: 'https://gitlab.example.com/team/repo' },
+      provider: 'gitlab',
+      number: 988,
+      token: null,
+      items: [
+        {
+          number: 988,
+          title: 'Review first',
+          state: 'open',
+          author: 'alice',
+          sourceBranch: 'fix/save',
+          targetBranch: 'main',
+          updatedAt: '2026-10-30T00:00:00Z',
+        },
+      ],
+      refreshToken: 0,
+      onOpen() {},
+      onBack() {},
+      onChanged() {},
+      contextDetails: createElement('span', null, '操作账号：@reviewer'),
+    }),
+  );
+  assert.match(html, /aria-pressed="true"[^>]*><span>文件变动<\/span>/);
+  assert.match(html, /aria-expanded="false"[^>]*><span>详情侧栏<\/span>/);
+  assert.match(html, /<aside[^>]*hidden=""/);
+  assert.ok(html.indexOf('操作账号：@reviewer') > html.indexOf('<aside'));
+  assert.match(html, /评论与讨论/);
+  assert.match(html, /aria-label="更多审阅操作"/);
+});
