@@ -5,7 +5,7 @@ import { usePartialDiff } from './usePartialDiff';
 import type { PartialDiffControls } from './usePartialDiff';
 import { FeedbackAlert } from '@alune/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Button, Segmented } from '@alune/ui';
+import { Button, Segmented, Tooltip } from '@alune/ui';
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
@@ -14,6 +14,7 @@ import {
   DiffOutlined,
   ExpandOutlined,
   AimOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import {
@@ -42,6 +43,8 @@ const DIFF_MODES = [
 ];
 
 interface Props {
+  fullFile?: boolean;
+  onFullFileChange?: (fullFile: boolean) => void;
   oldCode?: string;
   newCode?: string;
   diff?: string;
@@ -182,6 +185,8 @@ export function DiffViewer({
   imageRequest,
   error,
   partial,
+  fullFile = false,
+  onFullFileChange,
 }: Props) {
   const { theme, style } = useCodeTheme();
   const partialActions = usePartialDiff(repoId, filePath, diff, partial, loading || !!error);
@@ -483,6 +488,7 @@ export function DiffViewer({
           }}
           oldValue={oldCode}
           newValue={newCode}
+          showDiffOnly={!fullFile}
           splitView={mode === 'split'}
           compareMethod={DiffMethod.WORDS}
           leftTitle="原始版本"
@@ -523,6 +529,24 @@ export function DiffViewer({
         <div className="diff-toolbar">
           {partialActions.toolbar}
           {partialActions.menu}
+          {partialActions.enableButton}
+          {onFullFileChange && (textDiff || fullFile) && (
+            <Tooltip
+              title={fullFile ? '仅查看改动' : '在整个文件中查看差异'}
+              getPopupContainer={(node) => node.closest('dialog') ?? document.body}
+            >
+              <Button
+                type={fullFile ? 'primary' : 'text'}
+                size="small"
+                icon={<FileTextOutlined />}
+                aria-label="在整个文件中查看差异"
+                aria-pressed={fullFile}
+                title={fullFile ? '仅查看改动' : '在整个文件中查看差异'}
+                disabled={loading || partialActions.busy || partial?.refreshing}
+                onClick={() => onFullFileChange(!fullFile)}
+              />
+            </Tooltip>
+          )}
           {navigation.total > 0 && (
             <div className="diff-change-nav" role="group" aria-label="改动导航">
               <Button

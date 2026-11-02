@@ -215,6 +215,7 @@ export interface StashEntry {
 }
 
 export interface DiffOptions {
+  fullFile?: boolean;
   file?: string;
   staged?: boolean;
   commit?: string;

@@ -331,3 +331,22 @@ test('closing a tab stops pending requests in both Diff slots', () => {
   );
   assert.equal(store.getState().workspaces.repo, undefined);
 });
+
+
+test('scope and enable-line controls are adjacent icons with accessible hover labels', () => {
+  for (const fullFile of [false, true]) {
+    const html = renderToStaticMarkup(createElement(DiffViewer, {
+      diff: textPatch, fullFile, onFullFileChange: () => {},
+      partial: { staged: false, onEnable: async () => {}, onChanged: async () => {} },
+    }));
+    const buttons = [...html.matchAll(/<button[^>]*>[\s\S]*?<\/button>/g)].map(m => m[0]);
+    const index = buttons.findIndex(button => button.includes('aria-label="开启按行操作"'));
+    assert.ok(index >= 0);
+    assert.match(buttons[index], /ant-btn-icon-only/);
+    assert.match(buttons[index], /title="开启按行操作"/);
+    assert.match(buttons[index + 1], /aria-label="在整个文件中查看差异"/);
+    assert.match(buttons[index + 1], new RegExp(`aria-pressed="${fullFile}"`));
+    assert.match(buttons[index + 1], /ant-btn-icon-only/);
+    assert.match(buttons[index + 1], new RegExp(`title="${fullFile ? '仅查看改动' : '在整个文件中查看差异'}"`));
+  }
+});

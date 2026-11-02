@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Button, Dropdown, FeedbackAlert } from '@alune/ui';
+import { Button, Dropdown, FeedbackAlert, Tooltip } from '@alune/ui';
 import type { MenuProps } from 'antd';
-import { EllipsisOutlined } from '@ant-design/icons';
+import { EllipsisOutlined, SelectOutlined } from '@ant-design/icons';
 import { parsePatchHunks } from '@alune/shared';
 import type { PartialDiffAction, PartialDiffSelection } from '@alune/shared';
 import { gitApi } from '../api';
 
 export type PartialDiffControls = {
+  fullFile?: boolean;
   revision?: string;
   staged: boolean;
   unavailableReason?: string;
@@ -88,6 +89,7 @@ export function usePartialDiff(
       await gitApi.partialDiff(repoId!, {
         file: file!,
         revision: controls.revision!,
+        fullFile: controls.fullFile,
         action,
         selection,
         ...(action === 'discard' ? { confirmed: true } : {}),
@@ -178,6 +180,22 @@ export function usePartialDiff(
     void execute(controls!.staged ? 'unstage' : 'stage', { lines: [...selected] });
   const discardSelected = () => discard({ lines: [...selected] });
   const canEnable = !enabled && !controls?.refreshing && Boolean(controls?.onEnable);
+  const enableButton = canEnable ? (
+    <Tooltip
+      title="开启按行操作"
+      getPopupContainer={(node) => node.closest('dialog') ?? document.body}
+    >
+      <Button
+        type="text"
+        size="small"
+        icon={<SelectOutlined />}
+        aria-label="开启按行操作"
+        title="开启按行操作"
+        disabled={loading || busy}
+        onClick={() => void controls?.onEnable?.()}
+      />
+    </Tooltip>
+  ) : null;
   const working = busy || (!enabled && !!controls?.refreshing);
   const status = !enabled
     ? controls?.refreshing
@@ -192,7 +210,7 @@ export function usePartialDiff(
         : '勾选改动行 · Shift 连选';
   // Rendered inside the Diff header; narrow headers swap the buttons for `menu`.
   const toolbar =
-    controls && (status || canEnable || enabled) ? (
+    controls && (status || enabled) ? (
       <div
         className="partial-diff-toolbar"
         role="group"
@@ -207,15 +225,6 @@ export function usePartialDiff(
           >
             {status}
           </span>
-        )}
-        {canEnable && (
-          <Button
-            size="small"
-            disabled={loading || busy}
-            onClick={() => void controls.onEnable?.()}
-          >
-            开启按行操作
-          </Button>
         )}
         {enabled && (
           <>
@@ -241,28 +250,26 @@ export function usePartialDiff(
         )}
       </div>
     ) : null;
-  const menuItems: NonNullable<MenuProps['items']> = canEnable
-    ? [{ key: 'enable', label: '开启按行操作', disabled: loading || busy }]
-    : enabled
-      ? [
-          {
-            key: 'apply',
-            label: controls!.staged ? '取消暂存所选行' : '暂存所选行',
-            disabled: disabled || !selected.size,
-          },
-          ...(!controls!.staged
-            ? [
-                {
-                  key: 'discard',
-                  label: '放弃所选行',
-                  danger: true,
-                  disabled: disabled || !selected.size,
-                },
-              ]
-            : []),
-          { key: 'clear', label: '清除选择', disabled: disabled || !selected.size },
-        ]
-      : [];
+  const menuItems: NonNullable<MenuProps['items']> = enabled
+    ? [
+        {
+          key: 'apply',
+          label: controls!.staged ? '取消暂存所选行' : '暂存所选行',
+          disabled: disabled || !selected.size,
+        },
+        ...(!controls!.staged
+          ? [
+              {
+                key: 'discard',
+                label: '放弃所选行',
+                danger: true,
+                disabled: disabled || !selected.size,
+              },
+            ]
+          : []),
+        { key: 'clear', label: '清除选择', disabled: disabled || !selected.size },
+      ]
+    : [];
   const menu = menuItems.length ? (
     <Dropdown
       trigger={['click']}
@@ -271,7 +278,6 @@ export function usePartialDiff(
       menu={{
         items: status ? [{ type: 'group', label: status, children: menuItems }] : menuItems,
         onClick: ({ key }) => {
-          if (key === 'enable') void controls?.onEnable?.();
           if (key === 'apply') applySelected();
           if (key === 'discard') discardSelected();
           if (key === 'clear') clearSelection();
@@ -349,5 +355,5 @@ export function usePartialDiff(
       )}
     </>
   );
-  return { enabled, selected, toolbar, menu, feedback, lineSelector, hunkActions };
+  return { enabled, busy, selected, enableButton, toolbar, menu, feedback, lineSelector, hunkActions };
 }

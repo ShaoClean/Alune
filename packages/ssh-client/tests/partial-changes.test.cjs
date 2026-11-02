@@ -309,3 +309,39 @@ test('preview reuses immutable blobs while still rejecting an index change betwe
     (error) => error.statusCode === 409,
   );
 });
+
+
+for (const kind of ['local', 'worktree', 'ssh']) {
+  test(`${kind}: full-file line actions preserve untouched context and reject mismatched scope`, async (t) => {
+    const f = await setup(t, kind);
+    const file = 'full-context.txt';
+    const original = Array.from({ length: 40 }, (_, i) => `line ${i}\n`).join('');
+    f.write(file, original);
+    f.git('add', file);
+    f.git('commit', '-qm', 'context base');
+    const firstEdit = original.replace('line 10\n', 'first edit\n');
+    const changed = firstEdit.replace('line 30\n', 'last edit\n');
+    f.write(file, changed);
+    const preview = await f.changes.preview(f.root, file, false, true);
+    assert.ok(preview.revision, preview.unavailableReason);
+    assert.match(preview.diff, / line 0\n/);
+    assert.match(preview.diff, / line 39\n/);
+    const lines = parsePatchHunks(preview.diff).flatMap(h => h.rows)
+      .filter(r => r.kind !== 'context' && /^(line 10|first edit)\n$/.test(r.content))
+      .map(r => r.index);
+    assert.equal(lines.length, 2);
+    const request = { file, action: 'stage', revision: preview.revision, selection: { lines } };
+    await assert.rejects(f.changes.apply(f.root, request), /已变化/);
+    await f.changes.apply(f.root, { ...request, fullFile: true });
+    assert.equal(f.git('show', `:${file}`), firstEdit);
+    assert.equal(f.read(file), changed);
+    const staged = await f.changes.preview(f.root, file, true, true);
+    await f.changes.apply(f.root, { file, action: 'unstage', fullFile: true,
+      revision: staged.revision, selection: { hunks: [0] } });
+    assert.equal(f.git('show', `:${file}`), original);
+    const unstaged = await f.changes.preview(f.root, file, false, true);
+    await f.changes.apply(f.root, { file, action: 'discard', fullFile: true, confirmed: true,
+      revision: unstaged.revision, selection: { lines } });
+    assert.equal(f.read(file), original.replace('line 30\n', 'last edit\n'));
+  });
+}

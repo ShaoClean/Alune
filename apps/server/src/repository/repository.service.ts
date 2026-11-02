@@ -621,11 +621,12 @@ export class RepositoryService {
     id: string,
     file: string,
     staged: boolean,
+    fullFile = false,
     signal?: AbortSignal,
   ) {
     const repo = await this.get(id);
     const conn = await this.connection(repo, signal);
-    return new PartialChanges(conn).preview(repo.path, file, staged);
+    return new PartialChanges(conn).preview(repo.path, file, staged, fullFile);
   }
 
   async getDiff(id: string, options?: DiffOptions, signal?: AbortSignal) {
