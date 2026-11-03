@@ -1632,6 +1632,152 @@
       "description": "渲染的子内容。"
     }
   ],
+  "CompactTableColumn": [
+    {
+      "name": "key",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "Stable column identifier."
+    },
+    {
+      "name": "title",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
+      "name": "width",
+      "type": "Property.Width<string | number>",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "align",
+      "type": "\"center\" | \"left\" | \"right\"",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "render",
+      "type": "(item: T) => ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "Display-only content in the first column; other columns may contain actions."
+    }
+  ],
+  "CompactTableGroup": [
+    {
+      "name": "key",
+      "type": "Key",
+      "required": true,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "label",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "items",
+      "type": "readonly T[]",
+      "required": true,
+      "default": "—",
+      "description": "Items in display order; empty groups are omitted."
+    }
+  ],
+  "CompactTableProps": [
+    {
+      "name": "label",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "columns",
+      "type": "readonly CompactTableColumn<T>[]",
+      "required": true,
+      "default": "—",
+      "description": "选项列数。"
+    },
+    {
+      "name": "groups",
+      "type": "readonly CompactTableGroup<T>[]",
+      "required": true,
+      "default": "—",
+      "description": "Ordered groups; filtering and sorting belong to the host."
+    },
+    {
+      "name": "rowKey",
+      "type": "(item: T) => Key",
+      "required": true,
+      "default": "—",
+      "description": "Stable, globally unique row key."
+    },
+    {
+      "name": "rowLabel",
+      "type": "(item: T) => string",
+      "required": true,
+      "default": "—",
+      "description": "Complete accessible identity for the row button."
+    },
+    {
+      "name": "selectedKey",
+      "type": "Key",
+      "required": false,
+      "default": "—",
+      "description": "Controlled selection. The host reconciles it after filtering."
+    },
+    {
+      "name": "onSelect",
+      "type": "((item: T) => void)",
+      "required": false,
+      "default": "—",
+      "description": "Click, Space, or arrow-key selection."
+    },
+    {
+      "name": "onActivate",
+      "type": "((item: T) => void)",
+      "required": false,
+      "default": "—",
+      "description": "Enter or double-click activation."
+    },
+    {
+      "name": "groupHeading",
+      "type": "ReactNode",
+      "required": false,
+      "default": "'分组'",
+      "description": "Heading of the merged grouping column."
+    },
+    {
+      "name": "groupWidth",
+      "type": "Property.Width<string | number>",
+      "required": false,
+      "default": "104",
+      "description": "Width of the merged grouping column."
+    },
+    {
+      "name": "empty",
+      "type": "ReactNode",
+      "required": false,
+      "default": "'暂无数据'",
+      "description": "Content displayed when every group is empty."
+    },
+    {
+      "name": "className",
+      "type": "string",
+      "required": false,
+      "default": "''",
+      "description": "附加 CSS 类名。"
+    }
+  ],
   "LedgerItem": [
     {
       "name": "icon",

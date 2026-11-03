@@ -15,6 +15,7 @@ import './pull-requests.css';
 import './pull-request-center.css';
 import './collection-views.css';
 import './repository-overview.css';
+import './repository-branches.css';
 import './theme.css';
 import './dialogs.css';
 import { initializeAppearance } from './appearance';

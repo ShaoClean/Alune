@@ -13,6 +13,7 @@ import {
   FolderOpenOutlined,
   PlusOutlined,
   SearchOutlined,
+  BranchesOutlined,
 } from '@ant-design/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -37,6 +38,7 @@ import { workspaceListId } from '../hooks/useRepositoryWorkspace';
 const navItems = [
   { key: '/connections', label: '连接', icon: <ApartmentOutlined /> },
   { key: '/repositories', label: '仓库', icon: <FolderOpenOutlined /> },
+  { key: '/branches', label: '分支总览', icon: <BranchesOutlined /> },
   { key: '/pull-requests', label: 'PR/MR 中心', icon: <PullRequestOutlined /> },
 ];
 
@@ -265,6 +267,7 @@ export function Layout() {
   }, [compact, mobileNavOpen]);
 
   const selectedKey = useMemo(() => {
+    if (location.pathname.startsWith('/branches')) return '/branches';
     if (location.pathname.startsWith('/pull-requests')) return '/pull-requests';
     if (location.pathname.startsWith('/repositories')) return '/repositories';
     return '/connections';
@@ -566,7 +569,7 @@ export function Layout() {
 
         <main className="app-main" inert={compact && mobileNavOpen}>
           <div
-            className={`app-content${workspaceRepositoryId ? ' app-content--workspace' : ''}${isPullRequestDetail ? ' app-content--pr-detail' : ''}`}
+            className={`app-content${workspaceRepositoryId ? ' app-content--workspace' : ''}${isPullRequestDetail ? ' app-content--pr-detail' : ''}${selectedKey === '/branches' ? ' app-content--branch-overview' : ''}`}
             hidden={isSettings}
             inert={isSettings}
           >
@@ -575,7 +578,9 @@ export function Layout() {
               label={
                 selectedKey === '/pull-requests'
                   ? 'PR/MR 中心'
-                  : activeRepository?.name || currentRepo?.name || '仓库'
+                  : selectedKey === '/branches'
+                    ? '分支总览'
+                    : activeRepository?.name || currentRepo?.name || '仓库'
               }
               active={!isSettings}
             >

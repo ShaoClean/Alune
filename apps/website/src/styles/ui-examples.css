@@ -31,6 +31,7 @@ main > astro-island {
   flex-direction: column;
   gap: 24px;
   width: 100%;
+  min-width: 0;
   max-width: 640px;
   margin-inline: auto;
 }

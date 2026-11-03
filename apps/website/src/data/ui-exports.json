@@ -7,6 +7,22 @@
     "source": "packages/ui/src/AluneUIProvider.tsx",
     "type": true
   },
+  "CompactTable": {
+    "source": "packages/ui/src/components/CompactTable.tsx",
+    "type": false
+  },
+  "CompactTableProps": {
+    "source": "packages/ui/src/components/CompactTable.tsx",
+    "type": true
+  },
+  "CompactTableColumn": {
+    "source": "packages/ui/src/components/CompactTable.tsx",
+    "type": true
+  },
+  "CompactTableGroup": {
+    "source": "packages/ui/src/components/CompactTable.tsx",
+    "type": true
+  },
   "DialogHints": {
     "source": "packages/ui/src/components/AluneModal.tsx",
     "type": false
