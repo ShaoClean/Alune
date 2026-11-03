@@ -746,6 +746,14 @@ function RepositoryWorkspace({
               setSyncError('');
             }}
           />
+          {statusEntry?.phase === 'loading' && statusEntry.slow && (
+            <div role="status" className="repository-slow-status">
+              <span>仓库检查耗时较长，正在继续读取…</span>
+              <Button size="small" onClick={() => useRepositoryStore.getState().cancelStatus(id)}>
+                取消读取
+              </Button>
+            </div>
+          )}
           <FeedbackNotice
             source="repository-status"
             title={statusFailed ? '无法读取仓库状态' : null}

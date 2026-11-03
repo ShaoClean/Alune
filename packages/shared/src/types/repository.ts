@@ -86,6 +86,7 @@ export interface WorktreeInfo {
 
 // The server bounds SSH + Git work; the client allows a little time for transport.
 export const REPOSITORY_STATUS_TIMEOUT_MS = 10_000;
+export const REPOSITORY_FOREGROUND_STATUS_TIMEOUT_MS = 120_000;
 export const REPOSITORY_STATUS_REQUEST_TIMEOUT_MS = 12_000;
 export const REPOSITORY_STATUS_CACHE_MS = 60_000;
 

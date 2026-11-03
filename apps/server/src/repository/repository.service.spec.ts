@@ -136,6 +136,57 @@ describe('RepositoryService registration and remote status', () => {
     expect(await service.list()).toHaveLength(2);
   });
 
+  it('gives explicit opens time to refresh the index while background reads stay bounded', async () => {
+    jest.useFakeTimers();
+    const repo = await service.add('host-a', '/fixture/slow');
+    const result = deferred<any>();
+    const git = jest.spyOn(GitCommands.prototype, 'status').mockReturnValue(result.promise);
+    const read = service.getStatus(repo.id, true);
+    await jest.advanceTimersByTimeAsync(65_000);
+    expect(git).toHaveBeenCalledWith(repo.path, expect.any(AbortSignal), true);
+    expect(git.mock.calls[0][1]!.aborted).toBe(false);
+    result.resolve(status);
+    await expect(read).resolves.toEqual(status);
+  });
+
+  it('promotes shared reads, cancels only after the last reader leaves, and permits immediate retry', async () => {
+    jest.useFakeTimers();
+    const repo = await service.add('host-a', '/fixture/slow');
+    const result = deferred<any>();
+    const git = jest.spyOn(GitCommands.prototype, 'status').mockReturnValue(result.promise);
+    const first = new AbortController();
+    const second = new AbortController();
+    const a = service.getStatus(repo.id, false, first.signal);
+    const aFailure = expect(a).rejects.toThrow('cancel first');
+    await jest.advanceTimersByTimeAsync(100);
+    const b = service.getStatus(repo.id, true, second.signal);
+    const bFailure = expect(b).rejects.toThrow('cancel second');
+    first.abort(new Error('cancel first'));
+    await aFailure;
+    await jest.advanceTimersByTimeAsync(65_000);
+    expect(git).toHaveBeenCalledTimes(1);
+    expect(git.mock.calls[0][1]!.aborted).toBe(false);
+    second.abort(new Error('cancel second'));
+    expect(git.mock.calls[0][1]!.aborted).toBe(true);
+    git.mockResolvedValue(status);
+    const retry = service.getStatus(repo.id, true);
+    await bFailure;
+    await expect(retry).resolves.toEqual(status);
+    result.resolve(status);
+  });
+
+  it('still bounds a foreground query at two minutes', async () => {
+    jest.useFakeTimers();
+    const repo = await service.add('host-a', '/fixture/slow');
+    const git = jest.spyOn(GitCommands.prototype, 'status').mockImplementation((_path, signal) =>
+      new Promise((_, reject) => signal!.addEventListener('abort', () => reject(signal!.reason))),
+    );
+    const failure = expect(service.getStatus(repo.id, true)).rejects.toMatchObject({ status: 504 });
+    await jest.advanceTimersByTimeAsync(120_000);
+    await failure;
+    expect(git.mock.calls[0][1]!.aborted).toBe(true);
+  });
+
   it('times out connection setup and never starts Git after the deadline', async () => {
     jest.useFakeTimers();
     const repo = await service.add('host-a', '/fixture/slow');

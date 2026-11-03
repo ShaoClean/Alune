@@ -1,7 +1,10 @@
 import type { LfsStatus, SubmoduleInfo } from '@alune/shared';
 import axios from 'axios';
 import { confirmTerminalRemoval } from '../stores/terminalRemoval';
-import { REPOSITORY_STATUS_REQUEST_TIMEOUT_MS } from '@alune/shared';
+import {
+  REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
+  REPOSITORY_FOREGROUND_STATUS_TIMEOUT_MS,
+} from '@alune/shared';
 import type {
   PullRequestAccount,
   PullRequestCenterQuery,
@@ -224,11 +227,14 @@ export const repositoryApi = {
   delete: (id: string) => api.delete(`/repositories/${id}`).then((r) => r.data),
   pin: (id: string, pinned: boolean) =>
     api.post(`/repositories/${id}/pin`, { pinned }).then((r) => r.data),
-  status: (id: string, signal?: AbortSignal) =>
+  status: (id: string, signal?: AbortSignal, foreground = false) =>
     api
       .get(`/repositories/${id}/status`, {
         signal,
-        timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
+        params: { foreground },
+        timeout: foreground
+          ? REPOSITORY_FOREGROUND_STATUS_TIMEOUT_MS + 2000
+          : REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
       })
       .then((r) => r.data),
   log: (id: string, params?: LogOptions, signal?: AbortSignal): Promise<LogPage> =>

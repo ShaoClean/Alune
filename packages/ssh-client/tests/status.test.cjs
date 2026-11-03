@@ -110,3 +110,22 @@ test('stream errors fail the request and an already aborted signal never starts 
   );
   assert.equal(calls, 1);
 });
+
+test('only explicit foreground status permits saving refreshed index metadata', async () => {
+  const commands = [];
+  const conn = connection((command, callback) => {
+    commands.push(command);
+    const channel = stream();
+    callback(null, channel);
+    queueMicrotask(() => {
+      channel.emit('data', Buffer.from('# branch.head main\0'));
+      channel.emit('close', 0);
+    });
+  });
+  const git = new GitCommands(conn);
+  await git.status('/repo');
+  await git.status('/repo', undefined, true);
+  assert.match(commands[0], /--no-optional-locks/);
+  assert.doesNotMatch(commands[1], /--no-optional-locks/);
+  assert.match(commands[1], /status/);
+});

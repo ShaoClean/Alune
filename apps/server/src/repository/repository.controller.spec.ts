@@ -21,6 +21,21 @@ describe('RepositoryController', () => {
     await controller.getDiff('fixture', { file: 'a.txt', fullFile: 'false', editable: 'true' });
     expect(getEditableDiff).toHaveBeenLastCalledWith('fixture', 'a.txt', false, false, expect.any(AbortSignal));
   });
+  it('forwards foreground intent and cancels a disconnected status reader', async () => {
+    const getStatus = jest.fn((_id, _foreground, signal: AbortSignal) =>
+      new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))),
+    );
+    const controller = new RepositoryController({ getStatus } as unknown as RepositoryService);
+    const response = new EventEmitter();
+    const pending = controller.getStatus('fixture', 'true', response as unknown as Response);
+    const failure = expect(pending).rejects.toMatchObject({ status: 400 });
+    expect(getStatus).toHaveBeenCalledWith('fixture', true, expect.any(AbortSignal));
+    response.emit('close');
+    await failure;
+    expect(getStatus.mock.calls[0][2].aborted).toBe(true);
+    expect(response.listenerCount('close')).toBe(0);
+  });
+
   it('validates worktree selections and preserves useful status/open failures', async () => {
     const openWorktree = jest.fn().mockResolvedValue({ id: 'target' });
     const getWorktrees = jest.fn().mockResolvedValue([]);
@@ -187,7 +202,7 @@ describe('RepositoryController', () => {
     expect(list).toHaveBeenCalledWith(undefined);
     expect(getStatus).not.toHaveBeenCalled();
     await controller.getStatus('fixture');
-    expect(getStatus).toHaveBeenCalledWith('fixture');
+    expect(getStatus).toHaveBeenCalledWith('fixture', false, expect.any(AbortSignal));
   });
 });
 

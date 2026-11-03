@@ -32,6 +32,7 @@ import {
   BLAME_TIMEOUT_MS,
   LFS_STATUS_TIMEOUT_MS,
   REPOSITORY_STATUS_TIMEOUT_MS,
+  REPOSITORY_FOREGROUND_STATUS_TIMEOUT_MS,
 } from '@alune/shared';
 import type {
   LfsStatus,
@@ -49,7 +50,15 @@ import type {
 
 @Injectable()
 export class RepositoryService {
-  private statusRequests = new Map<string, Promise<RepositoryStatus>>();
+  private statusRequests = new Map<
+    string,
+    {
+      promise: Promise<RepositoryStatus>;
+      controller: AbortController;
+      promote: () => void;
+      consumers: number;
+    }
+  >();
   private lfsStatusRequests = new Map<string, Promise<LfsStatus>>();
 
   private async withWorktrees<T>(
@@ -537,17 +546,47 @@ export class RepositoryService {
       .run(pinned ? 1 : 0, id);
   }
 
-  getStatus(id: string): Promise<RepositoryStatus> {
+  getStatus(
+    id: string,
+    foreground = false,
+    signal?: AbortSignal,
+  ): Promise<RepositoryStatus> {
+    if (signal?.aborted) return Promise.reject(signal.reason);
     const pending = this.statusRequests.get(id);
-    if (pending) return pending;
+    if (pending) {
+      if (foreground) pending.promote();
+      return this.consumeStatus(pending, signal);
+    }
     const controller = new AbortController();
+    const started = Date.now();
+    let promote!: () => void;
     let timer: ReturnType<typeof setTimeout>;
     const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        const error = new GatewayTimeoutException('仓库状态查询超时，请重试');
-        controller.abort(error);
-        reject(error);
-      }, REPOSITORY_STATUS_TIMEOUT_MS);
+      const schedule = () => {
+        clearTimeout(timer);
+        const limit = foreground
+          ? REPOSITORY_FOREGROUND_STATUS_TIMEOUT_MS
+          : REPOSITORY_STATUS_TIMEOUT_MS;
+        timer = setTimeout(
+          () => {
+            const error = new GatewayTimeoutException(
+              '仓库状态查询超时，请重试',
+            );
+            controller.abort(error);
+          },
+          Math.max(0, limit - (Date.now() - started)),
+        );
+      };
+      controller.signal.addEventListener(
+        'abort',
+        () => reject(controller.signal.reason),
+        { once: true },
+      );
+      promote = () => {
+        foreground = true;
+        schedule();
+      };
+      schedule();
     });
     const work = (async () => {
       const repo = await this.get(id);
@@ -555,7 +594,7 @@ export class RepositoryService {
       // A connection may finish after this request's deadline. Do not start Git then.
       controller.signal.throwIfAborted();
       const [status, worktreeKind, operation] = await Promise.all([
-        new GitCommands(conn).status(repo.path, controller.signal),
+        new GitCommands(conn).status(repo.path, controller.signal, foreground),
         this.readWorktreeKind(repo, conn, controller.signal),
         // Conflicted files are still listed if the operation state is unreadable.
         new ConflictResolution(conn)
@@ -576,10 +615,60 @@ export class RepositoryService {
     })();
     const request = Promise.race([work, timeout]).finally(() => {
       clearTimeout(timer);
-      this.statusRequests.delete(id);
+      if (this.statusRequests.get(id)?.promise === request)
+        this.statusRequests.delete(id);
     });
-    this.statusRequests.set(id, request);
-    return request;
+    const entry = { promise: request, controller, promote, consumers: 0 };
+    this.statusRequests.set(id, entry);
+    controller.signal.addEventListener(
+      'abort',
+      () => {
+        if (this.statusRequests.get(id) === entry)
+          this.statusRequests.delete(id);
+      },
+      { once: true },
+    );
+    return this.consumeStatus(entry, signal);
+  }
+
+  private consumeStatus(
+    entry: {
+      promise: Promise<RepositoryStatus>;
+      controller: AbortController;
+      consumers: number;
+    },
+    signal?: AbortSignal,
+  ): Promise<RepositoryStatus> {
+    entry.consumers++;
+    if (!signal) {
+      // Internal callers own their request until it finishes.
+      return entry.promise;
+    }
+    return new Promise((resolve, reject) => {
+      let finished = false;
+      const finish = () => {
+        if (finished) return false;
+        finished = true;
+        signal.removeEventListener('abort', cancel);
+        entry.consumers--;
+        return true;
+      };
+      const cancel = () => {
+        if (!finish()) return;
+        reject(signal.reason);
+        if (!entry.consumers) entry.controller.abort(signal.reason);
+      };
+      signal.addEventListener('abort', cancel, { once: true });
+      entry.promise.then(
+        (value) => {
+          if (finish()) resolve(value);
+        },
+        (error) => {
+          if (finish()) reject(error);
+        },
+      );
+      if (signal.aborted) cancel();
+    });
   }
 
   private async readWorktreeKind(
