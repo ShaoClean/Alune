@@ -131,6 +131,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         let bridge: ReturnType<typeof legacyIpcDecryptor> | undefined;
         try {
           bridge = process.connected ? legacyIpcDecryptor() : undefined;
+          if (bridge) process.once('disconnect', stop);
           const receipt = await importLegacyState(state, resolve(options.get('--source')!), {
             signal: controller.signal,
             ...(bridge ? { decryptSafeStorage: bridge.decrypt } : {}),
@@ -139,6 +140,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           return 0;
         } finally {
           bridge?.close();
+          process.off('disconnect', stop);
           await state.close();
           if (process.connected) process.disconnect();
         }

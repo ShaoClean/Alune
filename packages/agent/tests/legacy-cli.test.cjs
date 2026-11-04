@@ -106,3 +106,66 @@ test(
     );
   },
 );
+
+test(
+  'loss of the trusted old host cancels private import without partial business data',
+  { timeout: 90000 },
+  async (t) => {
+    const values = new Map();
+    const cipher = createAiSecretStorage({
+      isEncryptionAvailable: () => true,
+      getSelectedStorageBackend: () => 'fixture',
+      encryptString(value) {
+        const key = randomBytes(48);
+        values.set(key.toString('base64'), value);
+        return key;
+      },
+      decryptString(value) {
+        return values.get(value.toString('base64'));
+      },
+    });
+    const f = await setup(t, cipher);
+    const child = spawn(
+      process.execPath,
+      [cli, 'legacy-import', '--source', f.legacy.source, '--data-dir', f.target],
+      { stdio: ['ignore', 'pipe', 'pipe', 'ipc'], windowsHide: true },
+    );
+    let output = '';
+    child.stdout.on('data', (value) => {
+      output += value;
+    });
+    child.stderr.on('data', (value) => {
+      output += value;
+    });
+    child.on('message', (message) => {
+      if (message.kind === 'alune.legacy.decrypt' && child.connected) child.disconnect();
+    });
+    const timeout = setTimeout(() => child.kill('SIGKILL'), 45000);
+    try {
+      const code = await new Promise((resolve, reject) => {
+        child.once('error', reject);
+        child.once('exit', resolve);
+      });
+      // Explicit parent IPC disconnect can leave Node's close accounting short;
+      // independently await process exit and the two owned output streams.
+      const { finished } = require('node:stream/promises');
+      await Promise.all(
+        [child.stdout, child.stderr].map((stream) =>
+          finished(stream, { readable: true, writable: false }),
+        ),
+      );
+      assert.equal(code, 1);
+      assert.match(output, /operation was aborted/i);
+      assert.doesNotMatch(output, /fixture-import-|safe-storage:|aes-gcm:/);
+    } finally {
+      clearTimeout(timeout);
+    }
+    const state = await AgentState.open(f.target, f.agentId);
+    try {
+      assert.equal(state.database.prepare('SELECT count(*) AS n FROM connections').get().n, 0);
+      assert.equal(state.database.prepare('SELECT count(*) AS n FROM imports').get().n, 0);
+    } finally {
+      await state.close();
+    }
+  },
+);
