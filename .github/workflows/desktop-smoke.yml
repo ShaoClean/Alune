@@ -1,0 +1,39 @@
+name: 桌面界面回归
+
+on:
+  pull_request:
+  push:
+    branches: [development]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-smoke-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop-smoke:
+    name: 桌面 write/restore (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-15, macos-15-intel]
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:build
+      - name: 真实桌面隔离数据冒烟
+        if: runner.os != 'Linux'
+        run: npm run desktop:test
+      - name: 真实桌面隔离数据冒烟 (Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run desktop:test

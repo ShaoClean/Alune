@@ -17,11 +17,30 @@
     "@alune/protocol": "*",
     "@alune/domain": "*",
     "better-sqlite3": "^13.0.3",
-    "node-pty": "1.1.0"
+    "node-pty": "1.1.0",
+    "socks": "^2.8.10",
+    "undici": "^7.30.0"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",
     "typescript": "^6.0.3",
     "@types/better-sqlite3": "^7.6.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./network": {
+      "types": "./dist/adapters/network/proxy-transport.d.ts",
+      "default": "./dist/adapters/network/proxy-transport.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "network": [
+        "dist/adapters/network/proxy-transport.d.ts"
+      ]
+    }
   }
 }

@@ -18,10 +18,15 @@ module.exports = async ({ window, origin, repositoryId }) => {
       setTimeout(poll, 20);
     }; poll();
   })`);
-  const shortcut = (key, shiftKey = false) =>
-    execute(
+  const shortcut = async (key, shiftKey = false) => {
+    // Synthetic DOM keyboard events do not activate a background native window.
+    // Focus capture is part of the behavior under test, so establish the same
+    // precondition as a real keyboard user without focusing the expected control.
+    await require('./smoke-window.cjs')(window);
+    return execute(
       `window.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, ctrlKey: true, shiftKey: ${shiftKey} }))`,
     );
+  };
   const click = (selector) =>
     execute(
       `Array.from(document.querySelectorAll(${JSON.stringify(selector)})).find(node => node.getClientRects().length && !node.closest('[inert]')).click()`,
@@ -71,6 +76,7 @@ module.exports = async ({ window, origin, repositoryId }) => {
     window.setContentSize(1440, 900);
     await window.loadURL(`${origin}/repositories/${repositoryId}`);
     await wait('document.querySelector(\'[aria-label="提交摘要"]\') !== null');
+    await require('./smoke-window.cjs')(window);
     await execute(`document.querySelector('.app-tabbar [aria-label="显示左侧工作区"]')?.click()`);
     await fill('[aria-label="提交摘要"]', 'settings draft retained');
     await fill('[aria-label="查找仓库"]', 'local');
