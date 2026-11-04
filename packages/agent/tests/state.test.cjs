@@ -99,11 +99,42 @@ test(
   { timeout: 30000 },
   async (t) => {
     const f = await fixture(t);
-    const repositoryFile = path.join(f.root, 'user-worktree.txt');
-    fs.writeFileSync(repositoryFile, 'uncommitted changes');
+    const repository = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-state-worktree-'));
+    t.after(() => fs.rmSync(repository, { recursive: true, force: true }));
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
+    );
+    env.GIT_CONFIG_GLOBAL = path.join(f.root, 'empty-git-config');
+    env.GIT_CONFIG_NOSYSTEM = '1';
+    fs.writeFileSync(env.GIT_CONFIG_GLOBAL, '');
+    const git = (...args) =>
+      execFileSync('git', ['-C', repository, ...args], {
+        env,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Fixture');
+    git('config', 'user.email', 'fixture@example.invalid');
+    git('config', 'commit.gpgSign', 'false');
+    git('config', 'core.autocrlf', 'false');
+    const repositoryFile = path.join(repository, 'tracked.txt');
+    fs.writeFileSync(repositoryFile, 'original\n');
+    git('add', '.');
+    git('commit', '-qm', 'original');
     put(f.store, { value: 1, repositoryFile });
     const original = f.store.generation;
     const backup = await f.store.backup();
+    fs.writeFileSync(repositoryFile, 'commit after snapshot\n');
+    git('add', '.');
+    git('commit', '-qm', 'new user commit');
+    fs.writeFileSync(repositoryFile, 'staged after snapshot\n');
+    git('add', 'tracked.txt');
+    fs.appendFileSync(repositoryFile, 'uncommitted changes\n');
+    fs.writeFileSync(path.join(repository, 'new.txt'), 'untracked\n');
+    const head = git('rev-parse', 'HEAD');
+    const index = fs.readFileSync(path.join(repository, '.git/index'));
+    const status = git('--no-optional-locks', 'status', '--porcelain=v2', '-z');
     put(f.store, { value: 2, repositoryFile });
     await assert.rejects(AgentState.restore(f.root, f.id, backup), (e) => e.kind === 'busy');
     await f.store.close();
@@ -125,7 +156,13 @@ test(
     } finally {
       previous.close();
     }
-    assert.equal(fs.readFileSync(repositoryFile, 'utf8'), 'uncommitted changes');
+    assert.equal(
+      fs.readFileSync(repositoryFile, 'utf8'),
+      'staged after snapshot\nuncommitted changes\n',
+    );
+    assert.equal(git('rev-parse', 'HEAD'), head);
+    assert.deepEqual(fs.readFileSync(path.join(repository, '.git/index')), index);
+    assert.equal(git('--no-optional-locks', 'status', '--porcelain=v2', '-z'), status);
   },
 );
 
