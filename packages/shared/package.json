@@ -5,8 +5,12 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch"
+    "build": "tsc -b",
+    "dev": "tsc -b --watch"
+  },
+  "dependencies": {
+    "@alune/domain": "*",
+    "@alune/protocol": "*"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

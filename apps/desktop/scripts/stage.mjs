@@ -16,6 +16,8 @@ for (const [source, destination] of [
   ['apps/web/dist', 'web'],
   ['apps/desktop/assets', 'assets'],
   ['packages/shared/dist', 'packages/shared/dist'],
+  ['packages/domain/dist', 'packages/domain/dist'],
+  ['packages/protocol/dist', 'packages/protocol/dist'],
   ['packages/ssh-client/dist', 'packages/ssh-client/dist'],
 ]) {
   await rm(path.join(target, destination), { recursive: true, force: true });
@@ -27,7 +29,7 @@ for (const file of await readdir(target)) {
 for (const file of await readdir(path.join(desktop, 'src'))) {
   if (file.endsWith('.cjs')) await cp(path.join(desktop, 'src', file), path.join(target, file));
 }
-for (const name of ['shared', 'ssh-client']) {
+for (const name of ['domain', 'protocol', 'shared', 'ssh-client']) {
   const manifest = await readJSON(path.join(root, `packages/${name}/package.json`));
   delete manifest.devDependencies;
   delete manifest.scripts;
@@ -50,6 +52,8 @@ await writeFile(
         ...server.dependencies,
         ...desktopPackage.dependencies,
         '@alune/shared': 'file:packages/shared',
+        '@alune/domain': 'file:packages/domain',
+        '@alune/protocol': 'file:packages/protocol',
         '@alune/ssh-client': 'file:packages/ssh-client',
       },
       devDependencies: { electron: rootPackage.devDependencies.electron },

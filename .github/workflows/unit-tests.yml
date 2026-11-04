@@ -21,6 +21,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - workspace: domain
+            command: npm test -w @alune/domain
+          - workspace: protocol
+            command: npm test -w @alune/protocol
           - workspace: desktop
             command: npm run desktop:test:unit
           - workspace: ui
