@@ -63,18 +63,20 @@ function launch(t, fixture = true, dataDir) {
   );
   const transport = new StdioTransport(child.stdout, child.stdin);
   const client = new AgentClient(transport);
-  t.after(async () => {
+  const close = async () => {
     client.close();
     const timer = setTimeout(() => child.kill('SIGKILL'), 4000);
     await exit;
     clearTimeout(timer);
     if (!dataDir) fs.rmSync(root, { recursive: true, force: true });
-  });
+  };
+  t.after(close);
   return {
     child,
     client,
     exit,
     root,
+    close,
     get stderr() {
       return stderr;
     },
@@ -86,8 +88,13 @@ test(
   { timeout: 15000 },
   async (t) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-agent-identity-'));
-    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const children = [];
+    t.after(async () => {
+      await Promise.all(children.map((child) => child.close()));
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     const a = launch(t, false, root);
+    children.push(a);
     const first = await a.client.initialize();
     assert.equal(first.lifecycle, 'session');
     assert.equal((await a.client.health()).status, 'ok');
@@ -96,11 +103,14 @@ test(
     a.client.close();
     assert.deepEqual(await a.exit, { code: 0, signal: null });
     const b = launch(t, false, root);
+    children.push(b);
     const second = await b.client.initialize();
     assert.equal(first.agentId, second.agentId);
     assert.notEqual(first.sessionId, second.sessionId);
     assert.equal(a.stderr, '');
     assert.equal(b.stderr, '');
+    await b.close();
+    assert.deepEqual(await b.exit, { code: 0, signal: null });
   },
 );
 
