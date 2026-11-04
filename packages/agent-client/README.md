@@ -27,3 +27,5 @@ AbortSignal 只发出取消请求，Promise 等待实际响应或超时。取消
 stdio 传输严格验证 UTF-8/帧大小，支持半帧和多帧，出站队列有字节/条目上限。`spawnAgent.close()` 先结束 stdin 等待退出，期限后只终止它自己启动的子进程；不操作其他应用。
 
 检查：`npm test -w @alune/agent-client`、`node scripts/agent/check-browser.mjs`、`node scripts/agent/check-boundaries.mjs`。
+
+协议 1.1 的 `storageStatus()` 与 `backupDatabase()` 具有同源结果校验，并检查 Agent 归属。备份收据当前明确限定为新 Agent 数据库，不包含完整凭据迁移。连接 1.0 Agent 时，这两个方法在发送前按能力集拒绝，核心方法仍可用。

@@ -6,7 +6,7 @@ const path = require('node:path');
 const { spawn, execFileSync } = require('node:child_process');
 const { setTimeout: delay } = require('node:timers/promises');
 const { AgentClient, StdioTransport } = require('@alune/agent-client/node');
-const { encodeMessage, FrameDecoder, parseMessage } = require('@alune/protocol');
+const { encodeMessage, FrameDecoder, parseMessage, PROTOCOL_VERSION } = require('@alune/protocol');
 const cli = path.resolve(__dirname, '../bin/alune-agent.cjs');
 test(
   'in-flight input budget rejects excess before execution and async validators cannot bypass it',
@@ -310,7 +310,7 @@ test(
       'incompatible-version',
     );
     const handshake = await exchange('initialize', { protocol: { major: 1, minor: 99 }, client });
-    assert.deepEqual(handshake.result.protocol, { major: 1, minor: 0 });
+    assert.deepEqual(handshake.result.protocol, PROTOCOL_VERSION);
     assert.equal((await exchange('not.a.method')).error.data.kind, 'unknown-method');
     assert.equal((await exchange('constructor')).error.data.kind, 'unknown-method');
     assert.equal(

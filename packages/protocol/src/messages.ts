@@ -1,6 +1,6 @@
 import type { ResourceRef } from '@alune/domain';
 
-export const PROTOCOL_VERSION = Object.freeze({ major: 1, minor: 0 });
+export const PROTOCOL_VERSION = Object.freeze({ major: 1, minor: 1 });
 export const MAX_FRAME_BYTES = 8 * 1024 * 1024;
 export const MAX_EVENT_QUEUE_BYTES = 1024 * 1024;
 export const MAX_EVENT_QUEUE_LENGTH = 256;
@@ -25,6 +25,12 @@ export type ErrorKind =
   | 'duplicate-request'
   | 'disconnected'
   | 'timeout'
+  | 'conflict'
+  | 'unavailable'
+  | 'not-found'
+  | 'permission-denied'
+  | 'busy'
+  | 'state-corrupt'
   | 'internal';
 export const ERROR_CODES: Readonly<Record<ErrorKind, number>> = Object.freeze({
   parse: -32700,
@@ -38,12 +44,34 @@ export const ERROR_CODES: Readonly<Record<ErrorKind, number>> = Object.freeze({
   'duplicate-request': -32003,
   disconnected: -32004,
   timeout: -32005,
+  conflict: -32006,
+  unavailable: -32007,
+  'not-found': -32008,
+  'permission-denied': -32009,
+  busy: -32010,
+  'state-corrupt': -32011,
   internal: -32603,
 });
 export interface RpcError {
   code: number;
   message: string;
   data: { kind: ErrorKind; outcome: Outcome; details?: JsonValue };
+}
+const minorOneErrors = new Set<ErrorKind>([
+  'conflict',
+  'unavailable',
+  'not-found',
+  'permission-denied',
+  'busy',
+  'state-corrupt',
+]);
+export function compatibleError(error: RpcError, minor: number): RpcError {
+  if (minor >= 1 || !minorOneErrors.has(error.data.kind)) return error;
+  return {
+    code: ERROR_CODES.internal,
+    message: error.message,
+    data: { kind: 'internal', outcome: error.data.outcome, details: { reason: error.data.kind } },
+  };
 }
 export interface RpcRequest {
   jsonrpc: '2.0';

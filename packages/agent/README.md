@@ -25,6 +25,21 @@ node packages/agent/bin/alune-agent.cjs serve --data-dir /path/to/agent-data
 
 运行 `npm test -w @alune/agent`，包括真实子进程、取消/断线/重复写、ACK/重同步、SQLite/PTY 与身份生命周期。
 
+## 状态存储基础
+
+`serve` 现在打开 Agent 自己的数据目录，不自动读取或迁移旧桌面/服务端数据库。SQLite 进程写锁保证同一数据目录只有一个写者，崩溃后由操作系统释放锁；数据使用经过版本/结构/身份校验的数据库目录和原子指针。
+
+协议 1.1 提供 `storage.status` 和 `storage.backupDatabase`，Client 对应 `storageStatus()`、`backupDatabase()`。协议 1.0 会话只保留原有能力。
+
+```sh
+node packages/agent/bin/alune-agent.cjs state-backup --data-dir /path/to/agent-data
+node packages/agent/bin/alune-agent.cjs state-restore --data-dir /path/to/agent-data --backup /path/to/backup
+```
+
+这些命令当前仅处理新 Agent 的状态数据库，明确返回 `database-only`；它们不是旧配置/凭据的完整迁移或导出工具。恢复要求服务停止并取得写锁，校验备份散列/版本/Agent 身份后切换到新的数据库目录，保留旧目录及损坏指针，不修改仓库或未提交文件。缺少/损坏身份不会被静默替换。
+
+POSIX 使用用户专有权限；Windows 使用内置 PowerShell 设置当前用户与 SYSTEM 的受保护 DACL，子进程有超时与取消。修订冲突、损坏/未来版本、软链接/目录联接和硬链接不以创建空状态掩盖。当前持久操作表只是基础结构，RPC 任务尚未接入持久日志；账户、OS 凭据、旧数据导入、代理与日志迁移仍在 P2 中推进。
+
 ## 独立运行包
 
 ```sh

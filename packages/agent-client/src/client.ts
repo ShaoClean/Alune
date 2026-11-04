@@ -10,6 +10,8 @@ import {
   validateSubscription,
   validateTaskResult,
   validateTaskQuery,
+  validateStorageStatus,
+  validateDatabaseBackupReceipt,
   MAX_EVENT_QUEUE_BYTES,
   MAX_EVENT_QUEUE_LENGTH,
 } from '@alune/protocol';
@@ -25,6 +27,8 @@ import type {
   SubscriptionResult,
   TaskQuery,
   TaskResult,
+  StorageStatus,
+  DatabaseBackupReceipt,
 } from '@alune/protocol';
 import type { MessageTransport } from './transport';
 
@@ -156,6 +160,22 @@ export class AgentClient {
     if (query.requestId !== undefined) params.requestId = query.requestId;
     else params.taskId = query.taskId!;
     return this.decode(this.request('tasks.get', params), validateTaskResult);
+  }
+  storageStatus(): Promise<StorageStatus> {
+    return this.decode(this.request('storage.status'), (value) => {
+      const result = validateStorageStatus(value);
+      if (result.agentId !== this.identity?.agentId)
+        throw new ProtocolError('invalid-request', 'Storage belongs to another Agent');
+      return result;
+    });
+  }
+  backupDatabase(options: RequestOptions = {}): Promise<DatabaseBackupReceipt> {
+    return this.decode(this.request('storage.backupDatabase', undefined, options), (value) => {
+      const result = validateDatabaseBackupReceipt(value);
+      if (result.agentId !== this.identity?.agentId)
+        throw new ProtocolError('invalid-request', 'Backup belongs to another Agent');
+      return result;
+    });
   }
   onEvent(listener: (event: AgentEvent) => void | Promise<void>): () => void {
     this.eventListeners.add(listener);

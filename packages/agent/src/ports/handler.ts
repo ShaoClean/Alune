@@ -19,6 +19,7 @@ export interface HandlerContext {
   events: EventPublisher;
 }
 export interface Handler {
+  minimumProtocolMinor?: number;
   effect: 'query' | 'mutation';
   // Shape validation is synchronous. I/O belongs in run under task cancellation.
   validate(params: JsonValue | undefined): void;

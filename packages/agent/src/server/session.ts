@@ -11,6 +11,7 @@ import {
   requestSequence,
   MAX_FRAME_BYTES,
   MAX_STREAM_CHUNK_BYTES,
+  compatibleError,
 } from '@alune/protocol';
 import type { JsonValue, RpcMessage, RpcRequest, TaskInfo } from '@alune/protocol';
 import type { MessageTransport } from '@alune/agent-client';
@@ -31,6 +32,7 @@ export class AgentSession {
   readonly closed: Promise<void>;
   private resolveClosed!: () => void;
   private initialized = false;
+  private protocolMinor = 0;
   private closing?: Promise<void>;
   private requestPrefix?: string;
   private lastRequestSequence = 0;
@@ -59,6 +61,11 @@ export class AgentSession {
     )
       throw new Error('Reserved or invalid handler name');
     this.capabilities = [...CORE_CAPABILITIES, ...custom];
+    for (const name of custom) {
+      const minor = options.handlers![name].minimumProtocolMinor;
+      if (minor !== undefined && (!Number.isSafeInteger(minor) || minor < 0))
+        throw new Error('Invalid handler protocol minor requirement');
+    }
     this.closed = new Promise((resolve) => {
       this.resolveClosed = resolve;
     });
@@ -153,10 +160,18 @@ export class AgentSession {
       if (message.method === 'initialize') {
         if (this.initialized)
           throw new ProtocolError('invalid-request', 'Session already initialized');
-        validateInitialize(message.params);
+        const requested = validateInitialize(message.params);
+        this.protocolMinor = Math.min(requested.protocol.minor, PROTOCOL_VERSION.minor);
+        this.capabilities = [
+          ...CORE_CAPABILITIES,
+          ...Object.keys(this.options.handlers ?? {}).filter(
+            (name) =>
+              (this.options.handlers![name].minimumProtocolMinor ?? 0) <= this.protocolMinor,
+          ),
+        ];
         this.initialized = true;
         await this.result(message, {
-          protocol: { ...PROTOCOL_VERSION },
+          protocol: { major: PROTOCOL_VERSION.major, minor: this.protocolMinor },
           agentId: this.options.agentId,
           sessionId: this.sessionId,
           implementation: { name: 'alune-agent', version: this.options.version },
@@ -217,7 +232,8 @@ export class AgentSession {
       const handler = Object.hasOwn(this.options.handlers ?? {}, message.method)
         ? this.options.handlers?.[message.method]
         : undefined;
-      if (!handler) throw new ProtocolError('unknown-method', 'Unknown method');
+      if (!handler || !this.capabilities.includes(message.method))
+        throw new ProtocolError('unknown-method', 'Unknown method');
       if ([...this.tasks.values()].filter((entry) => entry.info.state === 'running').length >= 64)
         throw new ProtocolError('overloaded', 'Too many running tasks');
       const validation: unknown = handler.validate(message.params);
@@ -295,7 +311,11 @@ export class AgentSession {
     return this.transport.send({ jsonrpc: '2.0', id: request.id, result });
   }
   private error(request: RpcRequest, error: ProtocolError): Promise<void> {
-    return this.transport.send({ jsonrpc: '2.0', id: request.id, error: error.toRpcError() });
+    return this.transport.send({
+      jsonrpc: '2.0',
+      id: request.id,
+      error: compatibleError(error.toRpcError(), this.protocolMinor),
+    });
   }
   close(
     error: Error = new ProtocolError('disconnected', 'Agent session ended', 'unknown'),

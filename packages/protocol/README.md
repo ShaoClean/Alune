@@ -1,7 +1,7 @@
 # @alune/protocol
 
 Agent 消息契约和运行时校验；不依赖 Node、Electron、SSH、数据库或服务商 SDK。
-当前协议 major 为 1，minor 为 0。消息采用 JSON-RPC 2.0 形状，传输层按 UTF-8 换行分帧。
+当前协议 major 为 1，minor 为 1。消息采用 JSON-RPC 2.0 形状，传输层按 UTF-8 换行分帧。初始化协商双方较低的 minor，只暴露该版本支持的方法。1.0 客户端仍可调用核心方法；1.1 的存储方法不会被误暴露，新增领域错误在旧会话降为旧客户端可解析的错误信封。
 
 请求 ID 使用 `固定前缀:递增正整数`（整数必须安全且无前导零）。一个会话内前缀不变，序号可跳过但不能倒退或重用；响应仍回显请求 ID。SDK 自动生成。Agent 只保存已接收序号上界，既能拒绝历史重复写，又不因长时间使用而积累无限 tombstone 或强制重连。
 
@@ -12,7 +12,7 @@ const frame = encodeMessage({
   jsonrpc: '2.0',
   id: 'request:1',
   method: 'initialize',
-  params: { protocol: { major: 1, minor: 0 }, client: { name: 'example', version: '1' } },
+  params: { protocol: { major: 1, minor: 1 }, client: { name: 'example', version: '1' } },
 });
 const message = parseMessage(frame);
 if ('method' in message && message.method === 'initialize') {
