@@ -231,10 +231,19 @@ export class AgentSession {
         const found = validId(p.requestId)
           ? this.tasks.get(p.requestId)
           : [...this.tasks.values()].find((entry) => entry.info.taskId === p.taskId);
-        const stored = this.protocolMinor >= 1 ? this.options.taskJournal?.find(p) : null;
+        // A failed durable finalization can leave a running receipt on disk.
+        // The current session still knows that execution ended with unknown
+        // durability; do not hide that state behind the older stored snapshot.
+        const stored = !found && this.protocolMinor >= 1 ? this.options.taskJournal?.find(p) : null;
         await this.result(message, {
-          scope: stored ? 'agent' : 'session',
-          task: stored ? { ...stored } : found ? { ...found.info } : null,
+          scope:
+            stored ||
+            (found?.info.effect === 'mutation' &&
+              this.protocolMinor >= 1 &&
+              this.options.taskJournal)
+              ? 'agent'
+              : 'session',
+          task: found ? { ...found.info } : stored ? { ...stored } : null,
         });
         return;
       }

@@ -92,3 +92,73 @@ test(
     assert.deepEqual(await replay.client.getTask({ requestId: request.requestId }), receipt);
   },
 );
+
+test('failed durable finalization is immediately reported as unknown instead of stale running state', async () => {
+  const { AgentSession } = require('../dist');
+  const pending = new Map();
+  let receive,
+    close,
+    serial = 0,
+    stored;
+  const transport = {
+    onMessage(fn) {
+      receive = fn;
+      return () => {};
+    },
+    onClose(fn) {
+      close = fn;
+      return () => {};
+    },
+    send(message) {
+      pending.get(message.id)?.(message);
+      return Promise.resolve();
+    },
+    close(error) {
+      close?.(error);
+    },
+  };
+  const session = new AgentSession(transport, {
+    agentId: 'fixture-agent',
+    version: 'fixture',
+    taskJournal: {
+      start(task) {
+        stored = structuredClone(task);
+      },
+      finish() {
+        throw Error('fixture durable failure');
+      },
+      find() {
+        return structuredClone(stored);
+      },
+    },
+    handlers: {
+      'fixture.write': {
+        effect: 'mutation',
+        validate() {},
+        run() {
+          return { written: true };
+        },
+      },
+    },
+  });
+  const request = (method, params) =>
+    new Promise((resolve) => {
+      const id = 'fixture:' + ++serial;
+      pending.set(id, resolve);
+      receive({ jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) });
+    });
+  try {
+    await request('initialize', {
+      protocol: { major: 1, minor: 1 },
+      client: { name: 'fixture', version: '1' },
+    });
+    assert.equal((await request('fixture.write')).error.data.outcome, 'unknown');
+    assert.equal(stored.state, 'running');
+    const receipt = await request('tasks.get', { requestId: 'fixture:2' });
+    assert.equal(receipt.result.scope, 'agent');
+    assert.equal(receipt.result.task.state, 'unknown');
+    assert.equal(receipt.result.task.outcome, 'unknown');
+  } finally {
+    await session.close();
+  }
+});
