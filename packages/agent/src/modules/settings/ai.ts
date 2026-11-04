@@ -9,6 +9,7 @@ import type {
 import type { JsonDocument, SecretCipher } from '../../ports/state';
 import { StateFault } from '../../ports/state';
 import { settingsErrors, type SettingsErrors } from '../../ports/settings-errors';
+import { validateAiSettings } from '@alune/protocol';
 
 type StoredProvider = Omit<AiProvider, 'hasApiKey'> & { encryptedKey?: string };
 type StoredSettings = {
@@ -108,10 +109,17 @@ export class AiSettingsStore {
         validateModels(provider.models, this.errors);
         if (
           !['openai', 'anthropic', 'gemini'].includes(provider.protocol) ||
-          typeof provider.enabled !== 'boolean'
+          typeof provider.enabled !== 'boolean' ||
+          (provider.encryptedKey !== undefined &&
+            (typeof provider.encryptedKey !== 'string' ||
+              !provider.encryptedKey ||
+              provider.encryptedKey.length > 1400000))
         )
           throw new Error();
       }
+      // Validate the JSON representation; host-provided structuredClone may
+      // produce objects from another realm (for example Electron or Jest).
+      validateAiSettings(JSON.parse(JSON.stringify(this.read())));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         this.loadError = 'AI 配置文件无法读取，请恢复有效配置文件后重启。';

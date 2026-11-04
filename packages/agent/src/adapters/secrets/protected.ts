@@ -1,5 +1,13 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
-import { constants, closeSync, fstatSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  constants,
+  closeSync,
+  fstatSync,
+  fsyncSync,
+  openSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import {
   assertRegularFile,
@@ -100,6 +108,14 @@ async function loadKey(
       // The writer lease prevents a concurrent Agent. Exclusive creation also
       // refuses to replace an existing key after an interrupted initialization.
       writeFileSync(file, encoded, { flag: 'wx', mode: 0o600, flush: true });
+      if (process.platform !== 'win32') {
+        const directoryFd = openSync(root, 'r');
+        try {
+          fsyncSync(directoryFd);
+        } finally {
+          closeSync(directoryFd);
+        }
+      }
     } finally {
       candidate.fill(0);
       encoded?.fill(0);
@@ -162,6 +178,11 @@ export async function openProtectedSecrets(
     document.write(value);
   }
   const item = descriptor(value, agentId);
+  if (item.status === 'pending' && !options.allowInitialize)
+    throw new StateFault(
+      'unavailable',
+      'Credential key initialization requires an empty credential store',
+    );
   if (options.backend !== undefined && options.backend !== item.backend)
     throw new StateFault('conflict', 'Credential backend is already fixed for this Agent');
   let key: Buffer | undefined;

@@ -5,10 +5,19 @@ import { StateFault } from '../ports/state';
 import { stateFailure } from '../server/errors';
 import type { Handler } from '../ports/handler';
 import type { DatabaseBackupReceipt } from '@alune/protocol';
+import { settingsKernel } from './settings-kernel';
+import type { ProtectedSecretOptions } from '../adapters/secrets/protected';
 
-export async function openStateKernel(directory: string, agentId: string, signal?: AbortSignal) {
+export async function openStateKernel(
+  directory: string,
+  agentId: string,
+  signal?: AbortSignal,
+  secretOptions: Pick<ProtectedSecretOptions, 'backend' | 'keychain'> = {},
+) {
   const state = await AgentState.open(directory, agentId, signal);
+  const settings = settingsKernel(state, directory, agentId, secretOptions);
   const handlers: Record<string, Handler> = {
+    ...settings.handlers,
     'storage.status': {
       minimumProtocolMinor: 1,
       effect: 'query',
@@ -32,5 +41,13 @@ export async function openStateKernel(directory: string, agentId: string, signal
       },
     },
   };
-  return { state, handlers, close: () => state.close() };
+  return {
+    state,
+    handlers,
+    taskJournal: state.taskJournal(),
+    close: async () => {
+      await settings.close();
+      await state.close();
+    },
+  };
 }

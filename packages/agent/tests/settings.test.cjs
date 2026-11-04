@@ -129,3 +129,29 @@ test(
     }
   },
 );
+
+test(
+  'malformed AI public data cannot be read or replaced through valid settings writes',
+  { timeout: 30000 },
+  async (t) => {
+    const { state, secrets } = await fixture(t);
+    const port = state.document('ai-settings');
+    const base = new AiSettingsStore(port, secrets).read();
+    const bad = {
+      revision: base.revision,
+      providers: base.providers.map(({ hasApiKey, ...p }) => ({ ...p, builtin: 'invalid' })),
+      commit: base.commit,
+    };
+    port.write(bad);
+    const broken = new AiSettingsStore(state.document('ai-settings'), secrets);
+    assert.throws(
+      () => broken.read(),
+      (e) => e.kind === 'unavailable',
+    );
+    assert.throws(
+      () => broken.saveCommit(base.commit, base.revision),
+      (e) => e.kind === 'unavailable',
+    );
+    assert.deepEqual(state.document('ai-settings').read(), bad);
+  },
+);

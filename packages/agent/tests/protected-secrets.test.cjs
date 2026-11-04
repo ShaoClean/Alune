@@ -119,6 +119,8 @@ test(
     await assert.rejects(f.open({}, fault), (e) => e.kind === 'unavailable');
     assert.equal(f.document().read().status, 'pending');
     const key = fs.readFileSync(f.keyFile());
+    await assert.rejects(f.open({ allowInitialize: false }), (e) => e.kind === 'unavailable');
+    assert.deepEqual(fs.readFileSync(f.keyFile()), key);
     const resumed = await f.open();
     assert.deepEqual(fs.readFileSync(f.keyFile()), key);
     assert.equal(f.document().read().status, 'ready');

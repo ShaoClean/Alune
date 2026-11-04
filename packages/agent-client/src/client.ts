@@ -12,6 +12,9 @@ import {
   validateTaskQuery,
   validateStorageStatus,
   validateDatabaseBackupReceipt,
+  validateAiSettings,
+  validateProxySettings,
+  validateCredentialStorageStatus,
   MAX_EVENT_QUEUE_BYTES,
   MAX_EVENT_QUEUE_LENGTH,
 } from '@alune/protocol';
@@ -29,6 +32,13 @@ import type {
   TaskResult,
   StorageStatus,
   DatabaseBackupReceipt,
+  AiSettings,
+  AiModel,
+  SaveAiProvider,
+  CommitGenerationPreferences,
+  NetworkProxyConfig,
+  SaveNetworkProxy,
+  CredentialStorageStatus,
 } from '@alune/protocol';
 import type { MessageTransport } from './transport';
 
@@ -160,6 +170,70 @@ export class AgentClient {
     if (query.requestId !== undefined) params.requestId = query.requestId;
     else params.taskId = query.taskId!;
     return this.decode(this.request('tasks.get', params), validateTaskResult);
+  }
+  prepareCredentials(options: RequestOptions = {}): Promise<CredentialStorageStatus> {
+    return this.decode(
+      this.request('settings.credentials.prepare', undefined, options),
+      validateCredentialStorageStatus,
+    );
+  }
+  getAiSettings(options: RequestOptions = {}): Promise<AiSettings> {
+    return this.decode(this.request('settings.ai.get', undefined, options), validateAiSettings);
+  }
+  saveAiProvider(
+    id: string | undefined,
+    provider: SaveAiProvider,
+    revision: string,
+    options: RequestOptions = {},
+  ): Promise<AiSettings> {
+    return this.decode(
+      this.request(
+        'settings.ai.saveProvider',
+        { ...(id === undefined ? {} : { id }), provider, revision } as unknown as JsonValue,
+        options,
+      ),
+      validateAiSettings,
+    );
+  }
+  saveAiModels(
+    id: string,
+    models: AiModel[],
+    revision: string,
+    options: RequestOptions = {},
+  ): Promise<AiSettings> {
+    return this.decode(
+      this.request(
+        'settings.ai.saveModels',
+        { id, models, revision } as unknown as JsonValue,
+        options,
+      ),
+      validateAiSettings,
+    );
+  }
+  saveCommitPreferences(
+    commit: CommitGenerationPreferences,
+    revision: string,
+    options: RequestOptions = {},
+  ): Promise<AiSettings> {
+    return this.decode(
+      this.request('settings.ai.saveCommit', { commit, revision } as unknown as JsonValue, options),
+      validateAiSettings,
+    );
+  }
+  getProxySettings(options: RequestOptions = {}): Promise<NetworkProxyConfig> {
+    return this.decode(
+      this.request('settings.proxy.get', undefined, options),
+      validateProxySettings,
+    );
+  }
+  saveProxySettings(
+    config: SaveNetworkProxy,
+    options: RequestOptions = {},
+  ): Promise<NetworkProxyConfig> {
+    return this.decode(
+      this.request('settings.proxy.save', { config } as unknown as JsonValue, options),
+      validateProxySettings,
+    );
   }
   storageStatus(): Promise<StorageStatus> {
     return this.decode(this.request('storage.status'), (value) => {

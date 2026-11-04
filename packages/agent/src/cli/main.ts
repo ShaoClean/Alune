@@ -80,7 +80,13 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       }
       process.off('SIGTERM', stop);
       process.off('SIGINT', stop);
-      await serveStdio({ agentId, version, handlers: kernel.handlers, onDispose: kernel.close });
+      await serveStdio({
+        agentId,
+        version,
+        handlers: kernel.handlers,
+        taskJournal: kernel.taskJournal,
+        onDispose: kernel.close,
+      });
       return 0;
     } finally {
       process.off('SIGTERM', stop);

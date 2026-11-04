@@ -100,7 +100,7 @@ export type TaskQuery =
   | { requestId: string; taskId?: never }
   | { taskId: string; requestId?: never };
 export interface TaskResult {
-  scope: 'session';
+  scope: 'session' | 'agent';
   task: TaskInfo | null;
 }
 const stringList = (value: unknown): value is string[] =>
@@ -152,7 +152,7 @@ export function validateTaskQuery(value: unknown): TaskQuery {
   return value as unknown as TaskQuery;
 }
 export function validateTaskResult(value: unknown): TaskResult {
-  if (!isRecord(value) || value.scope !== 'session')
+  if (!isRecord(value) || !['session', 'agent'].includes(value.scope as string))
     throw new ProtocolError('invalid-request', 'Invalid task scope');
   const t = value.task;
   if (

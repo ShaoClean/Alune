@@ -22,6 +22,8 @@ import {
 import { StateFault } from '../../ports/state';
 import type { JsonDocument } from '../../ports/state';
 import type { StorageStatus } from '@alune/protocol';
+import { validateTaskResult, type TaskInfo } from '@alune/protocol';
+import type { TaskJournal } from '../../ports/task-journal';
 
 const APPLICATION_ID = 0x414c554e;
 const SCHEMA_VERSION = 1;
@@ -269,6 +271,109 @@ export class AgentState {
       lease.close();
       throw error;
     }
+  }
+  hasCredentialMaterial(): boolean {
+    this.assertOpen();
+    // Include all persistent secret columns and both known document formats.
+    // An absent descriptor must never be repaired by replacing an existing key.
+    return Boolean(
+      this.database
+        .prepare(
+          `
+      SELECT 1 FROM connections WHERE password_secret IS NOT NULL OR passphrase_secret IS NOT NULL
+      UNION ALL SELECT 1 FROM access_token_secrets
+      UNION ALL SELECT 1 FROM documents, json_tree(documents.body) AS item
+        WHERE item.key IN ('encryptedKey', 'encryptedCredentials') AND item.type != 'null'
+      LIMIT 1
+    `,
+        )
+        .get(),
+    );
+  }
+  taskJournal(): TaskJournal {
+    const digest = (task: TaskInfo) =>
+      createHash('sha256')
+        .update(task.requestId + ':' + task.method)
+        .digest('hex');
+    return {
+      start: (task) => {
+        this.assertOpen();
+        this.database
+          .transaction(() => {
+            if (this.database.prepare('SELECT id FROM operations WHERE id = ?').get(task.requestId))
+              throw new StateFault(
+                'conflict',
+                'This mutation request was already recorded; query its task and current state instead of replaying it',
+                'unknown',
+              );
+            this.database
+              .prepare('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, NULL)')
+              .run(
+                task.requestId,
+                task.method,
+                digest(task),
+                'running',
+                json(task),
+                new Date(task.startedAt).toISOString(),
+              );
+          })
+          .immediate();
+      },
+      finish: (task) => {
+        this.assertOpen();
+        const result = this.database
+          .prepare(
+            `UPDATE operations SET state = ?, result = ?, finished_at = ?
+          WHERE id = ? AND fingerprint = ? AND state = 'running'`,
+          )
+          .run(
+            task.outcome === 'unknown' ? 'unknown' : 'completed',
+            json(task),
+            new Date(task.finishedAt!).toISOString(),
+            task.requestId,
+            digest(task),
+          );
+        if (result.changes !== 1)
+          throw new StateFault('corrupt', 'Task receipt could not be finalized', 'unknown');
+      },
+      find: (query) => {
+        this.assertOpen();
+        const row = (
+          query.requestId
+            ? this.database
+                .prepare('SELECT state, result, finished_at FROM operations WHERE id = ?')
+                .get(query.requestId)
+            : this.database
+                .prepare(
+                  "SELECT state, result, finished_at FROM operations WHERE json_extract(result, '$.taskId') = ?",
+                )
+                .get(query.taskId)
+        ) as { state: string; result: string | null; finished_at: string | null } | undefined;
+        if (!row) return null;
+        try {
+          const task = JSON.parse(row.result!);
+          if (row.state === 'unknown') {
+            task.state = 'unknown';
+            task.outcome = 'unknown';
+            if (row.finished_at) task.finishedAt = Date.parse(row.finished_at);
+          }
+          const valid = validateTaskResult({ scope: 'agent', task }).task;
+          if (!valid) throw new Error();
+          return {
+            taskId: valid.taskId,
+            requestId: valid.requestId,
+            method: valid.method,
+            effect: valid.effect,
+            state: valid.state,
+            outcome: valid.outcome,
+            startedAt: valid.startedAt,
+            ...(valid.finishedAt === undefined ? {} : { finishedAt: valid.finishedAt }),
+          };
+        } catch {
+          throw new StateFault('corrupt', 'Stored task receipt is invalid');
+        }
+      },
+    };
   }
   document(name: string): JsonDocument {
     if (!/^[a-z][a-z0-9.-]{0,100}$/.test(name))

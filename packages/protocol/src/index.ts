@@ -3,6 +3,7 @@ export * from './methods';
 export * from './legacy-events';
 export * from './framing';
 export * from './storage';
+export * from './settings';
 export * from './legacy/proxy';
 export * from './legacy/logging';
 export * from './legacy/ai';

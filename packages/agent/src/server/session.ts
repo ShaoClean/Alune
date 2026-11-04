@@ -19,11 +19,13 @@ import type { JsonValue, RpcMessage, RpcRequest, TaskInfo } from '@alune/protoco
 import type { MessageTransport } from '@alune/agent-client';
 import type { Handler } from '../ports/handler';
 import { EventQueue } from '../runtime/events';
+import type { TaskJournal } from '../ports/task-journal';
 
 export interface SessionOptions {
   agentId: string;
   version: string;
   handlers?: Readonly<Record<string, Handler>>;
+  taskJournal?: TaskJournal;
   onDispose?: () => Promise<void>;
   shutdownMs?: number;
   eventLimits?: { bytes: number; messages: number; ackMs: number };
@@ -158,6 +160,7 @@ export class AgentSession {
     this.activeRequests++;
     this.requestBytes += bytes;
     let task: TaskInfo | undefined;
+    let journalActive = false;
     try {
       if (message.method === 'initialize') {
         if (this.initialized)
@@ -228,7 +231,11 @@ export class AgentSession {
         const found = validId(p.requestId)
           ? this.tasks.get(p.requestId)
           : [...this.tasks.values()].find((entry) => entry.info.taskId === p.taskId);
-        await this.result(message, { scope: 'session', task: found ? { ...found.info } : null });
+        const stored = this.protocolMinor >= 1 ? this.options.taskJournal?.find(p) : null;
+        await this.result(message, {
+          scope: stored ? 'agent' : 'session',
+          task: stored ? { ...stored } : found ? { ...found.info } : null,
+        });
         return;
       }
       const handler = Object.hasOwn(this.options.handlers ?? {}, message.method)
@@ -257,6 +264,10 @@ export class AgentSession {
         outcome: 'unknown',
         startedAt: Date.now(),
       };
+      if (handler.effect === 'mutation' && this.options.taskJournal) {
+        this.options.taskJournal.start(task);
+        journalActive = true;
+      }
       this.tasks.set(message.id, { info: task, controller });
       this.taskEvent(task);
       const value = await handler.run(message.params, {
@@ -269,12 +280,16 @@ export class AgentSession {
       task.state = 'succeeded';
       task.outcome = 'completed';
       task.finishedAt = Date.now();
+      if (journalActive) {
+        journalActive = false;
+        this.options.taskJournal!.finish(task);
+      }
       this.taskEvent(task);
       this.pruneTasks();
       if (!this.closing) await this.result(message, value);
     } catch (error) {
       const cancelled = error instanceof Error && error.name === 'AbortError';
-      const failure =
+      let failure =
         error instanceof ProtocolError
           ? error
           : error instanceof StateFault
@@ -293,6 +308,20 @@ export class AgentSession {
               : 'failed';
         task.outcome = failure.outcome;
         task.finishedAt = Date.now();
+        if (journalActive) {
+          journalActive = false;
+          try {
+            this.options.taskJournal!.finish(task);
+          } catch {
+            task.state = 'unknown';
+            task.outcome = 'unknown';
+            failure = new ProtocolError(
+              'unavailable',
+              'Task receipt could not be finalized; query the task and current state',
+              'unknown',
+            );
+          }
+        }
         this.taskEvent(task);
         this.pruneTasks();
       }
