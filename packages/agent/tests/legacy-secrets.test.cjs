@@ -53,3 +53,30 @@ test('Agent file cipher uses a separate key and an explicit create decision', ()
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('checked desktop import source never creates a missing key or repairs unsafe permissions', async (t) => {
+  const { readCheckedLegacySecretStorage } = require('../dist/adapters/secrets/file');
+  const { privateDirectory } = require('../dist/adapters/private-files');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-checked-source-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  await privateDirectory(root);
+  const missing = await readCheckedLegacySecretStorage(root);
+  assert.equal(missing.available, false);
+  assert.equal(fs.existsSync(path.join(root, 'ai-master-key')), false);
+  await assert.rejects(
+    readCheckedLegacySecretStorage(root, AbortSignal.abort()),
+    (error) => error.name === 'AbortError',
+  );
+  const original = localSecretStorage(root);
+  const value = original.encrypt('fixture-source-credential');
+  const source = await readCheckedLegacySecretStorage(root);
+  assert.equal(source.available, true);
+  assert.equal(source.decrypt(value), 'fixture-source-credential');
+  source.close();
+  original.close();
+  if (process.platform !== 'win32') {
+    fs.chmodSync(path.join(root, 'ai-master-key'), 0o644);
+    assert.equal((await readCheckedLegacySecretStorage(root)).available, false);
+    assert.equal(fs.statSync(path.join(root, 'ai-master-key')).mode & 0o777, 0o644);
+  }
+});

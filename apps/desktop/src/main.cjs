@@ -175,18 +175,27 @@ async function start() {
     const Database = require('better-sqlite3');
     const imported = new Database(databasePath);
     try {
-      const { localSecretStorage } = require('./server/secrets/secret-storage');
+      const { readCheckedLegacySecretStorage } = require('./server/secrets/secret-storage');
       const {
         migrateImportedAccessTokens,
       } = require('./server/access-tokens/access-token-migration');
-      if (
-        migrateImportedAccessTokens(
-          imported,
-          localSecretStorage(path.dirname(standaloneDatabase)),
-          aiSecretStorage,
-        )
-      )
-        rmSync(tokenImportMarker);
+      const importController = new AbortController();
+      const cancelImport = () => importController.abort();
+      app.once('before-quit', cancelImport);
+      let sourceSecrets;
+      try {
+        sourceSecrets = await readCheckedLegacySecretStorage(
+          path.dirname(standaloneDatabase), importController.signal,
+        );
+        if (migrateImportedAccessTokens(imported, sourceSecrets, aiSecretStorage))
+          rmSync(tokenImportMarker);
+      } catch (error) {
+        if (importController.signal.aborted) return;
+        throw error;
+      } finally {
+        sourceSecrets?.close?.();
+        app.off('before-quit', cancelImport);
+      }
     } finally {
       imported.close();
     }

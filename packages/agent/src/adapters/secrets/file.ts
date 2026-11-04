@@ -13,6 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { verifyPrivateSourceKey } from '../private-files';
 
 // Runtime-only cipher port; ciphertext and plaintext never belong in read RPC results.
 export interface SecretStorage {
@@ -117,6 +118,28 @@ export function localSecretStorage(dataDir: string): SecretStorage {
 /** Legacy import must never create a replacement source key. */
 export function readLegacySecretStorage(dataDir: string): SecretStorage {
   return fileCipher(dataDir, 'ai-master-key', false);
+}
+/** Old desktop bootstrap can await this check without mutating its standalone source. */
+export async function readCheckedLegacySecretStorage(
+  dataDir: string,
+  signal?: AbortSignal,
+): Promise<SecretStorage> {
+  try {
+    await verifyPrivateSourceKey(join(dataDir, 'ai-master-key'), signal);
+    return readLegacySecretStorage(dataDir);
+  } catch {
+    signal?.throwIfAborted();
+    return {
+      available: false,
+      description: '来源密钥不可用或权限不安全；原文件保持不变。',
+      encrypt() {
+        throw new Error('Read-only legacy source is unavailable');
+      },
+      decrypt() {
+        throw new Error('Read-only legacy source is unavailable');
+      },
+    };
+  }
 }
 /** The new Agent keeps its key separate from a legacy service in the parent directory. */
 export function agentFileSecretStorage(dataDir: string, create: boolean): SecretStorage {
