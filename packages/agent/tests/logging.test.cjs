@@ -85,3 +85,10 @@ test('older on-disk entries are redacted again before being returned to a client
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('versioned Agent ciphertext is removed from free-form messages', () => {
+  const { redactText } = require('../dist/adapters/logging');
+  const value =
+    'aes-gcm:v1:' + Buffer.from('fixture-ciphertext-payload-with-auth-tag').toString('base64');
+  assert.equal(redactText('native error: ' + value), 'native error: [REDACTED]');
+});

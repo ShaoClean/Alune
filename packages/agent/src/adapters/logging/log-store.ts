@@ -21,6 +21,7 @@ import {
   type SaveLoggingSettings,
 } from '@alune/protocol';
 import { redactContext, redactText } from './redact';
+import type { JsonDocument } from '../../ports/state';
 
 type Stored = SaveLoggingSettings;
 type Listener = (entry: LogEntry) => void;
@@ -149,18 +150,25 @@ export class LogStore {
   private listeners = new Set<Listener>();
   private writing = false;
   private closed = false;
+  private settingsCorrupt = false;
 
   constructor(
     dataDirectory: string,
     private readonly now: () => Date = () => new Date(),
+    private readonly settingsDocument?: JsonDocument,
   ) {
     this.defaultDirectory = join(dataDirectory, 'logs');
     this.settingsFile = join(dataDirectory, 'logging.json');
     try {
-      this.stored = validateLoggingSettings(JSON.parse(readFileSync(this.settingsFile, 'utf8')));
+      const value = settingsDocument
+        ? settingsDocument.read()
+        : JSON.parse(readFileSync(this.settingsFile, 'utf8'));
+      if (value !== undefined) this.stored = validateLoggingSettings(value);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         this.fallbackReason = '日志设置文件无法读取，已使用默认设置。';
+        this.settingsCorrupt = Boolean(settingsDocument);
+      }
     }
     this.active = this.resolveDirectory();
     this.loadHistory();
@@ -196,11 +204,16 @@ export class LogStore {
   }
 
   update(input: unknown): LoggingSettings {
+    if (this.settingsCorrupt)
+      throw new LogValidationError('日志配置损坏，原数据已保留；请恢复有效配置后重启。');
     const next = validateLoggingSettings(input);
     if (next.customDirectory) assertWritableDirectory(next.customDirectory);
-    const temporary = `${this.settingsFile}.${process.pid}.tmp`;
-    writeFileSync(temporary, JSON.stringify(next, null, 2), { mode: 0o600 });
-    renameSync(temporary, this.settingsFile);
+    if (this.settingsDocument) this.settingsDocument.write(next);
+    else {
+      const temporary = `${this.settingsFile}.${process.pid}.tmp`;
+      writeFileSync(temporary, JSON.stringify(next, null, 2), { mode: 0o600 });
+      renameSync(temporary, this.settingsFile);
+    }
     const previous = this.active;
     this.flush();
     this.stored = next;

@@ -16,6 +16,10 @@ import {
   validateProxySettings,
   validateCredentialStorageStatus,
   validateAccessTokenSettings,
+  validateLogSettingsResult,
+  validateLogSnapshot,
+  validateLogChunk,
+  validateLogEntries,
   MAX_EVENT_QUEUE_BYTES,
   MAX_EVENT_QUEUE_LENGTH,
 } from '@alune/protocol';
@@ -42,6 +46,9 @@ import type {
   CredentialStorageStatus,
   AccessTokenSettings,
   SaveAccessToken,
+  LogSettingsResult,
+  SaveLoggingSettings,
+  LogEntry,
 } from '@alune/protocol';
 import type { MessageTransport } from './transport';
 
@@ -263,6 +270,66 @@ export class AgentClient {
       this.request('accounts.tokens.delete', { id, revision }, options),
       validateAccessTokenSettings,
     );
+  }
+  getLoggingSettings(options: RequestOptions = {}): Promise<LogSettingsResult> {
+    return this.decode(
+      this.request('diagnostics.logs.settings', undefined, options),
+      validateLogSettingsResult,
+    );
+  }
+  saveLoggingSettings(
+    settings: SaveLoggingSettings,
+    revision: string,
+    options: RequestOptions = {},
+  ): Promise<LogSettingsResult> {
+    return this.decode(
+      this.request(
+        'diagnostics.logs.saveSettings',
+        { settings, revision } as unknown as JsonValue,
+        options,
+      ),
+      validateLogSettingsResult,
+    );
+  }
+  async recentLogs(limit = 1000, options: RequestOptions = {}): Promise<LogEntry[]> {
+    const snapshot = await this.decode(
+      this.request('diagnostics.logs.snapshot', { limit }, options),
+      validateLogSnapshot,
+    );
+    try {
+      const bytes = new Uint8Array(snapshot.bytes);
+      let offset = 0;
+      for (let index = 0; index < snapshot.chunks; index++) {
+        const chunk = await this.decode(
+          this.request(
+            'diagnostics.logs.chunk',
+            { snapshotId: snapshot.snapshotId, index },
+            options,
+          ),
+          validateLogChunk,
+        );
+        if (chunk.snapshotId !== snapshot.snapshotId || chunk.index !== index)
+          throw new ProtocolError('invalid-request', 'Log chunk belongs to another snapshot');
+        const decoded = globalThis.atob(chunk.base64);
+        const expected = Math.min(32768, snapshot.bytes - offset);
+        if (decoded.length !== expected || globalThis.btoa(decoded) !== chunk.base64)
+          throw new ProtocolError('invalid-request', 'Invalid log chunk size or encoding');
+        for (let n = 0; n < decoded.length; n++) bytes[offset++] = decoded.charCodeAt(n);
+      }
+      const entries = validateLogEntries(
+        JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)),
+      );
+      if (entries.length !== snapshot.entries)
+        throw new ProtocolError('invalid-request', 'Log snapshot count does not match');
+      return entries;
+    } finally {
+      // Releasing the immutable snapshot is safe even after read cancellation.
+      await this.request(
+        'diagnostics.logs.release',
+        { snapshotId: snapshot.snapshotId },
+        { timeoutMs: 1000 },
+      ).catch(() => {});
+    }
   }
   storageStatus(): Promise<StorageStatus> {
     return this.decode(this.request('storage.status'), (value) => {

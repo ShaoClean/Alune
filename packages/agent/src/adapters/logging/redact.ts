@@ -8,7 +8,7 @@ const SENSITIVE_KEY =
   /pass(word|phrase|wd)?$|secret|token|authorization|api[-_]?key|private[-_]?key|cookie|credential|ciphertext|encrypted[-_]?key|encrypted[-_]?credential|master[-_]?key/i;
 
 const PATTERNS: [RegExp, string][] = [
-  [/\b(?:aes-gcm|safe-storage):[A-Za-z0-9+/_=-]{16,}/g, REDACTED],
+  [/\b(?:aes-gcm:(?:v\d+:)?|safe-storage:)[A-Za-z0-9+/_=-]{16,}/g, REDACTED],
   [
     /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|$)/g,
     '[REDACTED PRIVATE KEY]',

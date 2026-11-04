@@ -7,6 +7,7 @@ import type { Handler } from '../ports/handler';
 import type { DatabaseBackupReceipt } from '@alune/protocol';
 import { settingsKernel } from './settings-kernel';
 import type { ProtectedSecretOptions } from '../adapters/secrets/protected';
+import { diagnosticLogs } from '../modules/diagnostics/logs';
 
 export async function openStateKernel(
   directory: string,
@@ -22,8 +23,17 @@ export async function openStateKernel(
     await state.close();
     throw error;
   }
+  let diagnostics: ReturnType<typeof diagnosticLogs>;
+  try {
+    diagnostics = diagnosticLogs(directory, state.document('logging-settings'));
+  } catch (error) {
+    await settings.close();
+    await state.close();
+    throw error;
+  }
   const handlers: Record<string, Handler> = {
     ...settings.handlers,
+    ...diagnostics.handlers,
     'storage.status': {
       minimumProtocolMinor: 1,
       effect: 'query',
@@ -52,8 +62,15 @@ export async function openStateKernel(
     handlers,
     taskJournal: state.taskJournal(),
     close: async () => {
-      await settings.close();
-      await state.close();
+      try {
+        await settings.close();
+      } finally {
+        try {
+          diagnostics.close();
+        } finally {
+          await state.close();
+        }
+      }
     },
   };
 }
