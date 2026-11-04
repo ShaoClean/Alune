@@ -29,6 +29,51 @@ export const LEGACY_TABLES = [
   'access_token_bindings',
 ] as const;
 export type LegacyRows = Record<(typeof LEGACY_TABLES)[number], Record<string, unknown>[]>;
+const legacyColumns: Record<(typeof LEGACY_TABLES)[number], readonly string[]> = {
+  connections: [
+    'id',
+    'name',
+    'host',
+    'port',
+    'username',
+    'auth_type',
+    'password',
+    'private_key_path',
+    'passphrase',
+    'created_at',
+    'updated_at',
+  ],
+  repositories: [
+    'id',
+    'connection_id',
+    'source',
+    'name',
+    'path',
+    'pinned',
+    'created_at',
+    'worktree_kind',
+  ],
+  access_token_state: ['id', 'revision'],
+  access_tokens: ['id', 'name', 'name_key', 'version', 'updated_at', 'provider', 'origin'],
+  access_token_secrets: ['token_id', 'ciphertext'],
+  access_token_bindings: [
+    'repository_id',
+    'remote',
+    'target',
+    'provider',
+    'token_id',
+    'invalid_reason',
+    'version',
+  ],
+};
+function checkLegacyVersion(db: Database.Database): void {
+  // The supported standalone/Electron schema has no application/version header.
+  if (
+    db.pragma('user_version', { simple: true }) !== 0 ||
+    db.pragma('application_id', { simple: true }) !== 0
+  )
+    throw new StateFault('corrupt', 'Unsupported legacy database version; source was retained');
+}
 export interface LegacySnapshot {
   id: string;
   source: string;
@@ -57,6 +102,7 @@ function readRows(file: string): LegacyRows {
   const db = new Database(file, { readonly: true, fileMustExist: true });
   try {
     db.pragma('trusted_schema = OFF');
+    checkLegacyVersion(db);
     if (db.pragma('quick_check', { simple: true }) !== 'ok')
       throw new StateFault('corrupt', 'Legacy database integrity check failed');
     const objects = db
@@ -76,6 +122,12 @@ function readRows(file: string): LegacyRows {
       );
     for (const name of LEGACY_TABLES) {
       if (!objects.some((item) => item.type === 'table' && item.name === name)) continue;
+      const columns = db.prepare(`PRAGMA table_info(${name})`).all() as { name: string }[];
+      if (columns.some((column) => !legacyColumns[name].includes(column.name)))
+        throw new StateFault(
+          'corrupt',
+          'Legacy table has unsupported columns; source was retained',
+        );
       // Table identifiers are fixed constants, never source-provided SQL.
       rows[name] = db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all() as Record<
         string,
@@ -124,6 +176,7 @@ export async function captureLegacySource(
       const db = new Database(sourceDatabase, { readonly: true, fileMustExist: true });
       try {
         db.pragma('trusted_schema = OFF');
+        checkLegacyVersion(db);
         if (db.pragma('quick_check', { simple: true }) !== 'ok')
           throw new StateFault('corrupt', 'Legacy database integrity check failed');
         await db.backup(join(directory, 'alune.db'), {

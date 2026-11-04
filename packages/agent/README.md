@@ -68,7 +68,7 @@ macOS 默认使用 Keychain，Windows 使用 CurrentUser DPAPI，Linux 无桌面
 node packages/agent/bin/alune-agent.cjs legacy-import --source /path/to/legacy-data --data-dir /path/to/agent-data
 ```
 
-先停止旧数据目录的写者。目标必须没有已有业务数据；来源 `alune.db`、`ai-settings.json`、`network-proxy.json`、`logging.json` 和 `workspace.json` 以只读方式捕获到目标的私有 `migration-sources` 目录。来源在捕获或解密期间发生变化会中止。导入前另做目标数据库备份，全部业务数据与导入回执在同一事务提交。
+先停止旧数据目录的写者。目标必须没有已有业务数据；来源 `alune.db`、`ai-settings.json`、`network-proxy.json`、`logging.json` 和 `workspace.json` 以只读方式捕获到目标的私有 `migration-sources` 目录。来源在捕获或解密期间发生变化会中止；未知数据库版本或列不会被静默降级或丢弃。导入前另做目标数据库备份，全部业务数据与导入回执在同一事务提交。
 
 导入保留主机/仓库/令牌 ID 和布局引用，重新加密 SSH 密码/口令、AI Key、代理认证和命名令牌；旧密钥文件不创建、不修复权限、不覆盖。重复导入同一来源快照返回原回执，来源变化或目标已有业务配置则拒绝覆盖。损坏来源、失败快照、旧数据库目录均保留，Git 工作区不被修改。
 

@@ -270,3 +270,30 @@ test(
     assert.equal(f.state.database.prepare('SELECT count(*) AS n FROM imports').get().n, 0);
   },
 );
+
+test(
+  'future source versions and unsupported columns are retained instead of partially imported',
+  { timeout: 60000 },
+  async (t) => {
+    const f = await fixture(t);
+    const Database = require('better-sqlite3');
+    const source = new Database(path.join(f.legacy.source, 'alune.db'));
+    try {
+      source.pragma('user_version = 999');
+    } finally {
+      source.close();
+    }
+    await assert.rejects(f.run(), (error) => error.kind === 'corrupt');
+    const reset = new Database(path.join(f.legacy.source, 'alune.db'));
+    try {
+      assert.equal(reset.pragma('user_version', { simple: true }), 999);
+      reset.pragma('user_version = 0');
+      reset.exec('ALTER TABLE repositories ADD COLUMN future_data TEXT');
+    } finally {
+      reset.close();
+    }
+    await assert.rejects(f.run(), (error) => error.kind === 'corrupt');
+    assert.equal(f.state.database.prepare('SELECT count(*) AS n FROM repositories').get().n, 0);
+    assert.equal(f.state.database.prepare('SELECT count(*) AS n FROM imports').get().n, 0);
+  },
+);

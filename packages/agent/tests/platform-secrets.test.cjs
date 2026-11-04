@@ -77,3 +77,64 @@ test(
     }
   },
 );
+
+test(
+  'headless CLI selects its platform protection without a desktop process',
+  { skip: process.platform === 'darwin', timeout: 90000 },
+  async (t) => {
+    const { spawnAgent } = require('@alune/agent-client/node');
+    const { AgentState } = require('../dist/adapters/sqlite/state');
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-headless-secret-'));
+    const children = [];
+    let wire = '';
+    t.after(async () => {
+      await Promise.all(children.map((child) => child.close()));
+      fs.rmSync(root, { recursive: true, force: true });
+    });
+    const start = async () => {
+      const child = spawnAgent(
+        process.execPath,
+        [path.resolve(__dirname, '../bin/alune-agent.cjs'), 'serve', '--data-dir', root],
+        { env: { ...process.env, DISPLAY: '', WAYLAND_DISPLAY: '', DBUS_SESSION_BUS_ADDRESS: '' } },
+      );
+      children.push(child);
+      child.process.stdout.on('data', (chunk) => {
+        wire += chunk.toString();
+      });
+      const identity = await child.client.initialize();
+      return { child, identity };
+    };
+    const { child, identity } = await start();
+    const ai = await child.client.getAiSettings(),
+      provider = ai.providers[0];
+    const saved = await child.client.saveAiProvider(
+      provider.id,
+      {
+        name: provider.name,
+        protocol: provider.protocol,
+        baseUrl: provider.baseUrl,
+        models: provider.models,
+        enabled: true,
+        apiKey: 'fixture-default-credential',
+      },
+      ai.revision,
+    );
+    assert.equal(saved.secretStorage.available, true);
+    await child.close();
+    assert.equal((await child.exited).code, 0);
+    const next = (await start()).child;
+    assert.equal((await next.client.getAiSettings()).providers[0].hasApiKey, true);
+    await next.close();
+    assert.equal((await next.exited).code, 0);
+    const state = await AgentState.open(root, identity.agentId);
+    try {
+      assert.equal(
+        state.document('credential-key').read().backend,
+        process.platform === 'win32' ? 'dpapi' : 'file',
+      );
+    } finally {
+      await state.close();
+    }
+    assert.doesNotMatch(wire, /fixture-default-credential|aes-gcm:v1:/);
+  },
+);
