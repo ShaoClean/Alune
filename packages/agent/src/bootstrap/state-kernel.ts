@@ -8,6 +8,7 @@ import type { DatabaseBackupReceipt } from '@alune/protocol';
 import { settingsKernel } from './settings-kernel';
 import type { ProtectedSecretOptions } from '../adapters/secrets/protected';
 import { diagnosticLogs } from '../modules/diagnostics/logs';
+import { ProxyRuntime } from '../adapters/network/runtime';
 
 export async function openStateKernel(
   directory: string,
@@ -34,6 +35,16 @@ export async function openStateKernel(
   const handlers: Record<string, Handler> = {
     ...settings.handlers,
     ...diagnostics.handlers,
+    'network.updaterBridge': {
+      minimumProtocolMinor: 1,
+      effect: 'mutation',
+      validate: validateEmpty,
+      async run(_params, context) {
+        await settings.readyCredentials(context.signal);
+        context.signal.throwIfAborted();
+        return { ...(await network.updaterBridge()), agentId, scope: 'agent-loopback' };
+      },
+    },
     'storage.status': {
       minimumProtocolMinor: 1,
       effect: 'query',
@@ -57,18 +68,23 @@ export async function openStateKernel(
       },
     },
   };
+  const network = new ProxyRuntime(settings.proxy);
   return {
     state,
     handlers,
     taskJournal: state.taskJournal(),
     close: async () => {
       try {
-        await settings.close();
+        await network.close();
       } finally {
         try {
-          diagnostics.close();
+          await settings.close();
         } finally {
-          await state.close();
+          try {
+            diagnostics.close();
+          } finally {
+            await state.close();
+          }
         }
       }
     },

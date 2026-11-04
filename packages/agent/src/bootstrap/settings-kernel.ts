@@ -165,6 +165,15 @@ export function settingsKernel(
     ai,
     proxy,
     tokens,
+    readyCredentials(signal: AbortSignal) {
+      const task = tail.then(async () => {
+        if (closed) throw new StateFault('unavailable', 'Settings store is closed');
+        signal.throwIfAborted();
+        await prepare(false, signal);
+      });
+      tail = task.catch(() => undefined);
+      return task;
+    },
     async close() {
       closed = true;
       await tail;

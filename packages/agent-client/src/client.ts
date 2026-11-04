@@ -20,6 +20,7 @@ import {
   validateLogSnapshot,
   validateLogChunk,
   validateLogEntries,
+  validateUpdaterBridge,
   MAX_EVENT_QUEUE_BYTES,
   MAX_EVENT_QUEUE_LENGTH,
 } from '@alune/protocol';
@@ -49,6 +50,7 @@ import type {
   LogSettingsResult,
   SaveLoggingSettings,
   LogEntry,
+  UpdaterBridge,
 } from '@alune/protocol';
 import type { MessageTransport } from './transport';
 
@@ -330,6 +332,14 @@ export class AgentClient {
         { timeoutMs: 1000 },
       ).catch(() => {});
     }
+  }
+  updaterBridge(options: RequestOptions = {}): Promise<UpdaterBridge> {
+    return this.decode(this.request('network.updaterBridge', undefined, options), (value) => {
+      const bridge = validateUpdaterBridge(value);
+      if (bridge.agentId !== this.identity?.agentId)
+        throw new ProtocolError('invalid-request', 'Updater bridge belongs to another Agent');
+      return bridge;
+    });
   }
   storageStatus(): Promise<StorageStatus> {
     return this.decode(this.request('storage.status'), (value) => {

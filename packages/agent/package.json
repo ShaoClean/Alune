@@ -32,8 +32,8 @@
       "default": "./dist/index.js"
     },
     "./network": {
-      "types": "./dist/adapters/network/proxy-transport.d.ts",
-      "default": "./dist/adapters/network/proxy-transport.js"
+      "types": "./dist/adapters/network/index.d.ts",
+      "default": "./dist/adapters/network/index.js"
     },
     "./logging": {
       "types": "./dist/adapters/logging/index.d.ts",
@@ -55,7 +55,7 @@
   "typesVersions": {
     "*": {
       "network": [
-        "dist/adapters/network/proxy-transport.d.ts"
+        "dist/adapters/network/index.d.ts"
       ],
       "logging": [
         "dist/adapters/logging/index.d.ts"
