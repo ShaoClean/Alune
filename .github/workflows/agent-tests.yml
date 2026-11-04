@@ -58,7 +58,8 @@ jobs:
         run: node scripts/agent/test-packaged.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}" --require-clean
       - name: 保存可执行权限并生成归档
         shell: bash
-        run: tar -czf "$RUNNER_TEMP/alune-agent-${{ matrix.target }}.tar.gz" -C "$RUNNER_TEMP" "alune-agent-${{ matrix.target }}"
+        working-directory: ${{ runner.temp }}
+        run: tar -czf "alune-agent-${{ matrix.target }}.tar.gz" "alune-agent-${{ matrix.target }}"
       - uses: actions/upload-artifact@v4
         with:
           name: alune-agent-${{ matrix.target }}
