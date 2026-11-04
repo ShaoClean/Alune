@@ -101,6 +101,15 @@ test('documents remain readable without JavaScript and product home excludes dem
   }
 });
 
+test('a component-specific guide keeps its generated public API tables', () => {
+  const page = pages.get(`${base}ui/compact-table/`);
+  assert.ok(page.ids.includes('selection'), 'missing component-specific interaction guide');
+  for (const id of ['api', 'CompactTableProps', 'CompactTableColumn', 'CompactTableGroup']) {
+    assert.ok(page.ids.includes(id), `component guide hid the ${id} API section`);
+  }
+  assert.match(page.html, /rowKey/);
+});
+
 test('every rendered demo exposes the exact executable TSX source for copying', async () => {
   const seen = new Set();
   const decode = (html) =>

@@ -1,0 +1,168 @@
+.app-content.app-content--branch-overview {
+  padding: 12px;
+  overflow: hidden;
+}
+.branch-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.branch-overview__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.branch-overview__toolbar > .ant-input-affix-wrapper {
+  flex: 1;
+  min-width: 100px;
+}
+.branch-overview__toolbar > .ant-select {
+  flex: 0 0 130px;
+}
+.branch-overview__toolbar > .ant-btn {
+  flex-shrink: 0;
+}
+.branch-overview__table {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.branch-overview__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--content);
+}
+.branch-overview__source {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.branch-overview__source > span:first-child {
+  color: var(--text);
+}
+.branch-overview__source > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.branch-overview__connection-state .connection-dot {
+  flex-shrink: 0;
+}
+.branch-overview__identity {
+  width: 100%;
+  min-width: 0;
+}
+.branch-overview__identity .repository-identity {
+  gap: 6px;
+}
+.branch-overview__identity .repository-identity__name {
+  font-size: 12px;
+  font-weight: 400;
+}
+.branch-overview__identity .repository-kind-icon {
+  font-size: 13px;
+  flex-basis: 13px;
+}
+.repository-branch-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--blue);
+}
+.repository-branch-cell > .anticon {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.repository-branch-cell__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font: 12px/1.45 var(--font-mono);
+}
+.repository-branch-cell__note {
+  margin-left: auto;
+  font: 11px/1.4 var(--font-sans);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.repository-branch-cell--stale {
+  color: var(--text-muted);
+}
+.branch-overview__dirty {
+  color: var(--orange);
+  font-variant-numeric: tabular-nums;
+}
+.branch-overview__muted,
+.branch-overview__sync {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.branch-overview__sync {
+  white-space: nowrap;
+}
+.repository-detail-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 7px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.repository-detail-strip__identity {
+  flex: 1;
+  min-width: 0;
+}
+.repository-detail-strip__path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repository-detail-strip__path > .anticon {
+  margin-right: 6px;
+}
+.repository-detail-strip__state {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.repository-detail-strip > .ant-btn {
+  flex-shrink: 0;
+}
+.branch-overview__summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+@media (max-width: 580px) {
+  .branch-overview__toolbar {
+    flex-wrap: wrap;
+  }
+  .branch-overview__toolbar > .ant-input-affix-wrapper {
+    flex-basis: 100%;
+  }
+  .branch-overview__toolbar > .ant-select {
+    flex: 1;
+  }
+  .repository-detail-strip {
+    flex-wrap: wrap;
+  }
+  .repository-detail-strip__identity {
+    flex-basis: 100%;
+  }
+}

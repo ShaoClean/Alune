@@ -1,5 +1,11 @@
 export { AluneUIProvider } from './AluneUIProvider';
 export type { AluneUIProviderProps } from './AluneUIProvider';
+export { CompactTable } from './components/CompactTable';
+export type {
+  CompactTableProps,
+  CompactTableColumn,
+  CompactTableGroup,
+} from './components/CompactTable';
 export {
   DialogHints,
   Kbd,

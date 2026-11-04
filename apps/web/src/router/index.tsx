@@ -4,12 +4,14 @@ import { Layout } from '../components/Layout';
 import { ConnectionsPage } from '../pages/ConnectionsPage';
 import { RepositoriesPage } from '../pages/RepositoriesPage';
 import { RepositoryStartPage } from '../pages/RepositoryStartPage';
+import { RepositoryBranchesPage } from '../pages/RepositoryBranchesPage';
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <Layout />,
     children: [
+      { path: 'branches', element: <RepositoryBranchesPage /> },
       { path: 'pull-requests', element: <PullRequestCenterPage /> },
       { path: 'pull-requests/:repositoryId/:number', element: <PullRequestCenterPage /> },
       {

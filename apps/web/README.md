@@ -1,5 +1,11 @@
 # React + TypeScript + Vite
 
+## Branch overview
+
+The sidebar's **分支总览** entry opens `/branches`. It groups every registered local and SSH repository in a compact table, with source and branch search, connection filtering, and a selected-repository detail strip. Use Up/Down/Home/End to select a row and Enter or double-click to open its workspace.
+
+Rows share the existing visibility-based status cache and bounded request queue. Expired, failed or disconnected reads retain their cached branch with an explicit label; worktree and sync metrics become unknown until refreshed. The refresh action reads all repositories in the selected source, including repositories hidden by the current search. `CompactTable` lives in `@alune/ui`; Git-specific summaries and cells stay in the web app.
+
 ## Sidebar preferences
 
 The sidebar remembers each connection's fold state, connection order and repository order within each connection. Drag a handle or focus it and press Alt+Up/Down to reorder. New items append to their group; successful full registry responses and confirmed deletions remove stale IDs. Sidebar ordering is independent of open repository tabs.

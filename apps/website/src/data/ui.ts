@@ -21,6 +21,18 @@ export const categories = [
 ] as const;
 export const documents: UIDocument[] = [
   {
+    slug: 'compact-table',
+    title: 'CompactTable',
+    subtitle: '紧凑分组表格',
+    description: '以约 30px 的数据行集中比较十几个项目；分组合并、选择和激活由受控数据驱动。',
+    category: 'Alune 组件',
+    keywords: ['CompactTable', '表格', '紧凑', '分组', '键盘'],
+    exports: ['CompactTable', 'CompactTableProps', 'CompactTableColumn', 'CompactTableGroup'],
+    source: 'packages/ui/src/components/CompactTable.tsx',
+    examples: ['compact-table'],
+    guide: 'compact-table',
+  },
+  {
     slug: 'provider',
     title: 'AluneUIProvider',
     subtitle: '主题与运行时上下文',

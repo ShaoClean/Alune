@@ -1,6 +1,7 @@
 /* Import once in each host document, before application-specific layout CSS. */
 @import './src/styles/tokens.css';
 @import './src/styles/controls.css';
+@import './src/styles/compact-table.css';
 @import './src/styles/dialogs.css';
 :root {
   color: var(--text);

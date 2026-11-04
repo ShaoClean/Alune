@@ -18,6 +18,13 @@ const guideLoaders = import.meta.glob<MDXInstance<Record<string, unknown>>>(
 const guide = doc.guide ? await guideLoaders[`../../content/ui/${doc.guide}.mdx`]() : null;
 const Content = guide?.Content;
 const guideToc: Record<string, { id: string; title: string }[]> = {
+  'compact-table': [
+    { id: 'usage', title: '适用范围' },
+    { id: 'selection', title: '选择与激活' },
+    { id: 'accessibility', title: '无障碍与状态' },
+    { id: 'examples', title: '运行示例' },
+    { id: 'api', title: 'API' },
+  ],
   'getting-started': [
     { id: 'setup', title: '初始化' },
     { id: 'connect', title: '最小接入' },
@@ -150,7 +157,7 @@ const imported = doc.exports.filter(
       ))}
     </>
   )}
-  {!doc.guide && (
+  {doc.exports.length > 0 && (
     <>
       <h2 id="api">API</h2>
       {doc.antd ? (
@@ -215,18 +222,22 @@ const imported = doc.exports.filter(
           <a href="https://ant.design/components/modal-cn/#api">继承属性完整 API ↗</a>
         </p>
       )}
-      <h2 id="accessibility">交互与使用限制</h2>
-      <p>
-        为每个操作提供可访问名称，为输入关联
-        label；使用语义化组件和清晰焦点。不要只靠颜色传达状态，禁用与等待时避免重复执行。
-      </p>
-      <p>
-        {special[doc.title] ??
-          '宿主负责状态、业务操作、错误处理与真实内容。组件不读取业务 store、路由或 Electron。示例中的反馈和等待均为本地模拟。'}
-      </p>
-      <p>
-        键盘、焦点、风险确认与通知策略的完整约定见<a href={uiPath('interaction')}>交互规范</a>。
-      </p>
+      {!Content && (
+        <>
+          <h2 id="accessibility">交互与使用限制</h2>
+          <p>
+            为每个操作提供可访问名称，为输入关联
+            label；使用语义化组件和清晰焦点。不要只靠颜色传达状态，禁用与等待时避免重复执行。
+          </p>
+          <p>
+            {special[doc.title] ??
+              '宿主负责状态、业务操作、错误处理与真实内容。组件不读取业务 store、路由或 Electron。示例中的反馈和等待均为本地模拟。'}
+          </p>
+          <p>
+            键盘、焦点、风险确认与通知策略的完整约定见<a href={uiPath('interaction')}>交互规范</a>。
+          </p>
+        </>
+      )}
     </>
   )}
 </UIDocLayout>
