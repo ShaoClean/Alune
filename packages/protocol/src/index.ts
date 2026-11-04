@@ -5,3 +5,4 @@ export * from './framing';
 export * from './storage';
 export * from './legacy/proxy';
 export * from './legacy/logging';
+export * from './legacy/ai';

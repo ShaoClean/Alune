@@ -33,8 +33,8 @@ test(
     const f = await fixture(t);
     const a = f.store.document('settings');
     const b = f.store.document('settings');
-    assert.equal(a.read(), null);
-    assert.equal(b.read(), null);
+    assert.equal(a.read(), undefined);
+    assert.equal(b.read(), undefined);
     a.write({ language: 'zh-CN', models: ['中文'] });
     assert.throws(
       () => b.write({ language: 'en' }),

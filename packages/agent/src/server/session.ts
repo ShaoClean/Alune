@@ -1,3 +1,5 @@
+import { StateFault } from '../ports/state';
+import { stateFailure } from './errors';
 import { randomUUID } from 'node:crypto';
 import {
   CORE_CAPABILITIES,
@@ -275,11 +277,13 @@ export class AgentSession {
       const failure =
         error instanceof ProtocolError
           ? error
-          : new ProtocolError(
-              cancelled ? 'cancelled' : 'internal',
-              cancelled ? 'Task cancelled' : 'Internal Agent error',
-              task ? (task.effect === 'mutation' ? 'unknown' : 'completed') : 'not-started',
-            );
+          : error instanceof StateFault
+            ? stateFailure(error)
+            : new ProtocolError(
+                cancelled ? 'cancelled' : 'internal',
+                cancelled ? 'Task cancelled' : 'Internal Agent error',
+                task ? (task.effect === 'mutation' ? 'unknown' : 'completed') : 'not-started',
+              );
       if (task) {
         task.state =
           failure.outcome === 'unknown'

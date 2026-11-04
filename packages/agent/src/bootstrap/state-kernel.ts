@@ -2,6 +2,7 @@ import { basename } from 'node:path';
 import { ProtocolError, validateEmpty } from '@alune/protocol';
 import { AgentState } from '../adapters/sqlite/state';
 import { StateFault } from '../ports/state';
+import { stateFailure } from '../server/errors';
 import type { Handler } from '../ports/handler';
 import type { DatabaseBackupReceipt } from '@alune/protocol';
 
@@ -24,14 +25,7 @@ export async function openStateKernel(directory: string, agentId: string, signal
           return { backupId: basename(folder), scope: 'database-only', agentId };
         } catch (error) {
           if (error instanceof StateFault) {
-            const kinds = {
-              busy: 'busy',
-              conflict: 'conflict',
-              permission: 'permission-denied',
-              corrupt: 'state-corrupt',
-              unavailable: 'unavailable',
-            } as const;
-            throw new ProtocolError(kinds[error.kind], error.message);
+            throw stateFailure(error);
           }
           throw error;
         }

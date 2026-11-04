@@ -42,6 +42,10 @@
     "./secrets-file": {
       "types": "./dist/adapters/secrets/file.d.ts",
       "default": "./dist/adapters/secrets/file.js"
+    },
+    "./settings": {
+      "types": "./dist/modules/settings/index.d.ts",
+      "default": "./dist/modules/settings/index.js"
     }
   },
   "typesVersions": {
@@ -54,6 +58,9 @@
       ],
       "secrets-file": [
         "dist/adapters/secrets/file.d.ts"
+      ],
+      "settings": [
+        "dist/modules/settings/index.d.ts"
       ]
     }
   }

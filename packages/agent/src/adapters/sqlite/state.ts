@@ -281,7 +281,7 @@ export class AgentState {
           .prepare('SELECT revision, body FROM documents WHERE name = ?')
           .get(name) as { revision: string; body: string } | undefined;
         revision = row?.revision ?? null;
-        return row ? JSON.parse(row.body) : null;
+        return row ? JSON.parse(row.body) : undefined;
       },
       write: (value) => {
         this.assertOpen();
