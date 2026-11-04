@@ -20,6 +20,7 @@ export interface SecretStorage {
   description: string;
   encrypt: (value: string) => string;
   decrypt: (value: string) => string;
+  close?: () => void;
 }
 
 function readKey(file: string, repairPermissions: boolean): Buffer {
@@ -77,8 +78,14 @@ function fileCipher(dataDir: string, filename: string, create: boolean): SecretS
   } catch {
     // Keep Git and providers without authentication usable if storage is unavailable.
   }
+  let enabled = true;
   return {
-    available: Boolean(key),
+    get available() {
+      return enabled && Boolean(key);
+    },
+    set available(value: boolean) {
+      enabled = Boolean(value);
+    },
     description: key
       ? '凭据已使用此设备自动生成的本机密钥加密保存。'
       : '本机密钥存储不可用，请检查应用数据目录权限或恢复密钥文件后重启。无需认证的服务仍可使用。',
@@ -95,6 +102,10 @@ function fileCipher(dataDir: string, filename: string, create: boolean): SecretS
       const decipher = createDecipheriv('aes-256-gcm', key, data.subarray(0, 12));
       decipher.setAuthTag(data.subarray(12, 28));
       return Buffer.concat([decipher.update(data.subarray(28)), decipher.final()]).toString('utf8');
+    },
+    close() {
+      key?.fill(0);
+      key = undefined;
     },
   };
 }

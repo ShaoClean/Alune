@@ -198,3 +198,82 @@ export function atomicPrivateJson(file: string, value: unknown): void {
     rmSync(temporary, { force: true });
   }
 }
+
+/** Check a legacy key without repairing its permissions or modifying its bytes. */
+export async function verifyPrivateSourceKey(file: string, signal?: AbortSignal): Promise<void> {
+  signal?.throwIfAborted();
+  assertRegularFile(file);
+  const info = lstatSync(file);
+  if (info.size !== 32)
+    throw new StateFault('corrupt', 'Legacy key has an invalid size; source was not modified');
+  if (process.platform !== 'win32') {
+    if (info.mode & 0o077)
+      throw new StateFault(
+        'permission',
+        'Legacy key permissions are not private; source was not modified',
+      );
+    return;
+  }
+  const script = `
+$ErrorActionPreference='Stop'
+try {
+  $identity=[System.Security.Principal.WindowsIdentity]::GetCurrent()
+  $path=$env:ALUNE_SOURCE_KEY_PATH
+  if ([System.IO.File]::GetAttributes($path) -band [System.IO.FileAttributes]::ReparsePoint) { throw 'Link refused' }
+  $acl=[System.IO.File]::GetAccessControl($path)
+  $owner=$acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+  $principal=[System.Security.Principal.WindowsPrincipal]::new($identity)
+  if ($owner -ne $identity.User.Value -and -not ($owner -eq 'S-1-5-32-544' -and $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator))) { throw 'Owner refused' }
+  $rules=$acl.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier])
+  if ($rules.Count -eq 0) { throw 'No private rules' }
+  foreach ($rule in $rules) {
+    if ($rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and $rule.IdentityReference.Value -notin @($identity.User.Value,'S-1-5-18','S-1-5-32-544')) { throw 'Shared key refused' }
+  }
+} catch { exit 1 }
+`;
+  signal?.throwIfAborted();
+  const control = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(15000)]);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let failure: Error | undefined;
+      const child = spawn(
+        join(
+          process.env.SystemRoot ?? 'C:\\Windows',
+          'System32',
+          'WindowsPowerShell',
+          'v1.0',
+          'powershell.exe',
+        ),
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-EncodedCommand',
+          Buffer.from(script, 'utf16le').toString('base64'),
+        ],
+        {
+          env: { ...process.env, ALUNE_SOURCE_KEY_PATH: file },
+          windowsHide: true,
+          stdio: 'ignore',
+          signal: control,
+        },
+      );
+      child.once('error', (error) => {
+        failure = error;
+      });
+      child.once('close', (code) =>
+        failure
+          ? reject(failure)
+          : code === 0
+            ? resolve()
+            : reject(new Error('Private source check failed')),
+      );
+    });
+  } catch {
+    signal?.throwIfAborted();
+    throw new StateFault(
+      'permission',
+      'Legacy key ownership or ACL is not private; source was not modified',
+    );
+  }
+}

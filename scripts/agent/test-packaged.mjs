@@ -132,6 +132,36 @@ try {
   assert.deepEqual(await b.client.getTask({ requestId: update.requestId }), receipt);
   await b.close();
   assert.equal((await b.exited).code, 0);
+  const capsule = path.join(data, 'fixture.recovery');
+  const passphrase = Buffer.from('packaged-recovery-fixture-passphrase\n');
+  const backup = JSON.parse(
+    execFileSync(node, [entry, 'recovery-backup', '--data-dir', data, '--output', capsule], {
+      input: passphrase,
+      encoding: 'utf8',
+      timeout: 60000,
+    }),
+  );
+  assert.equal(backup.scope, 'identity-state-and-credentials');
+  const restoredDirectory = path.join(data, 'restored');
+  const restored = JSON.parse(
+    execFileSync(
+      node,
+      [entry, 'recovery-restore', '--data-dir', restoredDirectory, '--input', capsule],
+      {
+        input: passphrase,
+        encoding: 'utf8',
+        timeout: 60000,
+      },
+    ),
+  );
+  passphrase.fill(0);
+  assert.equal(restored.agentId, first.agentId);
+  const c = spawnAgent(node, [entry, 'serve', '--data-dir', restoredDirectory]);
+  children.push(c);
+  assert.equal((await c.client.initialize()).agentId, first.agentId);
+  assert.equal((await c.client.getAiSettings()).revision, saved.revision);
+  await c.close();
+  assert.equal((await c.exited).code, 0);
 } finally {
   await Promise.all(children.map((child) => child.close()));
   fs.rmSync(data, { recursive: true, force: true });
@@ -151,6 +181,7 @@ console.log(
           ? 'dpapi-current-user'
           : 'file-backend-covered-by-agent-tests',
     state: 'configuration revision and mutation receipt survived restart',
+    recovery: 'encrypted CLI capsule restored identity and public configuration',
     node: doctor.node,
     electron: 'not resolvable',
   }),

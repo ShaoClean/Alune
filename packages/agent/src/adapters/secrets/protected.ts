@@ -196,52 +196,14 @@ export async function openProtectedSecrets(
       );
     options.signal?.throwIfAborted();
     if (item.status === 'pending') document.write({ ...item, status: 'ready', fingerprint });
-    const material = key;
-    let closed = false;
-    const aad = Buffer.from(`alune-agent-secret:1:${agentId}:${item.keyId}`);
-    return {
-      get available() {
-        return !closed;
-      },
-      description:
-        item.backend === 'file'
-          ? '凭据使用仅当前用户可访问的本机密钥加密保存。'
-          : '凭据使用当前用户的系统密钥存储保护。',
-      encrypt(text) {
-        if (closed) throw new StateFault('unavailable', 'Credential store is closed');
-        if (typeof text !== 'string' || Buffer.byteLength(text) > 1024 * 1024)
-          throw new StateFault('invalid-input', 'Credential value is too large');
-        const iv = randomBytes(12);
-        const cipher = createCipheriv('aes-256-gcm', material, iv);
-        cipher.setAAD(aad);
-        const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-        return `aes-gcm:v1:${Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64')}`;
-      },
-      decrypt(text) {
-        if (closed) throw new StateFault('unavailable', 'Credential store is closed');
-        try {
-          if (typeof text !== 'string' || text.length > 1400000 || !text.startsWith('aes-gcm:v1:'))
-            throw new Error();
-          const payload = text.slice(11);
-          const data = Buffer.from(payload, 'base64');
-          if (data.length < 28 || data.toString('base64') !== payload) throw new Error();
-          const decipher = createDecipheriv('aes-256-gcm', material, data.subarray(0, 12));
-          decipher.setAAD(aad);
-          decipher.setAuthTag(data.subarray(12, 28));
-          return Buffer.concat([decipher.update(data.subarray(28)), decipher.final()]).toString(
-            'utf8',
-          );
-        } catch {
-          throw new StateFault('corrupt', 'Credential cannot be decrypted with this Agent key');
-        }
-      },
-      close() {
-        if (!closed) {
-          closed = true;
-          material.fill(0);
-        }
-      },
-    };
+    return cipherFromRecoveryMaterial(
+      key,
+      agentId,
+      item.keyId,
+      item.backend === 'file'
+        ? '凭据使用仅当前用户可访问的本机密钥加密保存。'
+        : '凭据使用当前用户的系统密钥存储保护。',
+    );
   } catch (error) {
     key?.fill(0);
     options.signal?.throwIfAborted();
@@ -251,4 +213,76 @@ export async function openProtectedSecrets(
       'Credential storage is unavailable; existing data was retained',
     );
   }
+}
+
+/** Internal recovery primitive. Takes ownership of the buffer and wipes it on close. */
+export function cipherFromRecoveryMaterial(
+  material: Buffer,
+  agentId: string,
+  keyId: string,
+  description = 'Protected recovery material',
+): ProtectedSecrets {
+  if (material.length !== 32 || !uuid.test(agentId) || !uuid.test(keyId))
+    throw new StateFault('corrupt', 'Invalid recovery key material');
+  let closed = false;
+  const aad = Buffer.from(`alune-agent-secret:1:${agentId}:${keyId}`);
+  return {
+    get available() {
+      return !closed;
+    },
+    description,
+    encrypt(text) {
+      if (closed) throw new StateFault('unavailable', 'Credential store is closed');
+      if (typeof text !== 'string' || Buffer.byteLength(text) > 1024 * 1024)
+        throw new StateFault('invalid-input', 'Credential value is too large');
+      const iv = randomBytes(12);
+      const cipher = createCipheriv('aes-256-gcm', material, iv);
+      cipher.setAAD(aad);
+      const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+      return `aes-gcm:v1:${Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64')}`;
+    },
+    decrypt(text) {
+      if (closed) throw new StateFault('unavailable', 'Credential store is closed');
+      try {
+        if (typeof text !== 'string' || text.length > 1400000 || !text.startsWith('aes-gcm:v1:'))
+          throw new Error();
+        const payload = text.slice(11);
+        const data = Buffer.from(payload, 'base64');
+        if (data.length < 28 || data.toString('base64') !== payload) throw new Error();
+        const decipher = createDecipheriv('aes-256-gcm', material, data.subarray(0, 12));
+        decipher.setAAD(aad);
+        decipher.setAuthTag(data.subarray(12, 28));
+        return Buffer.concat([decipher.update(data.subarray(28)), decipher.final()]).toString(
+          'utf8',
+        );
+      } catch {
+        throw new StateFault('corrupt', 'Credential cannot be decrypted with this Agent key');
+      }
+    },
+    close() {
+      if (!closed) {
+        closed = true;
+        material.fill(0);
+      }
+    },
+  };
+}
+
+/** Offline encrypted backup only; never expose this value through RPC or diagnostics. */
+export async function readRecoveryMaterial(
+  directory: string,
+  agentId: string,
+  document: JsonDocument,
+  signal?: AbortSignal,
+  options: Pick<ProtectedSecretOptions, 'keychain'> = {},
+): Promise<{ key: Buffer; keyId: string }> {
+  const item = descriptor(document.read(), agentId);
+  if (item.status !== 'ready')
+    throw new StateFault('unavailable', 'Credential initialization is not complete');
+  const key = await loadKey(directory, item, { ...options, allowInitialize: false, signal });
+  if (createHash('sha256').update(key).digest('hex') !== item.fingerprint) {
+    key.fill(0);
+    throw new StateFault('corrupt', 'Credential key does not match the backup state');
+  }
+  return { key, keyId: item.keyId };
 }

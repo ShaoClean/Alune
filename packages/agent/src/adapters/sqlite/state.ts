@@ -511,11 +511,13 @@ export class AgentState {
     agentId: string,
     backupDirectory: string,
     signal?: AbortSignal,
+    hooks?: { prepare?(root: string): Promise<void>; beforePublish?(root: string): Promise<void> },
   ): Promise<{ generation: string; previous: string | null }> {
     if (!uuid(agentId)) throw new StateFault('corrupt', 'Invalid Agent identity');
     const root = await privateDirectory(directory, signal);
     const lease = new WriterLease(root);
     try {
+      await hooks?.prepare?.(root);
       const backup = resolve(backupDirectory);
       const file = join(backup, 'state.sqlite');
       assertRegularFile(file);
@@ -586,11 +588,23 @@ export class AgentState {
       }
       await protectPrivatePaths([folder, target], signal);
       signal?.throwIfAborted();
+      await hooks?.beforePublish?.(root);
+      signal?.throwIfAborted();
       atomicPrivateJson(active, { version: 1, agentId, generation });
       if (existsSync(initializing)) rmSync(initializing);
       return { generation, previous };
     } finally {
       lease.close();
+    }
+  }
+  static validateBackupDatabase(file: string, agentId: string): number {
+    assertRegularFile(file);
+    const db = new Database(file, { readonly: true, fileMustExist: true });
+    try {
+      checkDatabase(db, agentId);
+      return SCHEMA_VERSION;
+    } finally {
+      db.close();
     }
   }
 }
