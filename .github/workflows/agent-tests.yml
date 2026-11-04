@@ -45,6 +45,11 @@ jobs:
       - run: npm test -w @alune/agent
       - run: node scripts/agent/check-browser.mjs
       - run: node scripts/agent/check-boundaries.mjs
+      - name: 记录构建后的工作区差异
+        run: |
+          git status --short
+          git diff --summary
+          git diff --numstat
       - name: 打包含官方 Node 的独立 Agent
         shell: bash
         run: node scripts/agent/package.mjs --output "$RUNNER_TEMP/alune-agent-${{ matrix.target }}"
