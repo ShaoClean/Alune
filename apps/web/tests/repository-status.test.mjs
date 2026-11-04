@@ -375,3 +375,47 @@ test('cancelling a retry preserves a previously failed cache as stale until a su
   await store.getState().fetchStatus('a');
   assert.equal(store.getState().repositoryStatuses.a.stale, false);
 });
+
+test('slow foreground reads stay visible, can be cancelled and retried without accepting a late result', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = deferred();
+  let signal;
+  repositoryApi.status = (_id, cancellation, foreground) => {
+    assert.equal(foreground, true);
+    signal = cancellation;
+    return pending.promise;
+  };
+  store.getState().activateWorkspace('a');
+  const read = store.getState().fetchStatus('a');
+  await flush();
+  t.mock.timers.tick(10_000);
+  assert.equal(store.getState().repositoryStatuses.a.phase, 'loading');
+  assert.equal(store.getState().repositoryStatuses.a.slow, true);
+  store.getState().cancelStatus('a');
+  await read;
+  assert.equal(signal.aborted, true);
+  assert.equal(store.getState().repositoryStatuses.a.phase, 'error');
+  repositoryApi.status = async () => status('retry');
+  await store.getState().fetchStatus('a');
+  pending.resolve(status('obsolete'));
+  await flush();
+  assert.equal(statusOf('a').branch, 'retry');
+});
+
+test('opening a running background read replaces its short request deadline', async () => {
+  const calls = [];
+  repositoryApi.status = (id, signal, foreground) => {
+    calls.push({ id, signal, foreground });
+    if (foreground) return Promise.resolve(status('opened'));
+    return new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason)));
+  };
+  const stop = store.getState().observeRepository('a');
+  await flush();
+  store.getState().activateWorkspace('a');
+  await store.getState().fetchStatus('a');
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].signal.aborted, true);
+  assert.equal(calls[1].foreground, true);
+  assert.equal(statusOf('a').branch, 'opened');
+  stop();
+});

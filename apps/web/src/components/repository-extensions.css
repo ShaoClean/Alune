@@ -60,3 +60,13 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.repository-slow-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+}

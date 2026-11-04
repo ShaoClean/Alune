@@ -144,14 +144,27 @@ export class RepositoryController {
   }
 
   @Get(':id/status')
-  async getStatus(@Param('id', ParseUUIDPipe) id: string) {
+  async getStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('foreground') foreground?: string,
+    @Res({ passthrough: true }) response?: Response,
+  ) {
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    response?.once('close', cancel);
     try {
-      return await this.repoService.getStatus(id);
+      return await this.repoService.getStatus(
+        id,
+        foreground === 'true',
+        controller.signal,
+      );
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new BadRequestException(
         error instanceof Error ? error.message : '无法读取仓库状态',
       );
+    } finally {
+      response?.off('close', cancel);
     }
   }
 

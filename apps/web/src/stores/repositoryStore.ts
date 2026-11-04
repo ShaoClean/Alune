@@ -15,6 +15,7 @@ export interface RepositoryStatusEntry {
   error?: string;
   updatedAt?: number;
   stale?: boolean;
+  slow?: boolean;
 }
 
 const statusSummary = (data?: RepositoryStatus) =>
@@ -213,6 +214,7 @@ interface RepositoryState {
   /** Drops a closed or removed tab's data and stops its requests. */
   disposeWorkspaces: (ids: string[]) => void;
   fetchStatus: (id: string, afterMutation?: boolean) => Promise<void>;
+  cancelStatus: (id: string) => void;
   /** A `branch` (a jump to one commit's ancestry) clears the history filter. */
   fetchLog: (id: string, mode?: 'refresh' | 'more', branch?: string) => Promise<void>;
   setLogFilter: (id: string, filter: HistoryFilter) => Promise<void>;
@@ -321,11 +323,16 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       updateStatus(job.id, {
         ...get().repositoryStatuses[job.id],
         phase: 'loading',
+        slow: false,
         error: undefined,
       });
+      const slowTimer = setTimeout(() => {
+        if (jobs.get(job.id) === job)
+          updateStatus(job.id, { ...get().repositoryStatuses[job.id], slow: true });
+      }, 10_000);
       void (async () => {
         try {
-          const data = await repositoryApi.status(job.id, job.controller.signal);
+          const data = await repositoryApi.status(job.id, job.controller.signal, job.foreground);
           if (jobs.get(job.id) !== job || removed.has(job.id)) return;
           const entry: RepositoryStatusEntry = {
             phase: 'success',
@@ -359,6 +366,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           // A failed status read must not leave a pre-mutation preview current.
           if (job.refreshDiff) invalidateDiff(job.id);
         } finally {
+          clearTimeout(slowTimer);
           if (jobs.get(job.id) === job) jobs.delete(job.id);
           active--;
           if (background) activeBackground--;
@@ -375,7 +383,12 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     refreshDiff = false,
   ): Promise<void> => {
     if (removed.has(id)) return Promise.resolve();
-    const pending = jobs.get(id);
+    let pending = jobs.get(id);
+    if (pending?.started && !pending.foreground && foreground) {
+      // Replace the short background HTTP deadline with the explicit-open budget.
+      cancelStatus(id);
+      pending = undefined;
+    }
     if (pending) {
       if (foreground) pending.foreground = true;
       if (refreshDiff) pending.refreshDiff = true;
@@ -716,6 +729,17 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       }));
     },
 
+    cancelStatus: (id) => {
+      cancelStatus(id);
+      updateStatus(id, {
+        ...get().repositoryStatuses[id],
+        phase: 'error',
+        stale: true,
+        slow: false,
+        error: '已取消状态读取，可重试。',
+      });
+      drain();
+    },
     fetchStatus: async (id, afterMutation = false) => {
       if (removed.has(id)) return;
       // A read begun before a Git write cannot validate that write. Share any

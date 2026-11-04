@@ -35,6 +35,7 @@ export class GitCommands {
   async status(
     repoPath: string,
     signal?: AbortSignal,
+    refreshIndex = false,
   ): Promise<{
     branch: string;
     ahead: number;
@@ -47,7 +48,7 @@ export class GitCommands {
       this.connection,
       repoPath,
       [
-        '--no-optional-locks',
+        ...(refreshIndex ? [] : ['--no-optional-locks']),
         'status',
         '--porcelain=v2',
         '--branch',

@@ -787,7 +787,9 @@ export function ChangesView({
               onRetry={() => void refreshStatus()}
             />
           ) : (
-            <LoadingState label="正在读取仓库状态…" />
+            <LoadingState
+              label={entry?.slow ? '仓库检查耗时较长，正在继续读取…' : '正在读取仓库状态…'}
+            />
           )
         ) : files.length === 0 ? (
           operation ? null : (
