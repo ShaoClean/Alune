@@ -119,6 +119,7 @@ test('events require host/session sequence and cannot attach another host resour
     payload: {},
   };
   assert.deepEqual(parseEvent(event), event);
+  assert.throws(() => parseEvent({ ...event, payload: 'x'.repeat(65536) }), /chunk limit/);
   for (const value of [
     { ...event, sequence: 0 },
     { ...event, sequence: 1.5 },

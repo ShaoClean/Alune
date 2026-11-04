@@ -24,6 +24,7 @@ export type ErrorKind =
   | 'overloaded'
   | 'duplicate-request'
   | 'disconnected'
+  | 'timeout'
   | 'internal';
 export const ERROR_CODES: Readonly<Record<ErrorKind, number>> = Object.freeze({
   parse: -32700,
@@ -36,6 +37,7 @@ export const ERROR_CODES: Readonly<Record<ErrorKind, number>> = Object.freeze({
   overloaded: -32002,
   'duplicate-request': -32003,
   disconnected: -32004,
+  timeout: -32005,
   internal: -32603,
 });
 export interface RpcError {
@@ -168,7 +170,7 @@ export function parseEvent(value: unknown): AgentEvent {
     value.type.length < 1 ||
     value.type.length > 128 ||
     !Object.hasOwn(value, 'payload') ||
-    !jsonValue(value.payload) ||
+    !jsonValue(value) ||
     (value.resource !== undefined &&
       (!isRecord(value.resource) ||
         !validId(value.resource.agentId) ||
@@ -176,5 +178,7 @@ export function parseEvent(value: unknown): AgentEvent {
         value.resource.agentId !== value.agentId))
   )
     throw new ProtocolError('invalid-params', 'Invalid Agent event');
+  if (new TextEncoder().encode(JSON.stringify(value)).byteLength > MAX_STREAM_CHUNK_BYTES)
+    throw new ProtocolError('invalid-params', 'Agent event exceeds stream chunk limit');
   return value as unknown as AgentEvent;
 }

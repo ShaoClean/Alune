@@ -21,6 +21,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - workspace: agent-client
+            command: npm test -w @alune/agent-client
+          - workspace: agent
+            command: npm test -w @alune/agent
           - workspace: domain
             command: npm test -w @alune/domain
           - workspace: protocol

@@ -1,0 +1,26 @@
+{
+  "name": "@alune/agent",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "alune-agent": "./bin/alune-agent.cjs"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "test": "npm run build && node --test tests/*.test.cjs"
+  },
+  "dependencies": {
+    "@alune/agent-client": "*",
+    "@alune/protocol": "*",
+    "@alune/domain": "*",
+    "better-sqlite3": "^13.0.3",
+    "node-pty": "1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "typescript": "^6.0.3"
+  }
+}

@@ -21,6 +21,8 @@ if ('method' in message && message.method === 'initialize') {
 `parseMessage` 校验单条完整消息，拒绝批量/歧义信封、无效 ID、非有限数字、过深结构及超过 8 MiB 的 UTF-8 帧。
 它不负责读取流、拼接半帧、请求调度或认证。`encodeMessage` 输出末尾带一个换行的帧，JSON 字符串内部的换行会转义。
 
+`FrameDecoder` 单独负责有界字节分帧，支持分块 UTF-8 和同块多帧，拒绝错误编码、超限半帧及 EOF 截断。核心 health/version/capabilities/subscription/task 结果也在本包定义类型与运行时校验；Agent 和 Client 不各自复制一套契约。
+
 `validateInitialize` 检查版本与客户端身份；不同 major 拒绝，同 major 的能力范围必须由初始化响应的 capabilities 决定。
 `validateInitialized` 校验服务端初始化响应。`parseEvent` 校验会话序号和主机/资源身份；订阅者仍需检查当前会话与连续序号。
 

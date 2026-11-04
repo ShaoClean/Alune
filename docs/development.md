@@ -66,6 +66,8 @@ PR/MR 列表、详情、Diff、讨论及命名令牌可在构建 server、web �
 
 ### Agent 迁移基线工具
 
+独立 Agent 的内部开发入口与打包方式见 [Agent](../packages/agent/README.md)，通信接入见 [Agent Client](../packages/agent-client/README.md) 和 [协议契约](../packages/protocol/README.md)。当前旧 Web/桌面入口继续作为默认路径；运行 `serve` 不会自动迁移现有用户数据库或凭据。
+
 从已跟踪的源码生成入口清单（HTTP、Socket/IPC、前端 API、导出符号、类方法、JSX/对象回调、浏览器/终端事件监听及测试声明），并保留界面回调表达式和调用线索：
 
 ```sh
