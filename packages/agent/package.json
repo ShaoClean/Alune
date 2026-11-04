@@ -8,7 +8,7 @@
     "alune-agent": "./bin/alune-agent.cjs"
   },
   "scripts": {
-    "build": "tsc -b && node scripts/version.cjs",
+    "build": "tsc -b && node scripts/version.cjs && node scripts/native-secrets.mjs",
     "dev": "tsc -b --watch",
     "test": "npm run build && node --test tests/*.test.cjs"
   },
