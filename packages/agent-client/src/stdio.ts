@@ -108,6 +108,10 @@ export class StdioTransport implements MessageTransport {
   }
   close(error: Error = new ProtocolError('disconnected', 'Transport ended', 'unknown')): void {
     if (this.ended) return;
+    // A peer may close its read pipe while state events are still being sent.
+    // This is the same disconnect as EOF, not malformed protocol input.
+    if (['EPIPE', 'ECONNRESET'].includes((error as NodeJS.ErrnoException).code ?? ''))
+      error = new ProtocolError('disconnected', 'Peer closed the transport', 'unknown');
     this.ended = error;
     this.input.off('data', this.data);
     this.input.off('end', this.end);

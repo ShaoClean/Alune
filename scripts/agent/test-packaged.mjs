@@ -100,7 +100,12 @@ try {
     }),
     'native-secret-adapter-ok',
   );
-  const a = spawnAgent(node, [entry, 'serve', '--data-dir', data]);
+  let firstStderr = '';
+  const a = spawnAgent(node, [entry, 'serve', '--data-dir', data], {
+    onStderr: (text) => {
+      firstStderr = (firstStderr + text).slice(-4096);
+    },
+  });
   children.push(a);
   const first = await a.client.initialize({ name: 'packaged-smoke', version: '1' });
   assert.equal((await a.client.health()).status, 'ok');
@@ -122,7 +127,11 @@ try {
   assert.equal(receipt.task.outcome, 'completed');
   assert.equal(fs.existsSync(path.join(data, 'keys')), false);
   await a.close();
-  assert.equal((await a.exited).code, 0);
+  assert.equal(
+    (await a.exited).code,
+    0,
+    firstStderr || 'First packaged Agent did not exit cleanly',
+  );
   const b = spawnAgent(node, [entry, 'serve', '--data-dir', data]);
   children.push(b);
   const second = await b.client.initialize();

@@ -49,3 +49,29 @@ test('stdio outbox is bounded and rejects pending deliveries as unknown when int
   await rejected;
   flush();
 });
+
+test('closed peer pipes are disconnects while other stream failures stay errors', async () => {
+  for (const code of ['EPIPE', 'ECONNRESET', 'EIO']) {
+    const input = new PassThrough();
+    const failure = Object.assign(new Error('synthetic pipe failure'), { code });
+    const output = new Writable({
+      write(_chunk, _encoding, callback) {
+        callback(failure);
+      },
+    });
+    const transport = new StdioTransport(input, output);
+    let ended;
+    transport.onClose((error) => {
+      ended = error;
+    });
+    await assert.rejects(
+      transport.send({ jsonrpc: '2.0', method: 'fixture', id: 'fixture:1' }),
+      (error) => error.kind === 'disconnected' && error.outcome === 'unknown',
+    );
+    if (code === 'EIO') assert.equal(ended, failure);
+    else {
+      assert.equal(ended.kind, 'disconnected');
+      assert.equal(ended.outcome, 'unknown');
+    }
+  }
+});

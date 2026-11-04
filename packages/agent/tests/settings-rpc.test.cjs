@@ -237,3 +237,24 @@ test(
     );
   },
 );
+
+test(
+  'closing an event subscriber after a completed write exits cleanly with its durable receipt intact',
+  { timeout: 90000 },
+  async (t) => {
+    const f = await setup(t);
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const child = await f.start();
+      await child.client.subscribe(['*']);
+      const settings = await child.client.getAiSettings();
+      await child.client.saveCommitPreferences(
+        { ...settings.commit, prompt: 'close fixture ' + attempt },
+        settings.revision,
+      );
+      await child.close();
+      assert.equal((await child.exited).code, 0);
+    }
+    const last = await f.start();
+    assert.equal((await last.client.getAiSettings()).commit.prompt, 'close fixture 11');
+  },
+);
