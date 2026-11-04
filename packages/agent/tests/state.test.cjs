@@ -280,7 +280,7 @@ test(
       assert.equal(fs.statSync(file).mode & 0o777, 0o600);
     } else {
       const script =
-        '$a=Get-Acl -LiteralPath $env:ALUNE_ACL_TEST_PATH; $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; @{Protected=$a.AreAccessRulesProtected;Owner=$a.GetOwner([Security.Principal.SecurityIdentifier]).Value;User=$sid;Rules=@($a.Access|ForEach-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value})}|ConvertTo-Json -Compress';
+        '$a=[System.IO.File]::GetAccessControl($env:ALUNE_ACL_TEST_PATH); $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; @{Protected=$a.AreAccessRulesProtected;Owner=$a.GetOwner([Security.Principal.SecurityIdentifier]).Value;User=$sid;Rules=@($a.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])|ForEach-Object {$_.IdentityReference.Value})}|ConvertTo-Json -Compress';
       const result = JSON.parse(
         execFileSync(
           'powershell.exe',

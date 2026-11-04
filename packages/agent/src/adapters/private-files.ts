@@ -28,22 +28,24 @@ try {
   $paths = @($env:ALUNE_PRIVATE_PATHS | ConvertFrom-Json)
   foreach ($path in $paths) {
     $aluneAclStep = 'read-path'
-    $item = Get-Item -LiteralPath $path -Force
-    if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw 'Reparse point refused' }
+    $attributes = [System.IO.File]::GetAttributes($path)
+    if ($attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw 'Reparse point refused' }
+    $isDirectory = [System.IO.Directory]::Exists($path)
     $aluneAclStep = 'read-owner'
-    $previous = Get-Acl -LiteralPath $path
+    if ($isDirectory) { $previous = [System.IO.Directory]::GetAccessControl($path) }
+    else { $previous = [System.IO.File]::GetAccessControl($path) }
     $owner = $previous.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
     $aluneAclStep = 'owner-check'
     if ($owner -ne $sid.Value -and -not ($owner -eq $admins -and $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator))) { throw 'Foreign owner refused' }
     $aluneAclStep = 'create-acl'
-    if ($item.PSIsContainer) {
+    if ($isDirectory) {
       $acl = [System.Security.AccessControl.DirectorySecurity]::new()
       $inherit = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
     } else {
       $acl = [System.Security.AccessControl.FileSecurity]::new()
       $inherit = [System.Security.AccessControl.InheritanceFlags]::None
     }
-    $acl.SetOwner($sid)
+    if ($owner -ne $sid.Value) { $acl.SetOwner($sid) }
     $acl.SetAccessRuleProtection($true, $false)
     $aluneAclStep = 'create-rule'
     foreach ($who in @($sid, $system)) {
@@ -51,7 +53,8 @@ try {
       $acl.AddAccessRule($rule)
     }
     $aluneAclStep = 'set-acl'
-    Set-Acl -LiteralPath $path -AclObject $acl
+    if ($isDirectory) { [System.IO.Directory]::SetAccessControl($path, $acl) }
+    else { [System.IO.File]::SetAccessControl($path, $acl) }
   }
 } catch {
   [Console]::Error.WriteLine('ALUNE_ACL_FAILURE:' + $aluneAclStep + ':' + $_.Exception.GetType().FullName)
@@ -118,7 +121,13 @@ export async function protectPrivatePaths(paths: string[], signal?: AbortSignal)
         let stderr = '';
         diagnostic = 'helper-start';
         const child = spawn(
-          'powershell.exe',
+          join(
+            process.env.SystemRoot ?? 'C:\\Windows',
+            'System32',
+            'WindowsPowerShell',
+            'v1.0',
+            'powershell.exe',
+          ),
           [
             '-NoLogo',
             '-NoProfile',
