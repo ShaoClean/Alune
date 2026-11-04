@@ -107,7 +107,10 @@ test(
   async (t) => {
     const f = await setup(t);
     const { client } = await f.start();
-    for (let i = 0; i < 60; i++)
+    const first = client.startRequest('diagnostics.logs.client', { message: 'fixture-0' });
+    assert.equal((await first.result).accepted, true);
+    assert.equal((await client.getTask({ requestId: first.requestId })).scope, 'session');
+    for (let i = 1; i < 60; i++)
       assert.equal(
         (await client.request('diagnostics.logs.client', { message: 'fixture-' + i })).accepted,
         true,
@@ -122,6 +125,21 @@ test(
       logs.some((e) => e.message === 'must-drop'),
       false,
     );
+    await assert.rejects(
+      client.request('diagnostics.logs.client', { message: 'x'.repeat(1024 * 1024) }),
+      (error) => error.kind === 'invalid-params',
+    );
+    const Database = require('better-sqlite3');
+    const pointer = JSON.parse(fs.readFileSync(path.join(f.root, 'state/current.json')));
+    const database = new Database(
+      path.join(f.root, 'state/generations', pointer.generation, 'state.sqlite'),
+      { readonly: true },
+    );
+    try {
+      assert.equal(database.prepare('SELECT count(*) AS count FROM operations').get().count, 0);
+    } finally {
+      database.close();
+    }
     const stale = await client.request('diagnostics.logs.snapshot', { limit: 1 });
     for (let i = 0; i < 4; i++) await client.request('diagnostics.logs.snapshot', { limit: 1 });
     await assert.rejects(

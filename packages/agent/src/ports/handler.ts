@@ -21,6 +21,8 @@ export interface HandlerContext {
 export interface Handler {
   minimumProtocolMinor?: number;
   effect: 'query' | 'mutation';
+  // Diagnostic telemetry can be session-scoped; business mutations stay durable.
+  durable?: boolean;
   // Shape validation is synchronous. I/O belongs in run under task cancellation.
   validate(params: JsonValue | undefined): void;
   run(params: JsonValue | undefined, context: HandlerContext): JsonValue | Promise<JsonValue>;

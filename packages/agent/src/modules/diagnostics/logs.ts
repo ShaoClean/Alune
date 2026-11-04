@@ -211,6 +211,11 @@ export function diagnosticLogs(directory: string, document: JsonDocument) {
       'mutation',
       (p) => {
         shape(p, ['message'], ['level', 'context']);
+        if (Buffer.byteLength(JSON.stringify(p)) > 1024 * 1024)
+          throw new ProtocolError(
+            'invalid-params',
+            'Client log exceeds the existing 1 MiB input limit',
+          );
         if (typeof p.message !== 'string' || !p.message)
           throw new ProtocolError('invalid-params', 'Log message is required');
       },
@@ -236,6 +241,9 @@ export function diagnosticLogs(directory: string, document: JsonDocument) {
       },
     ),
   };
+  // Rate-limited diagnostic writes must not grow the durable business journal
+  // for every dropped renderer message. Their receipts are session-scoped.
+  handlers['diagnostics.logs.client'].durable = false;
   return {
     logs,
     handlers,

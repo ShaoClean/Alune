@@ -42,7 +42,10 @@ export class AgentSession {
   private lastRequestSequence = 0;
   private activeRequests = 0;
   private requestBytes = 0;
-  private tasks = new Map<string, { info: TaskInfo; controller: AbortController }>();
+  private tasks = new Map<
+    string,
+    { info: TaskInfo; controller: AbortController; journaled: boolean }
+  >();
   private running = new Set<Promise<void>>();
   private capabilities: string[];
   private disposers: Array<() => void> = [];
@@ -237,10 +240,7 @@ export class AgentSession {
         const stored = !found && this.protocolMinor >= 1 ? this.options.taskJournal?.find(p) : null;
         await this.result(message, {
           scope:
-            stored ||
-            (found?.info.effect === 'mutation' &&
-              this.protocolMinor >= 1 &&
-              this.options.taskJournal)
+            stored || (found?.journaled && this.protocolMinor >= 1 && this.options.taskJournal)
               ? 'agent'
               : 'session',
           task: found ? { ...found.info } : stored ? { ...stored } : null,
@@ -273,11 +273,11 @@ export class AgentSession {
         outcome: 'unknown',
         startedAt: Date.now(),
       };
-      if (handler.effect === 'mutation' && this.options.taskJournal) {
+      if (handler.effect === 'mutation' && handler.durable !== false && this.options.taskJournal) {
         this.options.taskJournal.start(task);
         journalActive = true;
       }
-      this.tasks.set(message.id, { info: task, controller });
+      this.tasks.set(message.id, { info: task, controller, journaled: journalActive });
       this.taskEvent(task);
       const value = await handler.run(message.params, {
         agentId: this.options.agentId,
