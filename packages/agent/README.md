@@ -2,6 +2,8 @@
 
 独立 Node Agent。当前提供会话运行时和核心诊断协议；Git、文件、终端业务及配置迁移仍按后续阶段接入。它没有切换桌面默认入口。
 
+CLI、握手和独立包的应用版本在构建时读取根 package.json，遵循仓库唯一版本来源；workspace 包自身版本不作为对外发行版本。
+
 ```sh
 npm run build -w @alune/agent
 node packages/agent/bin/alune-agent.cjs version

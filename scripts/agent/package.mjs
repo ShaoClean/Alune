@@ -199,7 +199,7 @@ try {
   const manifest = {
     schemaVersion: 1,
     target,
-    version: JSON.parse(fs.readFileSync(path.join(root, 'packages/agent/package.json'))).version,
+    version: JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version,
     sourceSha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     dirty: Boolean(
       execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(),

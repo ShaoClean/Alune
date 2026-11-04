@@ -5,7 +5,7 @@ import { loadIdentity, defaultDataDirectory } from '../adapters/identity';
 import { serveStdio } from '../bootstrap/stdio';
 
 export async function main(args = process.argv.slice(2)): Promise<number> {
-  const version: string = require('../../package.json').version;
+  const version: string = require('../version.json').version;
   const command = args[0] ?? 'help';
   if (command === 'version' || command === '--version') {
     process.stdout.write(
