@@ -1,26 +1,14 @@
 import type { SSHConnection, CommandResult } from './connection-manager';
 import { gitFileCommand } from './git-shell';
 
-export type CommandOptions = {
-  onStderr?: (data: string) => void;
-  onStdout?: (data: string) => void;
-  stdin?: string | Buffer;
-  maxOutputBytes?: number;
-  strictUtf8?: boolean;
-  binary?: boolean;
-  environment?: Record<string, string>;
-};
+import type { CommandOptions, GitProcessPort } from '@alune/agent/process';
+export type { CommandOptions } from '@alune/agent/process';
 
 // Git and file parsing are shared; only execution and file transport differ.
 export type RepositoryTransport = Pick<SSHConnection, 'execCommand' | 'withSftp'> & {
   signal?: AbortSignal;
   hasAnyPath?: (paths: string[]) => Promise<boolean>;
-  execGit?: (
-    path: string,
-    args: string[],
-    signal?: AbortSignal,
-    options?: CommandOptions,
-  ) => Promise<CommandResult>;
+  execGit?: GitProcessPort['execGit'];
 };
 
 export async function runGit(

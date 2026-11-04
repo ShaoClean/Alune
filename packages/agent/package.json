@@ -50,6 +50,10 @@
     "./accounts": {
       "types": "./dist/modules/accounts/index.d.ts",
       "default": "./dist/modules/accounts/index.js"
+    },
+    "./process": {
+      "types": "./dist/ports/process.d.ts",
+      "default": "./dist/ports/process.js"
     }
   },
   "typesVersions": {
@@ -68,6 +72,9 @@
       ],
       "accounts": [
         "dist/modules/accounts/index.d.ts"
+      ],
+      "process": [
+        "dist/ports/process.d.ts"
       ]
     }
   }

@@ -29,19 +29,10 @@ export interface SSHConnectionOptions {
   proxy?: ProxySnapshot;
 }
 
-export interface CommandResult {
-  exitCode: number | null;
-  stdout: string;
-  stderr: string;
-  // Populated instead of `stdout` when a command is read in binary mode.
-  stdoutBytes?: Buffer;
-}
-
-export class CommandOutputLimitError extends Error {
-  constructor() {
-    super('Command output exceeded the preview limit');
-  }
-}
+import { CommandOutputLimitError } from '@alune/agent/process';
+import type { CommandResult } from '@alune/agent/process';
+export { CommandOutputLimitError } from '@alune/agent/process';
+export type { CommandResult } from '@alune/agent/process';
 
 export interface StreamCallbacks {
   onStdout?: (data: string) => void;
