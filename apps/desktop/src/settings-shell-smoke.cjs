@@ -112,9 +112,15 @@ module.exports = async ({ window, origin, repositoryId }) => {
     await shortcut('b');
     await wait("document.activeElement?.matches('.app-sidebar .settings-back')");
     await category('提交生成');
-    await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('仅已暂存改动')");
-    await click('.feedback-dialog [aria-label="关闭提示"]');
-    await wait("!document.querySelector('.feedback-dialog[open]')");
+    await wait(
+      "Array.from(document.querySelectorAll('.settings-main .settings-field-hint')).some(node => node.getClientRects().length && node.textContent.includes('仅已暂存改动'))",
+    );
+    await execute('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+    assert.equal(
+      await execute("document.querySelector('.feedback-dialog[open]') === null"),
+      true,
+      'commit generation guidance stays inline without an entry dialog',
+    );
     assert.ok(
       await execute(
         'document.querySelector(\'textarea[aria-label="补充提示词"]\').getBoundingClientRect().height > 60',
