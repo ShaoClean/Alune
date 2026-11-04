@@ -25,7 +25,7 @@ try {
   $system = [System.Security.Principal.SecurityIdentifier]::new('S-1-5-18')
   $admins = 'S-1-5-32-544'
   $aluneAclStep = 'paths'
-  $paths = @($env:ALUNE_PRIVATE_PATHS | ConvertFrom-Json)
+  [string[]]$paths = ConvertFrom-Json -InputObject $env:ALUNE_PRIVATE_PATHS
   foreach ($path in $paths) {
     $aluneAclStep = 'read-path'
     $attributes = [System.IO.File]::GetAttributes($path)
@@ -57,7 +57,9 @@ try {
     else { [System.IO.File]::SetAccessControl($path, $acl) }
   }
 } catch {
-  [Console]::Error.WriteLine('ALUNE_ACL_FAILURE:' + $aluneAclStep + ':' + $_.Exception.GetType().FullName)
+  $failure = $_.Exception
+  for ($depth = 0; $depth -lt 8 -and $failure.InnerException; $depth++) { $failure = $failure.InnerException }
+  [Console]::Error.WriteLine('ALUNE_ACL_FAILURE:' + $aluneAclStep + ':' + $failure.GetType().FullName)
   exit 1
 }
 `;

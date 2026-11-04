@@ -4,7 +4,14 @@ const assert = require('node:assert/strict');
 // the L2 「放弃所有更改」 dialog: default focus, ↵ stays disabled, Esc closes and
 // returns focus, the spring/fade motion, and the bottom sheet on narrow windows.
 module.exports = async ({ window }) => {
-  const execute = (script) => window.webContents.executeJavaScript(script);
+  const execute = async (script) => {
+    try {
+      return await window.webContents.executeJavaScript(script);
+    } catch (error) {
+      const focus = await window.webContents.executeJavaScript('JSON.stringify({focused: document.hasFocus(), active: document.activeElement?.outerHTML.slice(0, 500)})');
+      throw new Error(`Dialogs smoke script failed: ${script}\nFocus: ${focus}`, { cause: error });
+    }
+  };
   const wait = (condition) =>
     execute(`new Promise((resolve, reject) => {
     const started = Date.now(); const poll = () => {
