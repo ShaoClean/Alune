@@ -53,6 +53,17 @@ function walk(node, visit) {
   visit(node);
   ts.forEachChild(node, (child) => walk(child, visit));
 }
+function callbackInfo(node, source) {
+  if (!node) return {};
+  const calls = new Set();
+  walk(node, (child) => {
+    if (ts.isCallExpression(child)) calls.add(child.expression.getText(source));
+  });
+  return {
+    callback: node.getText(source),
+    calls: [...calls].sort(),
+  };
+}
 
 for (const file of tracked.filter(
   (f) => roots.some((r) => f.startsWith(r)) && /\.(?:tsx?|cjs)$/.test(f) && !tests.includes(f),
@@ -70,6 +81,22 @@ for (const file of tracked.filter(
         node,
         'ui-handler',
         `${element.tagName.getText(source)}.${node.name.getText(source)}:${line}`,
+        callbackInfo(node.initializer, source),
+      );
+    }
+    if (
+      file.startsWith('apps/web/src/') &&
+      ts.isPropertyAssignment(node) &&
+      /^on[A-Z]/.test(node.name.getText(source))
+    ) {
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+      add(
+        file,
+        source,
+        node,
+        'ui-object-handler',
+        `${node.name.getText(source)}:${line}`,
+        callbackInfo(node.initializer, source),
       );
     }
     if (
@@ -134,6 +161,16 @@ for (const file of tracked.filter(
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
       const method = node.expression.name.text;
       const receiver = node.expression.expression.getText(source);
+      if (
+        file.startsWith('apps/web/src/') &&
+        ['addEventListener', 'onData', 'onResize', 'attachCustomKeyEventHandler'].includes(method)
+      ) {
+        const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+        add(file, source, node, 'ui-listener', `${receiver}.${method}:${line}`, {
+          event: method === 'addEventListener' ? (literal(node.arguments[0]) ?? null) : method,
+          ...callbackInfo(node.arguments[method === 'addEventListener' ? 1 : 0], source),
+        });
+      }
       if (
         ['emit', 'on', 'once', 'invoke', 'send', 'sendSync', 'handle'].includes(method) &&
         node.arguments[0]

@@ -66,7 +66,7 @@ PR/MR 列表、详情、Diff、讨论及命名令牌可在构建 server、web �
 
 ### Agent 迁移基线工具
 
-从已跟踪的源码生成入口清单（HTTP、Socket/IPC、前端 API、导出符号、类方法、JSX 事件及测试声明）：
+从已跟踪的源码生成入口清单（HTTP、Socket/IPC、前端 API、导出符号、类方法、JSX/对象回调、浏览器/终端事件监听及测试声明），并保留界面回调表达式和调用线索：
 
 ```sh
 node scripts/agent-inventory.mjs > /tmp/alune-inventory.json
