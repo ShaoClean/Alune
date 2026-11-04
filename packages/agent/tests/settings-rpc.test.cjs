@@ -193,3 +193,47 @@ test(
     );
   },
 );
+
+test(
+  'host profile RPC preserves stable identity and never returns connection passwords',
+  { timeout: 60000 },
+  async (t) => {
+    const f = await setup(t);
+    const first = await f.start();
+    const empty = await first.client.listHostProfiles();
+    const profile = {
+      name: 'Fixture host',
+      host: 'fixture.invalid',
+      port: 22,
+      username: 'fixture',
+      authType: 'password',
+      privateKeyPath: null,
+      password: 'fixture-host-private-password',
+    };
+    const saved = await first.client.saveHostProfile(null, profile, empty.revision);
+    assert.equal(saved.hosts[0].hasPassword, true);
+    await assert.rejects(
+      first.client.deleteHostProfile(saved.hosts[0].id, empty.revision),
+      (e) => e.kind === 'conflict',
+    );
+    await assert.rejects(
+      first.client.request('accounts.hosts.credential', { id: saved.hosts[0].id }),
+      (e) => e.kind === 'unknown-method',
+    );
+    await first.close();
+    const next = await f.start();
+    const restored = await next.client.listHostProfiles();
+    assert.deepEqual(restored, saved);
+    const cleared = await next.client.saveHostProfile(
+      saved.hosts[0].id,
+      { ...profile, password: null },
+      restored.revision,
+    );
+    assert.equal(cleared.hosts[0].id, saved.hosts[0].id);
+    assert.equal(cleared.hosts[0].hasPassword, false);
+    assert.doesNotMatch(
+      JSON.stringify([saved, restored, cleared]),
+      /fixture-host-private-password|aes-gcm:|password_secret/,
+    );
+  },
+);

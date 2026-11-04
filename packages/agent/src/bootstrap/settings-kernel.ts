@@ -14,7 +14,7 @@ import type { AgentState } from '../adapters/sqlite/state';
 import type { Handler, HandlerContext } from '../ports/handler';
 import { StateFault, type SecretCipher } from '../ports/state';
 import { AiSettingsStore, ProxySettingsStore } from '../modules/settings';
-import { AccessTokensStore } from '../modules/accounts';
+import { AccessTokensStore, HostProfilesStore, initializeHostProfiles } from '../modules/accounts';
 import { initializeAgentAccessTokens } from '../adapters/sqlite/access-tokens';
 
 // Owned by the state kernel; reads never initialize an OS credential record.
@@ -47,6 +47,8 @@ export function settingsKernel(
   const proxy = new ProxySettingsStore(state.document('network-proxy'), cipher);
   initializeAgentAccessTokens(state.database);
   const tokens = new AccessTokensStore(state.database, cipher);
+  initializeHostProfiles(state.database);
+  const hosts = new HostProfilesStore(state.database, cipher);
   async function prepare(create: boolean, signal: AbortSignal) {
     if (secrets) return;
     const port = state.document('credential-key');
@@ -92,7 +94,12 @@ export function settingsKernel(
           const result = run(params, context);
           if (effect === 'mutation')
             context.events.notifyState(topic, {
-              section: topic === 'settings.changed' ? 'configuration' : 'tokens',
+              section:
+                topic === 'settings.changed'
+                  ? 'configuration'
+                  : topic === 'accounts.hosts.changed'
+                    ? 'hosts'
+                    : 'tokens',
             });
           return result as JsonValue;
         });
@@ -102,6 +109,32 @@ export function settingsKernel(
     };
   }
   const handlers: Record<string, Handler> = {
+    'accounts.hosts.list': handler('query', validateEmpty, () => hosts.list()),
+    'accounts.hosts.save': handler(
+      'mutation',
+      (p) => {
+        shape(p, ['id', 'profile', 'revision']);
+        if (
+          !isRecord(p) ||
+          (p.id !== null && (typeof p.id !== 'string' || !p.id || p.id.length > 100))
+        )
+          throw new ProtocolError('invalid-params', 'Invalid host identifier');
+      },
+      (p) => hosts.save(p.id, p.profile, p.revision),
+      (p) => typeof p.profile?.password === 'string' || typeof p.profile?.passphrase === 'string',
+      'accounts.hosts.changed',
+    ),
+    'accounts.hosts.delete': handler(
+      'mutation',
+      (p) => {
+        shape(p, ['id', 'revision']);
+        if (!isRecord(p) || typeof p.id !== 'string' || !p.id || p.id.length > 100)
+          throw new ProtocolError('invalid-params', 'Invalid host identifier');
+      },
+      (p) => hosts.delete(p.id, p.revision),
+      () => false,
+      'accounts.hosts.changed',
+    ),
     'settings.credentials.prepare': handler(
       'mutation',
       validateEmpty,
@@ -165,6 +198,7 @@ export function settingsKernel(
     ai,
     proxy,
     tokens,
+    hosts,
     readyCredentials(signal: AbortSignal) {
       const task = tail.then(async () => {
         if (closed) throw new StateFault('unavailable', 'Settings store is closed');

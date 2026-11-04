@@ -21,6 +21,7 @@ import {
   validateLogChunk,
   validateLogEntries,
   validateUpdaterBridge,
+  validateHostProfiles,
   MAX_EVENT_QUEUE_BYTES,
   MAX_EVENT_QUEUE_LENGTH,
 } from '@alune/protocol';
@@ -51,6 +52,8 @@ import type {
   SaveLoggingSettings,
   LogEntry,
   UpdaterBridge,
+  HostProfilesResult,
+  SaveHostProfile,
 } from '@alune/protocol';
 import type { MessageTransport } from './transport';
 
@@ -340,6 +343,37 @@ export class AgentClient {
         throw new ProtocolError('invalid-request', 'Updater bridge belongs to another Agent');
       return bridge;
     });
+  }
+  listHostProfiles(options: RequestOptions = {}): Promise<HostProfilesResult> {
+    return this.decode(
+      this.request('accounts.hosts.list', undefined, options),
+      validateHostProfiles,
+    );
+  }
+  saveHostProfile(
+    id: string | null,
+    profile: SaveHostProfile,
+    revision: string,
+    options: RequestOptions = {},
+  ): Promise<HostProfilesResult> {
+    return this.decode(
+      this.request(
+        'accounts.hosts.save',
+        { id, profile, revision } as unknown as JsonValue,
+        options,
+      ),
+      validateHostProfiles,
+    );
+  }
+  deleteHostProfile(
+    id: string,
+    revision: string,
+    options: RequestOptions = {},
+  ): Promise<HostProfilesResult> {
+    return this.decode(
+      this.request('accounts.hosts.delete', { id, revision }, options),
+      validateHostProfiles,
+    );
   }
   storageStatus(): Promise<StorageStatus> {
     return this.decode(this.request('storage.status'), (value) => {

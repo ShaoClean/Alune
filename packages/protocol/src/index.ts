@@ -6,6 +6,7 @@ export * from './storage';
 export * from './settings';
 export * from './diagnostics';
 export * from './network';
+export * from './hosts';
 export * from './legacy/proxy';
 export * from './legacy/logging';
 export * from './legacy/ai';
