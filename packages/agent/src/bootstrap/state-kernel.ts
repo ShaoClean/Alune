@@ -15,7 +15,13 @@ export async function openStateKernel(
   secretOptions: Pick<ProtectedSecretOptions, 'backend' | 'keychain'> = {},
 ) {
   const state = await AgentState.open(directory, agentId, signal);
-  const settings = settingsKernel(state, directory, agentId, secretOptions);
+  let settings: ReturnType<typeof settingsKernel>;
+  try {
+    settings = settingsKernel(state, directory, agentId, secretOptions);
+  } catch (error) {
+    await state.close();
+    throw error;
+  }
   const handlers: Record<string, Handler> = {
     ...settings.handlers,
     'storage.status': {

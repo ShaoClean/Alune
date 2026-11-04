@@ -61,3 +61,36 @@ test('settings response schemas reject secret-bearing extra fields and malformed
     assert.throws(() => validateProxySettings({ ...proxy, ...change }));
   }
 });
+
+test('token list schemas reject credential fields at every returned nesting level', () => {
+  const { validateAccessTokenSettings } = require('../dist');
+  const token = {
+    id: 'token',
+    name: 'Fixture',
+    version: 'version',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    scope: { provider: 'gitlab', origin: 'https://fixture.invalid' },
+    associations: [
+      {
+        repositoryId: 'repo',
+        repositoryName: 'Fixture',
+        remote: 'origin',
+        target: 'https://fixture.invalid/team/repo',
+      },
+    ],
+  };
+  const result = {
+    revision: 'revision',
+    tokens: [token],
+    secretStorage: { available: true, description: 'Fixture' },
+  };
+  assert.equal(validateAccessTokenSettings(result), result);
+  for (const changed of [
+    { ...token, value: 'secret' },
+    { ...token, ciphertext: 'aes-gcm:secret' },
+    { ...token, scope: { ...token.scope, token: 'secret' } },
+    { ...token, associations: [{ ...token.associations[0], password: 'secret' }] },
+    { ...token, updatedAt: 'invalid' },
+  ])
+    assert.throws(() => validateAccessTokenSettings({ ...result, tokens: [changed] }));
+});

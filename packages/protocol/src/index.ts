@@ -7,3 +7,4 @@ export * from './settings';
 export * from './legacy/proxy';
 export * from './legacy/logging';
 export * from './legacy/ai';
+export * from './legacy/access-tokens';

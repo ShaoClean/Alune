@@ -1,6 +1,7 @@
 import { isRecord, ProtocolError } from './messages';
 import type { AiModel, AiSettings, CommitGenerationPreferences } from './legacy/ai';
 import type { NetworkProxyConfig } from './legacy/proxy';
+import type { AccessTokenSettings } from './legacy/access-tokens';
 
 export type CredentialStorageStatus = { available: boolean; description: string };
 const text = (value: unknown, max: number, empty = false): value is string =>
@@ -111,4 +112,43 @@ export function validateProxySettings(value: unknown): NetworkProxyConfig {
   )
     invalid();
   return value as unknown as NetworkProxyConfig;
+}
+export function validateAccessTokenSettings(value: unknown): AccessTokenSettings {
+  if (
+    !fields(value, ['revision', 'tokens', 'secretStorage']) ||
+    !text(value.revision, 128) ||
+    !Array.isArray(value.tokens)
+  )
+    invalid();
+  validateCredentialStorageStatus(value.secretStorage);
+  const ids = new Set<string>();
+  for (const token of value.tokens) {
+    if (
+      !fields(token, ['id', 'name', 'version', 'updatedAt', 'scope', 'associations']) ||
+      !text(token.id, 100) ||
+      ids.has(token.id) ||
+      !text(token.name, 50) ||
+      !text(token.version, 128) ||
+      !text(token.updatedAt, 128) ||
+      !Number.isFinite(Date.parse(token.updatedAt)) ||
+      (token.scope !== null &&
+        (!fields(token.scope, ['provider', 'origin']) ||
+          !['github', 'gitlab'].includes(token.scope.provider as string) ||
+          !text(token.scope.origin, 2048))) ||
+      !Array.isArray(token.associations)
+    )
+      invalid();
+    ids.add(token.id);
+    for (const association of token.associations) {
+      if (
+        !fields(association, ['repositoryId', 'repositoryName', 'remote', 'target']) ||
+        !text(association.repositoryId, 100) ||
+        !text(association.repositoryName, 8192) ||
+        !text(association.remote, 8192) ||
+        !text(association.target, 8192)
+      )
+        invalid();
+    }
+  }
+  return value as unknown as AccessTokenSettings;
 }

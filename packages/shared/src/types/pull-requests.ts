@@ -1,15 +1,6 @@
-export type PullRequestProvider = 'github' | 'gitlab';
+import type { PullRequestProvider, PullRequestRemote } from '@alune/protocol';
+export type { PullRequestProvider, PullRequestRemote } from '@alune/protocol';
 export type PullRequestFilter = 'open' | 'all';
-
-export interface PullRequestRemote {
-  name: string;
-  host: string;
-  project: string;
-  webUrl: string;
-  provider: PullRequestProvider | null;
-  unavailableReason?: string;
-  selection?: PullRequestSelection;
-}
 
 export interface PullRequestQuery {
   remote: string;

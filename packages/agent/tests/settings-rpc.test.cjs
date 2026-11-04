@@ -149,3 +149,47 @@ test(
     assert.equal((await recovered.client.getAiSettings()).secretStorage.available, true);
   },
 );
+
+test(
+  'named token RPC keeps IDs and revisions across restart, masks events, and rejects stale deletion',
+  { timeout: 60000 },
+  async (t) => {
+    const f = await setup(t);
+    const first = await f.start();
+    await first.client.subscribe(['accounts.tokens.changed']);
+    const empty = await first.client.listAccessTokens();
+    assert.equal(empty.tokens.length, 0);
+    assert.equal(fs.existsSync(path.join(f.root, 'keys')), false);
+    const saved = await first.client.saveAccessToken(null, {
+      name: 'Fixture token',
+      value: 'fixture-named-token-secret',
+      revision: empty.revision,
+    });
+    const token = saved.tokens[0];
+    assert.equal(saved.secretStorage.available, true);
+    await assert.rejects(
+      first.client.deleteAccessToken(token.id, empty.revision),
+      (e) => e.kind === 'conflict',
+    );
+    await assert.rejects(
+      first.client.request('accounts.tokens.credential', { id: token.id }),
+      (e) => e.kind === 'unknown-method',
+    );
+    await first.close();
+    const next = await f.start();
+    const restored = await next.client.listAccessTokens();
+    assert.deepEqual(restored, saved);
+    const renamed = await next.client.saveAccessToken(token.id, {
+      name: 'Renamed',
+      revision: restored.revision,
+    });
+    assert.equal(renamed.tokens[0].id, token.id);
+    const deleted = await next.client.deleteAccessToken(token.id, renamed.revision);
+    assert.equal(deleted.tokens.length, 0);
+    f.responses.push(saved, restored, renamed, deleted);
+    assert.doesNotMatch(
+      JSON.stringify(f.responses),
+      /fixture-named-token-secret|aes-gcm:|ciphertext/,
+    );
+  },
+);

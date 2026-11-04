@@ -15,6 +15,7 @@ import {
   validateAiSettings,
   validateProxySettings,
   validateCredentialStorageStatus,
+  validateAccessTokenSettings,
   MAX_EVENT_QUEUE_BYTES,
   MAX_EVENT_QUEUE_LENGTH,
 } from '@alune/protocol';
@@ -39,6 +40,8 @@ import type {
   NetworkProxyConfig,
   SaveNetworkProxy,
   CredentialStorageStatus,
+  AccessTokenSettings,
+  SaveAccessToken,
 } from '@alune/protocol';
 import type { MessageTransport } from './transport';
 
@@ -233,6 +236,32 @@ export class AgentClient {
     return this.decode(
       this.request('settings.proxy.save', { config } as unknown as JsonValue, options),
       validateProxySettings,
+    );
+  }
+  listAccessTokens(options: RequestOptions = {}): Promise<AccessTokenSettings> {
+    return this.decode(
+      this.request('accounts.tokens.list', undefined, options),
+      validateAccessTokenSettings,
+    );
+  }
+  saveAccessToken(
+    id: string | null,
+    input: SaveAccessToken,
+    options: RequestOptions = {},
+  ): Promise<AccessTokenSettings> {
+    return this.decode(
+      this.request('accounts.tokens.save', { id, input } as unknown as JsonValue, options),
+      validateAccessTokenSettings,
+    );
+  }
+  deleteAccessToken(
+    id: string,
+    revision: string,
+    options: RequestOptions = {},
+  ): Promise<AccessTokenSettings> {
+    return this.decode(
+      this.request('accounts.tokens.delete', { id, revision }, options),
+      validateAccessTokenSettings,
     );
   }
   storageStatus(): Promise<StorageStatus> {

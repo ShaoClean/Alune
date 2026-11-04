@@ -46,6 +46,10 @@
     "./settings": {
       "types": "./dist/modules/settings/index.d.ts",
       "default": "./dist/modules/settings/index.js"
+    },
+    "./accounts": {
+      "types": "./dist/modules/accounts/index.d.ts",
+      "default": "./dist/modules/accounts/index.js"
     }
   },
   "typesVersions": {
@@ -61,6 +65,9 @@
       ],
       "settings": [
         "dist/modules/settings/index.d.ts"
+      ],
+      "accounts": [
+        "dist/modules/accounts/index.d.ts"
       ]
     }
   }

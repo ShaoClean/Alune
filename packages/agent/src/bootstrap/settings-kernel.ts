@@ -14,6 +14,8 @@ import type { AgentState } from '../adapters/sqlite/state';
 import type { Handler, HandlerContext } from '../ports/handler';
 import { StateFault, type SecretCipher } from '../ports/state';
 import { AiSettingsStore, ProxySettingsStore } from '../modules/settings';
+import { AccessTokensStore } from '../modules/accounts';
+import { initializeAgentAccessTokens } from '../adapters/sqlite/access-tokens';
 
 // Owned by the state kernel; reads never initialize an OS credential record.
 export function settingsKernel(
@@ -43,6 +45,8 @@ export function settingsKernel(
   };
   const ai = new AiSettingsStore(state.document('ai-settings'), cipher);
   const proxy = new ProxySettingsStore(state.document('network-proxy'), cipher);
+  initializeAgentAccessTokens(state.database);
+  const tokens = new AccessTokensStore(state.database, cipher);
   async function prepare(create: boolean, signal: AbortSignal) {
     if (secrets) return;
     const port = state.document('credential-key');
@@ -73,6 +77,7 @@ export function settingsKernel(
     validate: Handler['validate'],
     run: (params: any, context: HandlerContext) => unknown,
     needsKey: (params: any) => boolean = () => false,
+    topic = 'settings.changed',
   ): Handler {
     return {
       minimumProtocolMinor: 1,
@@ -86,7 +91,9 @@ export function settingsKernel(
           context.signal.throwIfAborted();
           const result = run(params, context);
           if (effect === 'mutation')
-            context.events.notifyState('settings.changed', { section: 'configuration' });
+            context.events.notifyState(topic, {
+              section: topic === 'settings.changed' ? 'configuration' : 'tokens',
+            });
           return result as JsonValue;
         });
         tail = task.catch(() => undefined);
@@ -125,11 +132,39 @@ export function settingsKernel(
       (p) => proxy.save(p.config as SaveNetworkProxy),
       (p) => p.config?.credentials?.action === 'replace',
     ),
+    'accounts.tokens.list': handler('query', validateEmpty, () => tokens.list()),
+    'accounts.tokens.save': handler(
+      'mutation',
+      (p) => {
+        shape(p, ['id', 'input']);
+        if (
+          !isRecord(p) ||
+          (p.id !== null && (typeof p.id !== 'string' || !p.id || p.id.length > 100)) ||
+          !isRecord(p.input)
+        )
+          throw new ProtocolError('invalid-params', 'Invalid token save parameters');
+      },
+      (p) => tokens.save(p.id, p.input),
+      (p) => typeof p.input?.value === 'string',
+      'accounts.tokens.changed',
+    ),
+    'accounts.tokens.delete': handler(
+      'mutation',
+      (p) => {
+        shape(p, ['id', 'revision']);
+        if (!isRecord(p) || typeof p.id !== 'string' || !p.id || p.id.length > 100)
+          throw new ProtocolError('invalid-params', 'Invalid token identifier');
+      },
+      (p) => tokens.delete(p.id, { revision: p.revision }),
+      () => false,
+      'accounts.tokens.changed',
+    ),
   };
   return {
     handlers,
     ai,
     proxy,
+    tokens,
     async close() {
       closed = true;
       await tail;
