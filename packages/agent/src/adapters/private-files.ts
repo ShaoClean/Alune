@@ -17,32 +17,45 @@ import { StateFault } from '../ports/state';
 
 const aclScript = `
 $ErrorActionPreference = 'Stop'
-$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-$sid = $identity.User
-$principal = New-Object Security.Principal.WindowsPrincipal($identity)
-$system = New-Object Security.Principal.SecurityIdentifier('S-1-5-18')
-$admins = 'S-1-5-32-544'
-$paths = @($env:ALUNE_PRIVATE_PATHS | ConvertFrom-Json)
-foreach ($path in $paths) {
-  $item = Get-Item -LiteralPath $path -Force
-  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Reparse point refused' }
-  $previous = Get-Acl -LiteralPath $path
-  $owner = $previous.GetOwner([Security.Principal.SecurityIdentifier]).Value
-  if ($owner -ne $sid.Value -and -not ($owner -eq $admins -and $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))) { throw 'Foreign owner refused' }
-  if ($item.PSIsContainer) {
-    $acl = New-Object Security.AccessControl.DirectorySecurity
-    $inherit = [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
-  } else {
-    $acl = New-Object Security.AccessControl.FileSecurity
-    $inherit = [Security.AccessControl.InheritanceFlags]::None
+$aluneAclStep = 'identity'
+try {
+  $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+  $sid = $identity.User
+  $principal = [System.Security.Principal.WindowsPrincipal]::new($identity)
+  $system = [System.Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+  $admins = 'S-1-5-32-544'
+  $aluneAclStep = 'paths'
+  $paths = @($env:ALUNE_PRIVATE_PATHS | ConvertFrom-Json)
+  foreach ($path in $paths) {
+    $aluneAclStep = 'read-path'
+    $item = Get-Item -LiteralPath $path -Force
+    if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw 'Reparse point refused' }
+    $aluneAclStep = 'read-owner'
+    $previous = Get-Acl -LiteralPath $path
+    $owner = $previous.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+    $aluneAclStep = 'owner-check'
+    if ($owner -ne $sid.Value -and -not ($owner -eq $admins -and $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator))) { throw 'Foreign owner refused' }
+    $aluneAclStep = 'create-acl'
+    if ($item.PSIsContainer) {
+      $acl = [System.Security.AccessControl.DirectorySecurity]::new()
+      $inherit = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
+    } else {
+      $acl = [System.Security.AccessControl.FileSecurity]::new()
+      $inherit = [System.Security.AccessControl.InheritanceFlags]::None
+    }
+    $acl.SetOwner($sid)
+    $acl.SetAccessRuleProtection($true, $false)
+    $aluneAclStep = 'create-rule'
+    foreach ($who in @($sid, $system)) {
+      $rule = [System.Security.AccessControl.FileSystemAccessRule]::new($who, [System.Security.AccessControl.FileSystemRights]::FullControl, [System.Security.AccessControl.InheritanceFlags]$inherit, [System.Security.AccessControl.PropagationFlags]::None, [System.Security.AccessControl.AccessControlType]::Allow)
+      $acl.AddAccessRule($rule)
+    }
+    $aluneAclStep = 'set-acl'
+    Set-Acl -LiteralPath $path -AclObject $acl
   }
-  $acl.SetOwner($sid)
-  $acl.SetAccessRuleProtection($true, $false)
-  foreach ($who in @($sid, $system)) {
-    $rule = New-Object Security.AccessControl.FileSystemAccessRule($who, 'FullControl', $inherit, 'None', 'Allow')
-    $acl.AddAccessRule($rule)
-  }
-  Set-Acl -LiteralPath $path -AclObject $acl
+} catch {
+  [Console]::Error.WriteLine('ALUNE_ACL_FAILURE:' + $aluneAclStep + ':' + $_.Exception.GetType().FullName)
+  exit 1
 }
 `;
 
@@ -96,11 +109,14 @@ export async function protectPrivatePaths(paths: string[], signal?: AbortSignal)
         'State paths must be owned by this user and cannot be links',
       );
   }
+  let diagnostic = 'filesystem';
   try {
     if (process.platform === 'win32' && existing.length) {
       const controller = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(15000)]);
       await new Promise<void>((resolve, reject) => {
         let failure: Error | undefined;
+        let stderr = '';
+        diagnostic = 'helper-start';
         const child = spawn(
           'powershell.exe',
           [
@@ -113,26 +129,35 @@ export async function protectPrivatePaths(paths: string[], signal?: AbortSignal)
           {
             env: { ...process.env, ALUNE_PRIVATE_PATHS: JSON.stringify(existing) },
             windowsHide: true,
-            stdio: ['ignore', 'ignore', 'ignore'],
+            stdio: ['ignore', 'ignore', 'pipe'],
             signal: controller,
           },
         );
+        child.stderr.on('data', (chunk: Buffer) => {
+          stderr = (stderr + chunk.toString('utf8')).slice(-4096);
+        });
         child.once('error', (error) => {
           failure = error;
         });
-        child.once('close', (code) =>
-          failure
-            ? reject(failure)
-            : code === 0
-              ? resolve()
-              : reject(new Error('ACL protection failed')),
-        );
+        child.once('close', (code) => {
+          const reason = /ALUNE_ACL_FAILURE:([a-z-]+):([A-Za-z0-9_.]+)/.exec(stderr);
+          diagnostic = controller.aborted
+            ? 'helper-timeout'
+            : reason
+              ? reason[1] + '/' + reason[2]
+              : /ParserError/.test(stderr)
+                ? 'helper-parse'
+                : 'helper-exit';
+          if (failure) reject(failure);
+          else if (code === 0) resolve();
+          else reject(new Error('ACL protection failed'));
+        });
       });
     } else
       for (const file of existing) chmodSync(file, lstatSync(file).isDirectory() ? 0o700 : 0o600);
   } catch {
     signal?.throwIfAborted();
-    throw new StateFault('permission', 'Cannot protect Agent state permissions');
+    throw new StateFault('permission', `Cannot protect Agent state permissions (${diagnostic})`);
   }
 }
 export async function privateDirectory(directory: string, signal?: AbortSignal): Promise<string> {
