@@ -34,12 +34,26 @@
     "./network": {
       "types": "./dist/adapters/network/proxy-transport.d.ts",
       "default": "./dist/adapters/network/proxy-transport.js"
+    },
+    "./logging": {
+      "types": "./dist/adapters/logging/index.d.ts",
+      "default": "./dist/adapters/logging/index.js"
+    },
+    "./secrets-file": {
+      "types": "./dist/adapters/secrets/file.d.ts",
+      "default": "./dist/adapters/secrets/file.js"
     }
   },
   "typesVersions": {
     "*": {
       "network": [
         "dist/adapters/network/proxy-transport.d.ts"
+      ],
+      "logging": [
+        "dist/adapters/logging/index.d.ts"
+      ],
+      "secrets-file": [
+        "dist/adapters/secrets/file.d.ts"
       ]
     }
   }
