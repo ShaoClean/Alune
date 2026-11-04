@@ -53,6 +53,53 @@ for (const [location, pkg] of Object.entries(manifest.packages)) {
 const data = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-packaged-session-'));
 const children = [];
 try {
+  // Exercise the packaged native adapter with the packaged Node executable.
+  // macOS uses a disposable Keychain, never the user's login Keychain.
+  const secretProbe = `
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const assert = require('node:assert/strict');
+    const { randomBytes, randomUUID } = require('node:crypto');
+    const { execFileSync } = require('node:child_process');
+    (async () => {
+      const base = process.argv[1], root = process.argv[2];
+      if (process.platform === 'darwin') {
+        const { keychainMasterKey } = require(path.join(base, 'dist/adapters/secrets/keychain'));
+        const file = path.join(root, 'fixture.keychain-db');
+        const password = randomBytes(24).toString('base64');
+        const security = (...args) => execFileSync('/usr/bin/security', args, { stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 });
+        let created = false;
+        try {
+          security('create-keychain', '-p', password, file); created = true;
+          security('unlock-keychain', '-p', password, file);
+          const account = randomUUID();
+          const key = await keychainMasterKey(account, { create: true, keychain: file });
+          assert.equal(key.length, 32);
+          const reread = await keychainMasterKey(account, { create: false, keychain: file });
+          assert.deepEqual(reread, key); reread.fill(0); key.fill(0);
+          security('lock-keychain', file);
+          await assert.rejects(keychainMasterKey(account, { create: true, keychain: file }));
+        } finally { if (created) security('delete-keychain', file); }
+      } else if (process.platform === 'win32') {
+        const { dpapi } = require(path.join(base, 'dist/adapters/secrets/dpapi'));
+        const key = randomBytes(32), scope = randomUUID();
+        try {
+          const sealed = await dpapi('protect', key, scope);
+          const recovered = await dpapi('unprotect', sealed, scope);
+          assert.deepEqual(recovered, key); recovered.fill(0);
+          await assert.rejects(dpapi('unprotect', sealed, randomUUID()));
+        } finally { key.fill(0); }
+      }
+      process.stdout.write('native-secret-adapter-ok');
+    })().catch(() => { process.stderr.write('Packaged native secret adapter failed'); process.exitCode = 1; });
+  `;
+  assert.equal(
+    execFileSync(node, ['-e', secretProbe, path.dirname(path.dirname(entry)), data], {
+      encoding: 'utf8',
+      timeout: 60000,
+    }),
+    'native-secret-adapter-ok',
+  );
   const a = spawnAgent(node, [entry, 'serve', '--data-dir', data]);
   children.push(a);
   const first = await a.client.initialize({ name: 'packaged-smoke', version: '1' });
@@ -63,6 +110,17 @@ try {
     scope: 'session',
     task: null,
   });
+  const settings = await a.client.getAiSettings();
+  assert.equal(settings.secretStorage.available, false);
+  const update = a.client.startRequest('settings.ai.saveCommit', {
+    revision: settings.revision,
+    commit: { ...settings.commit, prompt: 'Packaged state fixture' },
+  });
+  const saved = await update.result;
+  const receipt = await a.client.getTask({ requestId: update.requestId });
+  assert.equal(receipt.scope, 'agent');
+  assert.equal(receipt.task.outcome, 'completed');
+  assert.equal(fs.existsSync(path.join(data, 'keys')), false);
   await a.close();
   assert.equal((await a.exited).code, 0);
   const b = spawnAgent(node, [entry, 'serve', '--data-dir', data]);
@@ -70,6 +128,8 @@ try {
   const second = await b.client.initialize();
   assert.equal(second.agentId, first.agentId);
   assert.notEqual(second.sessionId, first.sessionId);
+  assert.equal((await b.client.getAiSettings()).revision, saved.revision);
+  assert.deepEqual(await b.client.getTask({ requestId: update.requestId }), receipt);
   await b.close();
   assert.equal((await b.exited).code, 0);
 } finally {
@@ -84,6 +144,13 @@ console.log(
     protocol:
       'initialize/health/version/capabilities/subscription/tasks/EOF/restart identity passed',
     native: doctor.native,
+    secretAdapter:
+      process.platform === 'darwin'
+        ? 'temporary-keychain'
+        : process.platform === 'win32'
+          ? 'dpapi-current-user'
+          : 'file-backend-covered-by-agent-tests',
+    state: 'configuration revision and mutation receipt survived restart',
     node: doctor.node,
     electron: 'not resolvable',
   }),
