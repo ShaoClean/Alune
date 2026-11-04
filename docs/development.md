@@ -64,6 +64,26 @@ PR/MR 列表、详情、Diff、讨论及命名令牌可在构建 server、web �
 
 实际验收结果、截图和未验证场景统一记录到 [Wiki](https://github.com/ShaoClean/Alune/wiki)，不在本页累积历史记录。正式发布步骤见[贡献与发布指南](../CONTRIBUTE.md#发布新版本)。
 
+### Agent 迁移基线工具
+
+从已跟踪的源码生成入口清单（HTTP、Socket/IPC、前端 API、导出符号、类方法、JSX 事件及测试声明）：
+
+```sh
+node scripts/agent-inventory.mjs > /tmp/alune-inventory.json
+```
+
+该工具只做静态发现，不计算功能或测试覆盖率。动态 IPC、UI 行为、数据归属和测试断言仍需人工核对；迁移台账、设计和实际结果维护在 [P0 Wiki](https://github.com/ShaoClean/Alune/wiki/Issue-249)，不将生成清单提交到业务代码仓库。
+
+构建 shared、ssh-client、server、web 后，可在 macOS/Linux 使用生产 HTTP 与 Socket.IO 入口测量临时仓库：
+
+```sh
+node scripts/agent-baseline.cjs 20 > /tmp/alune-performance.json
+```
+
+工具使用隔离 Git 配置和临时 SQLite/仓库，测量小仓库、5,000 文件仓库、64 MiB 大文件仓库；PATH 中有 Git LFS 时增加真实 LFS 夹具，仅在临时仓库执行 `git lfs install --local`。每组记录新应用进程及同进程热运行的 status、单文件 Diff、50 条历史、64 KiB PTY 输出延迟和原始样本。另以 25 ms 间隔采样应用进程树的 RSS/进程数，并在退出后检查观察过的进程是否仍在。
+
+冷启动指应用进程重新启动，不清空操作系统文件缓存。内存高水位包括启动，采样可能遗漏短命进程峰值；终端延迟包含输出命令启动。此工具不测 SSH、UI 渲染或 Windows，也不替代安装包和真实升级验收。测量时避免并行构建/测试，保持机器、Node、夹具及方法一致；缺失 Git LFS 会明确记录为未测，不以普通大文件代替。
+
 ### 本地 Git 验证
 
 ```sh
