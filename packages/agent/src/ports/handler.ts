@@ -20,6 +20,7 @@ export interface HandlerContext {
 }
 export interface Handler {
   effect: 'query' | 'mutation';
+  // Shape validation is synchronous. I/O belongs in run under task cancellation.
   validate(params: JsonValue | undefined): void;
   run(params: JsonValue | undefined, context: HandlerContext): JsonValue | Promise<JsonValue>;
 }

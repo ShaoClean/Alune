@@ -97,6 +97,12 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 export function validId(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,128}$/.test(value);
 }
+export function requestSequence(value: unknown): { prefix: string; sequence: number } | null {
+  if (typeof value !== 'string') return null;
+  const match = /^([A-Za-z0-9_.:-]{1,96}):([1-9][0-9]{0,15})$/.exec(value);
+  if (!match || !Number.isSafeInteger(Number(match[2]))) return null;
+  return { prefix: match[1], sequence: Number(match[2]) };
+}
 function jsonValue(value: unknown, depth = 0): value is JsonValue {
   if (depth > 64) return false;
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return true;
@@ -136,7 +142,7 @@ export function parseMessage(text: string): RpcMessage {
       typeof value.method !== 'string' ||
       !/^[A-Za-z_$][A-Za-z0-9_.$:/-]{0,127}$/.test(value.method) ||
       !onlyKeys(value, ['jsonrpc', 'id', 'method', 'params']) ||
-      (Object.hasOwn(value, 'id') && !validId(value.id))
+      (Object.hasOwn(value, 'id') && !requestSequence(value.id))
     )
       throw new ProtocolError('invalid-request', 'Invalid request');
   } else if (Object.hasOwn(value, 'result')) {

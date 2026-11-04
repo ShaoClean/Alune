@@ -13,7 +13,7 @@ node packages/agent/bin/alune-agent.cjs serve --data-dir /path/to/agent-data
 
 `serve` 首先要求 `initialize`，随后提供 `agent.health`、`agent.version`、`agent.capabilities`、`events.subscribe`、`events.ack`、`requests.cancel` 和 `tasks.get`。初始化返回明确能力集，未知方法或不同协议 major 被拒绝。`agentId` 保存到数据目录的 identity.json；sessionId 每次启动改变。损坏身份文件拒绝启动，不静默重新生成 ID。
 
-首期只有会话模式。EOF、信号或协议错误关闭会话，取消任务并调用资源回收；超出退出期限或回收失败以非零码退出。任务记录只保留在当前会话，不支持跨重启恢复。重复 requestId 关闭通道，避免同一 ID 的第二个响应覆盖仍在执行的操作。每会话最多记录 4,096 请求，同时最多 64 个业务任务；达到限制后需显式创建新会话，不自动重放。
+首期只有会话模式。EOF、信号或协议错误关闭会话，取消运行中任务并调用资源回收；超出退出期限或回收失败以非零码退出。任务记录只保留当前会话最近 1,024 项，不支持跨重启恢复；记录被淘汰或未找到不授权重放写操作。同一通道 requestId 使用固定前缀和严格递增序号，重复/倒退 ID 关闭通道；只需保存序号上界即可拒绝历史重放，不随请求总量累积 ID，也不强制每 4,096 次请求断线。同时最多 64 个业务任务，超限明确拒绝且不自动重放。
 
 业务处理器通过 `Handler` 端口注册，声明 query/mutation、参数校验和执行函数。每次执行分配 taskId，可用 requestId 或 taskId 查询当前会话状态。写任务取消/断线可能已有副作用，不能把请求取消当作回滚；未知结果需要核对仓库事实。
 

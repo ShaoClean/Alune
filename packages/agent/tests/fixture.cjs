@@ -11,6 +11,25 @@ const validate = (p) => {
 };
 const root = process.env.ALUNE_FIXTURE_DIR;
 const handlers = {
+  'fixture.hold': {
+    effect: 'query',
+    validate() {},
+    run(_p, ctx) {
+      return new Promise((_resolve, reject) =>
+        ctx.signal.addEventListener('abort', () => reject(ctx.signal.reason), { once: true }),
+      );
+    },
+  },
+  'fixture.invalidAsyncValidation': {
+    effect: 'mutation',
+    async validate() {
+      throw new Error('invalid shape');
+    },
+    run() {
+      appendFileSync(join(root, 'invalid-write'), 'bad');
+      return null;
+    },
+  },
   'fixture.completed': {
     effect: 'mutation',
     validate() {},

@@ -8,6 +8,37 @@ const { setTimeout: delay } = require('node:timers/promises');
 const { AgentClient, StdioTransport } = require('@alune/agent-client/node');
 const { encodeMessage, FrameDecoder, parseMessage } = require('@alune/protocol');
 const cli = path.resolve(__dirname, '../bin/alune-agent.cjs');
+test(
+  'in-flight input budget rejects excess before execution and async validators cannot bypass it',
+  { timeout: 15000 },
+  async (t) => {
+    const f = launch(t);
+    await f.client.initialize();
+    await assert.rejects(
+      f.client.request('fixture.invalidAsyncValidation'),
+      (e) => e.kind === 'internal' && e.outcome === 'not-started',
+    );
+    assert.equal(fs.existsSync(path.join(f.root, 'invalid-write')), false);
+    await f.client.subscribe(['tasks.changed']);
+    let running = false;
+    f.client.onEvent((event) => {
+      if (event.payload.method === 'fixture.hold' && event.payload.state === 'running')
+        running = true;
+    });
+    const padding = 'x'.repeat(5 * 1024 * 1024);
+    const cancellation = new AbortController();
+    const first = f.client.request('fixture.hold', { padding }, { signal: cancellation.signal });
+    const cancelled = assert.rejects(first, (e) => e.kind === 'cancelled');
+    await until(() => running);
+    await assert.rejects(
+      f.client.request('fixture.delay', { ms: 0, padding }),
+      (e) => e.kind === 'overloaded' && e.outcome === 'not-started',
+    );
+    cancellation.abort();
+    await cancelled;
+    assert.deepEqual(await f.client.request('fixture.delay', { ms: 0, padding }), { value: null });
+  },
+);
 async function until(check, timeout = 5000) {
   const deadline = Date.now() + timeout;
   while (!check()) {
@@ -196,7 +227,7 @@ test('duplicate request IDs cannot execute a mutation twice', { timeout: 10000 }
   child.stdin.write(
     encodeMessage({
       jsonrpc: '2.0',
-      id: 'init',
+      id: 'raw:1',
       method: 'initialize',
       params: { protocol: { major: 1, minor: 0 }, client: { name: 'raw', version: '1' } },
     }),
@@ -204,7 +235,7 @@ test('duplicate request IDs cannot execute a mutation twice', { timeout: 10000 }
   await until(() => frames.length);
   const request = encodeMessage({
     jsonrpc: '2.0',
-    id: 'same',
+    id: 'raw:2',
     method: 'fixture.mutate',
     params: { ms: 1000 },
   });
@@ -262,7 +293,7 @@ test(
     });
     let serial = 0;
     const exchange = async (method, params) => {
-      const id = `raw-${++serial}`;
+      const id = `raw:${++serial}`;
       await transport.send({
         jsonrpc: '2.0',
         id,
@@ -321,5 +352,45 @@ test(
     f.client.close();
     assert.equal((await f.exit).code, 0);
     assert.equal(fs.existsSync(path.join(f.root, 'late-abort')), false);
+  },
+);
+
+test(
+  'long-lived sessions do not accumulate IDs or impose a 4096-request disconnect',
+  { timeout: 30000 },
+  async (t) => {
+    const f = launch(t);
+    await f.client.initialize();
+    for (let i = 0; i < 4100; i++) assert.equal((await f.client.health()).status, 'ok');
+    const first = f.client.startRequest('fixture.completed');
+    await first.result;
+    for (let i = 0; i < 1030; i++) await f.client.request('fixture.completed');
+    assert.equal((await f.client.getTask({ requestId: first.requestId })).task, null);
+    assert.equal(f.client.state, 'ready');
+    f.client.close();
+    assert.equal((await f.exit).code, 0);
+    assert.equal(fs.existsSync(path.join(f.root, 'late-abort')), false);
+  },
+);
+
+test(
+  'control queries and cancellation remain available when business concurrency is full',
+  { timeout: 15000 },
+  async (t) => {
+    const f = launch(t);
+    await f.client.initialize();
+    const controllers = Array.from({ length: 64 }, () => new AbortController());
+    const pending = controllers.map((controller) =>
+      assert.rejects(
+        f.client.request('fixture.hold', {}, { signal: controller.signal }),
+        (error) => error.kind === 'cancelled',
+      ),
+    );
+    assert.equal((await f.client.health()).status, 'ok');
+    await assert.rejects(f.client.request('fixture.hold'), (error) => error.kind === 'overloaded');
+    controllers.forEach((controller) => controller.abort());
+    await Promise.all(pending);
+    f.client.close();
+    assert.equal((await f.exit).code, 0);
   },
 );

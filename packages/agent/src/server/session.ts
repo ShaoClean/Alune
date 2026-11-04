@@ -8,6 +8,9 @@ import {
   isRecord,
   validId,
   validateTaskQuery,
+  requestSequence,
+  MAX_FRAME_BYTES,
+  MAX_STREAM_CHUNK_BYTES,
 } from '@alune/protocol';
 import type { JsonValue, RpcMessage, RpcRequest, TaskInfo } from '@alune/protocol';
 import type { MessageTransport } from '@alune/agent-client';
@@ -29,7 +32,10 @@ export class AgentSession {
   private resolveClosed!: () => void;
   private initialized = false;
   private closing?: Promise<void>;
-  private seen = new Set<string>();
+  private requestPrefix?: string;
+  private lastRequestSequence = 0;
+  private activeRequests = 0;
+  private requestBytes = 0;
   private tasks = new Map<string, { info: TaskInfo; controller: AbortController }>();
   private running = new Set<Promise<void>>();
   private capabilities: string[];
@@ -101,7 +107,10 @@ export class AgentSession {
       } else throw new ProtocolError('unknown-method', 'Unknown notification');
       return;
     }
-    if (this.seen.has(message.id)) {
+    const sequence = requestSequence(message.id);
+    if (!sequence || (this.requestPrefix && this.requestPrefix !== sequence.prefix))
+      throw new ProtocolError('invalid-request', 'Request ID prefix changed within the session');
+    if (sequence.sequence <= this.lastRequestSequence) {
       // Never let a duplicate ID resolve a still-running request with a second result.
       await this.transport.send({
         jsonrpc: '2.0',
@@ -115,15 +124,30 @@ export class AgentSession {
       void this.close();
       return;
     }
-    if (this.seen.size >= 4096) {
-      await this.error(
-        message,
-        new ProtocolError('overloaded', 'Session request quota reached; establish a new session'),
-      );
-      void this.close();
+    this.requestPrefix = sequence.prefix;
+    this.lastRequestSequence = sequence.sequence;
+    const bytes = Buffer.byteLength(JSON.stringify(message));
+    const control =
+      message.method === 'initialize' ||
+      (CORE_CAPABILITIES as readonly string[]).includes(message.method);
+    if (
+      this.activeRequests >= (control ? 72 : 64) ||
+      this.requestBytes + bytes > MAX_FRAME_BYTES + (control ? MAX_STREAM_CHUNK_BYTES : 0)
+    ) {
+      // Do not retain an oversized request while its small rejection waits to drain.
+      void this.transport
+        .send({
+          jsonrpc: '2.0',
+          id: message.id,
+          error: new ProtocolError('overloaded', 'In-flight request budget exceeded').toRpcError(),
+        })
+        .catch((error) => {
+          void this.close(error);
+        });
       return;
     }
-    this.seen.add(message.id);
+    this.activeRequests++;
+    this.requestBytes += bytes;
     let task: TaskInfo | undefined;
     try {
       if (message.method === 'initialize') {
@@ -196,7 +220,15 @@ export class AgentSession {
       if (!handler) throw new ProtocolError('unknown-method', 'Unknown method');
       if ([...this.tasks.values()].filter((entry) => entry.info.state === 'running').length >= 64)
         throw new ProtocolError('overloaded', 'Too many running tasks');
-      handler.validate(message.params);
+      const validation: unknown = handler.validate(message.params);
+      if (
+        validation &&
+        (typeof validation === 'object' || typeof validation === 'function') &&
+        typeof (validation as { then?: unknown }).then === 'function'
+      ) {
+        void Promise.resolve(validation).catch(() => {});
+        throw new ProtocolError('internal', 'Handler validation must be synchronous');
+      }
       const controller = new AbortController();
       task = {
         taskId: randomUUID(),
@@ -220,6 +252,7 @@ export class AgentSession {
       task.outcome = 'completed';
       task.finishedAt = Date.now();
       this.taskEvent(task);
+      this.pruneTasks();
       if (!this.closing) await this.result(message, value);
     } catch (error) {
       const cancelled = error instanceof Error && error.name === 'AbortError';
@@ -241,12 +274,22 @@ export class AgentSession {
         task.outcome = failure.outcome;
         task.finishedAt = Date.now();
         this.taskEvent(task);
+        this.pruneTasks();
       }
       if (!this.closing) await this.error(message, failure);
+    } finally {
+      this.activeRequests--;
+      this.requestBytes -= bytes;
     }
   }
   private taskEvent(task: TaskInfo): void {
     this.events.notifyState('tasks.changed', { ...task });
+  }
+  private pruneTasks(): void {
+    for (const [id, task] of this.tasks) {
+      if (this.tasks.size <= 1024) break;
+      if (task.info.state !== 'running') this.tasks.delete(id);
+    }
   }
   private result(request: RpcRequest, result: JsonValue): Promise<void> {
     return this.transport.send({ jsonrpc: '2.0', id: request.id, result });

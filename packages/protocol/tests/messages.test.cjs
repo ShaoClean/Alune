@@ -13,6 +13,15 @@ const {
 } = require('../dist');
 
 const request = { jsonrpc: '2.0', id: 'request:1', method: 'agent.health', params: {} };
+test('request IDs carry a safe monotonic sequence while result IDs remain opaque', () => {
+  for (const id of ['opaque-id', 'prefix:0', 'prefix:01', 'prefix:9007199254740992'])
+    assert.throws(() => parseMessage(JSON.stringify({ ...request, id })), ProtocolError);
+  assert.equal(
+    parseMessage(JSON.stringify({ ...request, id: 'prefix:9007199254740991' })).id,
+    'prefix:9007199254740991',
+  );
+  assert.equal(parseMessage('{"jsonrpc":"2.0","id":"opaque-id","result":null}').id, 'opaque-id');
+});
 test('request, notification, result and structured errors round-trip as one NDJSON frame', () => {
   for (const message of [
     request,
