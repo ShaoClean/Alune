@@ -458,7 +458,8 @@ function RepositoryWorkspace({
           options?.setUpstream,
           options?.tags,
         );
-      else await gitApi[operation](id, options?.remote, options?.branch);
+      else if (operation === 'pull') await gitApi.pull(id, options?.remote, options?.branch);
+      else await gitApi.fetch(id, options?.remote);
       if (operation === 'push' && !options?.tags && (options?.branch || status?.branch))
         setPushedBranch({ branch: options?.branch || status!.branch, remote: options?.remote });
       await handleRefresh(true);
