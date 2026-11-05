@@ -66,6 +66,7 @@ jobs:
       - run: npm test -w @alune/agent-client
       - run: npm test -w @alune/agent
       - run: npm run build -w web
+      - run: npm test -w web
       - run: npm run test:agent-dev -w web
       - run: node scripts/agent/check-browser.mjs
       - run: node scripts/agent/check-boundaries.mjs

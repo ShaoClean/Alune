@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { parsePatchHunks } from '../../../packages/shared/src/partial-diff.ts';
+import { parsePatchHunks } from '@alune/domain';
 import { DiffViewer } from '../src/components/DiffViewer.tsx';
 const diff =
   'diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1,2 +1,2 @@\n keep\n-old\n\\ No newline at end of file\n+new\n\\ No newline at end of file\n';

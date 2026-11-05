@@ -1,7 +1,8 @@
 const { createServer } = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { GitCommands, GitLogChangedError } = require('../../../packages/ssh-client/dist');
+const { GitCommands } = require('@alune/agent/git/git-commands-writes');
+const { GitLogChangedError } = require('@alune/agent/git/git-log');
 const {
   createHistoryRepository,
 } = require('../../../packages/agent/tests/helpers/history-repository.cjs');

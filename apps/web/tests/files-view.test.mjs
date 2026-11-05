@@ -27,7 +27,7 @@ import { readLayoutPreferences } from '../src/stores/workspaceLayout.ts';
 import {
   DIFF_IMAGE_MAX_BYTES,
   REPOSITORY_TEXT_PREVIEW_MAX_BYTES,
-} from '../../../packages/shared/src/index.ts';
+} from '@alune/domain';
 
 const entry = (path, kind = 'file', extra = {}) => ({
   name: path.slice(path.lastIndexOf('/') + 1),

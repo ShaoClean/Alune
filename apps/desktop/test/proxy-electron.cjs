@@ -1,4 +1,4 @@
-// Run with Electron, after building @alune/ssh-client. Exercises both updater
+// Run with Electron, after building @alune/agent. Exercises both updater
 // download implementations on the host OS; never launches an installer.
 const { app, session, autoUpdater: nativeUpdater } = require('electron');
 const assert = require('node:assert/strict');
@@ -9,7 +9,7 @@ const { createHash, X509Certificate } = require('node:crypto');
 const { NsisUpdater, AppImageUpdater } = require('electron-updater');
 const { ElectronHttpExecutor } = require('electron-updater/out/electronHttpExecutor');
 const { createElectronUpdater } = require('../src/electron-updater-adapter.cjs');
-const { createProxyBridge } = require('../../../packages/ssh-client/dist');
+const { createProxyBridge } = require('@alune/agent/network');
 const { listen, httpProxy, socksProxy, tlsOptions } = require('../../../packages/agent/tests/helpers/proxy-fixture.cjs');
 
 const root = process.env.ALUNE_PROXY_TEST_DIR;

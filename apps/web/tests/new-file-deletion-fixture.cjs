@@ -6,7 +6,7 @@ const path = require('node:path');
 const {
   createRepository,
 } = require('../../../packages/agent/tests/helpers/local-repository.cjs');
-const { GitCommands } = require('@alune/ssh-client');
+const { GitCommands } = require('@alune/agent/git/git-commands-writes');
 const { GitService } = require('../../server/dist/git/git.service');
 
 async function createFixture() {

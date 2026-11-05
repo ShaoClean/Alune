@@ -3,7 +3,9 @@ const assert = require('node:assert/strict');
 module.exports = async ({ window, origin, token, backend }) => {
   const { ConnectionService } = require('./server/connection/connection.service');
   const { RepositoryService } = require('./server/repository/repository.service');
-  const { GitCommands, GitLogChangedError, GitSigning } = require('@alune/ssh-client');
+  const { GitCommands } = require('@alune/agent/git/git-commands-writes');
+  const { GitLogChangedError } = require('@alune/agent/git/git-log');
+  const { GitSigning } = require('@alune/agent/git/git-signing-writes');
   const connections = backend.get(ConnectionService);
   const repositories = backend.get(RepositoryService);
   const originalContext = repositories.getContext;
