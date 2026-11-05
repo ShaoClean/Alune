@@ -7,21 +7,8 @@ const { execFileSync } = require('node:child_process');
 module.exports = async ({ window, origin, id, repo, wait }) => {
   const wc = window.webContents,
     evaluate = (code) => wc.executeJavaScript(code);
-  const visible = "e=>e.getClientRects().length && !e.closest('[inert]')";
-  const element = (s) =>
-    '[...document.querySelectorAll(' + JSON.stringify(s) + ')].find(' + visible + ')';
-  const textButton = (label) =>
-    `[...document.querySelectorAll('button')].filter(${visible}).find(e=>e.textContent.replace(/\\s/g,'')===${JSON.stringify(label.replace(/\s/g, ''))})`;
-  const click = async (expr) => {
-    // Re-renders can replace or disable a control between two Chromium tasks.
-    // Check readiness and dispatch exactly one click in the same renderer task.
-    await wait(
-      wc,
-      `(()=>{const e=(${expr});if(!e||e.disabled||e.getAttribute('aria-disabled')==='true'||e.getAttribute('aria-busy')==='true'||e.classList.contains('ant-btn-loading'))return false;e.click();return true;})()`,
-    );
-  };
-  const button = (label) => element('[aria-label="' + label + '"]'),
-    text = (label) => 'document.body.innerText.includes(' + JSON.stringify(label) + ')';
+  const { visible, element, button, textButton, click, text } =
+    require('./candidate-ui-driver.cjs')(wc, wait);
   const git = (...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
   const evidence = [];
   const { counts } = require('./candidate-ui-audit.cjs');

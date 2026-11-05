@@ -42,7 +42,15 @@ try {
     }).finally(() => clearTimeout(timeout));
     process.exitCode = code;
     if (code !== 0) break;
-    if (phase === 'write') peer?.verify();
+    if (peer && phase === 'write') {
+      peer.verify();
+      await (await import('./prepare-smoke-vault.mjs')).prepareSmokeVault(dataDir);
+      env.ALUNE_TEST_FILE_VAULT = '1';
+    } else if (peer) {
+      peer.verify();
+      peer.verifyTokens();
+      (await import('./prepare-smoke-vault.mjs')).checkTokenStorage(dataDir);
+    }
   }
 } finally {
   await peer?.close();

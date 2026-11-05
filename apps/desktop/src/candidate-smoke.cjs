@@ -70,6 +70,9 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
     }
     await measure(wc,['UI-001','UI-055','UI-056'],'theme, reduced motion, imported code colors, font and size write/restore',()=>require('./appearance-smoke.cjs')({ window, origin, restore: phase === 'restore' }));
   }
+  if (!fromRelease && phase === 'restore' && process.env.ALUNE_TEST_FILE_VAULT === '1') {
+    await require('./candidate-token-actions.cjs')({window,origin,id,wait,measure});
+  }
   const target = logWindow.open();
   if (target.webContents.isLoading())
     await new Promise((resolve) => target.webContents.once('did-finish-load', resolve));

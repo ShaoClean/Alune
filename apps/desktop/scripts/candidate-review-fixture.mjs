@@ -86,6 +86,9 @@ export async function reviewFixture(dir) {
   const first = mr(98, 'Inspect the fixture change');
   const closed = { ...mr(76, 'Archived fixture request'), state: 'closed' };
   let created;
+  const tokenProof = path.join(dir, 'review-credential-receipts.txt');
+  fs.writeFileSync(tokenProof, '');
+  const tokenReads = { initial: 0, replaced: 0 };
   const patch = '@@ -1,2 +1,3 @@\n base\n-old\n+first\n+extra';
   const server = https.createServer(
     { cert: fs.readFileSync(cert), key: fs.readFileSync(key) },
@@ -96,6 +99,18 @@ export async function reviewFixture(dir) {
         const url = new URL(req.url, 'https://127.0.0.1'),
           project = '/api/v4/projects/team%2Freview',
           route = url.pathname.slice(project.length);
+        if (req.method === 'GET' && url.pathname.includes('/merge_requests')) {
+          const category =
+            req.headers['private-token'] === 'smoke-named-initial'
+              ? 'initial'
+              : req.headers['private-token'] === 'smoke-named-replacement'
+                ? 'replaced'
+                : null;
+          if (category) {
+            tokenReads[category]++;
+            fs.appendFileSync(tokenProof, category + '\n');
+          }
+        }
         if (url.pathname === '/api/v4/user') return json({ id: 7, username: 'fixture' });
         if (!url.pathname.startsWith(project)) return json({}, 404);
         if (req.method !== 'GET')
@@ -196,6 +211,7 @@ export async function reviewFixture(dir) {
   return {
     env: {
       NODE_EXTRA_CA_CERTS: cert,
+      ALUNE_TEST_TOKEN_PROOF: tokenProof,
       ALUNE_TEST_REVIEW_REPO: repo,
       ALUNE_TEST_REVIEW_URL: url,
       ALUNE_TEST_REVIEW_MARKER: marker,
@@ -229,6 +245,12 @@ export async function reviewFixture(dir) {
       assert.equal(created.source_branch, 'feature/review');
       assert.equal(created.target_branch, 'main');
       assert.equal(git('status', '--porcelain'), state);
+    },
+    verifyTokens() {
+      assert.ok(
+        tokenReads.initial > 0 && tokenReads.replaced > 0,
+        'each named credential must actually reach the loopback provider',
+      );
     },
     async close() {
       server.closeAllConnections();

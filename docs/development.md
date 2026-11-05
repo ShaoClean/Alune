@@ -186,6 +186,6 @@ node scripts/agent/browser-reads-fixture.mjs
 
 在桌面冒烟的专用 Web 构建中设置 `ALUNE_UI_AUDIT=1`，以 `ALUNE_CANDIDATE_EVIDENCE` 接收场景断言和实际触发的 P0 回调。用 `node scripts/agent/ui-audit-index.mjs ledger.json apps/web/tests/p0-ui-index.json` 从冻结 Git 树重建索引；`node scripts/agent/ui-audit-map.mjs` 仅报告哪些回调可被唯一识别，不计作通过。相同回调文本须由语法上下文消除歧义，具名 DOM 监听器只有在能保留移除语义时才包装。常规构建和独立发布包不启用追踪。
 
-Agent 候选桌面测试需要 Git 和 OpenSSL CLI。测试进程会在临时目录中生成仅限回环地址的短期证书；自建 GitLab、HTTP 代理与探测目标都在本机运行。验收分别检查服务端收到的评论、行范围、草稿和代理请求，并在关闭前核对 Git 数据。证书只通过测试子进程的 `NODE_EXTRA_CA_CERTS` 提供，不更改系统信任设置。
+Agent 候选桌面测试需要 Git 和 OpenSSL CLI。测试进程会在临时目录中生成仅限回环地址的短期证书；自建 GitLab、HTTP 代理与探测目标都在本机运行。验收分别检查服务端收到的评论、行范围、草稿和代理请求，并在关闭前核对 Git 数据。证书只通过测试子进程的 `NODE_EXTRA_CA_CERTS` 提供，不更改系统信任设置。 凭据表单用例在两个进程之间，只为刚迁移且还没有任何凭据的临时测试目录初始化隔离的文件密钥库；不读取或替换用户的系统密钥。改名和换值都必须由测试服务的后续请求证实。OS 密钥库的真实升级由安装与回退作业独立验证。 独立运行包下载遇到连接超时、连接重置或 HTTP 502/503/504 时，在同一个截止时间内最多尝试三次；每次重新获取完整内容，仍需通过官方 Node SHA-256 校验才能解包。
 
 下载同一作业的四个 `candidate-ui-*` 附件到独立子目录后，执行 `node scripts/agent/ui-receipts.mjs ARTIFACTS ledger.json ui-receipts.json`。仅将实际触发且属于对应断言范围的 P0 回调交给台账；其他运行记录和功能/平台门槛仍需另行归入同一阶段的回执。
