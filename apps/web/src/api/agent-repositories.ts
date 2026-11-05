@@ -1,4 +1,3 @@
-import { SupersededSignatureRead } from './repository-errors';
 import {
   isRepositoryWriteKind,
   ProtocolError,
@@ -93,6 +92,8 @@ export function createAgentRepositoryQueries(
   executor: 'agent' | 'legacy' = 'agent',
 ) {
   let disposed = false;
+  const lifetime = new AbortController();
+  const superseded = Symbol('locally invalidated history read');
   const related = new Map<string, ResourceRef>();
   const resolve = (id: string) => related.get(id) ?? resourceFor(id);
   const observed = new Map<string, string>();
@@ -122,7 +123,7 @@ export function createAgentRepositoryQueries(
     await client.invalidateRepository(resource);
     dirty.delete(id);
   }
-  async function query(resource: ResourceRef, invocation: Invocation) {
+  async function readOnce(resource: ResourceRef, invocation: Invocation) {
     if (disposed) throw new Error('Agent 查询适配器已关闭。');
     const id = key(resource);
     if (dirty.has(id)) await invalidate(resource);
@@ -148,21 +149,50 @@ export function createAgentRepositoryQueries(
         throw new Error('仓库读取结果已过期，请刷新后重试。');
       return invocation.select ? invocation.select(result) : result;
     } catch (error) {
-      // An in-flight signature read may reject with the wire's generic
+      // An in-flight history read may reject with the wire's generic
       // cancellation after a locally observed Git change. Only that case is
       // superseded; a timeout or real verification failure remains visible.
       if (
-        invocation.kind === 'signatures' &&
+        (invocation.kind === 'log' || invocation.kind === 'signatures') &&
         !disposed &&
         !invocation.signal?.aborted &&
         controller.signal.aborted &&
         versions.get(id) !== version
       )
-        throw new SupersededSignatureRead();
+        throw superseded;
       throw error;
     } finally {
       active.delete(controller);
       if (!active.size) pending.delete(id);
+    }
+  }
+  async function query(resource: ResourceRef, invocation: Invocation) {
+    // A mutation can supersede an already-dispatched graph or signature
+    // read. Repeat only that read against the same owner. Other protocol
+    // errors (including an actually changed log page) are never retried.
+    let delay = 120;
+    for (;;) {
+      try {
+        return await readOnce(resource, invocation);
+      } catch (error) {
+        if (error !== superseded) throw error;
+        const signal = invocation.signal
+          ? AbortSignal.any([invocation.signal, lifetime.signal])
+          : lifetime.signal;
+        await new Promise<void>((resolve, reject) => {
+          signal.throwIfAborted();
+          const stop = () => {
+            clearTimeout(timer);
+            reject(signal.reason);
+          };
+          const timer = setTimeout(() => {
+            signal.removeEventListener('abort', stop);
+            resolve();
+          }, delay);
+          signal.addEventListener('abort', stop, { once: true });
+        });
+        delay = Math.min(1000, delay * 2);
+      }
     }
   }
   function wrap<T extends object>(
@@ -290,6 +320,7 @@ export function createAgentRepositoryQueries(
     invalidate,
     dispose() {
       disposed = true;
+      lifetime.abort(new Error('Agent 查询适配器已关闭。'));
       off();
       for (const id of pending.keys()) bump(id);
       pending.clear();

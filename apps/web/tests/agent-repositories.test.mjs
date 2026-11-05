@@ -22,6 +22,9 @@ const make = (executor = 'legacy') => {
     async diff() {
       throw new Error('legacy query called');
     },
+    async log() {
+      throw new Error('unexpected legacy history');
+    },
     async status() {
       return 'legacy status';
     },
@@ -133,23 +136,56 @@ test('selected P4 write sends the approved revision once, then queries its exact
   f.adapter.dispose();
 });
 
-test('a superseded signature read is distinct from a failing verifier', async () => {
-  const f = make('agent');
-  const { SupersededSignatureRead } = await import('../src/api/repository-errors.ts');
-  const adapter = f.adapter;
+test('history and signature reads repeat only after local invalidation, without accepting stale results', async () => {
+  for (const kind of ['log', 'signatures']) {
+    const f = make('agent'),
+      calls = [];
+    const read = (signal) =>
+      kind === 'log'
+        ? f.adapter.repository.log('repo', { count: 1 }, signal)
+        : f.adapter.git.signatures('repo', ['a'.repeat(40)], signal);
+    try {
+      f.client.readRepository = async (_r, k, _p, { signal }) => {
+        calls.push(k);
+        if (calls.length === 1)
+          return new Promise((_ok, reject) =>
+            signal.addEventListener('abort', () => reject(new Error('Task cancelled')), {
+              once: true,
+            }),
+          );
+        return { fresh: true };
+      };
+      const pending = read();
+      f.events.forEach((fn) => fn({ type: 'repositories.changed', resource }));
+      assert.deepEqual(await pending, { fresh: true });
+      assert.deepEqual(calls, [kind, kind]);
+      f.client.readRepository = async () => {
+        throw new Error('verifier or history backend failed');
+      };
+      await assert.rejects(read(), /backend failed/);
+    } finally {
+      f.adapter.dispose();
+    }
+  }
+});
+test('aborting a superseded read does not dispatch another request', async () => {
+  const f = make('agent'),
+    user = new AbortController();
+  let calls = 0;
+  f.client.readRepository = async (_r, _k, _p, { signal }) => {
+    calls++;
+    return new Promise((_ok, reject) =>
+      signal.addEventListener('abort', () => reject(new Error('Task cancelled')), { once: true }),
+    );
+  };
   try {
-    f.client.readRepository = async (_resource, _kind, _params, { signal }) =>
-      new Promise((_ok, reject) =>
-        signal.addEventListener('abort', () => reject(new Error('Task cancelled')), { once: true }),
-      );
-    const call = adapter.git.signatures('repo', ['a'.repeat(40)]);
-    for (const listener of f.events) listener({ type: 'repositories.changed', resource });
-    await assert.rejects(call, SupersededSignatureRead);
-    f.client.readRepository = async () => {
-      throw new Error('GPG failed');
-    };
-    await assert.rejects(adapter.git.signatures('repo', ['a'.repeat(40)]), /GPG failed/);
+    const pending = f.adapter.repository.log('repo', { count: 1 }, user.signal);
+    f.events.forEach((fn) => fn({ type: 'repositories.changed', resource }));
+    await new Promise((r) => setTimeout(r, 5));
+    user.abort(new Error('left history view'));
+    await assert.rejects(pending, /left history view/);
+    assert.equal(calls, 1);
   } finally {
-    adapter.dispose();
+    f.adapter.dispose();
   }
 });
