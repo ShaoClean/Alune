@@ -91,7 +91,7 @@ async function startDesktopAgent({
     });
   });
   const client = new AgentClient(frameTransport(await host.open('native')));
-  const ipc = ['agent:open', 'agent:frame', 'agent:close'];
+  let stopping = false;
   try {
     const handshake = await client.initialize({ name: 'alune-desktop', version: app.getVersion() });
     if (handshake.implementation.version !== manifest.version)
@@ -111,7 +111,7 @@ async function startDesktopAgent({
       const name = role(e),
         contents = e.sender,
         frame = e.senderFrame;
-      if (!name || channels.has(contents)) throw new Error('Agent channel unavailable');
+      if (stopping || !name || channels.has(contents)) throw new Error('Agent channel unavailable');
       const channel = await host.open(name);
       if (
         !role(e) ||
@@ -138,26 +138,31 @@ async function startDesktopAgent({
         )
           cleanup();
       };
-      channels.set(contents, { channel, cleanup });
+      const generation = require('node:crypto').randomUUID();
+      channels.set(contents, { channel, cleanup, generation });
       contents.on('did-start-navigation', navigate);
       contents.once('destroyed', cleanup);
       contents.once('render-process-gone', cleanup);
       channel.onFrame((value) => {
         if (!contents.isDestroyed() && contents.mainFrame === frame)
-          frame.send('agent:frame', value);
+          frame.send('agent:frame', generation, value);
       });
       channel.onEnd(() => {
-        if (!contents.isDestroyed() && contents.mainFrame === frame) frame.send('agent:end');
+        if (!contents.isDestroyed() && contents.mainFrame === frame)
+          frame.send('agent:end', generation);
         cleanup();
       });
+      return generation;
     });
-    ipcMain.handle('agent:frame', (e, value) => {
+    ipcMain.handle('agent:frame', async (e, generation, value) => {
       const endpoint = role(e) && channels.get(e.sender);
-      if (!endpoint) throw new Error('Agent access denied');
-      return endpoint.channel.send(value);
+      if (stopping || !endpoint || endpoint.generation !== generation) return false;
+      await endpoint.channel.send(value);
+      return true;
     });
-    ipcMain.handle('agent:close', (e) => {
-      if (role(e)) channels.get(e.sender)?.cleanup();
+    ipcMain.handle('agent:close', (e, generation) => {
+      const endpoint = role(e) && channels.get(e.sender);
+      if (endpoint && generation === endpoint.generation) endpoint.cleanup();
     });
     const { ProxyAgent, fetch: networkFetch } = require('undici');
     let proxy, port;
@@ -183,7 +188,7 @@ async function startDesktopAgent({
         remove: (_scope, ids) => client.request('desktop.terminals.remove', ids),
       },
       async close() {
-        for (const k of ipc) ipcMain.removeHandler(k);
+        stopping = true;
         for (const c of channels.values()) c.cleanup();
         client.close();
         server.closeAllConnections();

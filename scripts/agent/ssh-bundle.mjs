@@ -60,6 +60,8 @@ try {
   }
   const pin = {
     target: manifest.target,
+    protocol: manifest.protocol,
+    sourceSha: manifest.sourceSha,
     version: manifest.version,
     sha256: digest(readFileSync(file)),
     manifestSha256: digest(bytes),

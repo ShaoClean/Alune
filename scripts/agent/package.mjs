@@ -205,6 +205,7 @@ try {
     schemaVersion: 1,
     target,
     version: JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version,
+    protocol: JSON.parse(execFileSync(nodePath, [entry, 'version'], { encoding: 'utf8' })).protocol,
     sourceSha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     dirty: Boolean(sourceStatus),
     node: {

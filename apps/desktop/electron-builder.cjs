@@ -19,7 +19,7 @@ module.exports = {
     'packages/**/*',
     'package.json',
   ],
-  extraResources: [{ from: '../agent-runtime', to: 'agent-runtime', filter: ['**/*'] }],
+  afterPack: require('./scripts/bundle-agent.cjs'),
   asar: true,
   asarUnpack: ['**/*.node', 'node_modules/node-pty/**/*'],
   npmRebuild: false,
