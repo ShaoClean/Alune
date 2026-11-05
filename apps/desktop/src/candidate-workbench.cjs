@@ -150,5 +150,18 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     text,
     pass,
   });
+  await require('./candidate-settings-actions.cjs')({
+    wc,
+    window,
+    origin,
+    id,
+    repo,
+    wait,
+    element,
+    button,
+    textButton,
+    click,
+    pass,
+  });
   console.log('Candidate native workbench:', JSON.stringify(evidence));
 };
