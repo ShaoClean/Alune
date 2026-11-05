@@ -318,6 +318,16 @@ module.exports = async ({
     execFileSync('git', ['-C', linked, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     verifiedHead,
   );
+  await require('./candidate-sidebar-actions.cjs')({
+    window,
+    wc,
+    origin,
+    original: id,
+    linked: new URL(wc.getURL()).pathname.split('/').at(-1),
+    linkedPath: linked,
+    wait,
+    pass,
+  });
   await require('./candidate-tab-actions.cjs')({
     window,
     wc,

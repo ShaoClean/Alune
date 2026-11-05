@@ -318,17 +318,14 @@ export function Layout() {
   };
 
   const handleDeleteRepository = async (repo: any) => {
-    const isActive = activeRepositoryId === repo.id;
-    const closedIndex = openRepositories.findIndex((item: any) => item.id === repo.id);
-    const nextRepository =
-      closedIndex >= 0
-        ? openRepositories[closedIndex + 1] || openRepositories[closedIndex - 1]
-        : undefined;
-
     try {
       await deleteRepository(repo.id);
-      if (isActive)
-        navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
+      // Removing a registration waits for the Agent. Keep any navigation the
+      // user made meanwhile; only replace the route that just disappeared.
+      if (window.location.pathname.match(/^\/repositories\/([^/]+)/)?.[1] === repo.id) {
+        const { activeId } = useWorkspaceStore.getState().repositorySession;
+        navigate(activeId ? `/repositories/${activeId}` : '/repositories', { flushSync: true });
+      }
     } catch (err: any) {
       message.error(err.message || `移除仓库“${repo.name}”失败`);
     }
