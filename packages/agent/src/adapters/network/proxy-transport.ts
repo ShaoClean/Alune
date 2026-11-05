@@ -2,8 +2,7 @@ import * as net from 'node:net';
 import * as tls from 'node:tls';
 import * as http from 'node:http';
 import * as https from 'node:https';
-import { Agent } from 'undici';
-import { SocksClient } from 'socks';
+import type { Agent } from 'undici';
 import type { ProxyProtocol } from '@alune/protocol';
 
 // Runtime-only: never serialize this object or pass it to the renderer/remote host.
@@ -72,6 +71,7 @@ export async function connectProxySocket(
       });
       if (proxy.enabled) {
         try {
+          const { SocksClient } = require('socks') as typeof import('socks');
           const result = await SocksClient.createConnection({
             command: 'connect',
             proxy: {
@@ -143,6 +143,8 @@ export async function connectProxySocket(
 }
 
 export function createProxyDispatcher(proxy: ProxySnapshot): Agent {
+  // Loading the HTTP client is unnecessary for offline repository sessions.
+  const { Agent } = require('undici') as typeof import('undici');
   return new Agent({
     connect(options, callback) {
       const host = options.hostname.replace(/^\[|\]$/g, '');

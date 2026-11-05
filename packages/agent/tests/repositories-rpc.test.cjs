@@ -26,6 +26,7 @@ async function setup(t) {
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim();
   git('init', '-b', 'main');
+  git('config', 'core.autocrlf', 'false');
   git('config', 'user.name', 'P3 Fixture');
   git('config', 'user.email', 'fixture@example.test');
   fs.writeFileSync(path.join(repo, 'file.txt'), 'first\nsecond\nthird\n');
@@ -102,7 +103,12 @@ test(
       assert.deepEqual(await query(kind, params), plain(expected), kind);
     const context = await query('context');
     assert.equal(context.author.name, 'P3 Fixture');
-    assert.equal(context.path, fs.realpathSync(f.repo));
+    assert.equal(
+      context.path,
+      process.platform === 'win32'
+        ? fs.realpathSync.native(f.repo).split(path.sep).join('/')
+        : fs.realpathSync.native(f.repo),
+    );
     const log = await query('log', { count: 1 });
     assert.equal(log.commits[0].message, 'rename');
     assert.equal(log.hasMore, true);
@@ -207,6 +213,14 @@ test(
     const restarted = await f.start();
     assert.equal((await restarted.client.listRepositories())[0].id, repo.id);
     assert.equal((await restarted.client.listRepositories())[0].pinned, true);
+    assert.equal((await restarted.client.getRepository(repo.resource)).id, repo.id);
+    await restarted.client.unregisterRepository(opened.resource);
+    assert.equal((await restarted.client.listRepositories()).length, 1);
+    assert(fs.existsSync(linked), 'unregister must retain the worktree files');
+    await assert.rejects(
+      restarted.client.readRepository(opened.resource, 'status', {}),
+      (e) => e.kind === 'not-found',
+    );
   },
 );
 
@@ -249,7 +263,10 @@ test(
     const f = await setup(t),
       child = await f.start(),
       repo = await child.client.registerRepository(f.repo);
-    const root = fs.realpathSync(f.repo),
+    const root =
+        process.platform === 'win32'
+          ? fs.realpathSync.native(f.repo).split(path.sep).join('/')
+          : fs.realpathSync.native(f.repo),
       connection = new legacy.LocalConnection(),
       git = new legacy.GitCommands(connection);
     const cases = [

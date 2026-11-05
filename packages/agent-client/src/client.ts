@@ -354,6 +354,15 @@ export class AgentClient {
       return value.map(validateRepositoryResource);
     });
   }
+  getRepository(resource: ResourceRef, options?: RequestOptions): Promise<RepositoryResource> {
+    return this.decode(
+      this.request('repositories.get', { resource } as unknown as JsonValue, options),
+      validateRepositoryResource,
+    );
+  }
+  unregisterRepository(resource: ResourceRef, options?: RequestOptions): Promise<JsonValue> {
+    return this.request('repositories.unregister', { resource } as unknown as JsonValue, options);
+  }
   registerRepository(path: string, options?: RequestOptions): Promise<RepositoryResource> {
     return this.decode(
       this.request('repositories.register', { path }, options),

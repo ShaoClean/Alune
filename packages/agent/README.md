@@ -100,8 +100,8 @@ node scripts/agent/test-packaged.mjs /tmp/alune-agent-package
 
 ## 仓库与文件读取（协议 1.2）
 
-`repositories.inspect/discover/register/list/pin/openRelated` 负责本机发现、登记、收藏与打开既有 Worktree/子模块。
-登记复用规范化路径对应的仓库 ID，旧导入的登记与布局引用保留；SSH 登记仍显示在目录中，读取需要 P7 的主机路由。
+`repositories.inspect/discover/register/list/get/pin/openRelated/unregister` 负责本机发现、登记、收藏与打开既有 Worktree/子模块。
+注销只移除登记，不删除 Git 工作区。登记复用规范化路径对应的仓库 ID，旧导入的登记与布局引用保留；SSH 登记仍显示在目录中，读取需要 P7 的主机路由。
 每次查询使用 `agentId + resourceId`，不能用路径代替已登记资源，也不能将远端登记误作本机目录。
 
 `repositories.read` 的 `kind` 包括：`status/context/worktrees/branches/remotes/stashes/stashDiff/tags/log/diff/editableDiff/diffImage/commitFiles/tree/file/blame/blameCommit/analytics/signing/signatures/submodules/lfs/snapshot`。

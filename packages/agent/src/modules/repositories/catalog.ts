@@ -55,6 +55,11 @@ export class RepositoryCatalog {
       })
       .immediate();
   }
+  unregister(resource: ResourceRef) {
+    const repository = this.get(resource, false);
+    this.db.prepare('DELETE FROM repositories WHERE id = ?').run(resource.resourceId);
+    return repository;
+  }
   pin(resource: ResourceRef, pinned: boolean) {
     this.get(resource, false);
     this.db

@@ -150,6 +150,12 @@ export function repositoriesKernel(
       },
     ),
     'repositories.list': handler('query', validateEmpty, () => catalog.list()),
+    'repositories.get': handler('query', resourceParam, (p) => catalog.get(p.resource, false)),
+    'repositories.unregister': handler('mutation', resourceParam, (p, c) => {
+      const removed = catalog.unregister(p.resource);
+      changed(c, removed.resource);
+      return { resource: removed.resource, removed: true };
+    }),
     'repositories.inspect': handler('query', pathParam, async (p, c) =>
       withReader(AbortSignal.any([c.signal, AbortSignal.timeout(120000)]), (r) =>
         r.inspect(p.path),

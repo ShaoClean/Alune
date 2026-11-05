@@ -7,9 +7,7 @@ import { openStateKernel } from '../bootstrap/state-kernel';
 import { stateDirectory, statePathExists, assertRegularFile } from '../adapters/private-files';
 import { AgentState } from '../adapters/sqlite/state';
 import { StateFault } from '../ports/state';
-import { importLegacyState } from '../modules/migration/legacy';
 import { legacyIpcDecryptor } from '../adapters/secrets/legacy-ipc';
-import { createRecoveryBackup, restoreRecoveryBackup } from '../adapters/migration/recovery';
 import { recoveryPassphrase } from './recovery-passphrase';
 
 function stateOptions(args: string[]): Map<string, string> {
@@ -93,6 +91,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     let kernel: Awaited<ReturnType<typeof openStateKernel>> | undefined;
     try {
       if (command === 'recovery-restore') {
+        const { restoreRecoveryBackup } = await import('../adapters/migration/recovery');
         const passphrase = await recoveryPassphrase(controller.signal);
         try {
           const receipt = await restoreRecoveryBackup(
@@ -109,6 +108,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       }
       const agentId = await stateIdentity(directory);
       if (command === 'recovery-backup') {
+        const { createRecoveryBackup } = await import('../adapters/migration/recovery');
         const passphrase = await recoveryPassphrase(controller.signal);
         let state: AgentState | undefined;
         try {
@@ -127,6 +127,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         }
       }
       if (command === 'legacy-import') {
+        const { importLegacyState } = await import('../modules/migration/legacy');
         const state = await AgentState.open(directory, agentId, controller.signal);
         let bridge: ReturnType<typeof legacyIpcDecryptor> | undefined;
         try {

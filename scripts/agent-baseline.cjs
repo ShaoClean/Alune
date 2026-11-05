@@ -11,6 +11,42 @@ const sourceRoot = process.env.ALUNE_BASELINE_SOURCE_ROOT || root;
 const readsOnly = process.env.ALUNE_BASELINE_READS_ONLY === '1';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// A common core-HTTP caller keeps cold measurements independent of whether the
+// application happened to initialize fetch/Undici while loading its own services.
+// First-request socket setup and response decoding remain inside the timer.
+function readHttp(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const request = require('node:http').get(
+      url,
+      { headers, signal: AbortSignal.timeout(30000) },
+      (response) => {
+        response.setEncoding('utf8');
+        let body = '';
+        response.on('data', (chunk) => {
+          body += chunk;
+          if (body.length > 32 * 1024 * 1024)
+            response.destroy(new Error('Benchmark response exceeded budget'));
+        });
+        response.once('error', reject);
+        response.once('end', () => {
+          if (response.statusCode < 200 || response.statusCode >= 300)
+            return reject(new Error(`HTTP ${response.statusCode}: ${body}`));
+          try {
+            resolve(
+              response.headers['content-type']?.includes('application/json')
+                ? JSON.parse(body)
+                : body,
+            );
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+    request.once('error', reject);
+  });
+}
+
 async function worker() {
   const [repo, count, data] = process.argv.slice(3);
   process.env.ALUNE_DATA_DIR = data;
@@ -38,16 +74,10 @@ async function worker() {
   try {
     const record = await app.get(RepositoryService).addLocal(repo);
     const base = `http://127.0.0.1:${app.getHttpServer().address().port}`;
-    const get = async (suffix) => {
-      const response = await fetch(`${base}/api/repositories/${record.id}/${suffix}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(30000),
+    const get = (suffix) =>
+      readHttp(`${base}/api/repositories/${record.id}/${suffix}`, {
+        Authorization: `Bearer ${token}`,
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-      return response.headers.get('content-type')?.includes('application/json')
-        ? response.json()
-        : response.text();
-    };
     const states = new Map();
     const outputs = new Map();
     if (!readsOnly) {
@@ -179,9 +209,7 @@ async function agentReadWorker() {
         ['history', 'log?limit=50'],
       ]) {
         const start = performance.now();
-        const response = await fetch(`${base}/${suffix}`, { signal: AbortSignal.timeout(30000) });
-        if (!response.ok) throw new Error(await response.text());
-        const result = await response.json();
+        const result = await readHttp(`${base}/${suffix}`);
         row[name] = performance.now() - start;
         if (
           result == null ||
@@ -357,6 +385,14 @@ async function main() {
         {
           schemaVersion: 1,
           sha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+          implementationSha:
+            process.env.ALUNE_BASELINE_SOURCE_SHA ||
+            (sourceRoot === root
+              ? execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+              : null),
+          dirty: Boolean(
+            execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(),
+          ),
           platform: process.platform,
           arch: process.arch,
           osRelease: os.release(),
@@ -372,6 +408,7 @@ async function main() {
                 : readsOnly
                   ? 'production HTTP, loopback, local repository'
                   : 'production HTTP + Socket.IO, loopback, local repository',
+            caller: 'node:http; fresh first-request socket, response decoding timed identically',
             sourceRoot: sourceRoot === root ? 'current checkout' : 'frozen baseline checkout',
             memory:
               '25ms sampled aggregate RSS of application worker and observed descendants; includes startup; may miss short-lived peaks',

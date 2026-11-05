@@ -2,7 +2,6 @@ import { quotePosixArgument } from '../../modules/git/git-shell';
 import type { CommandOptions } from '../../modules/git/repository-transport';
 import type { CommandResult } from '../../ports/process';
 import type { ProxySnapshot } from '../network/proxy-transport';
-import { createProxyBridge } from '../network/proxy-transport';
 export class GitProxyError extends Error {}
 
 // Run with the application's Node/Electron runtime, so local SSH remotes do not
@@ -42,6 +41,7 @@ export async function withLocalGitProxy(
   options: CommandOptions,
   execute: (args: string[], options: CommandOptions) => Promise<CommandResult>,
 ): Promise<CommandResult> {
+  const { createProxyBridge } = await import('../network/proxy-transport');
   const config = await execute(
     ['config', '--name-only', '--get-regexp', '^(http\\..*\\.proxy|remote\\..*\\.proxy)$'],
     { environment: options.environment, maxOutputBytes: 65_536 },
