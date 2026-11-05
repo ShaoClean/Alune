@@ -32,6 +32,22 @@ jobs:
             target: darwin-x64
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /.githooks/
+            /.github/
+            /scripts/
+            /apps/web/
+            /packages/agent/
+            /packages/agent-client/
+            /packages/domain/
+            /packages/protocol/
+            /packages/ui/
+            /apps/desktop/src/ai-secret-storage.cjs
+            /apps/desktop/src/legacy-agent-secrets.cjs
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.0'
@@ -40,13 +56,16 @@ jobs:
         run: node -e "if (process.platform + '-' + process.arch !== '${{ matrix.target }}') throw new Error('Runner architecture mismatch')"
       - name: 用目标平台 shell 验证二进制部署引导
         run: node --experimental-strip-types scripts/agent/test-bootstrap.mjs
-      - run: npm ci
+      - run: node scripts/agent/check-clean-checkout.mjs before-install
+      - run: npm ci --workspace=@alune/agent --workspace=@alune/agent-client --workspace=@alune/domain --workspace=@alune/protocol --workspace=@alune/ui --workspace=web --include-workspace-root=false
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: node scripts/agent/check-clean-checkout.mjs after-install
       - run: node --test scripts/agent/download-runtime.test.mjs
       - run: npm test -w @alune/protocol
       - run: npm test -w @alune/agent-client
       - run: npm test -w @alune/agent
+      - run: npm run build -w web
       - run: npm run test:agent-dev -w web
       - run: node scripts/agent/check-browser.mjs
       - run: node scripts/agent/check-boundaries.mjs
