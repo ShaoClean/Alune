@@ -159,8 +159,16 @@ function validError(value: unknown): value is RpcError {
     jsonValue(value)
   );
 }
+// Most frames fit even at the worst-case UTF-8 expansion. Avoid allocating
+// a byte array for each terminal packet just to compare it with a limit.
+function exceedsBytes(text: string, limit: number) {
+  return (
+    text.length > limit ||
+    (text.length * 3 > limit && new TextEncoder().encode(text).byteLength > limit)
+  );
+}
 export function parseMessage(text: string): RpcMessage {
-  if (new TextEncoder().encode(text).byteLength > MAX_FRAME_BYTES)
+  if (exceedsBytes(text, MAX_FRAME_BYTES))
     throw new ProtocolError('invalid-request', 'Protocol frame exceeds byte limit');
   let value: unknown;
   try {
@@ -217,7 +225,7 @@ export function parseEvent(value: unknown): AgentEvent {
         value.resource.agentId !== value.agentId))
   )
     throw new ProtocolError('invalid-params', 'Invalid Agent event');
-  if (new TextEncoder().encode(JSON.stringify(value)).byteLength > MAX_STREAM_CHUNK_BYTES)
+  if (exceedsBytes(JSON.stringify(value), MAX_STREAM_CHUNK_BYTES))
     throw new ProtocolError('invalid-params', 'Agent event exceeds stream chunk limit');
   return value as unknown as AgentEvent;
 }

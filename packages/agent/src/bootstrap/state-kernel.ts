@@ -1,3 +1,4 @@
+import { workspaceRemoval } from './workspace-removal';
 import { proxyTest } from './proxy-test';
 import { snapshotHandler } from '../modules/hosts/snapshot';
 import { hostsKernel } from './hosts';
@@ -97,6 +98,7 @@ export async function openStateKernel(
   );
   const handlers: Record<string, Handler> = {
     ...hosts?.handlers,
+    ...(hosts ? { 'workspace.remove': workspaceRemoval(repositories, hosts, settings) } : {}),
     ...(hosts
       ? { 'network.testProxy': proxyTest(settings, network, hosts, repositories.catalog) }
       : {}),

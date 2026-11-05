@@ -4,7 +4,7 @@ const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 module.exports = async ({ window, origin, backend, logWindow, updates }) => {
-  const { repo, id, workspace, db } = JSON.parse(process.env.ALUNE_CANDIDATE_FIXTURE);
+  const { repo, id, workspace, db, fromRelease } = JSON.parse(process.env.ALUNE_CANDIDATE_FIXTURE);
   const phase = process.env.ALUNE_SMOKE_PHASE;
   const wait = (contents, test) =>
     contents.executeJavaScript(
@@ -44,6 +44,18 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
       path.join(process.env.ALUNE_CANDIDATE_EVIDENCE, phase + '.png'),
       (await wc.capturePage()).toPNG(),
     );
+  }
+  if (!fromRelease) {
+    if (phase === 'write') {
+      await require('./dialogs-smoke.cjs')({ window });
+      await require('./settings-shell-smoke.cjs')({
+        window,
+        origin,
+        repositoryId: id,
+        candidate: true,
+      });
+    }
+    await require('./appearance-smoke.cjs')({ window, origin, restore: phase === 'restore' });
   }
   const target = logWindow.open();
   if (target.webContents.isLoading())

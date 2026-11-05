@@ -1,6 +1,9 @@
+import { confirmTerminalRemoval } from '../stores/terminalRemoval';
 import { AgentClient, openRemoteAgent, openLegacyRepository } from '@alune/agent-client';
 import {
   validateRepositoryResource,
+  ProtocolError,
+  isRecord,
   type RepositoryResource,
   type ResourceRef,
 } from '@alune/protocol';
@@ -134,6 +137,44 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
     if (resource.agentId !== client.initialized?.agentId) throw new Error('服务器仓库身份不匹配。');
     return { client, resource, alias };
   };
+  async function remove(kind: 'host' | 'repository', id: string) {
+    const expected =
+      kind === 'host'
+        ? {
+            revision: (await local.listHostProfiles()).revision,
+            repositories: (await local.listRepositories())
+              .filter((r) => r.connectionId === id)
+              .map((r) => r.id),
+          }
+        : {};
+    const submit = (sessions: string[]) =>
+      local.request(
+        'workspace.remove',
+        JSON.parse(JSON.stringify({ kind, id, sessions, ...expected })),
+      );
+    try {
+      return await submit([]);
+    } catch (error) {
+      if (
+        !(error instanceof ProtocolError) ||
+        error.outcome !== 'not-started' ||
+        !isRecord(error.details) ||
+        error.details.code !== 'TERMINAL_CONFIRM_REQUIRED' ||
+        !Array.isArray(error.details.sessions)
+      )
+        throw error;
+      const sessions = error.details
+        .sessions as unknown as import('@alune/shared').TerminalSession[];
+      if (!(await confirmTerminalRemoval(sessions))) throw new Error('已取消移除。');
+      if (kind === 'repository')
+        for (const session of sessions.filter((s) => s.source === 'ssh')) {
+          const owner = clients.get(session.connectionId!);
+          if (!owner) throw new Error('请在拥有该会话的窗口关闭终端。');
+          await owner.request('terminals.close', { sessionId: session.requestId, confirmed: true });
+        }
+      return submit(sessions.map((s) => s.id));
+    }
+  }
   const queryAdapters = new WeakMap<AgentClient, ReturnType<typeof createAgentRepositoryQueries>>();
   function adapter(client: AgentClient) {
     let a = queryAdapters.get(client);
@@ -182,7 +223,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         (await local.listRepositories()).filter((r) => !id || r.connectionId === id),
       get: (id: string) => local.getRepository(ref(id)),
       pin: (id: string, pinned: boolean) => local.pinRepository(ref(id), pinned),
-      delete: (id: string) => local.unregisterRepository(ref(id)),
+      delete: (id: string) => remove('repository', id),
       inspectLocal: (path: string) => local.inspectRepository(path),
       addLocal: (path: string) => local.registerRepository(path),
       add: async (id: string, path: string) => {
@@ -241,7 +282,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
       return after.hosts.find((h) => !before.hosts.some((old) => old.id === h.id));
     },
     delete: async (id) => {
-      await local.deleteHostProfile(id, (await local.listHostProfiles()).revision);
+      await remove('host', id);
       clients.get(id)?.close();
     },
     test: async (id) => {

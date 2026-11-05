@@ -1,3 +1,4 @@
+import { uiAgent } from '../../api/ui-agent';
 import { EnableCredentialStorage } from './EnableCredentialStorage';
 import {
   FeedbackAlert,
@@ -204,12 +205,16 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
       )}
       {settings && !settings.secretStorage.available && (
         <>
-          <FeedbackAlert
-            source="AccessTokenSettings-1"
-            type="warning"
-            title="加密存储不可用"
-            description={settings.secretStorage.description}
-          />
+          {uiAgent ? (
+            <p className="settings-field-hint">{settings.secretStorage.description}</p>
+          ) : (
+            <FeedbackAlert
+              source="AccessTokenSettings-1"
+              type="warning"
+              title="加密存储不可用"
+              description={settings.secretStorage.description}
+            />
+          )}
           <EnableCredentialStorage refresh={load} />
         </>
       )}

@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -b",
+    "build": "npm run build -w @alune/agent && tsc -b",
     "dev": "tsc -b --watch",
     "test": "npm run build && node --test tests/*.test.cjs"
   },

@@ -1,6 +1,4 @@
 import {
-  encodeMessage,
-  parseMessage,
   parseEvent,
   ProtocolError,
   MAX_EVENT_QUEUE_BYTES,
@@ -63,18 +61,14 @@ export class EventQueue {
       payload,
       ...(resource ? { resource } : {}),
     };
+    // Serialize once to take ownership (including nested payload data). The
+    // sender validates the outer RPC envelope when it assigns the sequence.
     parseEvent(event);
-    const wire = encodeMessage({
-      jsonrpc: '2.0',
-      method: 'agent.event',
-      params: event as unknown as JsonValue,
-    });
-    // Include room for the eventual sequence digits in the queued-byte budget.
-    const bytes = new TextEncoder().encode(wire).byteLength + 32;
+    const encoded = JSON.stringify(event);
+    const bytes = Buffer.byteLength(encoded) + 100; // outer notification and eventual sequence digits
     if (bytes > MAX_STREAM_CHUNK_BYTES || bytes > this.limits.bytes)
       throw new ProtocolError('invalid-params', 'Event must be split into bounded chunks');
-    // Own the validated payload so a caller cannot enlarge a queued object later.
-    const copy = parseEvent((parseMessage(wire) as RpcNotification).params);
+    const copy = parseEvent(JSON.parse(encoded));
     const { sequence: _, ...owned } = copy;
     return { event: owned, bytes, reliable };
   }

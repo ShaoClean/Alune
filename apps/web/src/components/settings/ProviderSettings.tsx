@@ -1,3 +1,4 @@
+import { uiAgent } from '../../api/ui-agent';
 import { EnableCredentialStorage } from './EnableCredentialStorage';
 import { FeedbackAlert, DialogField, CountBadge } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
@@ -418,11 +419,15 @@ function ProviderForm({
           </div>
           {!settings.secretStorage.available && (
             <>
-              <FeedbackAlert
-                source="ProviderSettings-1"
-                type="info"
-                title={settings.secretStorage.description}
-              />
+              {uiAgent ? (
+                <p className="settings-field-hint">{settings.secretStorage.description}</p>
+              ) : (
+                <FeedbackAlert
+                  source="ProviderSettings-1"
+                  type="info"
+                  title={settings.secretStorage.description}
+                />
+              )}
               <EnableCredentialStorage refresh={useAiSettingsStore.getState().load} />
             </>
           )}

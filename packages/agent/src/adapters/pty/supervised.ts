@@ -24,7 +24,7 @@ export function supervisedTerminal(
   return new Promise((resolve, reject) => {
     const child = fork(require.resolve('./worker'), [], {
       stdio: ['ignore', 'pipe', 'ignore', 'ipc'],
-      execArgv: process.versions.electron ? [] : ['--optimize-for-size', '--max-semi-space-size=2'],
+      execArgv: [],
       env: process.versions.electron ? { ...process.env, ELECTRON_RUN_AS_NODE: '1' } : process.env,
     });
     const stream = child.stdout!;

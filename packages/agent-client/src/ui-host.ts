@@ -10,7 +10,7 @@ export async function launchUiAgent(command: string, entry: string, directory: s
   for (const key of ['NODE_OPTIONS', 'NODE_PATH', 'ELECTRON_RUN_AS_NODE']) delete env[key];
   const child = spawn(
     command,
-    ['--optimize-for-size', '--max-semi-space-size=2', entry, 'serve-ui', '--data-dir', directory],
+    ['--max-semi-space-size=2', entry, 'serve-ui', '--data-dir', directory],
     {
       env,
       stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
@@ -55,10 +55,27 @@ export async function launchUiAgent(command: string, entry: string, directory: s
       ch?.emit('end');
     }
   });
+  let queuedBytes = 0,
+    queuedMessages = 0;
   const send = (packet: Record<string, string>) =>
     new Promise<void>((resolve, reject) => {
       if (ended || !child.connected) return reject(new Error('Agent process disconnected'));
-      child.send(packet, (error) => (error ? reject(error) : resolve()));
+      const bytes = Buffer.byteLength(packet.frame ?? '');
+      if (queuedMessages >= 256 || queuedBytes + bytes > MAX_FRAME_BYTES * 2)
+        return reject(new Error('Agent IPC backlog exceeded'));
+      queuedBytes += bytes;
+      queuedMessages++;
+      const done = (error?: Error | null) => {
+        queuedBytes -= bytes;
+        queuedMessages--;
+        if (error) reject(error);
+        else resolve();
+      };
+      try {
+        child.send(packet, done);
+      } catch (error) {
+        done(error as Error);
+      }
     });
   function close() {
     return (closing ??= (async () => {

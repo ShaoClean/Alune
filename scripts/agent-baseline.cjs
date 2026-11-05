@@ -235,10 +235,10 @@ function processTable() {
     .split('\n')
     .map((line) => line.trim().split(/\s+/).map(Number));
 }
-async function runWorker(repo, count, data) {
+async function runWorker(repo, count, data, env = process.env) {
   const child = fork(__filename, ['--worker', repo, String(count), data], {
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
-    env: process.env,
+    env,
   });
   let errors = '';
   child.stderr.on('data', (chunk) => {
@@ -351,11 +351,24 @@ async function main() {
         fs.writeSync(fd, Buffer.from('modified'), 0, 8, 1024);
         fs.closeSync(fd);
       }
-      const cold = [];
-      for (let i = 0; i < samples; i++)
-        cold.push(await runWorker(repo, 1, path.join(temp, `${name}-cold-${i}`)));
-      const warm = await runWorker(repo, samples + 1, path.join(temp, `${name}-warm`));
-      warm.rows.shift(); // Warm-up request excluded, resource high-water mark still includes startup.
+      const paired = process.env.ALUNE_BASELINE_PAIRED === '1';
+      const cold = [],
+        otherCold = [];
+      const run = (ui, n, suffix) =>
+        runWorker(repo, n, path.join(temp, name + '-' + suffix), {
+          ...process.env,
+          ALUNE_BASELINE_UI: ui ? '1' : '0',
+        });
+      const ui = process.env.ALUNE_BASELINE_UI === '1' || paired;
+      for (let i = 0; i < samples; i++) {
+        if (paired && i % 2 === 0) otherCold.push(await run(false, 1, 'old-cold-' + i));
+        cold.push(await run(ui, 1, 'cold-' + i));
+        if (paired && i % 2 === 1) otherCold.push(await run(false, 1, 'old-cold-' + i));
+      }
+      const warm = await run(ui, samples + 1, 'warm');
+      warm.rows.shift();
+      const otherWarm = paired ? await run(false, samples + 1, 'old-warm') : null;
+      otherWarm?.rows.shift();
       const summarize = (rows) =>
         Object.fromEntries(
           Object.keys(rows[0]).map((key) => {
@@ -374,6 +387,18 @@ async function main() {
         files: files + 1 + Boolean(largeMiB) + (name === 'lfs'),
         largeMiB,
         commits: 61,
+        ...(paired
+          ? {
+              baseline: {
+                cold: otherCold,
+                warm: otherWarm,
+                summary: {
+                  cold: summarize(otherCold.flatMap((item) => item.rows)),
+                  warm: summarize(otherWarm.rows),
+                },
+              },
+            }
+          : {}),
         cold,
         warm,
         summary: { cold: summarize(cold.flatMap((item) => item.rows)), warm: summarize(warm.rows) },
@@ -400,6 +425,7 @@ async function main() {
           lfsVersion,
           samples,
           methodology: {
+            paired: process.env.ALUNE_BASELINE_PAIRED === '1',
             cold: 'fresh application process; OS page cache NOT flushed',
             warm: 'same process, one warm-up excluded',
             transport:

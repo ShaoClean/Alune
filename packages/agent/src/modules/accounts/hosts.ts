@@ -195,10 +195,20 @@ export class HostProfilesStore {
           .run(hostId, 'host-profile', hostId);
     });
   }
-  delete(id: string, revision: string): HostProfilesResult {
+  delete(id: string, revision: string, repositories?: string[]): HostProfilesResult {
     return this.mutate(revision, () => {
       this.row(id);
-      if (this.db.prepare('SELECT id FROM repositories WHERE connection_id = ? LIMIT 1').get(id))
+      if (repositories) {
+        const rows = this.db
+          .prepare('SELECT id FROM repositories WHERE connection_id=?')
+          .all(id) as { id: string }[];
+        const expected = new Set(repositories);
+        if (rows.length !== expected.size || rows.some((r) => !expected.has(r.id)))
+          throw new StateFault('conflict', '服务器仓库已变化，请重新确认移除。');
+        this.db.prepare('DELETE FROM repositories WHERE connection_id=?').run(id);
+      } else if (
+        this.db.prepare('SELECT id FROM repositories WHERE connection_id = ? LIMIT 1').get(id)
+      )
         throw new StateFault(
           'conflict',
           'Remove registered repositories before deleting their host profile',
