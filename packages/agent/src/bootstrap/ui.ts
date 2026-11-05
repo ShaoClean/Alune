@@ -101,6 +101,7 @@ export async function serveUi(kernel: Kernel, agentId: string, version: string) 
         run(params, ctx) {
           return h.run(params, {
             ...ctx,
+            ...(role === 'workspace' ? { workspaceRenderer: true as const } : {}),
             events: {
               subscribed: (t) => ctx.events.subscribed(t),
               failStream: (e) => ctx.events.failStream(e),

@@ -66,7 +66,11 @@ test('UI facade keeps mixed-host analytics, Git writes, Worktree aliases, termin
     await client.initialize();
     await client.subscribe(workspaceTopics);
     await installWorkspaceAgent(client);
-    assert.equal((await connectionApi.list())[0].status, 'unknown');
+    const [offline] = await connectionApi.list();
+    assert.equal(offline.status, 'unknown');
+    assert.equal(offline.hasAuth, false);
+    assert.deepEqual(await connectionApi.get(hostId), offline);
+    await assert.rejects(connectionApi.get(randomUUID()), { kind: 'not-found' });
     const signing = await gitApi.signingConfig(localId);
     assert.equal(signing.source, 'local');
     assert.equal((await gitApi.saveSigningConfig(localId, signing)).source, 'local');
@@ -84,6 +88,16 @@ test('UI facade keeps mixed-host analytics, Git writes, Worktree aliases, termin
     assert.equal(git('log', '-1', '--format=%s').trim(), 'through-ui');
     // A stale continuation needs a history reset. A missing image side on
     // an added/deleted file is an ordinary absence rather than a load error.
+    const head = git('rev-parse', 'HEAD').trim();
+    assert.deepEqual(
+      (await repositoryApi.log(localId, { search: head.slice(0, 10), file: 'absent.txt' })).commits,
+      [],
+    );
+    assert.equal(
+      (await repositoryApi.log(localId, { search: head.slice(0, 10), file: 'example.txt' }))
+        .commits[0].hash,
+      head,
+    );
     const page = await repositoryApi.log(localId, { count: 1 });
     git('branch', 'revision-drift');
     await assert.rejects(

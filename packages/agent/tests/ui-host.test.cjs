@@ -34,6 +34,15 @@ test('two windows share committed state, not terminal ownership, request IDs or 
     assert.notEqual(a.initialized.sessionId, b.initialized.sessionId);
     await assert.rejects(a.updaterBridge(), (e) => e.kind === 'unknown-method');
     await assert.rejects(logs.registerRepository(repo), (e) => e.kind === 'unknown-method');
+    await a.request('diagnostics.logs.client', { level: 'WARN', message: 'renderer-source' });
+    assert.equal(
+      (await logs.recentLogs(10)).find((e) => e.message === 'renderer-source').source,
+      'web',
+    );
+    await assert.rejects(
+      a.request('diagnostics.logs.client', { message: 'wrong-source', source: 'native' }),
+      { kind: 'invalid-params' },
+    );
     let invalidated = false,
       shellReady = false,
       leaked = false;

@@ -14,6 +14,8 @@ export interface EventPublisher {
 }
 
 export interface HandlerContext {
+  /** Set only by the authenticated UI host, never taken from request parameters. */
+  workspaceRenderer?: true;
   agentId: string;
   sessionId: string;
   sessionSignal: AbortSignal;

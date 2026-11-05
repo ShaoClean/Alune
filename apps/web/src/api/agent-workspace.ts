@@ -320,6 +320,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         const route = c.hosts.find((r) => r.hostId === h.id);
         return {
           ...h,
+          hasAuth: h.hasPassword || h.hasPassphrase,
           status:
             route?.state === 'ready'
               ? 'connected'
@@ -335,7 +336,11 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         };
       });
     },
-    get: async (id: string) => (await local.listHostProfiles()).hosts.find((h) => h.id === id),
+    get: async (id: string) => {
+      const host = (await connectionApi.list()).find((h: { id: string }) => h.id === id);
+      if (!host) throw new ProtocolError('not-found', '服务器不存在。');
+      return host;
+    },
     create: async (profile) => {
       const before = await local.listHostProfiles();
       const after = await local.saveHostProfile(

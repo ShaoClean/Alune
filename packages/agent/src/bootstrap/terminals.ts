@@ -1,4 +1,5 @@
 import { hostname } from 'node:os';
+import { normalize } from 'node:path';
 import { terminalHandlers } from '../modules/terminals/handlers';
 import { ProtocolError } from '@alune/protocol';
 import { TerminalRegistry, TerminalSessions } from '../modules/terminals';
@@ -12,7 +13,9 @@ export function terminalsKernel(catalog: RepositoryCatalog) {
     const repo = catalog.get({ agentId: catalog.agentId, resourceId });
     return {
       repositoryName: repo.name,
-      initialPath: repo.path,
+      // Git reports Windows drive roots with POSIX separators; show the same
+      // native path as the shell and the original terminal details.
+      initialPath: normalize(repo.path),
       source: 'local',
       environment: `Alune 服务主机 · ${hostname()}`,
       open: (cols, rows, signal, callbacks) =>

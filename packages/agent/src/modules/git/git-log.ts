@@ -247,7 +247,15 @@ export async function readLog(
         (!options.branch ||
           (await run(['merge-base', '--is-ancestor', hash, revisions[0]])).exitCode === 0)
       )
-        hashMatch = parse(await log(['--no-walk', ...filters, hash, ...paths]))[0];
+        // Git 2.55 can emit a --no-walk commit even when its pathspec
+        // matches nothing. The one-commit range still applies path filtering.
+        hashMatch = parse(
+          await log(
+            options.file
+              ? [...filters, hash + '^!', ...paths]
+              : ['--no-walk', ...filters, hash, ...paths],
+          ),
+        )[0];
     }
     const lead = hashMatch && !skip ? [hashMatch] : [];
     // Keep at least one message match on the first page so `nextSkip` advances.

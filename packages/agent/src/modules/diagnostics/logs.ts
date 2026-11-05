@@ -9,7 +9,7 @@ import {
 import { LogStore, LogValidationError, validateLoggingSettings } from '../../adapters/logging';
 import type { JsonDocument } from '../../ports/state';
 import { StateFault } from '../../ports/state';
-import type { EventPublisher, Handler } from '../../ports/handler';
+import type { EventPublisher, Handler, HandlerContext } from '../../ports/handler';
 
 const CHUNK_BYTES = 32768;
 const SNAPSHOT_BYTES = 16 * 1024 * 1024;
@@ -81,7 +81,7 @@ export function diagnosticLogs(directory: string, document: JsonDocument) {
   function handler(
     effect: 'query' | 'mutation',
     validate: Handler['validate'],
-    run: (params: any) => unknown,
+    run: (params: any, context: HandlerContext) => unknown,
   ): Handler {
     return {
       minimumProtocolMinor: 1,
@@ -99,7 +99,7 @@ export function diagnosticLogs(directory: string, document: JsonDocument) {
         context.signal.throwIfAborted();
         publisher = context.events;
         try {
-          return run(params) as JsonValue;
+          return run(params, context) as JsonValue;
         } catch (error) {
           if (error instanceof LogValidationError)
             throw new ProtocolError('invalid-params', error.message);
@@ -219,11 +219,12 @@ export function diagnosticLogs(directory: string, document: JsonDocument) {
         if (typeof p.message !== 'string' || !p.message)
           throw new ProtocolError('invalid-params', 'Log message is required');
       },
-      (p) => {
+      (p, ctx) => {
+        const source = ctx.workspaceRenderer ? 'web' : 'client';
         const now = Date.now();
         if (now - window.start > 60000) {
           if (window.dropped)
-            logs.write('WARN', 'client', `前端日志过多，已丢弃 ${window.dropped} 条`);
+            logs.write('WARN', source, `前端日志过多，已丢弃 ${window.dropped} 条`);
           window = { start: now, count: 0, dropped: 0 };
         }
         if (++window.count > 60) {
@@ -233,7 +234,7 @@ export function diagnosticLogs(directory: string, document: JsonDocument) {
         const level: LogLevel = ['INFO', 'WARN', 'ERROR'].includes(p.level) ? p.level : 'ERROR';
         logs.write(
           level,
-          'client',
+          source,
           p.message.slice(0, 2000),
           isRecord(p.context) ? p.context : undefined,
         );

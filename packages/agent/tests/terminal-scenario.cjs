@@ -58,7 +58,7 @@ async function terminalScenario(client, resource, repo, whileRunning) {
       () => [id, second].every((k) => states.get(k)?.state === 'running'),
       'two real shells running',
     );
-    assert.equal(states.get(id).initialPath, repo);
+    assert.equal(states.get(id).initialPath, path.normalize(repo));
     if (whileRunning) await whileRunning([id, second]);
     await assert.rejects(
       run('close', { sessionId: id, confirmed: false }),

@@ -91,6 +91,7 @@ test(
     assert.deepEqual(Buffer.from(same.base64, 'base64'), chunks[0]);
     const recent = await child.client.recentLogs(2);
     assert.equal(recent.at(-1).message, 'later log');
+    assert.equal(recent.at(-1).source, 'client');
     assert.equal(recent[0].context.field0, context.field0);
     assert(events.some((e) => e.type === 'diagnostics.logs.changed'));
     assert(events.every((e) => Buffer.byteLength(JSON.stringify(e)) < 1024));
