@@ -9,7 +9,17 @@ const { version } = JSON.parse(
 
 export default defineConfig(
   async ({ mode }): Promise<UserConfig> => ({
-    plugins: [react(), ...(mode === 'agent' ? [(await import('./agent-dev')).agentDev()] : [])],
+    plugins: [
+      react(),
+      ...(process.env.ALUNE_UI_AUDIT === '1'
+        ? [
+            (await import('./tests/ui-audit')).auditUi(
+              fileURLToPath(new URL('../..', import.meta.url)),
+            ),
+          ]
+        : []),
+      ...(mode === 'agent' ? [(await import('./agent-dev')).agentDev()] : []),
+    ],
     define: { __APP_VERSION__: JSON.stringify(version) },
     resolve: {
       // The linked workspace builds CommonJS for Node. Serve its TypeScript source

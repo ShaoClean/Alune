@@ -4,13 +4,21 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 
-export function legacyFixture(directory, { existing = false } = {}) {
+export function legacyFixture(directory) {
   const repo = path.join(directory, 'candidate Git 仓库');
   mkdirSync(repo);
-  const git = (...args) => execFileSync('git', ['-C', repo, ...args]);
+  const env = {
+    ...process.env,
+    GIT_CONFIG_GLOBAL: path.join(directory, 'empty.gitconfig'),
+    GIT_CONFIG_NOSYSTEM: '1',
+  };
+  writeFileSync(env.GIT_CONFIG_GLOBAL, '');
+  const git = (...args) => execFileSync('git', ['-C', repo, ...args], { env });
   git('init', '-qb', 'main');
   git('config', 'user.name', 'Fixture');
-  execFileSync('git', ['init', '--bare', '-q', path.join(directory, 'fixture-remote.git')]);
+  execFileSync('git', ['init', '--bare', '-q', path.join(directory, 'fixture-remote.git')], {
+    env,
+  });
   git('remote', 'add', 'origin', path.join(directory, 'fixture-remote.git'));
   git('config', 'user.email', 'fixture@example.invalid');
   writeFileSync(path.join(repo, 'candidate.txt'), 'original\n');
@@ -29,27 +37,22 @@ export function legacyFixture(directory, { existing = false } = {}) {
   const id = randomUUID(),
     db = new Database(path.join(directory, 'alune.db'));
   try {
-    if (!existing)
-      db.exec(
-        'CREATE TABLE repositories (id TEXT PRIMARY KEY, connection_id TEXT,source TEXT,name TEXT,path TEXT,pinned INTEGER,created_at TEXT,worktree_kind TEXT)',
-      );
+    db.exec(
+      'CREATE TABLE repositories (id TEXT PRIMARY KEY, connection_id TEXT,source TEXT,name TEXT,path TEXT,pinned INTEGER,created_at TEXT,worktree_kind TEXT)',
+    );
     db.prepare(
       "INSERT INTO repositories (id,connection_id,source,name,path,pinned,created_at,worktree_kind) VALUES (?,NULL,'local',?,?,1,?,'main')",
     ).run(id, path.basename(repo), repo, new Date().toISOString());
   } finally {
     db.close();
   }
-  const prior = existing
-    ? JSON.parse(readFileSync(path.join(directory, 'workspace.json'), 'utf8')).state
-    : {};
   writeFileSync(
     path.join(directory, 'workspace.json'),
     JSON.stringify({
       version: 1,
       state: {
-        ...prior,
-        repositorySession: { ids: [...(prior.repositorySession?.ids ?? []), id], activeId: id },
-        appearance: prior.appearance ?? { theme: 'dark' },
+        repositorySession: { ids: [id], activeId: id },
+        appearance: { theme: 'dark' },
       },
     }),
   );
@@ -60,7 +63,7 @@ export function legacyFixture(directory, { existing = false } = {}) {
   return {
     repo,
     id,
-    fromRelease: existing,
+    fromRelease: false,
     db: hash('alune.db'),
     workspace: hash('workspace.json'),
   };

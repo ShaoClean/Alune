@@ -10,12 +10,8 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   const visible = "e=>e.getClientRects().length && !e.closest('[inert]')";
   const element = (s) =>
     '[...document.querySelectorAll(' + JSON.stringify(s) + ')].find(' + visible + ')';
-  const textButton = (text) =>
-    "[...document.querySelectorAll('button')].filter(" +
-    visible +
-    ').find(e=>e.textContent.trim()===' +
-    JSON.stringify(text) +
-    ')';
+  const textButton = (label) =>
+    `[...document.querySelectorAll('button')].filter(${visible}).find(e=>e.textContent.replace(/\\s/g,'')===${JSON.stringify(label.replace(/\s/g, ''))})`;
   const click = async (expr) => {
     await wait(wc, '(' + expr + ') && !(' + expr + ').disabled');
     await evaluate('(' + expr + ').click()');
@@ -24,8 +20,15 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     text = (label) => 'document.body.innerText.includes(' + JSON.stringify(label) + ')';
   const git = (...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
   const evidence = [];
-  function pass(ui, scenario) {
-    evidence.push({ ui, scenario, platform: process.platform, arch: process.arch });
+  const readHits = () =>
+    wc.executeJavaScript(
+      "Array.from(window.__aluneAudit?.hits ?? JSON.parse(sessionStorage.getItem('alune.audit.cases')||'[]'))",
+    );
+  const seen = new Set(await readHits());
+  async function pass(ui, scenario) {
+    const executed = (await readHits()).filter((id) => !seen.has(id));
+    executed.forEach((id) => seen.add(id));
+    evidence.push({ ui, scenario, executed, platform: process.platform, arch: process.arch });
     if (process.env.ALUNE_CANDIDATE_EVIDENCE)
       fs.writeFileSync(
         path.join(process.env.ALUNE_CANDIDATE_EVIDENCE, 'workbench.json'),
@@ -40,7 +43,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   await wait(wc, text('统计覆盖 1/1'));
   await click(button('卡片视图'));
   await wait(wc, element('.repository-card'));
-  pass(
+  await pass(
     ['UI-009', 'UI-039', 'UI-070'],
     'collection list/overview/collect/grid, one real repository',
   );
@@ -65,7 +68,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   await wait(wc, element('.blame-gutter'));
   await click(textButton('逐行追溯'));
   await wait(wc, element('.files-code'));
-  pass(
+  await pass(
     ['UI-004', 'UI-008', 'UI-017', 'UI-027'],
     'Markdown relative link opens tracked source; Blame round-trip',
   );
@@ -78,7 +81,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   );
   await click(element('.history-row__message'));
   await wait(wc, text('example.ts'));
-  pass(
+  await pass(
     ['UI-021', 'UI-022'],
     'history row matches HEAD; selected commit exposes real changed files',
   );
@@ -103,7 +106,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   await click(button('切换到 main'));
   await wait(wc, "document.querySelector('.branch-pill__name')?.textContent.trim()==='main'");
   assert.equal(git('branch', '--show-current'), 'main');
-  pass(
+  await pass(
     ['UI-006', 'UI-045', 'UI-072'],
     'create and switch branch with staged edits; registered tag retains the original commit',
   );
@@ -114,9 +117,23 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   await wait(wc, element('[aria-label="在整个文件中查看差异"][aria-pressed="true"]'));
   await click(button('关闭差异'));
   await wait(wc, text('选择文件以查看差异'));
-  pass(
+  await pass(
     ['UI-007', 'UI-015'],
     'selected staged file opens real diff, toggles full-file view and closes',
   );
+  await require('./candidate-git-actions.cjs')({
+    wc,
+    window,
+    origin,
+    repo,
+    id,
+    wait,
+    element,
+    button,
+    textButton,
+    click,
+    text,
+    pass,
+  });
   console.log('Candidate native workbench:', JSON.stringify(evidence));
 };

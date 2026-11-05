@@ -181,3 +181,7 @@ node scripts/agent/browser-reads-fixture.mjs
 首次启动从旧数据捕获只读快照，导入到用户数据下独立的 `agent` 目录。原数据库、工作区偏好和凭据保留；导入失败会停止启动。退出候选程序并取消 `ALUNE_DESKTOP_EXECUTOR` 即可还原旧入口和旧数据。重新启用旧程序不会撤销已执行的 Git、文件或平台写入，应先检查写回执和实际仓库状态。没有全平台逐项放行之前，不删除旧执行器、备份或兼容入口。
 
 要单独验证退役后的打包边界，运行 `npm run desktop:candidate:build`、`node apps/desktop/scripts/check-candidate.mjs`、`npm run dist:candidate -w desktop`。此候选应用直接启动 Agent，构建不读取旧 server/ssh-client/shared 的 dist，也不为 Electron 重建 SQLite/PTY。可回退的原有桌面构建仍是另一条入口。候选安装器不公开发布。
+
+最终退役前、后分别核对 [P0 台账](https://github.com/ShaoClean/Alune/wiki/Issue-249) 与该提交的执行回执：`node scripts/agent/check-release-evidence.mjs ledger.json receipts.json missing.json`。回执含 `stage`（before-retirement / after-retirement）、`sha`、`baseline`、`runs`；每个 run 明确 target、sha、scenario、assertion、proof URL、result 与覆盖的 P0 原始 entry ID 数组。原生安装、打包、更新、clean checkout 单列平台。缺少条目、平台或放行项目时命令退出非零；人工仍须核对证据与断言是否匹配，运行过一个文件不等于其中所有控件已验收。
+
+在桌面冒烟的专用 Web 构建中设置 `ALUNE_UI_AUDIT=1`，以 `ALUNE_CANDIDATE_EVIDENCE` 接收实际执行的 P0 UI 回调。测试索引只含基线 ID 及回调源码指纹；`node scripts/agent/ui-audit-index.mjs ledger.json apps/web/tests/p0-ui-index.json` 可重建。只有源文件、控件/事件及回调 token 唯一匹配才自动归属；改写、移动、歧义和需成对解绑的 DOM 监听器留给人工核对。记录回调进入不等同其所有分支均已验证；workbench 结果同时保存 Git/界面断言。常规构建和正式安装包不启用此追踪。

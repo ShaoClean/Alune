@@ -15,15 +15,22 @@ try {
     env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
       (await import('./candidate-fixture.mjs')).legacyFixture(dataDir),
     );
+  if (env.ALUNE_CANDIDATE_FIXTURE) {
+    env.GIT_CONFIG_GLOBAL = path.join(dataDir, 'empty.gitconfig');
+    env.GIT_CONFIG_NOSYSTEM = '1';
+  }
   for (const phase of ['write', 'restore']) {
     const child = spawn(executable, [...args, '--smoke-test'], {
       stdio: 'inherit',
       env: { ...env, ALUNE_SMOKE_PHASE: phase },
     });
-    const timeout = setTimeout(() => {
-      console.error(`Desktop smoke ${phase} timed out after 150 seconds`);
-      child.kill('SIGKILL');
-    }, 150000);
+    const timeout = setTimeout(
+      () => {
+        console.error(`Desktop smoke ${phase} timed out`);
+        child.kill('SIGKILL');
+      },
+      env.ALUNE_DESKTOP_EXECUTOR === 'agent' ? 300000 : 150000,
+    );
     const code = await new Promise((resolve, reject) => {
       child.once('error', reject);
       child.once('exit', (code) => resolve(code ?? 1));

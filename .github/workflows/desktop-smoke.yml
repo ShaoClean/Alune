@@ -31,6 +31,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run desktop:build
+        env:
+          ALUNE_UI_AUDIT: '1'
       - name: 原生 safeStorage 与 Agent 私有导入
         if: runner.os != 'Linux'
         run: npm run test:agent-migration -w desktop

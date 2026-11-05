@@ -9,11 +9,8 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
   );
   const phase = process.env.ALUNE_SMOKE_PHASE;
   const wait = (contents, test) =>
-    contents.executeJavaScript(
-      'new Promise((resolve,reject)=>{const until=Date.now()+20000;function poll(){if(' +
-        test +
-        ')return resolve(true);if(Date.now()>until)return reject(Error("Candidate UI timeout: "+document.body.innerText.slice(0,1500)));setTimeout(poll,40)}poll()})',
-    );
+    contents.executeJavaScript(`new Promise((resolve,reject)=>{const until=Date.now()+20000;function poll(){if(${test})return resolve(true);
+      if(Date.now()>until)return reject(Error('Candidate UI timeout: '+${JSON.stringify(test)}+' | '+JSON.stringify([...document.querySelectorAll('.a-dlg-actions button')].filter(b=>b.getClientRects().length).map(b=>[b.textContent,b.disabled]))+' | '+document.body.innerText.slice(0,1500)));setTimeout(poll,40)}poll()})`);
   const wc = window.webContents;
   await wait(wc, "document.querySelector('.app-shell')");
   assert.equal(await wc.executeJavaScript('typeof window.require'), 'undefined');
@@ -62,7 +59,7 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
     }
   } else {
     if (phase === 'write') {
-      await require('./candidate-workbench.cjs')({window,origin,id,repo,wait});
+      await require('./candidate-workbench.cjs')({ window, origin, id, repo, wait });
       await require('./dialogs-smoke.cjs')({ window });
       await require('./settings-shell-smoke.cjs')({
         window,
@@ -95,6 +92,23 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
         .digest('hex'),
       expected,
     );
+  if (process.env.ALUNE_CANDIDATE_EVIDENCE) {
+    const collect = (contents) =>
+      contents.executeJavaScript(
+        "Array.from(window.__aluneAudit?.hits??JSON.parse(sessionStorage.getItem('alune.audit.cases')||'[]'))",
+      );
+    const uiCallbacks = [
+      ...new Set([...(await collect(wc)), ...(await collect(target.webContents))]),
+    ].sort();
+    writeFileSync(
+      path.join(process.env.ALUNE_CANDIDATE_EVIDENCE, phase + '-callbacks.json'),
+      JSON.stringify(
+        { phase, platform: process.platform, arch: process.arch, uiCallbacks },
+        null,
+        2,
+      ),
+    );
+  }
   console.log(
     'Candidate ' +
       phase +
