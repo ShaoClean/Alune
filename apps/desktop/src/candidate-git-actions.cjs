@@ -258,6 +258,23 @@ module.exports = async ({
     pass,
   });
 
+  await require('./candidate-rebase-actions.cjs')({
+    wc,
+    window,
+    scratchUrl,
+    work,
+    git,
+    wait,
+    fact,
+    element,
+    button,
+    textButton,
+    click,
+    fill,
+    primary,
+    pass,
+  });
+
   await require('./candidate-terminal-actions.cjs')({
     wc,
     work,

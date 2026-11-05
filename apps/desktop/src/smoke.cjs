@@ -60,9 +60,10 @@ module.exports = async ({ window, origin, token, updates, closeBackend, backend,
   await require('./ai-smoke.cjs')({ backend, origin, token, window });
   await openUpdateSettings(window);
   await waitForUI(window, `document.querySelector('[data-testid="update-panel"]') && document.body.innerText.includes('检查更新')`);
-  await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.replace(/\\s/g, '') === '检查更新').click()`);
+  await waitForUI(window, `(()=>{const b=[...document.querySelectorAll('[data-testid="update-panel"] button')].find(e=>e.getClientRects().length && e.textContent.replace(/\\s/g,'')==='检查更新');if(!b||b.disabled)return false;b.click();return true})()`);
   await waitForUI(window, `document.body.innerText.includes('发现新版本')`);
   assert.equal(updates.getState().status, 'available');
+  await waitForUI(window, `document.querySelector('.release-notes a') && document.querySelector('.release-notes table')`);
   const notes = await window.webContents.executeJavaScript(`(() => {
     const notes = document.querySelector('.release-notes');
     const link = notes.querySelector('a');
@@ -186,10 +187,21 @@ async function openUpdateSettings(window) {
   if (current !== '/settings/updates') {
     const collapsed = await window.webContents.executeJavaScript("document.querySelector('.app-shell--collapsed') !== null");
     await window.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))`);
-    await waitForUI(window, `Array.from(document.querySelectorAll('.settings-category-nav button')).some(button => button.textContent === '版本更新')`);
-    await window.webContents.executeJavaScript(`document.querySelector('.app-tabbar [aria-label="显示设置分类"]')?.click()`);
-    await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.settings-category-nav button')).find(button => button.textContent === '版本更新').click()`);
-    if (collapsed) await window.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true }))`);
+    // Resizing from the narrow provider form can swap the category nav.
+    // Never test one DOM node and later dispatch a click to a vanished copy.
+    await window.webContents.executeJavaScript(`new Promise((resolve,reject)=>{
+      const end=Date.now()+10000;let expanded=false;
+      const visible=e=>e.getClientRects().length && !e.closest('[inert]');
+      function check(){
+        const select=[...document.querySelectorAll('.settings-category-nav button')].find(b=>visible(b)&&b.textContent.trim()==='版本更新');
+        if(select){select.click();return resolve(true);}
+        const toggle=[...document.querySelectorAll('.app-tabbar [aria-label="显示设置分类"]')].find(visible);
+        if(toggle&&!expanded){expanded=true;toggle.click();}
+        if(Date.now()>end)return reject(Error('更新设置入口未就绪：'+location.pathname));
+        setTimeout(check,40);
+      }check();
+    })`);
+    if (collapsed) await window.webContents.executeJavaScript(`if(!document.querySelector('.app-shell--collapsed'))window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true }))`);
   }
   await waitForUI(window, `document.querySelector('[data-testid="update-panel"]')`);
 }
