@@ -1,3 +1,5 @@
+import type { LegacyRepositoryReads } from '../ports/legacy-repository-reads';
+import { collaborationKernel } from './collaboration';
 import type { DatabaseBackupReceipt } from '@alune/protocol';
 import { validateEmpty } from '@alune/protocol';
 import { basename } from 'node:path';
@@ -17,6 +19,7 @@ export async function openStateKernel(
   agentId: string,
   signal?: AbortSignal,
   secretOptions: Pick<ProtectedSecretOptions, 'backend' | 'keychain'> = {},
+  legacyReads?: LegacyRepositoryReads,
 ) {
   const state = await AgentState.open(directory, agentId, signal);
   let settings: ReturnType<typeof settingsKernel>;
@@ -34,30 +37,46 @@ export async function openStateKernel(
     await state.close();
     throw error;
   }
-  const repositories = repositoriesKernel(
-    state.database,
-    agentId,
-    async (signal, write) =>
-      new NativeRepositoryConnection(
-        signal,
-        async () => {
-          // Offline Git/file reads must not require unrelated AI/account keys.
-          // The native adapter invokes this only for network/lazy-object reads.
-          const config = settings.proxy.read();
-          if (config.enabled && config.authEnabled) await settings.readyCredentials(signal);
-          return settings.proxy.snapshot();
-        },
-        !write,
-        () => {
-          try {
-            return settings.proxy.read().enabled;
-          } catch {
-            return undefined;
-          } // Corrupt policy is not permission to go direct.
-        },
-      ),
+  const connect = async (signal: AbortSignal, write = false) =>
+    new NativeRepositoryConnection(
+      signal,
+      async () => {
+        // Offline Git/file reads must not require unrelated AI/account keys.
+        // The native adapter invokes this only for network/lazy-object reads.
+        const config = settings.proxy.read();
+        if (config.enabled && config.authEnabled) await settings.readyCredentials(signal);
+        return settings.proxy.snapshot();
+      },
+      !write,
+      () => {
+        try {
+          return settings.proxy.read().enabled;
+        } catch {
+          return undefined;
+        } // Corrupt policy is not permission to go direct.
+      },
+    );
+  const repositories = repositoriesKernel(state.database, agentId, connect);
+  const network = new ProxyRuntime(settings.proxy);
+  const collaboration = collaborationKernel(
+    repositories.catalog,
+    settings,
+    connect,
+    network.fetch,
+    async (source, method, url, _context, send) => {
+      const response = await send();
+      diagnostics.logs.write(
+        response.ok ? 'INFO' : 'WARN',
+        source,
+        method + ' ' + new URL(url).host,
+        { status: response.status },
+      );
+      return response;
+    },
+    legacyReads,
   );
   const handlers: Record<string, Handler> = {
+    ...collaboration,
     ...repositories.handlers,
     ...settings.handlers,
     ...diagnostics.handlers,
@@ -94,7 +113,6 @@ export async function openStateKernel(
       },
     },
   };
-  const network = new ProxyRuntime(settings.proxy);
   return {
     state,
     handlers,

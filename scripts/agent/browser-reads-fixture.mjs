@@ -1,5 +1,6 @@
 // Disposable real Web + Agent repository read/write fixture for browser acceptance.
 import fs from 'node:fs';
+import { createServer as httpServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
@@ -51,6 +52,58 @@ const entry = path.join(root, 'packages/agent/bin/alune-agent.cjs'),
 const initial = spawnAgent(process.execPath, [entry, 'serve', '--data-dir', data], { env });
 await initial.client.initialize();
 const registered = await initial.client.registerRepository(repo);
+const collaboration = process.argv.includes('--collaboration');
+let provider;
+if (collaboration) {
+  git('add', 'demo.ts');
+  fs.appendFileSync(path.join(repo, 'demo.ts'), '// PRIVATE_UNSTAGED');
+  provider = httpServer(async (req, res) => {
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    const body = Buffer.concat(chunks).toString();
+    if (
+      req.url !== '/v1/chat/completions' ||
+      !body.includes('Agent changed line') ||
+      body.includes('PRIVATE_UNSTAGED')
+    ) {
+      res.writeHead(400);
+      res.end();
+      return;
+    }
+    res.setHeader('Content-Type', 'application/json');
+    res.end(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                message: 'feat: P6 草稿验收',
+                description: '仅使用已暂存的修改。',
+              }),
+            },
+          },
+        ],
+      }),
+    );
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+  const settings = await initial.client.getAiSettings();
+  const p = settings.providers.find((p) => p.id === 'openai');
+  const updated = await initial.client.saveAiProvider(
+    p.id,
+    {
+      ...p,
+      enabled: true,
+      baseUrl: 'http://127.0.0.1:' + provider.address().port + '/v1',
+      models: [{ id: 'fixture', name: 'Fixture', enabled: true }],
+    },
+    settings.revision,
+  );
+  await initial.client.saveCommitPreferences(
+    { ...updated.commit, providerId: p.id, modelId: 'fixture' },
+    updated.revision,
+  );
+}
 await initial.close();
 const token = randomUUID();
 const children = new Set();
@@ -82,6 +135,7 @@ wss.on('connection', (socket, request) => {
 });
 const { createServer } = await import('vite');
 const fixture = {
+  collaboration,
   legacyId: legacy.id,
   resource: registered.resource,
   socket: `ws://127.0.0.1:${wss.address().port}/?token=${token}`,
@@ -128,6 +182,8 @@ async function close() {
     [...children].map((child) => new Promise((resolve) => child.once('close', resolve))),
   );
   wss.close();
+  provider?.closeAllConnections();
+  provider?.close();
   await vite.close();
   await app.close();
   fs.rmSync(temp, { recursive: true, force: true });

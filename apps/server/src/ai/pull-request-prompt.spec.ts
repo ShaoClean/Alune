@@ -1,8 +1,8 @@
 import { AiService } from './ai.service';
-import { complete } from './ai-provider';
+import { complete } from '@alune/agent/ai-provider';
 import { parsePullRequest, pullRequestPrompt } from './pull-request-prompt';
 import type { PullRequestCreationPreview } from '@alune/shared';
-jest.mock('./ai-provider', () => ({ complete: jest.fn() }));
+jest.mock('@alune/agent/ai-provider', () => ({ complete: jest.fn() }));
 const snapshot = (): PullRequestCreationPreview => ({
   sourceBranch: 'feature',
   targetBranch: 'main',

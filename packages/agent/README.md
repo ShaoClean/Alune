@@ -150,3 +150,13 @@ Web 的显式适配器支持选择测试资源；未选择资源继续走原入�
 协议事件 ACK 负责通道交付，`terminals.ack({sessionId, sequence})` 在 xterm 解析完对应包后发送。每个终端独立等待解析 ACK，等待期间仍可操作其他终端；缓冲达 64 KiB 暂停读取，超过 256 KiB 或 30 秒无解析确认则停止该终端。视图挂载和标签切换不决定 PTY 寿命。stdio EOF、窗口通道断开和 Agent 退出会清理所属会话；重启后必须显式新建。独立 PTY worker 监测父进程 IPC，Agent 被强制终止时也会回收 shell 和前台任务。终端输入、输出和会话均不持久化。
 
 桌面可在已认证的仓库页面用 `?terminalExecutor=agent` 选择终端 RPC，复用已有仓库目录、SSH 通道和退出确认。独立 Agent 只运行本机仓库终端；SSH 远程 Agent 路由留给 P7。
+
+## AI、协作与工作区（协议 1.5）
+
+本机 Agent 读取自己的 AI 配置、命名令牌和仓库绑定。向服务商发请求的是这个 Agent；AI 请求使用本机配置的代理，PR/MR 继续直连配置的托管平台。已有配置通过上文的只读导入迁移。独立部署可以显式配置自己的服务商，握手、仓库登记和 SSH 桥接均不传输服务商密钥。
+
+- 设置和账户沿用 `settings.ai.*`、`accounts.tokens.*`。`ai.test/models/generate/generatePullRequest` 提供连通性测试、模型获取、提交和 PR 草稿。提交生成只读取已登记仓库的暂存区，最多 96 KiB，生成后再次核对索引和配置版本。结果不会提交或推送。
+- `reviews.remotes/list/detail/files/discussions/actions/applyToken/preview/mutate/create` 保留旧平台行为。调用带 `resource: {agentId, resourceId}`，其余业务参数放在 `input`。写入沿用确认时的 `revision` 和稳定的 `operationId`。丢失响应后先用 `tasks.get({taskId: operationId})` 查询回执，再核对平台事实；不可改 ID、自动重试或改走 HTTP。
+- `catalog.reviews.sources/context/list` 沿用发现和列表各自的快照游标，用完整资源引用区分来源，依项目与请求编号跨页去重。来源未能发现时标记 offline，已发现的来源读取失败时标记 stale；错误和成功来源可同时出现。`workspace.groups` 仅返回连接分组与登记资源。布局、草稿、生成票据和编辑/撤销仍由客户端管理。
+- 单机 stdio 默认不访问旧 SSH 连接。可信的本机宿主可在打开独立状态目录时为 `openStateKernel` 注入 `legacyCollaborationReads`：它核对旧登记的连接与路径，仅提供远端列表、分支 SHA 和暂存快照。旧 HTTP 宿主也复用 Agent 的业务模块；没有可用通道时显式报告离线。
+- Web 接入点为 `createAgentCollaboration`，必须显式选择持有凭据的 Agent。浏览器验收可运行 `node scripts/agent/browser-reads-fixture.mjs --collaboration`，在打印的隔离页面加载 `/tests/agent-browser.ts` 的 `connectFixture()`。桌面及 Web 的默认入口不变。

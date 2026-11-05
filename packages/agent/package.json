@@ -74,6 +74,26 @@
     "./supervised-pty": {
       "types": "./dist/adapters/pty/supervised.d.ts",
       "default": "./dist/adapters/pty/supervised.js"
+    },
+    "./reviews/*": {
+      "types": "./dist/modules/reviews/*.d.ts",
+      "default": "./dist/modules/reviews/*.js"
+    },
+    "./ai-provider": {
+      "types": "./dist/adapters/providers/ai-provider.d.ts",
+      "default": "./dist/adapters/providers/ai-provider.js"
+    },
+    "./pull-request-prompt": {
+      "types": "./dist/modules/ai/pull-request-prompt.d.ts",
+      "default": "./dist/modules/ai/pull-request-prompt.js"
+    },
+    "./ai": {
+      "types": "./dist/modules/ai/service.d.ts",
+      "default": "./dist/modules/ai/service.js"
+    },
+    "./state-kernel": {
+      "types": "./dist/bootstrap/state-kernel.d.ts",
+      "default": "./dist/bootstrap/state-kernel.js"
     }
   },
   "typesVersions": {
@@ -110,6 +130,21 @@
       ],
       "supervised-pty": [
         "dist/adapters/pty/supervised.d.ts"
+      ],
+      "reviews/*": [
+        "dist/modules/reviews/*.d.ts"
+      ],
+      "ai-provider": [
+        "dist/adapters/providers/ai-provider.d.ts"
+      ],
+      "pull-request-prompt": [
+        "dist/modules/ai/pull-request-prompt.d.ts"
+      ],
+      "ai": [
+        "dist/modules/ai/service.d.ts"
+      ],
+      "state-kernel": [
+        "dist/bootstrap/state-kernel.d.ts"
       ]
     }
   }

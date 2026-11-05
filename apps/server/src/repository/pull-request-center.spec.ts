@@ -357,3 +357,35 @@ describe('center identity and pinned association', () => {
     expect(result.identityNotice).toContain('无法识别');
   });
 });
+
+it('keeps identical repository IDs on different Agents distinct and binds each filtered result to its account', async () => {
+  const a = { agentId: 'a', resourceId: 'same' },
+    b = { agentId: 'b', resourceId: 'same' };
+  const requests = {
+    remotes: async (_id: string, resource: typeof a) => [
+      remote('team/app', 'origin'),
+    ],
+    centerPage: async (_id: string, _query: unknown, resource: typeof a) => ({
+      items: [item(1)],
+      hasMore: false,
+      account: account(resource.agentId),
+    }),
+  };
+  const service = new PullRequestCenterService(
+    {
+      list: async () =>
+        [a, b].map((resource) => ({ ...repo('same'), resource })),
+    } as unknown as RepositoryService,
+    requests as unknown as PullRequestsService,
+  );
+  const discovery = await service.discover();
+  const matched = await service.list({
+    discoveryId: discovery.discoveryId,
+    query: { ...query, account: account('b').key },
+  });
+  expect(matched.items).toHaveLength(1);
+  const source = matched.sources.find((s) => s.resource?.agentId === 'b')!;
+  expect(matched.items[0].sourceId).toBe(source.id);
+  expect(matched.items[0].sourceIds).toEqual([source.id]);
+  expect(new Set(matched.sources.map((s) => s.id)).size).toBe(2);
+});

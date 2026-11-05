@@ -2,7 +2,9 @@
 import { AgentClient } from '@alune/agent-client';
 import type { RpcMessage } from '@alune/protocol';
 import { installAgentRepositoryQueries } from '../src/api/agent-repositories';
-import { repositoryApi, gitApi } from '../src/api';
+import { createAgentCollaboration } from '../src/api/agent-collaboration';
+import { aiApi } from '../src/api/ai';
+import { repositoryApi, gitApi, accessTokenApi, pullRequestCenterApi } from '../src/api';
 
 export async function connectFixture() {
   const fixture = await fetch('/p3-fixture.json').then((r) => r.json());
@@ -44,10 +46,28 @@ export async function connectFixture() {
     repositoryApi,
     gitApi,
   );
+  const restores: Array<() => void> = [];
+  if (fixture.collaboration) {
+    const bindings = createAgentCollaboration(client, (id) => {
+      if (id !== fixture.legacyId && id !== fixture.resource.resourceId)
+        throw Error('Unknown fixture repository');
+      return fixture.resource;
+    });
+    function install<T extends object>(api: T, subset: Partial<T>) {
+      const before = { ...api };
+      Object.assign(api, subset);
+      restores.push(() => Object.assign(api, before));
+    }
+    install(aiApi, bindings.ai);
+    install(accessTokenApi, bindings.accounts);
+    install(pullRequestCenterApi, bindings.center);
+    install(repositoryApi, bindings.repository);
+  }
   return {
     legacyId: fixture.legacyId,
     resource: fixture.resource,
     close() {
+      for (const fn of restores.reverse()) fn();
       restore();
       client.close();
     },

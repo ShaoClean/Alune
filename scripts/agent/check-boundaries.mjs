@@ -83,7 +83,14 @@ console.log(
 
 // Read business code is transport-neutral; the compatibility dependency points
 // from ssh-client into Agent, never back to the retired runtime.
-for (const directory of ['modules/git', 'modules/repositories']) {
+for (const directory of [
+  'modules/git',
+  'modules/repositories',
+  'modules/ai',
+  'modules/reviews',
+  'modules/workspace',
+  'adapters/providers',
+]) {
   for (const file of files(path.join(root, 'packages/agent/src', directory))) {
     const source = ts.createSourceFile(
       file,

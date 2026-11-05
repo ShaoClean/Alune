@@ -309,10 +309,12 @@ export class AgentState {
               );
             if (operationId) {
               const inserted = this.database
-                .prepare(
-                  "INSERT OR IGNORE INTO resource_ids (id,kind,local_key) VALUES (?, 'git-operation', ?)",
-                )
-                .run(operationId, task.requestId);
+                .prepare('INSERT OR IGNORE INTO resource_ids (id,kind,local_key) VALUES (?, ?, ?)')
+                .run(
+                  operationId,
+                  task.method.startsWith('reviews.') ? 'review-operation' : 'git-operation',
+                  task.requestId,
+                );
               if (!inserted.changes)
                 throw new ProtocolError(
                   'duplicate-request',

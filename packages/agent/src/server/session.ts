@@ -269,7 +269,7 @@ export class AgentSession {
         if (!this.options.taskJournal)
           throw new ProtocolError(
             'unavailable',
-            'A durable journal is required for repository writes',
+            'A durable journal is required for this operation',
           );
       }
       const controller = new AbortController();

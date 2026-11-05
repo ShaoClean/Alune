@@ -1,3 +1,4 @@
+import { ProtocolError } from '@alune/protocol';
 import axios from 'axios';
 import type {
   AiSettings,
@@ -43,6 +44,7 @@ export const aiApi = {
 };
 
 export function aiError(error: unknown): string {
+  if (error instanceof ProtocolError) return error.message;
   if (axios.isAxiosError(error)) {
     if (error.code === 'ECONNABORTED') return 'AI 请求超时，草稿已保留，请重试。';
     const message = error.response?.data?.message;

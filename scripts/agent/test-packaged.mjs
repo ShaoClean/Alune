@@ -144,6 +144,13 @@ try {
     (await a.client.readRepository(repository.resource, 'file', { path: 'fixture.txt' })).content,
     'after\n',
   );
+  git('remote', 'add', 'origin', 'https://github.com/fixture/packaged.git');
+  const sources = await a.client.collaboration('catalog.reviews.sources', { input: {} });
+  assert.deepEqual(sources.sources[0].resource, repository.resource);
+  assert.equal(sources.sources[0].remote.webUrl, 'https://github.com/fixture/packaged');
+  const groups = await a.client.collaboration('workspace.groups', {});
+  assert.deepEqual(groups.groups[0].resources, [repository.resource]);
+  git('remote', 'remove', 'origin');
   await terminalChecks.terminalScenario(a.client, repository.resource, repository.path);
   const mutate = async (kind, args) => {
     const intent = { resource: repository.resource, kind, args };

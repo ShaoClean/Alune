@@ -1,3 +1,4 @@
+import { validateCollaboration, type CollaborationMethods } from '@alune/protocol';
 import type {
   AccessTokenSettings,
   AgentEvent,
@@ -164,6 +165,23 @@ export class AgentClient {
         this.close(error as Error);
         throw error;
       }
+    });
+  }
+  collaboration<K extends keyof CollaborationMethods>(
+    method: K,
+    params: CollaborationMethods[K][0],
+    options: RequestOptions = {},
+  ): Promise<CollaborationMethods[K][1]> {
+    validateCollaboration(method, params);
+    if ('resource' in params && this.identity && params.resource.agentId !== this.identity.agentId)
+      return Promise.reject(new ProtocolError('not-found', 'Repository belongs to another Agent'));
+    return this.request(method, params as unknown as JsonValue, {
+      timeoutMs: 90_000,
+      ...options,
+    }).then((value) => {
+      if (method === 'reviews.applyToken') validateAccessTokenSettings(value);
+      if (method === 'ai.models') validateAiSettings(value);
+      return value as unknown as CollaborationMethods[K][1];
     });
   }
   health(): Promise<HealthResult> {

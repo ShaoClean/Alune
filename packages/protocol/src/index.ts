@@ -15,3 +15,7 @@ export * from './storage';
 export * from './repositories';
 export * from './repository-writes';
 export * from './terminals';
+export * from './pull-requests';
+export * from './pull-request-center';
+export * from './pull-request-lines';
+export * from './collaboration';
