@@ -24,3 +24,10 @@ export function repositoryHistoryChanged(error: unknown): boolean {
   }
   return (error as LegacyFailure | null)?.response?.data?.code === 'HISTORY_CHANGED';
 }
+
+/** Local invalidation of a read, distinct from cancellation or failure on the Agent. */
+export class SupersededSignatureRead extends Error {
+  constructor() {
+    super('仓库已变化，正在重新读取签名。');
+  }
+}

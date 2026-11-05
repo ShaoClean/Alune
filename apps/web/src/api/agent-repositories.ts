@@ -1,3 +1,4 @@
+import { SupersededSignatureRead } from './repository-errors';
 import {
   isRepositoryWriteKind,
   ProtocolError,
@@ -146,6 +147,19 @@ export function createAgentRepositoryQueries(
       if (disposed || versions.get(id) !== version)
         throw new Error('仓库读取结果已过期，请刷新后重试。');
       return invocation.select ? invocation.select(result) : result;
+    } catch (error) {
+      // An in-flight signature read may reject with the wire's generic
+      // cancellation after a locally observed Git change. Only that case is
+      // superseded; a timeout or real verification failure remains visible.
+      if (
+        invocation.kind === 'signatures' &&
+        !disposed &&
+        !invocation.signal?.aborted &&
+        controller.signal.aborted &&
+        versions.get(id) !== version
+      )
+        throw new SupersededSignatureRead();
+      throw error;
     } finally {
       active.delete(controller);
       if (!active.size) pending.delete(id);

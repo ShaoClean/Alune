@@ -27,6 +27,9 @@ const make = (executor = 'legacy') => {
     },
   };
   const git = {
+    async signatures() {
+      throw new Error('legacy signature verifier called');
+    },
     async stage() {
       calls.push('stage');
       return { success: true };
@@ -128,4 +131,25 @@ test('selected P4 write sends the approved revision once, then queries its exact
   await f.adapter.git.stage('unmapped', ['a']);
   assert.deepEqual(f.calls, ['stage']);
   f.adapter.dispose();
+});
+
+test('a superseded signature read is distinct from a failing verifier', async () => {
+  const f = make('agent');
+  const { SupersededSignatureRead } = await import('../src/api/repository-errors.ts');
+  const adapter = f.adapter;
+  try {
+    f.client.readRepository = async (_resource, _kind, _params, { signal }) =>
+      new Promise((_ok, reject) =>
+        signal.addEventListener('abort', () => reject(new Error('Task cancelled')), { once: true }),
+      );
+    const call = adapter.git.signatures('repo', ['a'.repeat(40)]);
+    for (const listener of f.events) listener({ type: 'repositories.changed', resource });
+    await assert.rejects(call, SupersededSignatureRead);
+    f.client.readRepository = async () => {
+      throw new Error('GPG failed');
+    };
+    await assert.rejects(adapter.git.signatures('repo', ['a'.repeat(40)]), /GPG failed/);
+  } finally {
+    adapter.dispose();
+  }
 });
