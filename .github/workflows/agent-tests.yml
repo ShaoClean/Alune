@@ -67,7 +67,10 @@ jobs:
       - run: npm test -w @alune/agent
       - run: npm run build -w web
       - run: npm test -w web
-      - run: npm run test:agent-dev -w web
+      - if: runner.os == 'Linux'
+        run: bash scripts/agent/test-web-gateway-linux.sh
+      - if: runner.os != 'Linux'
+        run: npm run test:agent-dev -w web
       - run: node scripts/agent/check-browser.mjs
       - run: node scripts/agent/check-boundaries.mjs
       - name: 记录构建后的工作区差异
