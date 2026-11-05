@@ -255,6 +255,69 @@ module.exports = async ({
       ['UI-058'],
       'save an isolated log directory and retention limits, reload and verify directory, days and megabytes',
     );
+    await open('layout');
+    await wait(wc, element('.layout-settings'));
+    const persisted = '(async()=>JSON.parse(await window.aluneWorkspace.load()).state)()';
+    const storedLayout = async (expected) => {
+      const until = Date.now() + 10000;
+      let selected;
+      do {
+        const { layout } = await ev(persisted);
+        selected = Object.fromEntries(Object.keys(expected).map((key) => [key, layout[key]]));
+        if (Object.keys(expected).every((key) => selected[key] === expected[key])) return;
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      } while (Date.now() < until);
+      assert.deepEqual(selected, expected, 'native layout preferences did not settle');
+    };
+    const treeSettings = (s) => [
+      s.collapsedConnectionIds,
+      s.connectionOrder,
+      s.repositoryOrderByConnection,
+    ];
+    const treeBefore = treeSettings(await ev(persisted));
+    await click(textButton('恢复默认布局'));
+    const defaults = {
+      sidebarWidth: 236,
+      changesWidth: 320,
+      diffMode: 'unified',
+      sidebarCollapsed: false,
+      changesCollapsed: false,
+    };
+    await storedLayout(defaults);
+    await input(button('工作区宽度'), '308');
+    await input(button('右侧面板宽度'), '468');
+    await click(element('.layout-settings .ant-segmented-item:last-child'));
+    await click(button('显示左侧工作区'));
+    await click(button('显示右侧面板'));
+    await storedLayout({
+      sidebarWidth: 308,
+      changesWidth: 468,
+      diffMode: 'split',
+      sidebarCollapsed: true,
+      changesCollapsed: true,
+    });
+    await open('layout');
+    await wait(wc, isValue(button('工作区宽度'), '308'));
+    assert.equal(await ev('(' + button('右侧面板宽度') + ').value'), '468');
+    for (const label of ['显示左侧工作区', '显示右侧面板'])
+      assert.equal(await ev('(' + button(label) + ').getAttribute("aria-checked")'), 'false');
+    assert.equal(
+      await ev(
+        "document.querySelector('.layout-settings .ant-segmented-item-selected')?.textContent.trim()",
+      ),
+      '分栏',
+    );
+    await pass(
+      ['UI-026'],
+      'change both panel widths, visibility and Diff mode; verify native persistence and reopen settings',
+    );
+    await click(textButton('恢复默认布局'));
+    await storedLayout(defaults);
+    assert.deepEqual(treeSettings(await ev(persisted)), treeBefore);
+    await pass(
+      ['UI-026'],
+      'reset layout to the original dimensions and unified Diff while preserving workspace tree groups and order',
+    );
     await require('./candidate-network-settings.cjs')({
       window,
       origin,

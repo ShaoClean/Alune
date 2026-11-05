@@ -165,10 +165,11 @@ module.exports = async ({
   await fill(confirm, branch);
   await click(primary('确认强制推送'));
   await fact(
-    () => origin('rev-parse', branch) === replacement,
-    'confirmed lease push did not update the isolated upstream',
+    () =>
+      origin('rev-parse', branch) === replacement &&
+      git('rev-parse', 'refs/remotes/origin/' + branch) === replacement,
+    'confirmed lease push did not update both the isolated upstream and its local tracking ref',
   );
-  assert.equal(git('rev-parse', 'refs/remotes/origin/' + branch), replacement);
   assert.equal(git('rev-parse', 'main'), base);
   await pass(
     ['UI-042', 'UI-072'],
