@@ -23,6 +23,7 @@ export async function connectHost(
   proxy: ProxySnapshot,
   signal: AbortSignal,
   priorDigest?: string,
+  stage?: (phase: string) => void,
 ) {
   const ssh = new Client(),
     queue = new SSHChannelQueue();
@@ -107,6 +108,7 @@ export async function connectHost(
         readyTimeout: 20000,
       });
     });
+    stage?.('probing');
     let detected = targetFrom(await command(unixProbe).catch(() => ''));
     if (!detected.target) detected = targetFrom(await command(windowsProbe).catch(() => ''));
     const bundle = await readBundle(directory, detected.target);
@@ -117,6 +119,7 @@ export async function connectHost(
       );
     let forwardPort: number | undefined;
     if (proxy.enabled) {
+      stage?.('forwarding');
       bridge = await createProxyBridge(() => proxy);
       signal.throwIfAborted();
       ssh.on('tcp connection', (info, accept, reject) => {
@@ -149,6 +152,7 @@ export async function connectHost(
       randomUUID(),
       forwardPort,
     );
+    stage?.(policy.install ? 'installing' : 'verifying');
     if (policy.install) await command(commands.upload, await bundle.bytes());
     else if ((await command(commands.installed)) !== 'present')
       throw new ProtocolError(
@@ -158,6 +162,7 @@ export async function connectHost(
     try {
       await command(commands.prepare);
       signal.throwIfAborted();
+      stage?.('starting');
       channel = await open(commands.serve);
     } catch (error) {
       if (!closed) await command(commands.clean).catch(() => {});

@@ -29,7 +29,7 @@ const root = process.argv[2];
   } finally {
     await kernel.close();
   }
-})().catch(() => {
-  process.stderr.write('Settings fixture failed\n');
+})().catch((error) => {
+  process.stderr.write('Settings fixture failed: ' + error.message + '\n');
   process.exitCode = 1;
 });

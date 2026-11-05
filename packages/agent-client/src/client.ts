@@ -814,7 +814,13 @@ export class AgentClient {
     for (const id of this.pending.keys())
       this.settle(
         id,
-        new ProtocolError('disconnected', 'Connection lost; request outcome is unknown', 'unknown'),
+        !this.identity && error instanceof ProtocolError
+          ? error
+          : new ProtocolError(
+              'disconnected',
+              'Connection lost; request outcome is unknown',
+              'unknown',
+            ),
       );
     this.eventQueue = [];
     this.eventBytes = 0;

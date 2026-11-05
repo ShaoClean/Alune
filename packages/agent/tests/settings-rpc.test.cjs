@@ -18,7 +18,13 @@ async function setup(t) {
     root,
     responses,
     async start() {
-      const child = spawnAgent(process.execPath, [fixture, root]);
+      let stderr = '';
+      const child = spawnAgent(process.execPath, [fixture, root], {
+        onStderr: (text) => {
+          stderr = (stderr + text).slice(-4096);
+        },
+      });
+      child.diagnostic = () => stderr;
       children.push(child);
       await child.client.initialize();
       child.client.onEvent((event) => responses.push(event));
@@ -252,7 +258,7 @@ test(
         settings.revision,
       );
       await child.close();
-      assert.equal((await child.exited).code, 0);
+      assert.equal((await child.exited).code, 0, child.diagnostic());
     }
     const last = await f.start();
     assert.equal((await last.client.getAiSettings()).commit.prompt, 'close fixture 11');

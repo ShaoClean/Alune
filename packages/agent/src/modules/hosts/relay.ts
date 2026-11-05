@@ -34,7 +34,8 @@ export class HostRelay {
     private version: string,
     private onIdentity: (identity: InitializeResult) => void,
     private onList: (rows: RepositoryResource[]) => void,
-    private onEnd: () => void,
+    private onEnd: (error: Error) => void,
+    private onCatalogChange: () => void,
   ) {
     wire.onClose((e) => this.close(e));
     wire.onMessage((m) => {
@@ -83,6 +84,18 @@ export class HostRelay {
       const method = m.id && this.pending.get(m.id);
       if (!m.id || !method) throw disconnected();
       this.pending.delete(m.id);
+      if (
+        [
+          'repositories.register',
+          'repositories.unregister',
+          'repositories.pin',
+          'repositories.openRelated',
+          'repositories.write',
+        ].includes(method)
+      ) {
+        this.lastList = undefined;
+        this.onCatalogChange();
+      }
       if (method === 'initialize' && 'result' in m) {
         const id = validateInitialized(m.result);
         if (
@@ -154,6 +167,6 @@ export class HostRelay {
     this.bytes = 0;
     this.waiting?.();
     this.wire.close(error);
-    this.onEnd();
+    this.onEnd(error);
   }
 }

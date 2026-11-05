@@ -35,7 +35,10 @@ type Connection = {
   phase: string;
   gitAvailable: boolean;
   fresh: boolean;
+  failure?: ProtocolError;
   reason?: string;
+  sshConnected?: boolean;
+  failurePhase?: string;
 };
 export function hostsKernel(
   directory: string,
@@ -86,13 +89,17 @@ export function hostsKernel(
   const lookup = (routeId: string, session: string) => {
     const r = [...live.values()].find((v) => v.routeId === routeId && v.session === session);
     if (!r?.relay || r.phase === 'offline')
-      throw new ProtocolError('disconnected', r?.reason ?? 'SSH route is closed', 'unknown');
+      throw (
+        r?.failure ??
+        new ProtocolError('disconnected', r?.reason ?? 'SSH route is closed', 'unknown')
+      );
     return r;
   };
   function stop(r: Connection) {
     r.controller.abort();
     r.relay?.close();
     r.phase = 'offline';
+    r.sshConnected = false;
     r.fresh = false;
   }
   function catalog() {
@@ -105,6 +112,8 @@ export function hostsKernel(
         agentId: s?.agentId ?? null,
         state: r?.phase ?? 'offline',
         reason: r?.reason ?? null,
+        sshConnected: r?.sshConnected ?? false,
+        failurePhase: r?.failurePhase ?? null,
         gitAvailable: r?.phase === 'ready' ? r.gitAvailable : null,
         stale: !r?.fresh,
         repositories: s?.repositories ?? [],
@@ -131,6 +140,8 @@ export function hostsKernel(
     'hosts.open': method(
       validateOpenHost,
       async (p: OpenHostRoute, c) => {
+        const profile = settings.hosts.list().hosts.find((h) => h.id === p.hostId);
+        if (!profile) throw new ProtocolError('not-found', 'Unknown host profile');
         const prev = live.get(p.hostId),
           prior = saved.get(p.hostId);
         if (prev && prev.phase !== 'offline')
@@ -156,8 +167,6 @@ export function hostsKernel(
           AbortSignal.timeout(180000),
         ]);
         try {
-          const profile = settings.hosts.list().hosts.find((h) => h.id === p.hostId);
-          if (!profile) throw new ProtocolError('not-found', 'Unknown host profile');
           if (profile.hasPassword || profile.hasPassphrase || settings.proxy.read().authEnabled)
             await settings.readyCredentials(signal);
           const conn = await connectHost(
@@ -167,6 +176,10 @@ export function hostsKernel(
             settings.proxy.snapshot(),
             signal,
             prior?.digest,
+            (phase) => {
+              r.phase = phase;
+              r.sshConnected = true;
+            },
           );
           try {
             signal.throwIfAborted();
@@ -207,15 +220,23 @@ export function hostsKernel(
               save({ ...s, repositories: rows });
               r.fresh = true;
             },
-            () => {
+            (error) => {
+              if (error instanceof ProtocolError) r.failure = error;
+              r.failurePhase = r.phase;
+              r.reason = error instanceof ProtocolError ? error.message : 'SSH channel closed';
+              r.sshConnected = false;
               clearTimeout(timer);
               r.phase = 'offline';
               r.fresh = false;
               conn.close();
             },
+            () => {
+              r.fresh = false;
+            },
           );
           return { routeId: r.routeId, target: conn.target, gitAvailable: conn.gitAvailable };
         } catch (e) {
+          r.failurePhase = r.phase;
           stop(r);
           r.reason = e instanceof ProtocolError ? e.message : 'SSH connection failed';
           throw e;

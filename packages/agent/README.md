@@ -181,3 +181,5 @@ remote.close();
 旧 SSH 登记可用 `openLegacyRepository(local, remote, hostId, legacyResourceId)` 显式打开；不会把远端路径当作本机路径。Git、文件、Worktree 和 PTY 均在目标机本地执行；远端 Worktree 删除沿用当前/锁定/脏目录和忽略文件保护。本机启用代理时，SSH 和远端 Git 均经过受控代理；反向转发只接受回环来源，不在目标保存代理认证。
 
 SSH EOF、超时或进程退出会结束该路由；目录快照保留并标为陈旧。重连创建新会话并核对上次保存的 Agent 身份，只刷新该主机的目录。写入结果不明时使用同一 Agent 的 `getTask({taskId: operationId})` 并核对仓库或平台；不要重发。原桌面和 HTTP 入口仍可显式用于迁移期恢复。
+
+多个主机可由 SDK 的 `HostWorkspace` 管理：`connect(policy)` 建立连接，`owner(resource)` 只返回该资源的 Agent，`catalog()` 刷新已连接来源并保留离线目录。`for await (const page of workspace.reviews(query))` 按各主机独立游标推进 PR/MR 中心，按项目和编号去重，返回累计结果及不可用 Agent ID；重连后重新开始发现。

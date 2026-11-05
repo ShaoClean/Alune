@@ -83,7 +83,7 @@ async function socksProxy({ credentials, map = (_host, port) => ({ host: '127.0.
   return { ...await listen(server), records };
 }
 
-async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, environment = {} } = {}) {
+async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, password, environment = {} } = {}) {
   const key = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' });
   const forwards = new Map();
   const clients = new Set();
@@ -92,7 +92,10 @@ async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, 
     clients.add(client); client.on('error', () => {});
     const owned = new Set();
     client.on('close', () => { clients.delete(client); for (const port of owned) { forwards.get(port)?.close(); forwards.delete(port); } });
-    client.on('authentication', (context) => context.accept());
+    client.on('authentication', (context) => {
+      if (password !== undefined && (context.method !== 'password' || context.password !== password)) return context.reject(['password']);
+      context.accept();
+    });
     client.on('request', (accept, reject, name, info) => {
       if (name === 'cancel-tcpip-forward') { forwards.get(info.bindPort)?.close(); forwards.delete(info.bindPort); owned.delete(info.bindPort); accept(); return; }
       if (name !== 'tcpip-forward' || deny) return reject();
