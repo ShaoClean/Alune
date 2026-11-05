@@ -52,8 +52,10 @@ for (const pkg of ['domain', 'protocol']) {
       ts.ScriptTarget.Latest,
       true,
     );
-    function check(node) {
-      if (ts.isIdentifier(node))
+    function check(node, parent) {
+      // A DTO property named "fetch" is data, not an access to the global.
+      const propertyName = parent && ts.isPropertyAssignment(parent) && parent.name === node;
+      if (ts.isIdentifier(node) && !propertyName)
         assert(!forbidden.has(node.text), `${file}: I/O/runtime global ${node.text}`);
       if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
         const specifier = node.moduleSpecifier?.text;
@@ -70,7 +72,7 @@ for (const pkg of ['domain', 'protocol']) {
           node.expression.kind !== ts.SyntaxKind.ImportKeyword,
           `${file}: dynamic import outside contract`,
         );
-      ts.forEachChild(node, check);
+      ts.forEachChild(node, (child) => check(child, node));
     }
     check(source);
   }

@@ -36,7 +36,7 @@ export async function writeRevision(
   add([snapshot.revision, intent.kind, intent.args]);
   const git = async (args: string[], absent = false) => {
     const result = await runGit(reader.connection, repo.path, args);
-    if (result.exitCode && !(absent && result.exitCode === 1))
+    if (result.exitCode !== 0 && !(absent && result.exitCode === 1))
       throw new Error('无法核验仓库快照。');
     return result.stdout;
   };
@@ -47,8 +47,15 @@ export async function writeRevision(
   add(await git(['config', '--local', '--null', '--list']));
   if (['stashPop', 'stashApply', 'stashDrop'].includes(intent.kind))
     add(await git(['stash', 'list', '--format=%H']));
-  if (intent.kind === 'stage' || intent.kind === 'checkout') {
-    const paths = intent.args[0] as string[];
+  if (
+    intent.kind === 'stage' ||
+    intent.kind === 'checkout' ||
+    intent.kind === 'resolveConflictFile'
+  ) {
+    const paths =
+      intent.kind === 'resolveConflictFile'
+        ? [intent.args[0] as string]
+        : (intent.args[0] as string[]);
     await assertFileChanges(reader.connection, repo.path, paths, intent.kind === 'stage');
     await reader.connection.withSftp(async (files) => {
       for (const path of paths) {
@@ -67,7 +74,7 @@ export async function writeRevision(
             add(await promisify(files.readlink.bind(files))(target));
           else if (stat.isDirectory()) {
             const head = await runGit(reader.connection, target, ['rev-parse', '--verify', 'HEAD']);
-            if (head.exitCode) throw new Error('无法核验子模块提交。');
+            if (head.exitCode !== 0) throw new Error('无法核验子模块提交。');
             add(head.stdout);
           } else throw new Error('不支持特殊文件。');
         } catch (error) {

@@ -272,3 +272,27 @@ test('interactive rebase rechecks its preview; detached checkout, reword, and re
   await f.write('reset', ['hard', base]);
   assert.equal(f.git('rev-parse', 'HEAD'), base);
 });
+
+test(
+  'disconnect during a real commit hook leaves a queryable unknown receipt and cannot replay',
+  { timeout: 60000 },
+  async (t) => {
+    const f = await fixture(t);
+    f.file('a.txt', 'before disconnect\n');
+    f.git('add', 'a.txt');
+    const hook = path.join(f.repo, '.git', 'hooks', 'pre-commit');
+    fs.writeFileSync(hook, '#!/bin/sh\nprintf called >> hook-count\nsleep 40\n', { mode: 0o755 });
+    const request = await f.prepare('commit', ['disconnected']);
+    const lost = assert.rejects(f.client.writeRepository(request), (e) => e.outcome === 'unknown');
+    for (let n = 0; !fs.existsSync(path.join(f.repo, 'hook-count')); n++) {
+      if (n > 400) throw new Error('hook did not start');
+      await delay(50);
+    }
+    await f.restart();
+    await lost;
+    assert.equal((await f.client.getTask({ taskId: request.operationId })).task.outcome, 'unknown');
+    await rejectsKind(f.client.writeRepository(request), 'duplicate-request');
+    assert.equal(fs.readFileSync(path.join(f.repo, 'hook-count'), 'utf8'), 'called');
+    assert.equal(f.git('rev-list', '--count', 'HEAD'), '1');
+  },
+);

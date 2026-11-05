@@ -14,8 +14,10 @@ const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(valu
 const missing = (error: any) => error?.code === 2 || error?.code === 'ENOENT';
 const fail = (message: string) => new RepositoryFileError(message, 409);
 
-function unsafeMetadataName(part: string) {
+function unsafeMetadataName(root: string, part: string) {
   // Windows 8.3/trailing-dot aliases and HFS ignorable characters.
+  if (part.toLowerCase() === '.git') return true;
+  if (!isWindowsPath(root) && process.platform !== 'darwin') return false;
   return /^(?:\.git|git~[1-9]\d*)$/i.test(
     part.replace(/[\u200c-\u200f\u202a-\u202e\u206a-\u206f\ufeff]/g, '').replace(/[ .]+$/, ''),
   );
@@ -28,7 +30,7 @@ export function validateWorkspaceName(root: string, name: string) {
     name.includes('\0') ||
     name === '.' ||
     name === '..' ||
-    unsafeMetadataName(name)
+    unsafeMetadataName(root, name)
   )
     throw new RepositoryFileError('请输入有效的单个文件名，不能包含路径分隔符或使用 .git。');
   if (
@@ -52,7 +54,7 @@ export class WorkspaceFileActions {
   private async parent(sftp: SFTPWrapper, repo: string, path: string) {
     validateRepositoryPath(repo, path);
     for (const part of path.split('/')) {
-      if (unsafeMetadataName(part)) throw fail('不能访问 Git 元数据。');
+      if (unsafeMetadataName(repo, part)) throw fail('不能访问 Git 元数据。');
       if (isWindowsPath(repo)) validateWorkspaceName(repo, part);
     }
     const root = await promisify(sftp.realpath.bind(sftp))(repo);
@@ -83,10 +85,6 @@ export class WorkspaceFileActions {
 
   private async inspect(repo: string, path: string): Promise<WorkspaceFilePreview> {
     validateRepositoryPath(repo, path);
-    for (const part of path.split('/')) {
-      if (unsafeMetadataName(part)) throw fail('不能访问 Git 元数据。');
-      if (isWindowsPath(repo)) validateWorkspaceName(repo, part);
-    }
     if ((await this.git(repo, ['rev-parse', '--show-prefix'])).trim())
       throw fail('请从仓库根目录操作文件。');
     const parents = path

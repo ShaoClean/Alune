@@ -1,5 +1,4 @@
-import { writeWorkspaceText } from '../adapters/files/workspace-text';
-import type { BranchNameConflict, ResourceRef } from '@alune/domain';
+import type { ResourceRef } from '@alune/domain';
 import {
   ProtocolError,
   isOperationId,
@@ -9,75 +8,15 @@ import {
   type JsonValue,
   type RepositoryResource,
 } from '@alune/protocol';
-import { GitActions, type GitAction, type WriteCatalog } from '../modules/git/actions';
-import { GitCommands } from '../modules/git/git-commands-writes';
+import type { WriteCatalog } from '../modules/git/actions';
 import { GitWorktrees, worktreePathKey } from '../modules/git/worktrees';
-import { InteractiveRebase } from '../modules/git/interactive-rebase';
 import { runGit } from '../modules/git/repository-transport';
 import { RepositoryCatalog } from '../modules/repositories/catalog';
 import { RepositoryReader } from '../modules/repositories/reads';
-import { writeRevision } from '../modules/repositories/write-revision';
 import type { RepositoryTransport } from '../ports/repository-files';
 import type { Handler, HandlerContext } from '../ports/handler';
 import { redactText } from '../adapters/logging/redact';
 
-class Invalid extends ProtocolError {
-  constructor(message: string) {
-    super('invalid-params', message);
-  }
-}
-class Conflict extends ProtocolError {
-  constructor(failure: string | BranchNameConflict) {
-    super(
-      'conflict',
-      typeof failure === 'string' ? failure : failure.message,
-      'not-started',
-      typeof failure === 'string' ? undefined : JSON.parse(JSON.stringify(failure)),
-    );
-  }
-}
-class ActionFailure extends ProtocolError {
-  constructor(message: string, status: number) {
-    super(
-      status === 409 ? 'conflict' : status === 400 ? 'invalid-params' : 'unavailable',
-      message,
-      'unknown',
-    );
-  }
-}
-class Actions extends GitActions {
-  constructor(
-    registry: WriteCatalog,
-    readonly repo: RepositoryResource,
-    readonly transport: RepositoryTransport,
-    readonly onKind: (kind: string) => void,
-  ) {
-    super(registry, { invalid: Invalid, conflict: Conflict, status: ActionFailure });
-  }
-  writeFile(id: string, path: string, content: string, token: string) {
-    return this.write(id, 'write-file', (_git, repo, transport) =>
-      writeWorkspaceText(transport, repo.path, path, content, token),
-    );
-  }
-  protected async write<T>(_id: string, kind: string, operation: GitAction<T>) {
-    this.onKind(kind);
-    if (
-      ![
-        'stage',
-        'unstage',
-        'interactive-rebase',
-        'rebase-conflict',
-        'resolve-conflict',
-        'conflict-continue',
-        'conflict-skip',
-        'conflict-abort',
-      ].includes(kind) &&
-      (await new InteractiveRebase(this.transport).state(this.repo.path)).managed
-    )
-      throw new Conflict('请先完成或中止当前交互式变基。');
-    return operation(new GitCommands(this.transport), this.repo, this.transport);
-  }
-}
 const key = (path: string) =>
   process.platform === 'win32' ? worktreePathKey(path).toLowerCase() : worktreePathKey(path);
 const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value));
@@ -121,7 +60,15 @@ export function repositoryWrites(
           repo = catalog.get(intent.resource);
         const transport = await connect(AbortSignal.any([c.signal, AbortSignal.timeout(120000)]));
         try {
+          const { writeRevision } = await import('../modules/repositories/write-revision');
           return { revision: await writeRevision(new RepositoryReader(transport), repo, intent) };
+        } catch (error) {
+          transport.signal?.throwIfAborted();
+          if (error instanceof ProtocolError) throw error;
+          throw new ProtocolError(
+            'invalid-params',
+            redactText(error instanceof Error ? error.message : '无法核验仓库。'),
+          );
         } finally {
           await transport.close?.();
         }
@@ -144,7 +91,8 @@ export function repositoryWrites(
       validate(p) {
         repositoryShape(p, ['resource', 'operationId']);
         validateResource(p.resource);
-        if (!isOperationId(p.operationId)) throw new Invalid('Invalid operation ID');
+        if (!isOperationId(p.operationId))
+          throw new ProtocolError('invalid-params', 'Invalid operation ID');
       },
       run(p) {
         const { resource, operationId } = p as unknown as {
@@ -153,7 +101,8 @@ export function repositoryWrites(
         };
         catalog.get(resource);
         const a = active.get(resource.resourceId);
-        if (!a || a.operationId !== operationId) throw new Conflict('操作已结束或已被替换。');
+        if (!a || a.operationId !== operationId)
+          throw new ProtocolError('conflict', '操作已结束或已被替换。');
         a.controller.abort();
         return { success: true };
       },
@@ -188,13 +137,18 @@ export function repositoryWrites(
         try {
           notify();
           reader = await connect(signal);
+          const [{ writeRevision }, { Actions }] = await Promise.all([
+            import('../modules/repositories/write-revision'),
+            import('./repository-actions'),
+          ]);
           const trees = new GitWorktrees(reader);
           const result = await runGit(reader, repo.path, [
             'rev-parse',
             '--path-format=absolute',
             '--git-common-dir',
           ]);
-          if (result.exitCode !== 0) throw new Invalid('仓库已移动或无法访问。');
+          if (result.exitCode !== 0)
+            throw new ProtocolError('invalid-params', '仓库已移动或无法访问。');
           const path = key(await trees.canonicalPath(result.stdout.replace(/\r?\n$/, '')));
           if (common.has(path))
             throw new ProtocolError('busy', '共享 Git 数据的 Worktree 正在执行写操作。');
@@ -204,7 +158,7 @@ export function repositoryWrites(
           for (const r of catalog.list())
             if (r.source === 'local' && members.has(key(r.path))) affected.set(r.id, r.resource);
           if ((await writeRevision(new RepositoryReader(reader), repo, intent)) !== intent.revision)
-            throw new Conflict('仓库或文件已变化，请重新预览。');
+            throw new ProtocolError('conflict', '仓库或文件已变化，请重新预览。');
           writer = await connect(signal, true);
           const native = writer;
           let lastProgress = 0;
@@ -296,7 +250,10 @@ export function repositoryWrites(
               '操作已中断，请核对仓库状态。',
               executing ? 'unknown' : 'not-started',
             );
-          if (error instanceof ProtocolError) throw error;
+          if (error instanceof ProtocolError) {
+            if (!executing || error.details || error.outcome === 'unknown') throw error;
+            throw new ProtocolError(error.kind, redactText(error.message), 'unknown');
+          }
           throw new ProtocolError(
             'unavailable',
             redactText(error instanceof Error ? error.message : 'Git 操作失败。'),

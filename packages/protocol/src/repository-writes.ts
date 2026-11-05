@@ -113,6 +113,16 @@ const invalid = (): never => {
   throw new ProtocolError('invalid-params', 'Invalid repository write arguments');
 };
 const text = (v: unknown) => typeof v === 'string' && !v.includes('\0');
+const requiredFields: Record<keyof Objects, string[]> = {
+  signing: ['enabled', 'format', 'signingKey'],
+  partial: ['file', 'action', 'revision', 'selection'],
+  createTag: ['name', 'type'],
+  deleteTag: ['name', 'objectHash', 'confirmed'],
+  pushTag: ['remote'],
+  checkoutTag: ['name', 'objectHash'],
+  rebasePlan: ['base', 'token', 'entries', 'acknowledgePublished'],
+  resolution: ['path', 'token', 'choice'],
+};
 const objectFields: Record<keyof Objects, string[]> = {
   signing: ['enabled', 'format', 'signingKey', 'tagEnabled', 'source'],
   partial: ['file', 'action', 'fullFile', 'revision', 'selection', 'confirmed'],
@@ -127,6 +137,7 @@ function valid(type: string, v: unknown): boolean {
   if (type.endsWith('?')) return v == null || valid(type.slice(0, -1), v);
   if (Object.hasOwn(objectFields, type)) {
     repositoryShape(v, objectFields[type as keyof Objects]);
+    if (!requiredFields[type as keyof Objects].every((key) => Object.hasOwn(v, key))) return false;
     // Domain handlers validate semantics against current Git facts.
     return Object.entries(v).every(([key, item]) => {
       if (
@@ -135,8 +146,31 @@ function valid(type: string, v: unknown): boolean {
         )
       )
         return typeof item === 'boolean';
-      if (key === 'selection') return isRecord(item);
-      if (key === 'entries') return Array.isArray(item) && item.length <= 500;
+      if (key === 'selection')
+        return (
+          isRecord(item) &&
+          Object.keys(item).length === 1 &&
+          ['lines', 'hunks'].some(
+            (k) =>
+              Array.isArray(item[k]) &&
+              item[k].length > 0 &&
+              item[k].length <= 10000 &&
+              item[k].every((index) => Number.isSafeInteger(index) && index >= 0),
+          )
+        );
+      if (key === 'entries')
+        return (
+          Array.isArray(item) &&
+          item.length <= 500 &&
+          item.every(
+            (entry) =>
+              isRecord(entry) &&
+              Object.keys(entry).every((k) => ['hash', 'action', 'message'].includes(k)) &&
+              text(entry.hash) &&
+              ['pick', 'reword', 'squash', 'fixup', 'drop'].includes(String(entry.action)) &&
+              (entry.message === undefined || text(entry.message)),
+          )
+        );
       return text(item);
     });
   }

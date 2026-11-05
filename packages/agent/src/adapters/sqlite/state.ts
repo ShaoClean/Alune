@@ -1,3 +1,4 @@
+import { ProtocolError } from '@alune/protocol';
 import Database from 'better-sqlite3';
 import { createHash, randomUUID } from 'node:crypto';
 import {
@@ -296,7 +297,7 @@ export class AgentState {
         .update(task.requestId + ':' + task.method)
         .digest('hex');
     return {
-      start: (task) => {
+      start: (task, operationId) => {
         this.assertOpen();
         this.database
           .transaction(() => {
@@ -306,6 +307,19 @@ export class AgentState {
                 'This mutation request was already recorded; query its task and current state instead of replaying it',
                 'unknown',
               );
+            if (operationId) {
+              const inserted = this.database
+                .prepare(
+                  "INSERT OR IGNORE INTO resource_ids (id,kind,local_key) VALUES (?, 'git-operation', ?)",
+                )
+                .run(operationId, task.requestId);
+              if (!inserted.changes)
+                throw new ProtocolError(
+                  'duplicate-request',
+                  'Operation already recorded; query its task and repository facts',
+                  'unknown',
+                );
+            }
             this.database
               .prepare('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, NULL)')
               .run(

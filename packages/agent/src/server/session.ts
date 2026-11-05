@@ -270,15 +270,9 @@ export class AgentSession {
             'unavailable',
             'A durable journal is required for repository writes',
           );
-        if (this.options.taskJournal.find({ taskId: operationId }))
-          throw new ProtocolError(
-            'duplicate-request',
-            'Operation already recorded; query its task and repository facts',
-            'unknown',
-          );
       }
       const controller = new AbortController();
-      task = {
+      const admitted: TaskInfo = {
         taskId: operationId ?? randomUUID(),
         requestId: message.id,
         method: message.method,
@@ -288,9 +282,10 @@ export class AgentSession {
         startedAt: Date.now(),
       };
       if (handler.effect === 'mutation' && handler.durable !== false && this.options.taskJournal) {
-        this.options.taskJournal.start(task);
+        this.options.taskJournal.start(admitted, operationId);
         journalActive = true;
       }
+      task = admitted;
       this.tasks.set(message.id, { info: task, controller, journaled: journalActive });
       this.taskEvent(task);
       const value = await handler.run(message.params, {
