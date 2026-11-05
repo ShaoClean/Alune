@@ -4,6 +4,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 const [phase] = process.argv.slice(2);
+for (const file of [
+  'packages/agent/package.json',
+  'apps/web/package.json',
+  'apps/desktop/src/legacy-agent-secrets.cjs',
+])
+  assert.ok(fs.existsSync(file), 'required sparse source missing: ' + file);
 assert.ok(
   ['before-install', 'after-install'].includes(phase),
   'expected before-install or after-install',
