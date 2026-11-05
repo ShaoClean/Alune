@@ -60,7 +60,13 @@ test(
     assert.equal(saved.providers.find((p) => p.id === 'openai').hasApiKey, true);
     assert.equal(saved.secretStorage.available, true);
     f.responses.push(saved);
-    const stale = saved.revision;
+    const edited = await client.saveAiProvider(
+      'openai',
+      { ...input, apiKey: undefined },
+      saved.revision,
+    );
+    assert.equal(edited.providers.find((p) => p.id === 'openai').hasApiKey, true);
+    const stale = edited.revision;
     const results = await Promise.allSettled([
       client.saveCommitPreferences({ ...saved.commit, prompt: 'first concurrent' }, stale),
       client.saveCommitPreferences({ ...saved.commit, prompt: 'second concurrent' }, stale),

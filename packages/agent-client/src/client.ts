@@ -235,10 +235,14 @@ export class AgentClient {
     revision: string,
     options: RequestOptions = {},
   ): Promise<AiSettings> {
+    // The settings form uses undefined to keep a stored secret and null to
+    // clear it. Only the latter is a field on the JSON wire.
+    const { apiKey, ...fields } = provider;
+    const payload = apiKey === undefined ? fields : { ...fields, apiKey };
     return this.decode(
       this.request(
         'settings.ai.saveProvider',
-        { ...(id === undefined ? {} : { id }), provider, revision } as unknown as JsonValue,
+        { ...(id === undefined ? {} : { id }), provider: payload, revision } as unknown as JsonValue,
         options,
       ),
       validateAiSettings,
