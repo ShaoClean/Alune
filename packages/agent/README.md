@@ -1,6 +1,6 @@
 # @alune/agent
 
-独立 Node Agent，提供会话运行时、版本化状态、配置与凭据、代理、诊断及仓库/文件/Git 读取能力。Git 写操作与终端业务按后续阶段接入；桌面默认入口保持现状。
+独立 Node Agent，提供会话运行时、版本化状态、配置与凭据、代理、诊断及仓库/文件/Git 读取能力。协议 1.3 可执行本机 Git、文件和 Worktree 写操作；终端由后续阶段接入；桌面默认入口保持现状。
 
 CLI、握手和独立包的应用版本在构建时读取根 package.json，遵循仓库唯一版本来源；workspace 包自身版本不作为对外发行版本。
 
@@ -105,7 +105,7 @@ node scripts/agent/test-packaged.mjs /tmp/alune-agent-package
 每次查询使用 `agentId + resourceId`，不能用路径代替已登记资源，也不能将远端登记误作本机目录。
 
 `repositories.read` 的 `kind` 包括：`status/context/worktrees/branches/remotes/stashes/stashDiff/tags/log/diff/editableDiff/diffImage/commitFiles/tree/file/blame/blameCommit/analytics/signing/signatures/submodules/lfs/snapshot`。
-查询类型和返回值由 `@alune/protocol` 定义，原 `ssh-client` 导出继续转发到这些读取模块；旧 Git/文件写操作保持原执行者。
+查询类型和返回值由 `@alune/protocol` 定义，原 `ssh-client` 导出继续转发到这些读取模块；旧写入口和 Agent 入口复用同一套 Git 业务规则。
 
 原生 Git 以结构化 argv 执行，读取设置 `GIT_OPTIONAL_LOCKS=0`，不刷新索引。部分克隆仍可能补取对象，沿用本机代理及失败即中止规则；本地 LFS 预览只读缓存。
 离线查询不要求解锁无关的 AI/账户密钥。文件读取通过文件系统端口，保留路径、符号链接、编码、大小和二进制边界。
@@ -124,3 +124,21 @@ node scripts/agent/test-packaged.mjs /tmp/alune-agent-package
 
 隔离验收使用 `apps/web/src/api/agent-repositories.ts` 的显式查询适配器；订阅 `repositories.changed` 后按 UI 仓库 ID 映射资源。
 正式桌面/Web 默认入口尚未切换，部署和远程路由遵循后续阶段。
+
+## 仓库写入（协议 1.3）
+
+选定 Agent 执行器后，仓库操作只投递给该 Agent。协议只接受有类型的操作名和参数，不提供任意 Git argv 或 shell 接口。目标须为本机已登记资源。受支持操作和参数见 `@alune/protocol` 的 `RepositoryWriteKind` / `RepositoryWriteArgs`；包括文件、暂存、提交、签名、分支/标签/储藏、同步、冲突/变基、子模块与 Worktree 管理。协议 1.2 和更早的会话不会公布写能力。
+
+```ts
+const intent = { resource, kind: 'stage' as const, args: [['README.md']] as [string[]] };
+const revision = await client.prepareRepositoryWrite(intent);
+const operationId = crypto.randomUUID(); // 投递前保存；即使响应丢失也能查询
+await client.writeRepository({ ...intent, revision, operationId });
+const receipt = await client.getTask({ taskId: operationId });
+```
+
+`repositories.prepareWrite` 不执行写入。执行时重新读取 HEAD、索引、refs、配置，并验证意图及操作相关的文件内容、预览令牌或确认参数。文件新增、替换与删除均受仓库路径边界限制；写文本使用 UTF-8，同目录临时文件完成写入后才替换。预览和校验不构成对外部编辑器或其他 Git 进程的全局事务。
+
+同一 Agent 内，按登记仓库和规范化 common Git 目录拒绝重叠写入；Git 自身仍负责外部进程间的引用/索引锁。仓库变化使已登记的关联 Worktree 读缓存失效。`repositories.operation` 返回当前操作及进度；`repositories.cancelWrite` 必须同时匹配资源和 operationId。按操作 ID 的持久回执不保存文件内容、命令输出或凭据。失败、中断或超时可能已有副作用；重连后查回执与实际仓库状态，不自动重试。缺少回执不代表可以重新执行。
+
+Web 的显式适配器支持选择测试资源；未选择资源继续走原入口。生产默认切换和远程 Agent 运行分别由 P8、P7 验收；当前独立 Agent 不托管终端，不能在旧宿主仍拥有终端的真实仓库上混用隔离夹具。

@@ -319,7 +319,8 @@ export const gitApi = {
   submodules: (id: string, action: 'update' | 'sync') =>
     api.post(`/repositories/${id}/submodules`, { action }, gitTimeout).then((r) => r.data),
   operation: (id: string) => api.get(`/repositories/${id}/operation`).then((r) => r.data),
-  cancel: (id: string) => api.post(`/repositories/${id}/operation/cancel`).then((r) => r.data),
+  cancel: (id: string, _operationId?: string) =>
+    api.post(`/repositories/${id}/operation/cancel`).then((r) => r.data),
   deepen: (id: string, remote?: string) =>
     api.post(`/repositories/${id}/history/deepen`, { remote }, gitTimeout).then((r) => r.data),
   renameBranch: (id: string, name: string, newName: string) =>

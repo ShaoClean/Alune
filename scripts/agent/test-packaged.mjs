@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { spawnAgent } from '../../packages/agent-client/dist/node.js';
@@ -143,6 +143,19 @@ try {
     (await a.client.readRepository(repository.resource, 'file', { path: 'fixture.txt' })).content,
     'after\n',
   );
+  const mutate = async (kind, args) => {
+    const intent = { resource: repository.resource, kind, args };
+    const request = {
+      ...intent,
+      revision: await a.client.prepareRepositoryWrite(intent),
+      operationId: randomUUID(),
+    };
+    await a.client.writeRepository(request);
+    return request;
+  };
+  await mutate('stage', [['fixture.txt']]);
+  const committed = await mutate('commit', ['packaged write']);
+  assert.equal(git('log', '-1', '--format=%s').toString().trim(), 'packaged write');
   const settings = await a.client.getAiSettings();
   assert.equal(settings.secretStorage.available, false);
   const update = a.client.startRequest('settings.ai.saveCommit', {
@@ -167,6 +180,12 @@ try {
   assert.notEqual(second.sessionId, first.sessionId);
   assert.equal((await b.client.getAiSettings()).revision, saved.revision);
   assert.deepEqual(await b.client.getTask({ requestId: update.requestId }), receipt);
+  assert.equal((await b.client.getTask({ taskId: committed.operationId })).task.state, 'succeeded');
+  await assert.rejects(
+    b.client.writeRepository(committed),
+    (error) => error.kind === 'duplicate-request',
+  );
+  assert.equal(git('rev-list', '--count', 'HEAD').toString().trim(), '2');
   await b.close();
   assert.equal((await b.exited).code, 0);
   const capsule = path.join(data, 'fixture.recovery');

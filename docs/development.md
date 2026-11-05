@@ -156,16 +156,16 @@ npm run test:terminals -w desktop -- --packaged
 
 运行 `node apps/web/tests/signing-fixture.cjs` 可打开生产界面做签名验收。fixture 使用临时 SSH 密钥、本地 SSH 服务与独立数据目录，输出本地和远端仓库 URL；退出时清理。Windows 的测试 SSH 服务暂不支持执行命令，只运行本地用例。发布前仍需在各平台实际确认 GPG／SSH agent 和桌面 pinentry；使用说明见[提交签名](commit-signing.md)。
 
-### Agent 仓库读取验收
+### Agent 仓库读写验收
 
-P3 默认入口保持旧路径；开发者可在一次性夹具中接入新查询：
+默认入口保持旧路径；开发者可在一次性夹具中接入 Agent 读写：
 
 ```sh
 node scripts/agent/browser-reads-fixture.mjs
 ```
 
 该脚本使用临时仓库和数据目录，启动本机 Web、旧写入口与 stdio Agent 的测试 WebSocket 桥。
-在测试页面动态导入 `/tests/agent-browser.ts` 并调用 `connectFixture()` 后，所选夹具仓库的读取经过真实 Browser SDK/Agent；写入仍执行一次旧入口，并协调读取失效。
+在测试页面动态导入 `/tests/agent-browser.ts` 并调用 `connectFixture()` 后，所选夹具仓库的 Git 读取、预览与写入经过真实 Browser SDK/Agent；未映射的仓库保留旧入口。写入失败时不切换执行者。
 结束时关闭返回的连接，并停止脚本清理临时资源。此桥只用于本机测试，不是对外部署入口。
 
 现有 `scripts/agent-baseline.cjs` 支持 `ALUNE_BASELINE_READS_ONLY=1` 仅测 P3 读取；

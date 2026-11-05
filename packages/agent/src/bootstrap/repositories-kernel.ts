@@ -1,3 +1,4 @@
+import { repositoryWrites } from './repository-writes';
 import {
   ProtocolError,
   REPOSITORY_CHUNK_BYTES,
@@ -33,7 +34,7 @@ const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value));
 export function repositoriesKernel(
   db: SqlDatabase,
   agentId: string,
-  connection: (signal: AbortSignal) => Promise<RepositoryTransport>,
+  connection: (signal: AbortSignal, write?: boolean) => Promise<RepositoryTransport>,
 ) {
   const catalog = new RepositoryCatalog(db, agentId);
   const reads = new RepositoryReads();
@@ -121,6 +122,7 @@ export function repositoriesKernel(
     ) as Promise<import('@alune/domain').RepositoryAnalytics>;
   });
   const handlers: Record<string, Handler> = {
+    ...repositoryWrites(catalog, connection, changed),
     'repositories.analytics': handler(
       'query',
       (p) => {

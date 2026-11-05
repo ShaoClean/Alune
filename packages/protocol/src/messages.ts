@@ -1,6 +1,6 @@
 import type { ResourceRef } from '@alune/domain';
 
-export const PROTOCOL_VERSION = Object.freeze({ major: 1, minor: 2 });
+export const PROTOCOL_VERSION = Object.freeze({ major: 1, minor: 3 });
 export const MAX_FRAME_BYTES = 8 * 1024 * 1024;
 export const MAX_EVENT_QUEUE_BYTES = 1024 * 1024;
 export const MAX_EVENT_QUEUE_LENGTH = 256;
@@ -102,6 +102,7 @@ export class ProtocolError extends Error {
     public readonly kind: ErrorKind,
     message: string,
     public readonly outcome: Outcome = 'not-started',
+    public readonly details?: JsonValue,
   ) {
     super(message);
     this.name = 'ProtocolError';
@@ -110,7 +111,11 @@ export class ProtocolError extends Error {
     return {
       code: ERROR_CODES[this.kind],
       message: this.message,
-      data: { kind: this.kind, outcome: this.outcome },
+      data: {
+        kind: this.kind,
+        outcome: this.outcome,
+        ...(this.details === undefined ? {} : { details: this.details }),
+      },
     };
   }
 }

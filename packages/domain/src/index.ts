@@ -10,3 +10,5 @@ export interface ResourceRef {
   agentId: string;
   resourceId: string;
 }
+export * from './rebase';
+export * from './merge-conflicts';

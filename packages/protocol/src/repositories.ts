@@ -1,4 +1,10 @@
 import type {
+  RebasePreview,
+  RebaseState,
+  RebaseConflict,
+  WorkspaceFilePreview,
+  NewFileDeletionPreview,
+  DiscardChangesPreview,
   BlameCommitDetail,
   BlameOptions,
   BlameResult,
@@ -72,6 +78,12 @@ export interface RepositoryQueryMap {
   signatures: { params: { hashes: string[] }; result: CommitSignature[] };
   submodules: { params: {}; result: SubmoduleInfo[] };
   lfs: { params: {}; result: LfsStatus };
+  previewRebase: { params: { base: string }; result: RebasePreview };
+  rebaseState: { params: {}; result: RebaseState };
+  rebaseConflict: { params: { path: string }; result: RebaseConflict };
+  previewWorkspaceFile: { params: { path: string }; result: WorkspaceFilePreview };
+  previewNewFileDeletion: { params: { path: string }; result: NewFileDeletionPreview };
+  previewDiscardChanges: { params: {}; result: DiscardChangesPreview };
   snapshot: { params: {}; result: RepositorySnapshot };
 }
 export type RepositoryQueryKind = keyof RepositoryQueryMap;
@@ -133,6 +145,12 @@ const fields: Record<RepositoryQueryKind, string[]> = {
   signatures: ['hashes'],
   submodules: [],
   lfs: [],
+  previewRebase: ['base'],
+  rebaseState: [],
+  rebaseConflict: ['path'],
+  previewWorkspaceFile: ['path'],
+  previewNewFileDeletion: ['path'],
+  previewDiscardChanges: [],
   snapshot: [],
 };
 export function repositoryShape(
@@ -200,6 +218,10 @@ export function validateRepositoryQuery(value: unknown): RepositoryQuery {
       diffImage: ['file', 'side'],
       commitFiles: ['commit'],
       signatures: ['hashes'],
+      previewRebase: ['base'],
+      rebaseConflict: ['path'],
+      previewWorkspaceFile: ['path'],
+      previewNewFileDeletion: ['path'],
       stashDiff: ['index'],
     } as Record<string, string[]>
   )[kind] ?? []) {
@@ -425,6 +447,27 @@ export function validateRepositoryValue<K extends RepositoryQueryKind>(
         (typeof v.enabled !== 'boolean' ||
           typeof v.signingKey !== 'string' ||
           typeof v.format !== 'string')
+      )
+        invalid();
+      if (kind === 'previewRebase' && (typeof v.token !== 'string' || !Array.isArray(v.commits)))
+        invalid();
+      if (kind === 'rebaseState' && (typeof v.managed !== 'boolean' || !Array.isArray(v.conflicts)))
+        invalid();
+      if (kind === 'rebaseConflict' && (typeof v.token !== 'string' || typeof v.path !== 'string'))
+        invalid();
+      if (
+        kind === 'previewWorkspaceFile' &&
+        (typeof v.token !== 'string' || typeof v.canModify !== 'boolean')
+      )
+        invalid();
+      if (
+        kind === 'previewNewFileDeletion' &&
+        (typeof v.token !== 'string' || typeof v.staged !== 'boolean')
+      )
+        invalid();
+      if (
+        kind === 'previewDiscardChanges' &&
+        (typeof v.token !== 'string' || !Number.isInteger(v.tracked))
       )
         invalid();
       if (kind === 'snapshot') {

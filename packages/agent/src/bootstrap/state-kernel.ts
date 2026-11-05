@@ -37,7 +37,7 @@ export async function openStateKernel(
   const repositories = repositoriesKernel(
     state.database,
     agentId,
-    async (signal) =>
+    async (signal, write) =>
       new NativeRepositoryConnection(
         signal,
         async () => {
@@ -47,7 +47,7 @@ export async function openStateKernel(
           if (config.enabled && config.authEnabled) await settings.readyCredentials(signal);
           return settings.proxy.snapshot();
         },
-        true,
+        !write,
         () => {
           try {
             return settings.proxy.read().enabled;

@@ -1,4 +1,4 @@
-// Disposable real Web + legacy writes + Agent-query fixture for browser acceptance.
+// Disposable real Web + Agent repository read/write fixture for browser acceptance.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

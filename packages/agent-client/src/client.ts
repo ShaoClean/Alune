@@ -29,6 +29,12 @@ import type {
   VersionResult,
 } from '@alune/protocol';
 import {
+  isRecord,
+  isOperationId,
+  validateWriteIntent,
+  type RepositoryWriteKind,
+  type RepositoryWriteIntent,
+  type RepositoryWriteRequest,
   encodeMessage,
   MAX_EVENT_QUEUE_BYTES,
   MAX_EVENT_QUEUE_LENGTH,
@@ -413,6 +419,56 @@ export class AgentClient {
   invalidateRepository(resource: ResourceRef, options?: RequestOptions): Promise<JsonValue> {
     return this.request('repositories.invalidate', { resource } as unknown as JsonValue, options);
   }
+  async prepareRepositoryWrite<K extends RepositoryWriteKind>(
+    intent: RepositoryWriteIntent<K>,
+    options?: RequestOptions,
+  ): Promise<string> {
+    const body = JSON.parse(JSON.stringify(intent));
+    validateWriteIntent(body);
+    return this.decode(
+      this.request('repositories.prepareWrite', body, { timeoutMs: 125000, ...options }),
+      (value) => {
+        if (
+          !isRecord(value) ||
+          typeof value.revision !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(value.revision)
+        )
+          throw new ProtocolError('invalid-request', 'Invalid write revision');
+        return value.revision;
+      },
+    );
+  }
+  writeRepository<K extends RepositoryWriteKind>(
+    request: RepositoryWriteRequest<K>,
+    options?: RequestOptions,
+  ): Promise<JsonValue> {
+    const body = JSON.parse(JSON.stringify(request));
+    validateWriteIntent(body, true);
+    return this.request('repositories.write', body, { timeoutMs: 310000, ...options });
+  }
+  repositoryOperation(resource: ResourceRef) {
+    return this.decode(
+      this.request('repositories.operation', { resource } as unknown as JsonValue),
+      (value) => {
+        if (value === null) return null;
+        if (
+          !isRecord(value) ||
+          !isOperationId(value.operationId) ||
+          typeof value.kind !== 'string' ||
+          typeof value.startedAt !== 'number' ||
+          typeof value.cancelling !== 'boolean'
+        )
+          throw new ProtocolError('invalid-request', 'Invalid active operation');
+        return { ...value, operationId: value.operationId };
+      },
+    );
+  }
+  cancelRepositoryWrite(resource: ResourceRef, operationId: string) {
+    return this.request('repositories.cancelWrite', {
+      resource,
+      operationId,
+    } as unknown as JsonValue);
+  }
   async readRepository<K extends RepositoryQueryKind>(
     resource: ResourceRef,
     kind: K,
@@ -699,6 +755,7 @@ export class AgentClient {
               message.error.data.kind,
               message.error.message,
               message.error.data.outcome,
+              message.error.data.details,
             ),
           );
         else this.settle(id, undefined, message.result);

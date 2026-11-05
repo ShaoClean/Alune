@@ -1,3 +1,10 @@
+import {
+  isRepositoryWriteKind,
+  ProtocolError,
+  validateRepositoryResource,
+  type RepositoryWriteArgs,
+  type RepositoryWriteKind,
+} from '@alune/protocol';
 import type { AgentClient } from '@alune/agent-client';
 import type { RepositoryQueryKind, RepositoryQueryMap, ResourceRef } from '@alune/protocol';
 import type { repositoryApi, gitApi } from './index';
@@ -57,16 +64,14 @@ const gitQueries: Partial<Record<keyof GitApi, Query>> = {
     select: (diff) => ({ diff }),
   }),
 };
-// Preview/control queries that remain on the legacy path until P4.
-const legacyGitReads = new Set([
-  'previewRebase',
-  'rebaseState',
-  'rebaseConflict',
-  'operation',
-  'previewWorkspaceFile',
-  'previewNewFileDeletion',
-  'previewDiscardChanges',
-]);
+const previews: Partial<Record<keyof GitApi, Query>> = {
+  previewRebase: (_id, base) => ({ kind: 'previewRebase', params: { base } }),
+  rebaseState: empty('rebaseState'),
+  rebaseConflict: (_id, path) => ({ kind: 'rebaseConflict', params: { path } }),
+  previewWorkspaceFile: (_id, path) => ({ kind: 'previewWorkspaceFile', params: { path } }),
+  previewNewFileDeletion: (_id, path) => ({ kind: 'previewNewFileDeletion', params: { path } }),
+  previewDiscardChanges: empty('previewDiscardChanges'),
+};
 const legacyRepositoryWrites = new Set([
   'pin',
   'delete',
@@ -84,8 +89,18 @@ export function createAgentRepositoryQueries(
   resourceFor: (id: string) => ResourceRef | undefined,
   legacyRepository: RepositoryApi,
   legacyGit: GitApi,
+  executor: 'agent' | 'legacy' = 'agent',
 ) {
   let disposed = false;
+  const related = new Map<string, ResourceRef>();
+  const resolve = (id: string) => related.get(id) ?? resourceFor(id);
+  const observed = new Map<string, string>();
+  const remember = (value: unknown, parent: ResourceRef) => {
+    const repo = validateRepositoryResource(value);
+    if (repo.resource.agentId !== parent.agentId) throw new Error('Agent 仓库身份不匹配。');
+    related.set(repo.id, repo.resource);
+    return repo;
+  };
   const versions = new Map<string, number>();
   const dirty = new Set<string>();
   const pending = new Map<string, Set<AbortController>>();
@@ -146,10 +161,71 @@ export function createAgentRepositoryQueries(
         name,
         async (...args: any[]) => {
           // Capture once; reconnecting or changing selection cannot reroute an in-flight task.
-          const resource = typeof args[0] === 'string' ? resourceFor(args[0]) : undefined;
+          const resource = typeof args[0] === 'string' ? resolve(args[0]) : undefined;
           if (!resource) return fn(...args);
           const read = queries[name as keyof T];
           if (read) return query({ ...resource }, read(...args));
+          if (executor === 'agent') {
+            if (disposed) throw new Error('Agent 适配器已关闭。');
+            const target = { ...resource },
+              id = key(target);
+            if (legacy === (legacyGit as object)) {
+              if (name === 'operation') {
+                const op = await client.repositoryOperation(target);
+                if (op) observed.set(id, op.operationId);
+                else observed.delete(id);
+                return op;
+              }
+              if (name === 'cancel') {
+                const op = args[1] ?? observed.get(id);
+                if (!op) throw new Error('操作已结束或尚未开始，请刷新状态。');
+                return client.cancelRepositoryWrite(target, op);
+              }
+              if (!isRepositoryWriteKind(name)) throw new Error('Agent 不支持此 Git 操作。');
+              const intent = {
+                resource: target,
+                kind: name,
+                args: (name === 'removeWorktree'
+                  ? [args[1], true]
+                  : args.slice(1)) as RepositoryWriteArgs<RepositoryWriteKind>,
+              };
+              const revision = await client.prepareRepositoryWrite(intent);
+              if (disposed) throw new Error('Agent 适配器已关闭。');
+              const operationId = crypto.randomUUID();
+              observed.set(id, operationId);
+              bump(id);
+              try {
+                const value = await client.writeRepository({ ...intent, revision, operationId });
+                return name === 'createWorktree' ? remember(value, target) : value;
+              } catch (error) {
+                if (
+                  error instanceof ProtocolError &&
+                  error.details &&
+                  typeof error.details === 'object' &&
+                  'code' in error.details &&
+                  error.details.code === 'LOCAL_BRANCH_EXISTS'
+                )
+                  throw Object.assign(error, { response: { data: error.details } });
+                if (error instanceof ProtocolError && error.outcome !== 'unknown') throw error;
+                const receipt = await client.getTask({ taskId: operationId }).catch(() => null);
+                throw new Error(
+                  `${error instanceof Error ? error.message : 'Git 操作未完成'}（操作 ${operationId}；${receipt?.task?.state === 'succeeded' ? '已执行成功，响应丢失' : '请刷新仓库核对结果'}，请勿重复执行。）`,
+                );
+              } finally {
+                if (observed.get(id) === operationId) observed.delete(id);
+                bump(id);
+              }
+            }
+            if (name === 'openWorktree' || name === 'openSubmodule')
+              return remember(
+                await client.openRelatedRepository(
+                  target,
+                  args[1],
+                  name === 'openWorktree' ? 'worktree' : 'submodule',
+                ),
+                target,
+              );
+          }
           if (!isWrite(name)) return fn(...args);
           const target = { ...resource };
           await invalidate(target);
@@ -168,7 +244,7 @@ export function createAgentRepositoryQueries(
     legacyRepositoryWrites.has(name),
   );
   repository.analytics = async (ids, collect = false, refresh = false, signal) => {
-    const selected = ids.map((id) => ({ id, resource: resourceFor(id) }));
+    const selected = ids.map((id) => ({ id, resource: resolve(id) }));
     const resources = selected.flatMap((item) => (item.resource ? [item.resource] : []));
     const other = selected.filter((item) => !item.resource).map((item) => item.id);
     for (const resource of resources) if (dirty.has(key(resource))) await invalidate(resource);
@@ -192,7 +268,11 @@ export function createAgentRepositoryQueries(
   };
   return {
     repository,
-    git: wrap(legacyGit, gitQueries, (name) => !legacyGitReads.has(name)),
+    git: wrap(
+      legacyGit,
+      executor === 'agent' ? { ...gitQueries, ...previews } : gitQueries,
+      (name) => name !== 'operation' && !Object.hasOwn(previews, name),
+    ),
     invalidate,
     dispose() {
       disposed = true;
@@ -233,6 +313,41 @@ export function installAgentRepositoryQueries(
       for (const name of Object.keys(installed))
         if ((target as any)[name] === (installed as any)[name])
           (target as any)[name] = (previous as any)[name];
+    }
+  };
+}
+
+/** F10 host-file seam: only the host router knows which registered root owns
+ * the legacy connection/path. Unmapped SSH files retain the P7 transport. */
+export function createAgentFileWrite(
+  client: AgentClient,
+  locate: (
+    connectionId: string,
+    path: string,
+  ) => { resource: ResourceRef; relativePath: string } | undefined,
+  legacy: (connectionId: string, path: string, content: string) => Promise<unknown>,
+) {
+  return async (connectionId: string, path: string, content: string) => {
+    const target = locate(connectionId, path);
+    if (!target) return legacy(connectionId, path, content);
+    const resource = { ...target.resource };
+    const preview = await client.readRepository(resource, 'previewWorkspaceFile', {
+      path: target.relativePath,
+    });
+    const intent = {
+      resource,
+      kind: 'writeFile' as const,
+      args: [target.relativePath, content, preview.token] as [string, string, string],
+    };
+    const operationId = crypto.randomUUID(),
+      revision = await client.prepareRepositoryWrite(intent);
+    try {
+      return await client.writeRepository({ ...intent, operationId, revision });
+    } catch (error) {
+      if (error instanceof ProtocolError && error.outcome !== 'unknown') throw error;
+      throw new Error(`文件写入结果未知（操作 ${operationId}），请查询状态并核对文件。`, {
+        cause: error,
+      });
     }
   };
 }

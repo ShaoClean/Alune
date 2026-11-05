@@ -7,6 +7,9 @@ import type { CommandOptions, CommandResult, GitProcessPort } from './process';
 export interface FileStats {
   mode: number;
   size: number;
+  mtime: number | Date;
+  uid: number;
+  gid: number;
   isFile(): boolean;
   isDirectory(): boolean;
   isSymbolicLink(): boolean;
@@ -21,7 +24,23 @@ export interface RepositoryFileSystem {
     path: string,
     callback: Callback<Array<{ filename: string; attrs: { mode?: number; size?: number } }>>,
   ): void;
-  open(path: string, mode: 'r', callback: Callback<Buffer>): void;
+  open(path: string, mode: 'wx' | 'w', permissions: number, callback: Callback<Buffer>): void;
+  open(path: string, mode: 'r' | 'w', callback: Callback<Buffer>): void;
+  write(
+    handle: Buffer,
+    bytes: Buffer,
+    offset: number,
+    length: number,
+    position: number,
+    callback: (error?: Error | null) => void,
+  ): void;
+  mkdir(path: string, attrs: { mode: number }, callback: (error?: Error | null) => void): void;
+  mkdir(path: string, callback: (error?: Error | null) => void): void;
+  unlink(path: string, callback: (error?: Error | null) => void): void;
+  rmdir(path: string, callback: (error?: Error | null) => void): void;
+  rename(source: string, destination: string, callback: (error?: Error | null) => void): void;
+  createWriteStream(path: string, options: { flags: 'a' }): import('node:stream').Writable;
+
   read(
     handle: Buffer,
     buffer: Buffer,

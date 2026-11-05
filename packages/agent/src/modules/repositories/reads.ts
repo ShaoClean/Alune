@@ -1,3 +1,7 @@
+import { InteractiveRebase } from '../git/interactive-rebase';
+import { WorkspaceFileActions } from '../git/workspace-file-actions';
+import { NewFileDeletion } from '../git/new-file-deletion';
+import { DiscardChanges } from '../git/discard-changes';
 import type { RepositoryContext, RepositoryStatus } from '@alune/domain';
 import {
   ProtocolError,
@@ -186,6 +190,21 @@ export class RepositoryReader {
         return this.status(path);
       case 'context':
         return this.context(path);
+      case 'previewRebase':
+        return new InteractiveRebase(this.connection).preview(path, query.params.base);
+      case 'rebaseState':
+        return new InteractiveRebase(this.connection).state(path);
+      case 'rebaseConflict':
+        return new InteractiveRebase(this.connection).conflict(path, query.params.path);
+      case 'previewWorkspaceFile':
+        return new WorkspaceFileActions(this.connection).preview(path, query.params.path);
+      case 'previewNewFileDeletion':
+        return new NewFileDeletion(this.connection).preview(path, query.params.path);
+      case 'previewDiscardChanges':
+        return {
+          ...(await new DiscardChanges(this.connection).preview(path)),
+          repositoryName: repo.name,
+        };
       case 'snapshot':
         return this.snapshot(repo);
       case 'worktrees':

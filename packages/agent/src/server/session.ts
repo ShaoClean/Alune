@@ -263,9 +263,23 @@ export class AgentSession {
         void Promise.resolve(validation).catch(() => {});
         throw new ProtocolError('internal', 'Handler validation must be synchronous');
       }
+      const operationId = handler.operationId?.(message.params);
+      if (operationId) {
+        if (!this.options.taskJournal)
+          throw new ProtocolError(
+            'unavailable',
+            'A durable journal is required for repository writes',
+          );
+        if (this.options.taskJournal.find({ taskId: operationId }))
+          throw new ProtocolError(
+            'duplicate-request',
+            'Operation already recorded; query its task and repository facts',
+            'unknown',
+          );
+      }
       const controller = new AbortController();
       task = {
-        taskId: randomUUID(),
+        taskId: operationId ?? randomUUID(),
         requestId: message.id,
         method: message.method,
         effect: handler.effect,

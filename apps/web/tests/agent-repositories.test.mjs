@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createAgentRepositoryQueries } from '../src/api/agent-repositories.ts';
 const resource = { agentId: 'agent', resourceId: 'resource' };
-const make = () => {
+const make = (executor = 'legacy') => {
   const calls = [],
     events = [];
   const client = {
@@ -41,6 +41,7 @@ const make = () => {
       (id) => (id === 'repo' ? resource : undefined),
       old,
       git,
+      executor,
     ),
   };
 };
@@ -104,4 +105,27 @@ test('resource change/resync rejects pending reads and disposal detaches listene
   await rejected;
   f.adapter.dispose();
   assert.equal(f.events.length, 0);
+});
+test('selected P4 write sends the approved revision once, then queries its exact operation on unknown outcome', async () => {
+  const f = make('agent');
+  let dispatched;
+  f.client.prepareRepositoryWrite = async (intent) => {
+    assert.deepEqual(intent, { resource, kind: 'stage', args: [['a']] });
+    return 'revision';
+  };
+  f.client.writeRepository = async (req) => {
+    assert(!dispatched);
+    dispatched = req;
+    throw new Error('disconnected');
+  };
+  f.client.getTask = async (q) => {
+    assert.deepEqual(q, { taskId: dispatched.operationId });
+    return { task: { state: 'unknown' } };
+  };
+  await assert.rejects(f.adapter.git.stage('repo', ['a']), /请勿重复执行/);
+  assert.equal(dispatched.revision, 'revision');
+  assert.deepEqual(f.calls, []);
+  await f.adapter.git.stage('unmapped', ['a']);
+  assert.deepEqual(f.calls, ['stage']);
+  f.adapter.dispose();
 });

@@ -20,6 +20,7 @@ export interface HandlerContext {
 }
 export interface Handler {
   minimumProtocolMinor?: number;
+  operationId?(params: JsonValue | undefined): string;
   effect: 'query' | 'mutation';
   // Diagnostic telemetry can be session-scoped; business mutations stay durable.
   durable?: boolean;
