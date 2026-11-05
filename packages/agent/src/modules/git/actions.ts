@@ -2,7 +2,7 @@ import { isAbsolute, relative, resolve, dirname, basename, sep } from 'node:path
 import { promisify } from 'node:util';
 import { GitCommands } from './git-commands-writes';
 import { GitSubmodules } from './submodules-writes';
-import { WorkspaceFileActions } from './workspace-file-actions';
+import { StaleWorkspaceFilePreview, WorkspaceFileActions } from './workspace-file-actions';
 import { RepositoryFileError, validateRepositoryPath } from './repository-files';
 import { GitSigning } from './git-signing-writes';
 import { PartialChanges, PartialChangesError } from './partial-changes-writes';
@@ -55,6 +55,7 @@ export abstract class GitActions {
     protected readonly errors: {
       invalid: new (message: string) => Error;
       conflict: new (message: string | BranchNameConflict) => Error;
+      staleWorkspacePreview?: new (message: string) => Error;
       status: new (message: string, status: number) => Error;
     },
   ) {}
@@ -145,6 +146,8 @@ export abstract class GitActions {
           name,
         );
       } catch (error) {
+        if (error instanceof StaleWorkspaceFilePreview)
+          throw new (this.errors.staleWorkspacePreview ?? this.errors.conflict)(error.message);
         if (error instanceof RepositoryFileError)
           throw new this.errors.status(error.message, error.statusCode);
         throw error;

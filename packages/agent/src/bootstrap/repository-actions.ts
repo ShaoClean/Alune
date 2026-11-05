@@ -21,6 +21,11 @@ class Conflict extends ProtocolError {
     );
   }
 }
+class StalePreview extends ProtocolError {
+  constructor(message: string) {
+    super('conflict', message, 'not-started', { code: 'STALE_WORKSPACE_FILE_PREVIEW' });
+  }
+}
 class ActionFailure extends ProtocolError {
   constructor(message: string, status: number) {
     super(
@@ -37,7 +42,12 @@ export class Actions extends GitActions {
     readonly transport: RepositoryTransport,
     readonly onKind: (kind: string) => void,
   ) {
-    super(registry, { invalid: Invalid, conflict: Conflict, status: ActionFailure });
+    super(registry, {
+      invalid: Invalid,
+      conflict: Conflict,
+      staleWorkspacePreview: StalePreview,
+      status: ActionFailure,
+    });
   }
   writeFile(id: string, path: string, content: string, token: string) {
     return this.write(id, 'write-file', (_git, repo, transport) =>

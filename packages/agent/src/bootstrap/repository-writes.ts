@@ -8,7 +8,6 @@ import {
   type JsonValue,
   type RepositoryResource,
 } from '@alune/protocol';
-import { StaleWorkspaceFilePreview } from '../modules/git/workspace-file-actions';
 import type { WriteCatalog } from '../modules/git/actions';
 import { GitWorktrees, worktreePathKey } from '../modules/git/worktrees';
 import { runGit } from '../modules/git/repository-transport';
@@ -250,8 +249,6 @@ export function repositoryWrites(
               '操作已中断，请核对仓库状态。',
               executing ? 'unknown' : 'not-started',
             );
-          if (error instanceof StaleWorkspaceFilePreview)
-            throw new ProtocolError('conflict', error.message, 'not-started');
           if (error instanceof ProtocolError) {
             if (!executing || error.details || error.outcome === 'unknown') throw error;
             throw new ProtocolError(error.kind, redactText(error.message), 'unknown');
