@@ -423,6 +423,13 @@ try {
       ],
     }),
   );
+} catch (error) {
+  const catalog = await local.request('hosts.catalog').catch(() => null);
+  console.error(
+    'SSH fixture phases:',
+    catalog?.hosts?.map(({ state, failurePhase, reason }) => ({ state, failurePhase, reason })),
+  );
+  throw error;
 } finally {
   other?.close();
   remote?.close();

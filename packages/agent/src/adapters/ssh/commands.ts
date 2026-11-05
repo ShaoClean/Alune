@@ -3,7 +3,11 @@
 const sh = (s: string) => "sh -c '" + s.replaceAll("'", "'\\''") + "'";
 const ps = (s: string) =>
   'powershell.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand ' +
-  Buffer.from("$ErrorActionPreference='Stop';" + s, 'utf16le').toString('base64');
+  Buffer.from(
+    "$ErrorActionPreference='Stop';[Environment]::CurrentDirectory=(Get-Location).ProviderPath;" +
+      s,
+    'utf16le',
+  ).toString('base64');
 export const unixProbe = sh('uname -s && uname -m; git --version || :');
 export const windowsProbe = ps(
   "[Console]::WriteLine('Windows');[Console]::WriteLine([System.Environment]::GetEnvironmentVariable('PROCESSOR_ARCHITECTURE'));if(Get-Command git -ErrorAction SilentlyContinue){git --version}",
@@ -46,34 +50,20 @@ export function bootstrapCommands(
     return {
       installed: ps("if(Test-Path -LiteralPath '" + archive + "'){[Console]::Write('present')}"),
       upload: ps(
-        "[IO.Directory]::CreateDirectory('" +
-          base +
-          "') | Out-Null;try{$f=[IO.File]::Open('" +
-          temp +
-          "','CreateNew');try{[Console]::OpenStandardInput().CopyTo($f)}finally{$f.Dispose()};if(" +
-          hash(temp) +
-          " -ne '" +
-          digest +
-          "'){throw 'checksum'};Move-Item -Force -LiteralPath '" +
-          temp +
-          "' -Destination '" +
-          archive +
-          "'}finally{Remove-Item -Force '" +
-          temp +
-          "' -ErrorAction SilentlyContinue}",
+        `[IO.Directory]::CreateDirectory('${base}') | Out-Null;
+         try {
+           $f=[IO.File]::Open('${temp}','CreateNew');
+           try { [Console]::OpenStandardInput().CopyTo($f) } finally { $f.Dispose() }
+           if (${hash(temp)} -ne '${digest}') { throw 'checksum' }
+           Move-Item -Force -LiteralPath '${temp}' -Destination '${archive}';
+         } finally { if ([IO.File]::Exists('${temp}')) { [IO.File]::Delete('${temp}') } }
+         exit 0`,
       ),
       prepare: ps(
-        'if(' +
-          hash(archive) +
-          " -ne '" +
-          digest +
-          "'){throw 'checksum'};New-Item -ItemType Directory '" +
-          run +
-          "' | Out-Null;tar.exe -xzf '" +
-          archive +
-          "' -C '" +
-          run +
-          "';exit $LASTEXITCODE",
+        `if (${hash(archive)} -ne '${digest}') { throw 'checksum' }
+         New-Item -ItemType Directory '${run}' | Out-Null;
+         & (Join-Path $env:SystemRoot 'System32/tar.exe') -xzf '${archive}' -C '${run}';
+         exit $LASTEXITCODE`,
       ),
       clean: ps(
         "Remove-Item -Force -Recurse -LiteralPath '" + run + "' -ErrorAction SilentlyContinue",

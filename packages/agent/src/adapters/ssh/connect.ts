@@ -25,6 +25,11 @@ export async function connectHost(
   priorDigest?: string,
   stage?: (phase: string) => void,
 ) {
+  let phase = 'authentication';
+  const transition = (next: string) => {
+    phase = next;
+    stage?.(next);
+  };
   const ssh = new Client(),
     queue = new SSHChannelQueue();
   const sockets = new Set<Socket>();
@@ -108,7 +113,7 @@ export async function connectHost(
         readyTimeout: 20000,
       });
     });
-    stage?.('probing');
+    transition('probing');
     let detected = targetFrom(await command(unixProbe).catch(() => ''));
     if (!detected.target) detected = targetFrom(await command(windowsProbe).catch(() => ''));
     const bundle = await readBundle(directory, detected.target);
@@ -119,7 +124,7 @@ export async function connectHost(
       );
     let forwardPort: number | undefined;
     if (proxy.enabled) {
-      stage?.('forwarding');
+      transition('forwarding');
       bridge = await createProxyBridge(() => proxy);
       signal.throwIfAborted();
       ssh.on('tcp connection', (info, accept, reject) => {
@@ -165,7 +170,7 @@ export async function connectHost(
       randomUUID(),
       forwardPort ?? (proxy.enabled ? 'blocked' : undefined),
     );
-    stage?.(policy.install ? 'installing' : 'verifying');
+    transition(policy.install ? 'installing' : 'verifying');
     if (policy.install) await command(commands.upload, await bundle.bytes());
     else if ((await command(commands.installed)) !== 'present')
       throw new ProtocolError(
@@ -173,9 +178,10 @@ export async function connectHost(
         'SSH bundle is not installed; explicitly install it first',
       );
     try {
+      transition('unpacking');
       await command(commands.prepare);
       signal.throwIfAborted();
-      stage?.('starting');
+      transition('starting');
       channel = await open(commands.serve);
     } catch (error) {
       if (!closed) await command(commands.clean).catch(() => {});
@@ -198,10 +204,7 @@ export async function connectHost(
     bridge?.close();
     signal.throwIfAborted();
     if (error instanceof ProtocolError) throw error;
-    throw new ProtocolError(
-      'unavailable',
-      'SSH authentication, forwarding or verified Agent deployment failed',
-    );
+    throw new ProtocolError('unavailable', 'SSH Agent ' + phase + ' failed');
   } finally {
     signal.removeEventListener('abort', abort);
   }
