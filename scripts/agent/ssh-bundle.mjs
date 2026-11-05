@@ -1,6 +1,8 @@
 // Provision only trusted build output. RPC clients cannot choose a local file or URL.
 import {
   readFileSync,
+  openSync,
+  closeSync,
   writeFileSync,
   mkdirSync,
   realpathSync,
@@ -44,10 +46,18 @@ const staging = mkdtempSync(join(dest, '.build-'));
 try {
   const file = join(staging, 'agent.tar.gz');
   // Only manifest-listed files enter the archive; archive paths have no build-directory prefix.
-  execFileSync('tar', ['-czf', file, '-T', '-'], {
-    cwd: source,
-    input: ['manifest.json', ...names].join('\n') + '\n',
-  });
+  // GNU tar treats C: as a remote host. Let Node own the output path;
+  // piping tar's binary stdout into an fd also avoids buffering the archive.
+  const output = openSync(file, 'wx', 0o600);
+  try {
+    execFileSync('tar', ['-czf', '-', '-T', '-'], {
+      cwd: source,
+      stdio: ['pipe', output, 'pipe'],
+      input: ['manifest.json', ...names].join('\n') + '\n',
+    });
+  } finally {
+    closeSync(output);
+  }
   const pin = {
     target: manifest.target,
     version: manifest.version,

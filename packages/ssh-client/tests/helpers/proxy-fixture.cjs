@@ -119,7 +119,15 @@ async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, 
         const child = spawn(info.command, { shell: true, cwd, env: { ...process.env, ...environment } });
         child.stdout.pipe(channel, { end: false }); child.stderr.pipe(channel.stderr, { end: false }); channel.pipe(child.stdin);
         child.stdin.on('error', () => {}); channel.on('error', () => {});
-        channel.once('close', () => child.kill());
+        channel.once('close', () => {
+          // A protocol session ends through stdin EOF. Let the remote shell reap
+          // its Agent and remove the run directory before forcing an unresponsive child.
+          if (!cwd) { child.kill(); return; }
+          child.stdin.end();
+          if (child.exitCode !== null || child.signalCode) return;
+          const timer = setTimeout(() => child.kill(), 15000);
+          timer.unref(); child.once('close', () => clearTimeout(timer));
+        });
         child.once('close', (code) => { if (!channel.destroyed) { channel.exit(code ?? 1); channel.end(); } });
       });
     });
