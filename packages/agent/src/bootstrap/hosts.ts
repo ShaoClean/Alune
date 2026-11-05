@@ -1,3 +1,4 @@
+import { sshTerminalEnvironment } from '@alune/domain';
 import type { LegacyRepositoryReads } from '../ports/legacy-repository-reads';
 import type { SnapshotRequest } from '../modules/hosts/snapshot';
 import { randomUUID } from 'node:crypto';
@@ -34,6 +35,7 @@ type Connection = {
   controller: AbortController;
   routeId: string;
   hostId: string;
+  terminalEnvironment: string;
   relay?: HostRelay;
   phase: string;
   gitAvailable: boolean;
@@ -123,7 +125,7 @@ export function hostsKernel(
               initialPath: repo?.path ?? '',
               source: 'ssh',
               connectionId: r.hostId,
-              environment: 'SSH',
+              environment: r.terminalEnvironment,
               state: 'running',
               createdAt: r.updatedAt ?? 0,
             };
@@ -149,6 +151,7 @@ export function hostsKernel(
         r = live.get(p.id);
       return {
         hostId: p.id,
+        terminalEnvironment: r?.terminalEnvironment ?? sshTerminalEnvironment(p),
         agentId: s?.agentId ?? null,
         hostKey: s?.hostKey ?? null,
         state: r?.phase ?? 'offline',
@@ -306,6 +309,7 @@ export function hostsKernel(
           controller: new AbortController(),
           routeId: randomUUID(),
           hostId: p.hostId,
+          terminalEnvironment: sshTerminalEnvironment(profile),
           phase: 'connecting',
           gitAvailable: false,
           fresh: false,

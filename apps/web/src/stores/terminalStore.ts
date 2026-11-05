@@ -1,3 +1,4 @@
+import { sshTerminalEnvironment } from '@alune/domain';
 import { AgentClient, terminalChannel } from '@alune/agent-client';
 import { TERMINAL_TOPICS, type JsonValue, type TerminalCommand } from '@alune/protocol';
 import { uiAgent } from '../api/ui-agent';
@@ -49,7 +50,15 @@ async function request<T = undefined>(event: string, payload: unknown): Promise<
     const body = payload as { sessionId: string; repositoryId: string; requestId: string };
     if (command === 'create') {
       const { repositoryId, ...input } = body;
-      const { client, resource } = await repositoryTarget(repositoryId);
+      const { client, resource, alias, terminalEnvironment } = await repositoryTarget(repositoryId);
+      if (alias.source === 'ssh') {
+        // Older brokers omit the public display label from their catalog.
+        const profile = !terminalEnvironment &&
+          (await uiAgent.listHostProfiles()).hosts.find((host) => host.id === alias.connectionId);
+        patch(body.requestId, {
+          environment: terminalEnvironment || (profile ? sshTerminalEnvironment(profile) : 'SSH'),
+        });
+      }
       owners.set(body.requestId, client);
       return (await client.request('terminals.create', {
         ...input,
@@ -160,7 +169,9 @@ export function connectTerminals() {
               repositoryId: original.repositoryId,
               source: original.source,
               connectionId: original.connectionId,
-              environment: original.environment,
+              environment: original.source === 'ssh' || window.aluneAgent
+                ? original.environment
+                : info.environment || original.environment,
             });
         } else if (event.type === 'terminal:output')
           outputEvent(event.payload as unknown as TerminalOutput);
@@ -411,7 +422,7 @@ export async function createTerminal(repo: Repository) {
     initialPath: repo.path,
     source: repo.source || 'ssh',
     connectionId: repo.connectionId,
-    environment: repo.source === 'local' ? 'Alune 服务主机' : 'SSH',
+    environment: repo.source === 'local' ? (window.aluneAgent ? '本机' : 'Alune 服务主机') : 'SSH',
     state: 'connecting',
     createdAt: Date.now(),
   };

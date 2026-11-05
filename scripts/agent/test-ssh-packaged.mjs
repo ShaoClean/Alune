@@ -281,7 +281,22 @@ try {
   const otherEvents = [];
   other.onEvent((event) => otherEvents.push(event));
   await other.subscribe(['terminal:state', 'terminal:output', 'terminal:removed']);
-  await terminal.terminalScenario(remote, target.resource, target.path);
+  const alias = await local.request('hosts.bindRepository', { resource: target.resource });
+  const display = 'SSH · test SSH · fixture@127.0.0.1';
+  assert.equal(catalog.hosts.find((h) => h.hostId === host.id).terminalEnvironment, display);
+  await terminal.terminalScenario(remote, target.resource, target.path, async (sessionIds) => {
+    await assert.rejects(
+      local.request('workspace.remove', { kind: 'repository', id: alias.id, sessions: [] }),
+      (e) => {
+        assert.equal(e.details?.code, 'TERMINAL_CONFIRM_REQUIRED');
+        assert.deepEqual(e.details.sessions.map((s) => s.requestId).sort(), [...sessionIds].sort());
+        assert.ok(
+          e.details.sessions.every((s) => s.environment === display && s.connectionId === host.id),
+        );
+        return true;
+      },
+    );
+  });
   assert.deepEqual(otherEvents, []);
   assert.deepEqual(await other.request('terminals.list', {}), []);
   const write = async (kind, args, r = target.resource) => {

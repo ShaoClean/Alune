@@ -64,7 +64,11 @@ test('two windows share committed state, not terminal ownership, request IDs or 
     await a.request('terminals.create', { resource, requestId: id, cols: 80, rows: 24 });
     await until(() => shellReady, 'owned terminal starts');
     assert.deepEqual(await b.request('terminals.list', {}), []);
-    assert.equal((await native.request('desktop.terminals.impact', {}))[0].id, id);
+    const impact = (await native.request('desktop.terminals.impact', {}))[0];
+    assert.equal(impact.id, id);
+    assert.equal(impact.environment, '本机');
+    const running = (await a.request('terminals.list', {})).find((s) => s.id === id);
+    assert.equal(running.environment, 'Alune 服务主机 · ' + require('node:os').hostname());
     a.close();
     for (let i = 0; i < 100 && (await native.request('desktop.terminals.impact', {})).length; i++)
       await new Promise((r) => setTimeout(r, 40));

@@ -27,6 +27,7 @@ type Binding = { localId: string; resource: ResourceRef };
 type Host = {
   hostId: string;
   hostKey: string | null;
+  terminalEnvironment?: string;
   state: string;
   reason: string | null;
   gitProxy: string | null;
@@ -35,7 +36,12 @@ type Host = {
   updatedAt: number;
   bindings: Binding[];
 };
-export type Target = { client: AgentClient; resource: ResourceRef; alias: RepositoryResource };
+export type Target = {
+  client: AgentClient;
+  resource: ResourceRef;
+  alias: RepositoryResource;
+  terminalEnvironment?: string;
+};
 export let repositoryTarget: (id: string) => Promise<Target>;
 export const agentOwners = new Set<AgentClient>();
 const ownerListeners = new Set<(client: AgentClient) => void>();
@@ -141,7 +147,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
     const resource =
       binding?.resource ?? (await openLegacyRepository(local, client, hostId, id)).resource;
     if (resource.agentId !== client.initialized?.agentId) throw new Error('服务器仓库身份不匹配。');
-    return { client, resource, alias };
+    return { client, resource, alias, terminalEnvironment: host?.terminalEnvironment };
   };
   async function remove(kind: 'host' | 'repository', id: string) {
     const expected =

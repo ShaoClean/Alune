@@ -203,7 +203,9 @@ export async function openStateKernel(
         run: () =>
           JSON.parse(
             JSON.stringify([
-              ...repositories.terminals.registry.impact({}),
+              ...repositories.terminals.registry
+                .impact({})
+                .map((session) => ({ ...session, environment: '本机' })),
               ...(hosts?.remoteTerminals() ?? []),
             ]),
           ),

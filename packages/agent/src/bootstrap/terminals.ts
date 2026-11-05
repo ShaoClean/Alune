@@ -1,3 +1,4 @@
+import { hostname } from 'node:os';
 import { terminalHandlers } from '../modules/terminals/handlers';
 import { ProtocolError } from '@alune/protocol';
 import { TerminalRegistry, TerminalSessions } from '../modules/terminals';
@@ -13,7 +14,7 @@ export function terminalsKernel(catalog: RepositoryCatalog) {
       repositoryName: repo.name,
       initialPath: repo.path,
       source: 'local',
-      environment: '本机',
+      environment: `Alune 服务主机 · ${hostname()}`,
       open: (cols, rows, signal, callbacks) =>
         supervisedTerminal(repo.path, cols, rows, signal, callbacks),
     };

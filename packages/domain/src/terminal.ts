@@ -36,3 +36,12 @@ export type TerminalReply<T = undefined> = { ok: true; value: T } | { ok: false;
 
 export const terminalNeedsConfirmation = (session: Pick<TerminalSession, 'state'>) =>
   session.state === 'running' || session.state === 'connecting';
+
+/** Public SSH profile fields shown next to a terminal and in its close confirmation. */
+export function sshTerminalEnvironment(profile: {
+  name: string;
+  username: string;
+  host: string;
+}): string {
+  return `SSH · ${profile.name} · ${profile.username}@${profile.host}`;
+}

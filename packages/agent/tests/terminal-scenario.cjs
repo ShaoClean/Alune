@@ -12,7 +12,7 @@ async function until(check, description) {
     await delay(15);
   }
 }
-async function terminalScenario(client, resource, repo) {
+async function terminalScenario(client, resource, repo, whileRunning) {
   const run = (command, params) => client.request('terminals.' + command, params);
   const create = (requestId) => run('create', { resource, requestId, cols: 80, rows: 24 });
   const id = randomUUID(),
@@ -54,6 +54,7 @@ async function terminalScenario(client, resource, repo) {
       'two real shells running',
     );
     assert.equal(states.get(id).initialPath, repo);
+    if (whileRunning) await whileRunning([id, second]);
     await assert.rejects(
       run('close', { sessionId: id, confirmed: false }),
       (e) => e.kind === 'conflict',
