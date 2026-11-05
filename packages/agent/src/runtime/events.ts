@@ -46,7 +46,7 @@ export class EventQueue {
   subscribe(topics: string[]): void {
     this.topics = new Set(topics);
   }
-  private matches(type: string): boolean {
+  subscribed(type: string): boolean {
     return this.topics.has('*') || this.topics.has(type);
   }
   private item(
@@ -79,7 +79,7 @@ export class EventQueue {
     return { event: owned, bytes, reliable };
   }
   notifyState(type: string, payload: JsonValue, resource?: ResourceRef): void {
-    if (this.ended || !this.matches(type)) return;
+    if (this.ended || !this.subscribed(type)) return;
     const item = this.item(type, payload, resource, false);
     const index = this.queue.findIndex(
       (old) =>
@@ -113,7 +113,7 @@ export class EventQueue {
     if (this.ended) return Promise.reject(this.ended);
     if (signal?.aborted)
       return Promise.reject(new ProtocolError('cancelled', 'Stream write cancelled'));
-    if (!this.matches(type))
+    if (!this.subscribed(type))
       return Promise.reject(
         new ProtocolError('invalid-params', 'Subscribe before writing a reliable stream'),
       );
@@ -203,6 +203,9 @@ export class EventQueue {
       method: 'agent.event',
       params: { ...item.event, sequence } as unknown as JsonValue,
     }).catch((error) => this.fail(error));
+  }
+  failStream(error: Error): void {
+    if (!this.ended) this.fail(error);
   }
   private fail(error: Error): void {
     this.close(error);

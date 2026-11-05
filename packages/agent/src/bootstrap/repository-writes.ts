@@ -24,6 +24,7 @@ export function repositoryWrites(
   catalog: RepositoryCatalog,
   connect: (signal: AbortSignal, write?: boolean) => Promise<RepositoryTransport>,
   changed: (c: HandlerContext, r: ResourceRef) => unknown,
+  terminals: Pick<WriteCatalog, 'withoutTerminals'>,
 ): Record<string, Handler> {
   type Active = {
     operationId: string;
@@ -214,9 +215,7 @@ export function repositoryWrites(
             async delete(id) {
               return catalog.unregister({ agentId: catalog.agentId, resourceId: id });
             },
-            // This isolated Agent does not host terminals until P5. Its shared
-            // directory lock is held through Git removal and catalog updates.
-            withoutTerminals: (_ids, work) => work(),
+            withoutTerminals: (ids, work) => terminals.withoutTerminals(ids, work),
           };
           const actions = new Actions(registry, repo, transport, (kind) => {
             if (a.kind !== kind) {

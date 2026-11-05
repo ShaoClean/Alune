@@ -62,6 +62,18 @@
     "./native-repository": {
       "types": "./dist/adapters/git/native.d.ts",
       "default": "./dist/adapters/git/native.js"
+    },
+    "./terminals": {
+      "types": "./dist/modules/terminals/index.d.ts",
+      "default": "./dist/modules/terminals/index.js"
+    },
+    "./local-pty": {
+      "types": "./dist/adapters/pty/local.d.ts",
+      "default": "./dist/adapters/pty/local.js"
+    },
+    "./supervised-pty": {
+      "types": "./dist/adapters/pty/supervised.d.ts",
+      "default": "./dist/adapters/pty/supervised.js"
     }
   },
   "typesVersions": {
@@ -89,6 +101,15 @@
       ],
       "native-repository": [
         "dist/adapters/git/native.d.ts"
+      ],
+      "terminals": [
+        "dist/modules/terminals/index.d.ts"
+      ],
+      "local-pty": [
+        "dist/adapters/pty/local.d.ts"
+      ],
+      "supervised-pty": [
+        "dist/adapters/pty/supervised.d.ts"
       ]
     }
   }

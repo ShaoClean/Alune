@@ -1,3 +1,4 @@
+import terminalChecks from '../../packages/agent/tests/terminal-scenario.cjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -143,6 +144,7 @@ try {
     (await a.client.readRepository(repository.resource, 'file', { path: 'fixture.txt' })).content,
     'after\n',
   );
+  await terminalChecks.terminalScenario(a.client, repository.resource, repository.path);
   const mutate = async (kind, args) => {
     const intent = { resource: repository.resource, kind, args };
     const request = {
@@ -238,6 +240,7 @@ console.log(
           : 'file-backend-covered-by-agent-tests',
     state: 'configuration revision and mutation receipt survived restart',
     recovery: 'encrypted CLI capsule restored identity and public configuration',
+    terminals: 'real repository PTY, independent renderer ACK, input/resize/exit/close passed',
     repositories: 'packaged registration/status/diff/log/file passed without ssh-client',
     node: doctor.node,
     electron: 'not resolvable',

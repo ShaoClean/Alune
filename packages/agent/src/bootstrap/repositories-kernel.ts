@@ -1,3 +1,4 @@
+import { terminalsKernel } from './terminals';
 import { repositoryWrites } from './repository-writes';
 import {
   ProtocolError,
@@ -37,6 +38,7 @@ export function repositoriesKernel(
   connection: (signal: AbortSignal, write?: boolean) => Promise<RepositoryTransport>,
 ) {
   const catalog = new RepositoryCatalog(db, agentId);
+  const terminals = terminalsKernel(catalog);
   const reads = new RepositoryReads();
   const snapshots = new Map<string, Snapshot>();
   function prune() {
@@ -122,7 +124,8 @@ export function repositoriesKernel(
     ) as Promise<import('@alune/domain').RepositoryAnalytics>;
   });
   const handlers: Record<string, Handler> = {
-    ...repositoryWrites(catalog, connection, changed),
+    ...terminals.handlers,
+    ...repositoryWrites(catalog, connection, changed, terminals.registry),
     'repositories.analytics': handler(
       'query',
       (p) => {
@@ -154,6 +157,8 @@ export function repositoriesKernel(
     'repositories.list': handler('query', validateEmpty, () => catalog.list()),
     'repositories.get': handler('query', resourceParam, (p) => catalog.get(p.resource, false)),
     'repositories.unregister': handler('mutation', resourceParam, (p, c) => {
+      terminals.registry.assertRemovable({ repositoryId: catalog.get(p.resource, false).id });
+      terminals.registry.remove({ repositoryId: p.resource.resourceId });
       const removed = catalog.unregister(p.resource);
       changed(c, removed.resource);
       return { resource: removed.resource, removed: true };
@@ -328,7 +333,7 @@ export function repositoriesKernel(
   return {
     handlers,
     async close() {
-      await Promise.all([reads.close(), analytics.close()]);
+      await Promise.all([reads.close(), analytics.close(), terminals.close()]);
       snapshots.clear();
     },
   };

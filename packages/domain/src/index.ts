@@ -12,3 +12,4 @@ export interface ResourceRef {
 }
 export * from './rebase';
 export * from './merge-conflicts';
+export * from './terminal';

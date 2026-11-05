@@ -1,6 +1,6 @@
 # @alune/agent
 
-独立 Node Agent，提供会话运行时、版本化状态、配置与凭据、代理、诊断及仓库/文件/Git 读取能力。协议 1.3 可执行本机 Git、文件和 Worktree 写操作；终端由后续阶段接入；桌面默认入口保持现状。
+独立 Node Agent，提供会话运行时、版本化状态、配置与凭据、代理、诊断及仓库/文件/Git 读取能力。协议 1.3 可执行本机 Git、文件和 Worktree 写操作；协议 1.4 支持本机仓库终端；桌面默认入口保持现状。
 
 CLI、握手和独立包的应用版本在构建时读取根 package.json，遵循仓库唯一版本来源；workspace 包自身版本不作为对外发行版本。
 
@@ -142,3 +142,11 @@ const receipt = await client.getTask({ taskId: operationId });
 同一 Agent 内，按登记仓库和规范化 common Git 目录拒绝重叠写入；Git 自身仍负责外部进程间的引用/索引锁。仓库变化使已登记的关联 Worktree 读缓存失效。`repositories.operation` 返回当前操作及进度；`repositories.cancelWrite` 必须同时匹配资源和 operationId。按操作 ID 的持久回执不保存文件内容、命令输出或凭据。失败、中断或超时可能已有副作用；重连后查回执与实际仓库状态，不自动重试。缺少回执不代表可以重新执行。
 
 Web 的显式适配器支持选择测试资源；未选择资源继续走原入口。生产默认切换和远程 Agent 运行分别由 P8、P7 验收；当前独立 Agent 不托管终端，不能在旧宿主仍拥有终端的真实仓库上混用隔离夹具。
+
+## 终端（协议 1.4）
+
+订阅 `terminal:state`、`terminal:output`、`terminal:removed` 后，调用 `terminals.create({resource, requestId, cols, rows})`。resource 必须指向本 Agent 已登记的仓库；客户端不能指定 cwd、shell 或窗口身份。每个协议会话最多保留 8 个终端，包括已退出但未关闭的终端。通过 `terminals.list({})` 查询本窗口，`input/resize/close` 使用 sessionId；运行中的会话必须显式确认关闭。协议 1.3 及以前不公布这些方法。
+
+协议事件 ACK 负责通道交付，`terminals.ack({sessionId, sequence})` 在 xterm 解析完对应包后发送。每个终端独立等待解析 ACK，等待期间仍可操作其他终端；缓冲达 64 KiB 暂停读取，超过 256 KiB 或 30 秒无解析确认则停止该终端。视图挂载和标签切换不决定 PTY 寿命。stdio EOF、窗口通道断开和 Agent 退出会清理所属会话；重启后必须显式新建。独立 PTY worker 监测父进程 IPC，Agent 被强制终止时也会回收 shell 和前台任务。终端输入、输出和会话均不持久化。
+
+桌面可在已认证的仓库页面用 `?terminalExecutor=agent` 选择终端 RPC，复用已有仓库目录、SSH 通道和退出确认。独立 Agent 只运行本机仓库终端；SSH 远程 Agent 路由留给 P7。

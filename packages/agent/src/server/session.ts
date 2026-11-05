@@ -35,6 +35,7 @@ export class AgentSession {
   readonly events: EventQueue;
   readonly closed: Promise<void>;
   private resolveClosed!: () => void;
+  private lifecycle = new AbortController();
   private initialized = false;
   private protocolMinor = 0;
   private closing?: Promise<void>;
@@ -291,6 +292,7 @@ export class AgentSession {
       const value = await handler.run(message.params, {
         agentId: this.options.agentId,
         sessionId: this.sessionId,
+        sessionSignal: this.lifecycle.signal,
         taskId: task.taskId,
         signal: controller.signal,
         events: this.events,
@@ -376,6 +378,7 @@ export class AgentSession {
     this.closing = Promise.resolve();
     this.failure = error;
     for (const dispose of this.disposers) dispose();
+    this.lifecycle.abort();
     this.events.close(error);
     for (const task of this.tasks.values())
       if (task.info.state === 'running') task.controller.abort();

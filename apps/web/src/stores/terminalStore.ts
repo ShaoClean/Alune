@@ -1,3 +1,5 @@
+import { AgentClient, terminalChannel } from '@alune/agent-client';
+import { TERMINAL_TOPICS, type JsonValue, type TerminalCommand } from '@alune/protocol';
 import { useTerminalStore } from './terminalState';
 import type { ViewSession } from './terminalState';
 export { useTerminalStore, terminalStateLabel } from './terminalState';
@@ -18,6 +20,7 @@ type Runtime = {
 };
 const runtimes = new Map<string, Runtime>();
 let socket: Socket | undefined;
+let agent: AgentClient | undefined;
 let references = 0;
 const patch = (id: string, update: Partial<ViewSession>) =>
   useTerminalStore.setState((state) => ({
@@ -32,6 +35,25 @@ const report = (error: unknown) =>
 
 async function request<T = undefined>(event: string, payload: unknown): Promise<T> {
   if (!socket?.connected) throw new Error('终端连接不可用。请检查连接后重试。');
+  if (agent) {
+    const command = event.slice('terminal:'.length) as TerminalCommand;
+    let params = payload;
+    if (command === 'create') {
+      const { repositoryId, ...body } = payload as {
+        repositoryId: string;
+        requestId: string;
+        cols: number;
+        rows: number;
+      };
+      params = {
+        ...body,
+        resource: { agentId: agent.initialized?.agentId, resourceId: repositoryId },
+      };
+    }
+    return (await agent.request('terminals.' + command, params as JsonValue, {
+      timeoutMs: 10000,
+    })) as T;
+  }
   const reply = (await socket.timeout(10_000).emitWithAck(event, payload)) as TerminalReply<T>;
   if (!reply.ok) throw new Error(reply.error);
   return reply.value;
@@ -40,13 +62,43 @@ async function request<T = undefined>(event: string, payload: unknown): Promise<
 export function connectTerminals() {
   references++;
   if (!socket) {
-    socket = io('/terminal', { transports: ['websocket'], reconnection: true });
-    socket.on('connect', () => useTerminalStore.setState({ connected: true, error: '' }));
+    const useAgent = new URLSearchParams(location.search).get('terminalExecutor') === 'agent';
+    socket = io('/terminal', {
+      transports: ['websocket'],
+      reconnection: true,
+      auth: useAgent ? { terminalProtocol: 1 } : {},
+    });
+    const channel = socket;
+    socket.on('connect', async () => {
+      if (useAgent) {
+        const client = new AgentClient(terminalChannel(channel));
+        agent = client;
+        client.onEvent((event) => {
+          if (event.type === 'terminal:state')
+            stateEvent(event.payload as unknown as TerminalSession);
+          else if (event.type === 'terminal:output')
+            outputEvent(event.payload as unknown as TerminalOutput);
+          else if (event.type === 'terminal:removed')
+            removeLocal((event.payload as { sessionId: string }).sessionId);
+        });
+        try {
+          await client.initialize();
+          await client.subscribe([...TERMINAL_TOPICS]);
+          if (agent !== client || client.state !== 'ready') return;
+        } catch (error) {
+          client.close();
+          report(error);
+          return;
+        }
+      }
+      useTerminalStore.setState({ connected: true, error: '' });
+    });
     socket.on('connect_error', (error: Error) => {
       useTerminalStore.setState({ connected: false });
       report(error);
     });
     socket.on('disconnect', () => {
+      agent = undefined;
       useTerminalStore.setState((state) => ({
         connected: false,
         sessions: state.sessions.map((session) =>
@@ -61,16 +113,15 @@ export function connectTerminals() {
       }));
       for (const runtime of runtimes.values()) runtime.terminal.options.disableStdin = true;
     });
-    socket.on('terminal:state', (info: TerminalSession) => {
+    const stateEvent = (info: TerminalSession) => {
       // Only locally requested sessions may become visible in this window.
       if (!useTerminalStore.getState().sessions.some((item) => item.id === info.id)) return;
       patch(info.id, info);
       const runtime = ensureRuntime(info.id);
       runtime.terminal.options.disableStdin = info.state !== 'running';
       if (info.state === 'running') fitTerminal(info.id);
-    });
-    socket.on('terminal:removed', ({ sessionId }: { sessionId: string }) => removeLocal(sessionId));
-    socket.on('terminal:output', (packet: TerminalOutput) => {
+    };
+    const outputEvent = (packet: TerminalOutput) => {
       const runtime = runtimes.get(packet.sessionId);
       const transport = socket;
       const connectionId = transport?.id;
@@ -108,12 +159,19 @@ export function connectTerminals() {
           patch(packet.sessionId, { truncated: true });
         }
         if (transport?.connected && transport.id === connectionId)
-          transport.emit('terminal:ack', {
+          void request('terminal:ack', {
             sessionId: packet.sessionId,
             sequence: packet.sequence,
-          });
+          }).catch(report);
       });
-    });
+    };
+    if (!useAgent) {
+      socket.on('terminal:state', stateEvent);
+      socket.on('terminal:output', outputEvent);
+      socket.on('terminal:removed', ({ sessionId }: { sessionId: string }) =>
+        removeLocal(sessionId),
+      );
+    }
   }
   return () => {
     references--;
@@ -284,6 +342,7 @@ export async function createTerminal(repo: Repository) {
     visible: true,
     selected: { ...state.selected, [repo.id]: id },
   }));
+  const connectionId = socket?.id;
   try {
     await request<TerminalSession>('terminal:create', {
       repositoryId: repo.id,
@@ -297,7 +356,8 @@ export async function createTerminal(repo: Repository) {
       error: error instanceof Error ? error.message : '终端启动失败。',
     });
     // A timed-out ACK is not proof that creation failed on the server.
-    if (socket?.connected) socket.emit('terminal:close', { sessionId: id, confirmed: true });
+    if (socket?.connected && socket.id === connectionId)
+      void request('terminal:close', { sessionId: id, confirmed: true }).catch(() => {});
   }
 }
 function removeLocal(id: string) {

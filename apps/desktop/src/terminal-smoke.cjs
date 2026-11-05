@@ -66,7 +66,7 @@ module.exports = async ({ window, origin, token, backend }) => {
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
   };
-  await window.loadURL(origin + '/repositories/' + repo.id);
+  await window.loadURL(origin + '/repositories/' + repo.id + '?terminalExecutor=agent');
   await until("!!document.querySelector('[data-terminal-toggle]')");
   await click('[data-terminal-toggle]');
   await until("document.querySelector('[data-terminal-new]')?.disabled === false");

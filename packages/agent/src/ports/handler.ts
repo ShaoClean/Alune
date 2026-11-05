@@ -2,6 +2,8 @@ import type { JsonValue } from '@alune/protocol';
 import type { ResourceRef } from '@alune/domain';
 
 export interface EventPublisher {
+  subscribed(type: string): boolean;
+  failStream(error: Error): void;
   notifyState(type: string, payload: JsonValue, resource?: ResourceRef): void;
   write(
     type: string,
@@ -14,6 +16,7 @@ export interface EventPublisher {
 export interface HandlerContext {
   agentId: string;
   sessionId: string;
+  sessionSignal: AbortSignal;
   taskId: string;
   signal: AbortSignal;
   events: EventPublisher;
