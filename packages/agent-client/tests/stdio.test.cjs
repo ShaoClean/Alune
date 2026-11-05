@@ -75,3 +75,30 @@ test('closed peer pipes are disconnects while other stream failures stay errors'
     }
   }
 });
+
+test('closing an owned Agent sends EOF while draining its last pending output', async () => {
+  const { spawnAgent } = require('../dist/node');
+  let ready;
+  const started = new Promise((resolve) => {
+    ready = resolve;
+  });
+  const proc = spawnAgent(
+    process.execPath,
+    [
+      '-e',
+      `process.stdin.resume();process.stdin.once('end',()=>{process.stdout.on('error',()=>process.exit(3));process.stdout.write('x'.repeat(1024*1024),error=>process.exit(error?2:0));});process.stderr.write('ready\\n');`,
+    ],
+    {
+      onStderr: (text) => {
+        if (text.includes('ready')) ready();
+      },
+    },
+  );
+  try {
+    await started;
+    await proc.close();
+    assert.equal((await proc.exited).code, 0);
+  } finally {
+    await proc.close();
+  }
+});

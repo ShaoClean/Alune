@@ -106,7 +106,15 @@ export class StdioTransport implements MessageTransport {
       this.close(error as Error);
     }
   }
+  /** Graceful managed-child shutdown: send EOF but drain already emitted
+   * replies/events. Closing the read descriptor first races the peer's final writes. */
+  finishChild(error: Error): void {
+    this.finish(error, true);
+  }
   close(error: Error = new ProtocolError('disconnected', 'Transport ended', 'unknown')): void {
+    this.finish(error, false);
+  }
+  private finish(error: Error, drain: boolean): void {
     if (this.ended) return;
     // A peer may close its read pipe while state events are still being sent.
     // This is the same disconnect as EOF, not malformed protocol input.
@@ -123,7 +131,8 @@ export class StdioTransport implements MessageTransport {
     this.queue = [];
     this.bytes = 0;
     this.output.end();
-    this.input.destroy();
+    if (drain) this.input.resume();
+    else this.input.destroy();
     for (const listener of this.closures) listener(error);
     this.closures.clear();
     this.messages.clear();

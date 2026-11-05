@@ -24,7 +24,15 @@ export async function serveStdio(options: SessionOptions): Promise<void> {
       session.failure &&
       (!('kind' in session.failure) || session.failure.kind !== 'disconnected')
     )
-      throw new Error('Agent protocol session failed');
+      throw new Error(
+        'Agent protocol session failed (' +
+          String(
+            ('kind' in session.failure && session.failure.kind) ||
+              (session.failure as NodeJS.ErrnoException).code ||
+              session.failure.name,
+          ) +
+          ')',
+      );
   } finally {
     process.off('SIGTERM', stop);
     process.off('SIGINT', stop);

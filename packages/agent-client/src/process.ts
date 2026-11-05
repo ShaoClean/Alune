@@ -27,7 +27,8 @@ export function spawnAgent(
     windowsHide: true,
     shell: false,
   });
-  const client = new AgentClient(new StdioTransport(child.stdout, child.stdin));
+  const transport = new StdioTransport(child.stdout, child.stdin);
+  const client = new AgentClient(transport);
   let ended = false;
   const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
     child.once('close', (code, signal) => {
@@ -51,13 +52,18 @@ export function spawnAgent(
     close() {
       if (closing) return closing;
       closing = (async () => {
-        client.close(new ProtocolError('disconnected', 'Agent process closing', 'unknown'));
+        transport.finishChild(
+          new ProtocolError('disconnected', 'Agent process closing', 'unknown'),
+        );
         if (ended) return;
         let force: ReturnType<typeof setTimeout> | undefined;
-        const terminate = setTimeout(() => {
-          child.kill('SIGTERM');
-          force = setTimeout(() => child.kill('SIGKILL'), 1000);
-        }, options.shutdownMs ?? (process.platform === 'win32' ? 14000 : 4000));
+        const terminate = setTimeout(
+          () => {
+            child.kill('SIGTERM');
+            force = setTimeout(() => child.kill('SIGKILL'), 1000);
+          },
+          options.shutdownMs ?? (process.platform === 'win32' ? 14000 : 4000),
+        );
         try {
           await exited;
         } finally {
