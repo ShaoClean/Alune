@@ -1,18 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { join, relative, sep } from 'node:path';
 
-const root = new URL('../src/', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../src/', import.meta.url));
 const sources = (dir) =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return sources(path);
     return /\.tsx?$/.test(entry.name) ? [path] : [];
   });
-const uiRoot = new URL('../../../packages/ui/src/', import.meta.url).pathname;
+const uiRoot = fileURLToPath(new URL('../../../packages/ui/src/', import.meta.url));
 const files = [...sources(root), ...sources(uiRoot)].map((path) => ({
-  name: path.startsWith(uiRoot) ? 'ui/' + relative(uiRoot, path) : relative(root, path),
+  name: (path.startsWith(uiRoot) ? 'ui/' + relative(uiRoot, path) : relative(root, path))
+    .split(sep)
+    .join('/'),
   text: readFileSync(path, 'utf8'),
 }));
 const antdImports = (text) =>
