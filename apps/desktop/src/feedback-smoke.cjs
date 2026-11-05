@@ -74,7 +74,14 @@ module.exports = async ({ window, git, repo }) => {
       await execute("document.querySelector('.feedback-actions button').click()", true);
       await wait("document.querySelector('.feedback-dialog').textContent.includes('已复制')");
       assert.match(await execute('window.__feedbackCopiedText'), /Git 操作未完成/);
-      const copied = await clipboard.readText();
+      // Chromium can acknowledge its write before the system pasteboard
+      // advertises the new contents to the Electron main process.
+      let copied = await clipboard.readText();
+      const deadline=Date.now()+3000;
+      while(!/fatal:.*unavailable-alune\.git/.test(copied) && Date.now()<deadline){
+        await new Promise(resolve=>setTimeout(resolve,30));
+        copied=await clipboard.readText();
+      }
       assert.match(copied, /fatal:.*unavailable-alune\.git/);
       if (process.platform !== 'win32' || !process.env.CI) {
         assert.match(copied, /Git 操作未完成/);

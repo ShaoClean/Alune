@@ -19,10 +19,26 @@ static void reap_session(pid_t session) {
     // becomes a command. Re-check membership immediately before signalling.
     FILE *processes = popen("/bin/ps -A -o pid=", "r");
     if (!processes) return;
-    pid_t pid;
-    while (fscanf(processes, "%d", &pid) == 1)
-        if (pid > 1 && pid != session && getsid(pid) == session) kill(pid, SIGKILL);
+    size_t capacity = 32, count = 0;
+    pid_t pid, *members = malloc(capacity * sizeof(pid_t));
+    while (members && fscanf(processes, "%d", &pid) == 1) {
+        if (pid <= 1 || pid == session || getsid(pid) != session) continue;
+        if (count == capacity) {
+            capacity *= 2;
+            pid_t *more = realloc(members, capacity * sizeof(pid_t));
+            if (!more) break;
+            members = more;
+        }
+        members[count++] = pid;
+    }
     pclose(processes);
+    // The ps process itself inherits this session. Finish reading the snapshot
+    // before signalling anyone; detached jobs belong to a different session.
+    while (count) {
+        pid = members[--count];
+        if (getsid(pid) == session) kill(pid, SIGKILL);
+    }
+    free(members);
 }
 
 int main(int argc, char **argv) {
@@ -58,9 +74,9 @@ int main(int argc, char **argv) {
         struct timespec tick = {0, 100000000};
         nanosleep(&tick, NULL);
     }
+    reap_session(self);
     if (ending || getppid() != parent) {
-        kill(-shell, SIGKILL);
-        reap_session(self);
+        if (getsid(shell) == self) kill(-shell, SIGKILL);
         while (waitpid(shell, &status, 0) < 0 && errno == EINTR) {}
     }
     if (WIFSIGNALED(status)) { int sig = WTERMSIG(status); signal(sig, SIG_DFL); raise(sig); }

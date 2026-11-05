@@ -74,7 +74,15 @@ export async function localTerminal(
       child.resume();
       // Foreground jobs may have their own process group. Snapshot descendants
       // before killing the session leader, while their parent identity is known.
-      if (process.platform !== 'win32') {
+      if (guardian) {
+        // The session leader survives the Agent and knows which children are
+        // still attached. Detached jobs must not be killed by a PPID-only scan.
+        try {
+          process.kill(child.pid, 'SIGTERM');
+        } catch {
+          /* already exited */
+        }
+      } else if (process.platform !== 'win32') {
         try {
           const rows = execFileSync('/bin/ps', ['-A', '-o', 'pid=', '-o', 'ppid='], {
             encoding: 'utf8',

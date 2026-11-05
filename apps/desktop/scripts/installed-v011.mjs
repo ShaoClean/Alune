@@ -4,11 +4,11 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { WebSocket } from 'ws';
 
-export async function withInstalledWindow(exe, work) {
+export async function withInstalledWindow(exe, work, env = process.env) {
   const child = spawn(
     exe,
     ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1', '--disable-gpu'],
-    { stdio: ['ignore', 'ignore', 'pipe'] },
+    { env, stdio: ['ignore', 'ignore', 'pipe'] },
   );
   let port,
     ended = false,
@@ -91,7 +91,7 @@ export async function withInstalledWindow(exe, work) {
       !(await evaluate("Boolean(window.aluneWorkspace && document.querySelector('.app-shell'))"))
     )
       await wait();
-    return await work(evaluate);
+    return await work(evaluate, { exited });
   } finally {
     // A killed Chromium process can leave its DPAPI master-key descriptor
     // unflushed even though SQLite has already committed a protected token.

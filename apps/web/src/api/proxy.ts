@@ -1,3 +1,4 @@
+import { ProtocolError } from '@alune/protocol';
 import axios from 'axios';
 import type {
   NetworkProxyConfig,
@@ -31,6 +32,7 @@ export const proxyApi = {
 };
 
 export function proxyError(error: unknown) {
+  if(error instanceof ProtocolError)return error.message;
   if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string')
     return error.response.data.message as string;
   return '无法完成代理操作，请检查本地服务或网络后重试。';

@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "node --import ./tests/resolve-ts.mjs --test tests/*.test.mjs",
     "dev:agent": "vite --mode agent",
-    "test:agent-dev": "node --test tests/agent-dev.integration.mjs"
+    "test:agent-dev": "node --import ./tests/resolve-ts.mjs --test tests/agent-dev.integration.mjs tests/agent-workspace.integration.mjs"
   },
   "dependencies": {
     "@alune/ui": "*",

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { withInstalledWindow, oldApi } from './installed-v011.mjs';
 import os from 'node:os';
+import { verifyLiveUpdate } from './update-drill.mjs';
 if (
   process.env.GITHUB_ACTIONS !== 'true' ||
   process.env.RUNNER_ENVIRONMENT !== 'github-hosted' ||
@@ -215,6 +216,14 @@ try {
     fs.readFileSync(path.join(repo, 'candidate.txt'), 'utf8') !== 'changed in legacy workspace\n'
   )
     throw Error('Application rollback changed Git data');
+  await verifyLiveUpdate({
+    exe: await install(candidateFile),
+    candidateFile,
+    target,
+    data,
+    stable: previous,
+    stableDigest: digest(previousFile),
+  });
   console.log(
     JSON.stringify({
       platform,

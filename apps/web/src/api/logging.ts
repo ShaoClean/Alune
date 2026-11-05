@@ -1,3 +1,4 @@
+import { ProtocolError } from '@alune/protocol';
 import axios from 'axios';
 import type { LogEntry, LogLevel, LoggingSettings, SaveLoggingSettings } from '@alune/protocol';
 
@@ -14,6 +15,7 @@ export const loggingApi = {
 };
 
 export function loggingError(error: unknown, fallback: string) {
+  if(error instanceof ProtocolError)return error.message;
   if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string')
     return error.response.data.message as string;
   return fallback;

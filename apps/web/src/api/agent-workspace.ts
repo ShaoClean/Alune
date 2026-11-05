@@ -190,10 +190,28 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
     }
     return a;
   }
+  const targetFor = repositoryTarget; // capture the connection generation for already-dispatched calls
   const collaboration = createAgentCollaboration(local, ref);
-  Object.assign(aiApi, collaboration.ai);
+  const withBinding =
+    <A extends unknown[], R>(operation: (id: string, ...args: A) => Promise<R>) =>
+    async (id: string, ...args: A) => {
+      await targetFor(id);
+      return operation(id, ...args);
+    };
+  const repositoryCollaboration = Object.fromEntries(
+    Object.entries(collaboration.repository).map(([key, fn]) => [
+      key,
+      withBinding(fn as (id: string, ...a: any[]) => Promise<unknown>),
+    ]),
+  );
+  Object.assign(aiApi, collaboration.ai, {
+    generate: withBinding(collaboration.ai.generate),
+    generatePullRequest: withBinding(collaboration.ai.generatePullRequest),
+  });
   Object.assign(accessTokenApi, collaboration.accounts);
-  Object.assign(pullRequestCenterApi, collaboration.center);
+  Object.assign(pullRequestCenterApi, collaboration.center, {
+    context: withBinding(collaboration.center.context),
+  });
   const routed =
     (group: 'repository' | 'git') =>
     async (key: string, id: string, ...args: any[]) => {
@@ -218,7 +236,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
   Object.assign(
     repositoryApi,
     methods(repositoryApi, routed('repository')),
-    collaboration.repository,
+    repositoryCollaboration,
     {
       list: async (id?: string) =>
         (await local.listRepositories()).filter((r) => !id || r.connectionId === id),
@@ -235,27 +253,48 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         ((await (await connect(id)).discoverRepositories(path)) as { paths: string[] }).paths,
       analytics: async (ids: string[], collect = false, refresh = false, signal?: AbortSignal) => {
         const groups = new Map<AgentClient, Target[]>();
-        for (const id of ids) {
-          const target = await repositoryTarget(id);
-          const g = groups.get(target.client) ?? [];
-          g.push(target);
-          groups.set(target.client, g);
-        }
-        const rows = await Promise.all(
-          [...groups].map(async ([client, targets]) => {
-            const values = await client.repositoryAnalytics(
-              targets.map((t) => t.resource),
-              collect,
-              refresh,
-              { signal },
-            );
-            return values.map((r) => ({
-              ...r,
-              id: targets.find((t) => t.resource.resourceId === r.id)!.alias.id,
-            }));
+        const results = new Map<string, import('@alune/domain').RepositoryAnalyticsEntry>();
+        const failed = (id: string, error: unknown) => {
+          signal?.throwIfAborted();
+          results.set(id, {
+            id,
+            error: error instanceof Error ? error.message : '无法读取仓库统计。',
+          });
+        };
+        await Promise.all(
+          ids.map(async (id) => {
+            try {
+              signal?.throwIfAborted();
+              const target = await targetFor(id);
+              const group = groups.get(target.client) ?? [];
+              group.push(target);
+              groups.set(target.client, group);
+            } catch (error) {
+              failed(id, error);
+            }
           }),
         );
-        return rows.flat().sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+        await Promise.all(
+          [...groups].map(async ([client, targets]) => {
+            try {
+              signal?.throwIfAborted();
+              const rows = await adapter(client).repository.analytics(
+                targets.map((t) => t.resource.resourceId),
+                collect,
+                refresh,
+                signal,
+              );
+              for (const row of rows) {
+                const id = targets.find((t) => t.resource.resourceId === row.id)!.alias.id;
+                results.set(id, { ...row, id });
+              }
+            } catch (error) {
+              for (const target of targets) failed(target.alias.id, error);
+            }
+          }),
+        );
+        signal?.throwIfAborted();
+        return ids.map((id) => results.get(id) ?? { id });
       },
     },
   );
@@ -266,7 +305,16 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         const route = c.hosts.find((r) => r.hostId === h.id);
         return {
           ...h,
-          status: route?.state === 'ready' ? 'connected' : route?.reason ? 'error' : 'disconnected',
+          status:
+            route?.state === 'ready'
+              ? 'connected'
+              : route?.reason
+                ? 'error'
+                : !route?.updatedAt
+                  ? 'unknown'
+                  : route.state === 'offline'
+                    ? 'disconnected'
+                    : 'connecting',
           updatedAt: route?.updatedAt ?? 0,
           error: route?.reason,
         };
