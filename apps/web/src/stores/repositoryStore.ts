@@ -1,9 +1,9 @@
-import type { PartialDiffPreview } from '@alune/shared';
+import type { PartialDiffPreview } from '@alune/domain';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { StateCreator } from 'zustand';
-import { REPOSITORY_STATUS_CACHE_MS } from '@alune/shared';
-import type { Repository, RepositoryStatus, GraphCommit, DiffOptions } from '@alune/shared';
+import { REPOSITORY_STATUS_CACHE_MS } from '@alune/domain';
+import type { Repository, RepositoryStatus, GraphCommit, DiffOptions } from '@alune/domain';
 import { repositoryApi } from '../api';
 import { hydrateWorkspace, useWorkspaceStore } from './workspaceStore';
 import { moveBeforeOrAfter } from './sidebarOrder';

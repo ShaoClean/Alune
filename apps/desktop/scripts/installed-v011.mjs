@@ -93,6 +93,30 @@ export async function withInstalledWindow(exe, work) {
       await wait();
     return await work(evaluate);
   } finally {
+    // A killed Chromium process can leave its DPAPI master-key descriptor
+    // unflushed even though SQLite has already committed a protected token.
+    if (ws?.readyState === WebSocket.OPEN && !ended) {
+      ws.send(JSON.stringify({ id: ++sequence, method: 'Browser.close' }));
+      let grace;
+      await Promise.race([
+        exited,
+        new Promise((resolve) => {
+          grace = setTimeout(resolve, 5000);
+        }),
+      ]);
+      clearTimeout(grace);
+      if (!ended && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ id: ++sequence, method: 'Page.close' }));
+        let remaining;
+        await Promise.race([
+          exited,
+          new Promise((resolve) => {
+            remaining = setTimeout(resolve, 3000);
+          }),
+        ]);
+        clearTimeout(remaining);
+      }
+    }
     ws?.close();
     if (!ended) child.kill('SIGTERM');
     let timer;

@@ -7,7 +7,7 @@ import {
   TagOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import type { GitTag, RemoteTag } from '@alune/shared';
+import type { GitTag, RemoteTag } from '@alune/domain';
 import { gitApi } from '../api';
 import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { CreateTagDialog } from './CreateTagDialog';

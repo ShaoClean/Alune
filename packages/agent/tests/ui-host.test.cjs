@@ -84,3 +84,38 @@ test('two windows share committed state, not terminal ownership, request IDs or 
     await host.close();
   }
 });
+
+test('a fresh channel restarts a crashed UI host without changing owner or replaying its writes', async (t) => {
+  const { superviseUiAgent } = require('@alune/agent-client/node'),
+    { version } = require('../dist/version.json');
+  const dir = mkdtempSync(join(tmpdir(), 'alune-ui-restart-'));
+  const host = await superviseUiAgent(
+    process.execPath,
+    join(__dirname, '../bin/alune-agent.cjs'),
+    join(dir, 'state'),
+    version,
+  );
+  const open = async () => {
+    const c = new AgentClient(frameTransport(await host.open('workspace')));
+    await c.initialize();
+    return c;
+  };
+  try {
+    const a = await open(),
+      repo = join(dir, 'git');
+    mkdirSync(repo);
+    execFileSync('git', ['init', '-q', repo]);
+    const row = await a.registerRepository(repo),
+      closed = new Promise((resolve) => a.onClose(resolve));
+    process.kill(host.pid, 'SIGKILL');
+    await closed;
+    const b = await open();
+    assert.equal(b.initialized.agentId, row.resource.agentId);
+    assert.notEqual(a.initialized.sessionId, b.initialized.sessionId);
+    assert.equal((await b.listRepositories()).length, 1);
+    b.close();
+  } finally {
+    await host.close();
+    rmSync(dir, { recursive: true, force: true, maxRetries: 15, retryDelay: 200 });
+  }
+});

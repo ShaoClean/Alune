@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
 import { Button, Dropdown, Input, Tooltip } from '@alune/ui';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { WorktreeInfo } from '@alune/shared';
+import type { WorktreeInfo } from '@alune/domain';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { AluneModal } from '@alune/ui';

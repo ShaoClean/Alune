@@ -2,7 +2,12 @@
 // endpoint is registered. The caller supplies exact ciphertexts read from the
 // stopped legacy store; the child cannot use this as a general decrypt oracle.
 const { createHash } = require('node:crypto');
-function bridgeLegacyAgentSecrets(child, storage, ciphertexts, { hashed = false } = {}) {
+function bridgeLegacyAgentSecrets(
+  child,
+  storage,
+  ciphertexts,
+  { hashed = false, onFailure = () => {} } = {},
+) {
   if (!child || typeof child.send !== 'function' || !child.connected)
     throw new Error('Private import child IPC is required');
   const allowed = new Set(ciphertexts);
@@ -20,7 +25,12 @@ function bridgeLegacyAgentSecrets(child, storage, ciphertexts, { hashed = false 
     const { id, ciphertext } = message;
     if (typeof id !== 'string' || id.length > 100) return;
     const response = { kind: 'alune.legacy.decrypted', id, ok: false };
+    let stage = 'ciphertext-not-allowed';
     try {
+      if (!storage.available) {
+        stage = 'storage-unavailable';
+        throw new Error();
+      }
       const key =
         hashed && typeof ciphertext === 'string' && ciphertext.length <= 1400000
           ? createHash('sha256').update(ciphertext).digest('hex')
@@ -33,6 +43,7 @@ function bridgeLegacyAgentSecrets(child, storage, ciphertexts, { hashed = false 
         !allowed.has(key)
       )
         throw new Error();
+      stage = 'native-decryption-failed';
       const plaintext = storage.decrypt(ciphertext);
       if (typeof plaintext !== 'string' || Buffer.byteLength(plaintext) > 1024 * 1024)
         throw new Error();
@@ -40,7 +51,7 @@ function bridgeLegacyAgentSecrets(child, storage, ciphertexts, { hashed = false 
       response.ok = true;
       response.plaintext = plaintext;
     } catch {
-      /* Never forward native errors, original values or ciphertext. */
+      onFailure(stage); // Fixed diagnostic category only.
     }
     if (child.connected)
       child.send(response, (error) => {

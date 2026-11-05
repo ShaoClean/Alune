@@ -5,7 +5,7 @@ import {
   DialogBadge,
   DialogPath,
 } from '@alune/ui';
-import type { RepositoryContext } from '@alune/shared';
+import type { RepositoryContext } from '@alune/domain';
 import { RepositoryContextNotice } from '../components/RepositoryContextNotice';
 import { GitOperationNotice } from '../components/GitOperationNotice';
 import { RebaseOperationNotice } from '../components/RebaseOperationNotice';

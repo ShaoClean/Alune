@@ -176,6 +176,8 @@ node scripts/agent/browser-reads-fixture.mjs
 
 使用 Node 22，在根目录执行 `npm ci`。启动独立 Web 工作区用 `npm run web:agent`，使用终端显示的“打开本机工作区”完整链接（含本次启动的片段口令，请勿分享）。Vite 只接受本机同源 WebSocket，停止 Vite 时关闭其 Agent。开发数据默认在 `~/.alune/agent`，可用 `ALUNE_AGENT_DATA_DIR` 指向独立测试目录。停用旧服务后，首次按默认目录启动时会复制导入已有的旧数据库；显式指定隔离数据目录时只导入 ALUNE_AGENT_LEGACY_DIR 指定的源。也可使用独立包的 `legacy-import --source 旧目录 --data-dir 新目录` 导入；受 Electron safeStorage 保护的数据须使用原设备的桌面程序迁移。
 
-桌面源码验收依次运行 `npm run desktop:build`、`npm run agent:stage -w desktop`，再设置环境变量 `ALUNE_DESKTOP_EXECUTOR=agent` 并运行 `npm start -w desktop`。候选安装包使用 Resources 中随应用分发的 Node/Agent，不依赖系统 Node；Git 仍需另行安装。每个工作区会话单独初始化，日志窗口只能读取日志。首次连接 SSH 主机须提供独立核对的主机公钥指纹；按 [Agent 部署说明](../packages/agent/README.md) 预置对应平台运行包，然后显式批准在目标安装。
+桌面源码验收依次运行 `npm run desktop:build`、`npm run agent:stage -w desktop`，再设置环境变量 `ALUNE_DESKTOP_EXECUTOR=agent` 并运行 `npm start -w desktop`。候选安装包使用 Resources 中随应用分发的 Node/Agent，不依赖系统 Node；Git 仍需另行安装。每个工作区会话单独初始化，日志窗口只能读取日志。首次连接 SSH 主机须提供独立核对的主机公钥指纹；发布构建内置同一提交生成的四平台校验清单。用户明确允许安装或升级时，Agent 才经已配置的网络出口下载对应归档、校验并上传；已安装且摘要匹配的主机可直接重连。未发布的开发候选按 [Agent 部署说明](../packages/agent/README.md) 离线预置。
 
 首次启动从旧数据捕获只读快照，导入到用户数据下独立的 `agent` 目录。原数据库、工作区偏好和凭据保留；导入失败会停止启动。退出候选程序并取消 `ALUNE_DESKTOP_EXECUTOR` 即可还原旧入口和旧数据。重新启用旧程序不会撤销已执行的 Git、文件或平台写入，应先检查写回执和实际仓库状态。没有全平台逐项放行之前，不删除旧执行器、备份或兼容入口。
+
+要单独验证退役后的打包边界，运行 `npm run desktop:candidate:build`、`node apps/desktop/scripts/check-candidate.mjs`、`npm run dist:candidate -w desktop`。此候选应用直接启动 Agent，构建不读取旧 server/ssh-client/shared 的 dist，也不为 Electron 重建 SQLite/PTY。可回退的原有桌面构建仍是另一条入口。候选安装器不公开发布。

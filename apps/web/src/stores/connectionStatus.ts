@@ -1,4 +1,4 @@
-import type { ConnectionActivityStatus, ConnectionStatusInfo } from '@alune/shared';
+import type { ConnectionActivityStatus, ConnectionStatusInfo } from '@alune/domain';
 
 const LABELS: Record<ConnectionActivityStatus, string> = {
   connected: '在线',

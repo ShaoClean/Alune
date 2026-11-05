@@ -19,7 +19,7 @@ import {
   DownloadOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import type { RepositoryStatus } from '@alune/shared';
+import type { RepositoryStatus } from '@alune/domain';
 import { ToolbarButton } from '@alune/ui';
 import { WorktreesMenu } from './WorktreesMenu';
 import { CodeOutlined } from '@ant-design/icons';

@@ -24,6 +24,7 @@ export async function connectHost(
   signal: AbortSignal,
   priorDigest?: string,
   stage?: (phase: string) => void,
+  releaseFetch?:typeof fetch,
 ) {
   let phase = 'authentication';
   const transition = (next: string) => {
@@ -116,7 +117,7 @@ export async function connectHost(
     transition('probing');
     let detected = targetFrom(await command(unixProbe).catch(() => ''));
     if (!detected.target) detected = targetFrom(await command(windowsProbe).catch(() => ''));
-    const bundle = await readBundle(directory, detected.target);
+    const bundle = await readBundle(directory, detected.target,releaseFetch,signal);
     if (priorDigest && priorDigest !== bundle.sha256 && !policy.install)
       throw new ProtocolError(
         'incompatible-version',

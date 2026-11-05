@@ -1,7 +1,7 @@
 import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@alune/ui';
-import type { DiscardChangesPreview, DiscardChangesResult } from '@alune/shared';
+import type { DiscardChangesPreview, DiscardChangesResult } from '@alune/domain';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { AluneModal, CheckCard, DialogHints, Kbd } from '@alune/ui';

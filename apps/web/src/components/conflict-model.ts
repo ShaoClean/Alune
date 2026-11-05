@@ -3,7 +3,7 @@ import type {
   ConflictSide,
   FileStatus,
   RepositoryOperationState,
-} from '@alune/shared';
+} from '@alune/domain';
 
 export const conflictKindLabels: Record<ConflictKind, string> = {
   'both-modified': '双方修改',

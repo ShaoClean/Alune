@@ -15,7 +15,7 @@ import {
   SettingOutlined,
   UpOutlined,
 } from '@ant-design/icons';
-import type { ConnectionStatusInfo, Repository } from '@alune/shared';
+import type { ConnectionStatusInfo, Repository } from '@alune/domain';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { BrandIcon } from './BrandIcon';
 

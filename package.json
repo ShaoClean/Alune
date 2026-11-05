@@ -31,7 +31,8 @@
     "website:preview": "npm run preview -w website",
     "website:check": "npm run check -w website && npm run build -w website && npm test -w website",
     "ui:check": "npm run check -w @alune/ui && npm test -w @alune/ui && node apps/website/scripts/ui-api.mjs --check && node apps/website/scripts/ui-coverage.mjs",
-    "web:agent": "turbo build --filter=@alune/agent --filter=@alune/ui && npm run dev:agent -w web"
+    "web:agent": "turbo build --filter=@alune/agent --filter=@alune/ui && npm run dev:agent -w web",
+    "desktop:candidate:build": "npm run icons:check && turbo build --filter=web --filter=@alune/agent && npm run build:candidate -w desktop"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.2",

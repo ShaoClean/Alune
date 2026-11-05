@@ -164,7 +164,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
       )
         throw error;
       const sessions = error.details
-        .sessions as unknown as import('@alune/shared').TerminalSession[];
+        .sessions as unknown as import('@alune/domain').TerminalSession[];
       if (!(await confirmTerminalRemoval(sessions))) throw new Error('已取消移除。');
       if (kind === 'repository')
         for (const session of sessions.filter((s) => s.source === 'ssh')) {
@@ -200,6 +200,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
       const { client, resource } = await repositoryTarget(id);
       const invoke = adapter(client)[group] as Record<string, (...args: any[]) => Promise<any>>;
       const value = await invoke[key](resource.resourceId, ...args);
+      if (client !== local && key === 'context') return { ...value, source: 'ssh' };
       if (client !== local && ['createWorktree', 'openWorktree', 'openSubmodule'].includes(key))
         return aliasFor(client, validateRepositoryResource(value).resource);
       if (client !== local && key === 'removeWorktree') {
@@ -286,7 +287,8 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
       clients.get(id)?.close();
     },
     test: async (id) => {
-      await connect(id, true);
+      const client = await connect(id, true);
+      await client.health();
       return { success: true, status: 'connected', updatedAt: Date.now() };
     },
   } satisfies typeof connectionApi);

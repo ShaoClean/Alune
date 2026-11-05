@@ -5,23 +5,26 @@ import { spawnSync } from 'node:child_process';
 
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 const desktop = path.join(root, 'apps/desktop');
-const target = path.join(desktop, 'dist/app');
+const candidate = process.argv.includes('--candidate');
+const target = path.join(desktop, 'dist', candidate ? 'candidate-app' : 'app');
+const workspaces = candidate
+  ? ['domain', 'protocol', 'agent-client']
+  : ['domain', 'protocol', 'agent-client', 'agent', 'shared', 'ssh-client'];
 const readJSON = async (file) => JSON.parse(await readFile(file, 'utf8'));
 const rootPackage = await readJSON(path.join(root, 'package.json'));
-const server = await readJSON(path.join(root, 'apps/server/package.json'));
+const server = candidate ? null : await readJSON(path.join(root, 'apps/server/package.json'));
 const desktopPackage = await readJSON(path.join(desktop, 'package.json'));
 await mkdir(target, { recursive: true });
 for (const [source, destination] of [
-  ['apps/server/dist', 'server'],
+  ...(!candidate
+    ? [
+        ['apps/server/dist', 'server'],
+        ['packages/agent/bin', 'packages/agent/bin'],
+      ]
+    : []),
   ['apps/web/dist', 'web'],
   ['apps/desktop/assets', 'assets'],
-  ['packages/shared/dist', 'packages/shared/dist'],
-  ['packages/domain/dist', 'packages/domain/dist'],
-  ['packages/protocol/dist', 'packages/protocol/dist'],
-  ['packages/agent-client/dist', 'packages/agent-client/dist'],
-  ['packages/agent/dist', 'packages/agent/dist'],
-  ['packages/agent/bin', 'packages/agent/bin'],
-  ['packages/ssh-client/dist', 'packages/ssh-client/dist'],
+  ...workspaces.map((name) => ['packages/' + name + '/dist', 'packages/' + name + '/dist']),
 ]) {
   await rm(path.join(target, destination), { recursive: true, force: true });
   await cp(path.join(root, source), path.join(target, destination), { recursive: true });
@@ -30,9 +33,22 @@ for (const file of await readdir(target)) {
   if (file.endsWith('.cjs')) await rm(path.join(target, file));
 }
 for (const file of await readdir(path.join(desktop, 'src'))) {
+  if (
+    candidate &&
+    (['legacy-backend.cjs', 'smoke.cjs'].includes(file) ||
+      (file.endsWith('-smoke.cjs') &&
+        ![
+          'candidate-smoke.cjs',
+          'appearance-smoke.cjs',
+          'code-appearance-smoke.cjs',
+          'settings-shell-smoke.cjs',
+          'dialogs-smoke.cjs',
+        ].includes(file)))
+  )
+    continue;
   if (file.endsWith('.cjs')) await cp(path.join(desktop, 'src', file), path.join(target, file));
 }
-for (const name of ['domain', 'protocol', 'agent-client', 'agent', 'shared', 'ssh-client']) {
+for (const name of workspaces) {
   const manifest = await readJSON(path.join(root, `packages/${name}/package.json`));
   delete manifest.devDependencies;
   delete manifest.scripts;
@@ -50,16 +66,13 @@ await writeFile(
       description: 'Alune 本地与 SSH Git 工作区',
       author: 'Alune',
       private: true,
-      main: 'main.cjs',
+      main: candidate ? 'candidate-main.cjs' : 'main.cjs',
       dependencies: {
-        ...server.dependencies,
+        ...server?.dependencies,
         ...desktopPackage.dependencies,
-        '@alune/shared': 'file:packages/shared',
-        '@alune/domain': 'file:packages/domain',
-        '@alune/protocol': 'file:packages/protocol',
-        '@alune/agent-client': 'file:packages/agent-client',
-        '@alune/agent': 'file:packages/agent',
-        '@alune/ssh-client': 'file:packages/ssh-client',
+        ...Object.fromEntries(
+          workspaces.map((name) => ['@alune/' + name, 'file:packages/' + name]),
+        ),
       },
       devDependencies: { electron: rootPackage.devDependencies.electron },
     },
@@ -91,16 +104,17 @@ run('npm', [
   '--no-audit',
   '--no-fund',
 ]);
-run(process.execPath, [
-  path.join(root, 'node_modules/@electron/rebuild/lib/cli.js'),
-  '--force',
-  '--only',
-  'better-sqlite3,node-pty',
-  '--types',
-  'prod',
-  '--version',
-  rootPackage.devDependencies.electron,
-  '--module-dir',
-  target,
-]);
-run(process.execPath, [path.join(root, 'scripts/prepare-pty.mjs'), target]);
+if (!candidate)
+  run(process.execPath, [
+    path.join(root, 'node_modules/@electron/rebuild/lib/cli.js'),
+    '--force',
+    '--only',
+    'better-sqlite3,node-pty',
+    '--types',
+    'prod',
+    '--version',
+    rootPackage.devDependencies.electron,
+    '--module-dir',
+    target,
+  ]);
+if (!candidate) run(process.execPath, [path.join(root, 'scripts/prepare-pty.mjs'), target]);

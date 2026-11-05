@@ -5,7 +5,7 @@ import {
   type RebaseAction,
   type RebasePlanEntry,
   type RebasePreview,
-} from '@alune/shared';
+} from '@alune/domain';
 import { gitApi } from '../api';
 import '../rebase.css';
 

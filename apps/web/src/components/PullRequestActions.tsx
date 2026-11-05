@@ -9,7 +9,7 @@ import type {
   PullRequestItem,
   PullRequestMergeMethod,
   PullRequestMutation,
-} from '@alune/shared';
+} from '@alune/protocol';
 import { repositoryApi } from '../api';
 import { AluneModal, CheckCard, DialogHints } from '@alune/ui';
 import { DialogIcon } from '@alune/ui';

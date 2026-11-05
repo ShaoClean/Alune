@@ -51,6 +51,7 @@ export function hostsKernel(
   local: RepositoryCatalog,
   settings: ReturnType<typeof settingsKernel>,
   document: JsonDocument,
+  releaseFetch?:typeof fetch,
 ) {
   const records = document.read() ?? [];
   if (
@@ -334,6 +335,7 @@ export function hostsKernel(
               r.phase = phase;
               r.sshConnected = true;
             },
+            releaseFetch,
           );
           try {
             signal.throwIfAborted();

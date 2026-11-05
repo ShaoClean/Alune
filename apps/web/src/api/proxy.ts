@@ -4,7 +4,7 @@ import type {
   ProxyConnectionStatus,
   ProxyTestResult,
   SaveNetworkProxy,
-} from '@alune/shared';
+} from '@alune/protocol';
 
 const api = axios.create({ baseURL: '/api/network-proxy', timeout: 45_000 });
 export const proxyApi = {

@@ -35,8 +35,12 @@ jobs:
           fi
       - run: npm run desktop:test:unit
 
-  build:
+  agent-artifacts:
     needs: validate
+    uses: ./.github/workflows/agent-tests.yml
+
+  build:
+    needs: agent-artifacts
     strategy:
       fail-fast: false
       matrix:
@@ -75,7 +79,16 @@ jobs:
       - name: Desktop smoke test (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run desktop:test
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ssh-deploy-*
+          path: ${{ runner.temp }}/agent-builds
+      - name: Bind the four SSH release hashes to the desktop installer
+        shell: bash
+        run: node scripts/agent/release-assets.mjs catalog "$RUNNER_TEMP/agent-builds" "$RUNNER_TEMP/agent-release"
       - name: Build installers without publishing
+        env:
+          ALUNE_STAGE_RELEASE_CATALOG: ${{ runner.temp }}/agent-release/agent-catalog.json
         run: npm run dist -w desktop -- --publish never
       - name: Packaged application smoke test
         if: runner.os != 'Linux'
@@ -115,6 +128,13 @@ jobs:
           merge-multiple: true
       - name: Verify all artifacts and produce SHA256SUMS
         run: node apps/desktop/scripts/release.mjs verify release-assets
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ssh-deploy-*
+          path: ${{ runner.temp }}/agent-builds
+      - name: Verify and collect standalone Agents and SHA256SUMS
+        shell: bash
+        run: node scripts/agent/release-assets.mjs collect "$RUNNER_TEMP/agent-builds" release-assets
       - name: Generate categorized release notes from published release history
         env:
           GH_TOKEN: ${{ github.token }}

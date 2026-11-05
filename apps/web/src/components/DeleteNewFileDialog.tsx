@@ -2,7 +2,7 @@ import type { DialogBadgeProps } from '@alune/ui';
 import { useFeedbackMessage, DialogBadge, DialogList, DialogListItem } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@alune/ui';
-import type { NewFileDeletionPreview } from '@alune/shared';
+import type { NewFileDeletionPreview } from '@alune/domain';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { AluneModal } from '@alune/ui';

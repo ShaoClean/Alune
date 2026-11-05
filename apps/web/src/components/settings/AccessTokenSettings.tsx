@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { Button, Input, Spin } from '@alune/ui';
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { AccessToken } from '@alune/shared';
+import type { AccessToken } from '@alune/protocol';
 import { accessTokenApi } from '../../api';
 import { useAccessTokensStore } from '../../stores/accessTokensStore';
 import type { TokenReturnTarget } from '../../stores/accessTokensStore';

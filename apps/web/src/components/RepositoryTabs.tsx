@@ -8,7 +8,7 @@ import {
   LaptopOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import type { Repository } from '@alune/shared';
+import type { Repository } from '@alune/domain';
 import { RepositoryIdentity, RepositoryIdentityTooltip } from './RepositoryIdentity';
 import { repositoryAccessibleName } from '../stores/repositoryLabels';
 import { horizontalPlacement, moveBeforeOrAfter } from '../stores/sidebarOrder';

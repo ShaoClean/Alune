@@ -13,6 +13,11 @@ module.exports = async (context) => {
     context.electronPlatformName === 'darwin'
       ? path.join(context.appOutDir, app.productFilename + '.app', 'Contents', 'Resources')
       : path.join(context.appOutDir, 'resources');
+  if(process.env.ALUNE_STAGE_RELEASE_CATALOG){
+    const catalog=JSON.parse(await fs.readFile(process.env.ALUNE_STAGE_RELEASE_CATALOG,'utf8'));
+    if(catalog.sourceSha!==manifest.sourceSha || catalog.version!==manifest.version)throw Error('Release catalog and desktop runtime differ');
+    await fs.writeFile(path.join(resources,'agent-catalog.json'),JSON.stringify(catalog));
+  }
   const destination = path.join(resources, 'agent-runtime');
   await fs.cp(source, destination, { recursive: true });
   for (const [name, expected] of Object.entries(manifest.files)) {

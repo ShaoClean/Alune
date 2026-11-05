@@ -14,6 +14,14 @@ export const workspaceTopics = [
   ...TERMINAL_TOPICS,
 ];
 export let uiAgent: AgentClient | undefined;
+const changed = new Set<() => void>();
+export const observeUiAgent = (fn: () => void) => {
+  changed.add(fn);
+  return () => {
+    changed.delete(fn);
+  };
+};
+export const currentUiAgent = () => uiAgent;
 
 async function webChannel(): Promise<FrameChannel> {
   const invite = new URLSearchParams(location.hash.slice(1)).get('alune-session');
@@ -59,21 +67,72 @@ async function webChannel(): Promise<FrameChannel> {
     },
   };
 }
-export async function connectUiAgent() {
+async function openClient(expected?: string) {
   const desktop = window.aluneAgent;
   if (!desktop && import.meta.env.MODE !== 'agent') return;
   if (desktop) await desktop.open();
   const client = new AgentClient(frameTransport(desktop ?? (await webChannel())));
   try {
     await client.initialize({ name: 'alune-ui', version: __APP_VERSION__ });
+    if (expected && client.initialized!.agentId !== expected)
+      throw new Error('工作区身份已变化，请重新打开。');
     await client.subscribe(
       location.pathname === '/logs' ? ['diagnostics.logs.changed'] : workspaceTopics,
     );
-    uiAgent = client;
-    window.addEventListener('pagehide', () => client.close(), { once: true });
     return client;
   } catch (error) {
     client.close();
     throw error;
   }
+}
+
+export async function connectUiAgent(install: (client: AgentClient) => Promise<void>) {
+  const initial = await openClient();
+  if (!initial) return;
+  const owner = initial.initialized!.agentId;
+  let unloading = false,
+    connecting = false;
+  const close = () => {
+    unloading = true;
+    uiAgent?.close();
+  };
+  window.addEventListener('pagehide', close, { once: true });
+  if (import.meta.hot) import.meta.hot.dispose(close);
+  async function attach(client: AgentClient) {
+    if (unloading) {
+      client.close();
+      return;
+    }
+    uiAgent = client;
+    await install(client);
+    for (const fn of changed) fn();
+    client.onClose(() => {
+      if (!unloading) void reconnect();
+    });
+  }
+  async function reconnect() {
+    if (connecting || unloading || uiAgent?.state === 'ready') return;
+    connecting = true;
+    try {
+      for (const ms of [200, 500, 1000, 2000, 5000]) {
+        await new Promise((resolve) => setTimeout(resolve, ms));
+        if (unloading) return;
+        try {
+          const client = await openClient(owner);
+          if (client) {
+            await attach(client);
+            return;
+          }
+        } catch {
+          /* Retain drafts and the closed executor. No business requests are replayed. */
+        }
+      }
+    } finally {
+      connecting = false;
+    }
+  }
+  window.addEventListener('online', () => void reconnect());
+  window.addEventListener('focus', () => void reconnect());
+  await attach(initial);
+  return initial;
 }

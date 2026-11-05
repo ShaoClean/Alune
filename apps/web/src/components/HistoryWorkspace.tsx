@@ -2,7 +2,7 @@ import { useCommitSignatures } from '../hooks/useCommitSignatures';
 import { CommitSignatureBadge } from './CommitSignatureBadge';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { CommitFile, GraphCommit } from '@alune/shared';
+import type { CommitFile, GraphCommit } from '@alune/domain';
 import { Button } from '@alune/ui';
 import { ArrowLeftOutlined, CloseOutlined, TagOutlined } from '@ant-design/icons';
 import { HistoryReference, HistoryView } from './HistoryView';

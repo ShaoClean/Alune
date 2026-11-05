@@ -81,8 +81,10 @@ jobs:
           node-version: '22.22.0'
           cache: npm
       - run: npm ci
-      - run: npm run desktop:build
-      - run: npm run dist -w desktop -- --publish never
+      - run: npm run desktop:candidate:build
+      - name: Verify candidate has no embedded server, old workspaces or Electron-native database
+        run: node apps/desktop/scripts/check-candidate.mjs
+      - run: npm run dist:candidate -w desktop
       - if: runner.os != 'Linux'
         run: node apps/desktop/scripts/installer-cycle.mjs
       - if: runner.os == 'Linux'

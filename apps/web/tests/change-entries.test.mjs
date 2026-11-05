@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import { changeActions } from '@alune/shared';
+import { changeActions } from '@alune/domain';
 import { AluneConfirmProvider } from '../src/components/AluneModal.tsx';
 import { ChangesView } from '../src/components/ChangesView.tsx';
 import { useRepositoryStore } from '../src/stores/repositoryStore.ts';

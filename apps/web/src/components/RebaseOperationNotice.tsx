@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRepositoryWorkspace } from '../hooks/useRepositoryWorkspace';
 import { AluneModal, Button, Input, useFeedbackMessage } from '@alune/ui';
-import type { RebaseConflict, RebaseState, RebaseResolution } from '@alune/shared';
+import type { RebaseConflict, RebaseState, RebaseResolution } from '@alune/domain';
 import { gitApi } from '../api';
 import { notifyRebaseChanged } from './InteractiveRebaseDialog';
 

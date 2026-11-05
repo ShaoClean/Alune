@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { RepositoryAnalyticsEntry } from '@alune/shared';
-import { ANALYTICS_BATCH_SIZE } from '@alune/shared';
+import type { RepositoryAnalyticsEntry } from '@alune/domain';
+import { ANALYTICS_BATCH_SIZE } from '@alune/domain';
 import { repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { repositoryGroupId } from '../stores/repositorySource';

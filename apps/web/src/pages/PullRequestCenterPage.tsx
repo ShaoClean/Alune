@@ -8,7 +8,7 @@ import type {
   PullRequestCenterItem,
   PullRequestCenterQuery,
   PullRequestSource,
-} from '@alune/shared';
+} from '@alune/protocol';
 import { PullRequestRow } from '../components/PullRequestsView';
 import { PullRequestDetails } from '../components/PullRequestDetails';
 import {

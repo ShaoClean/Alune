@@ -17,9 +17,11 @@ import type {
   NetworkProxyConfig,
   ProxyConnectionStatus,
   ProxyTestResult,
-  Repository,
   SaveNetworkProxy,
-} from '@alune/shared';
+} from '@alune/protocol';
+import type {
+  Repository,
+} from '@alune/domain';
 import { proxyApi, proxyError } from '../../api/proxy';
 import { repositoryApi } from '../../api';
 import { AluneModal } from '@alune/ui';

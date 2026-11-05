@@ -28,12 +28,11 @@ import { connectUiAgent } from './api/ui-agent';
 import { installWorkspaceAgent } from './api/agent-workspace';
 
 async function mount() {
-  const client = await connectUiAgent();
-  if (client) {
+  await connectUiAgent(async (client) => {
     if (!window.aluneWorkspace && window.location.pathname !== '/logs')
       scopeBrowserWorkspace(client.initialized!.agentId);
     await installWorkspaceAgent(client, window.location.pathname === '/logs');
-  }
+  });
   installClientErrorReporting();
 
   // The log viewer is a standalone window/tab: it never hydrates or writes the

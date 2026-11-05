@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { uiAgent } from '../api/ui-agent';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,useSyncExternalStore } from 'react';
+import {currentUiAgent,observeUiAgent} from '../api/ui-agent';
 import { io } from 'socket.io-client';
 import { AluneUIProvider, Button, Input, Select, Tooltip } from '@alune/ui';
 import {
@@ -11,7 +11,7 @@ import {
   CaretRightOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import { LOG_LEVELS, LOGGING_LIMITS, type LogEntry, type LogLevel } from '@alune/shared';
+import { LOG_LEVELS, LOGGING_LIMITS, type LogEntry, type LogLevel } from '@alune/protocol';
 import { logBridge, loggingApi, loggingError } from '../api/logging';
 import '../logs.css';
 
@@ -107,6 +107,7 @@ const LogLine = memo(function LogLine({
 });
 
 export function LogViewerPage() {
+  const uiAgent=useSyncExternalStore(observeUiAgent,currentUiAgent);
   const [rows, setRows] = useState<Row[]>([]);
   const [levels, setLevels] = useState<LogLevel[]>([...LOG_LEVELS]);
   const [source, setSource] = useState<string | null>(null);
@@ -214,7 +215,7 @@ export function LogViewerPage() {
       disposed = true;
       socket.disconnect();
     };
-  }, [append]);
+  }, [append,uiAgent]);
 
   const sources = useMemo(
     () => [...new Set(rows.map((row) => row.source))].sort((a, b) => a.localeCompare(b)),

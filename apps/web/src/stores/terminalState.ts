@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TerminalSession } from '@alune/shared';
+import type { TerminalSession } from '@alune/domain';
 
 export type ViewSession = TerminalSession & { truncated?: boolean; inputError?: string };
 type TerminalStore = {

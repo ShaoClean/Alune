@@ -1,5 +1,5 @@
-import { REPOSITORY_STATUS_CACHE_MS } from '@alune/shared';
-import type { ConnectionStatusInfo, Repository } from '@alune/shared';
+import { REPOSITORY_STATUS_CACHE_MS } from '@alune/domain';
+import type { ConnectionStatusInfo, Repository } from '@alune/domain';
 import type { RepositoryStatusEntry } from './repositoryStore';
 import { LOCAL_GROUP_ID, repositoryGroupId } from './repositorySource';
 

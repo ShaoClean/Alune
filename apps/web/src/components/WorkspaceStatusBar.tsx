@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LaptopOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
-import type { Repository } from '@alune/shared';
+import type { Repository } from '@alune/domain';
 import { useNavigate } from 'react-router-dom';
 import { useConnectionStore } from '../stores/connectionStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';

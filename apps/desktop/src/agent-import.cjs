@@ -36,7 +36,13 @@ async function initializeDesktopState({ node, entry, env }, source, directory, s
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
   });
-  const dispose = bridgeLegacyAgentSecrets(child, storage, hashes, { hashed: true });
+  let diagnostic = 'import-validation';
+  const dispose = bridgeLegacyAgentSecrets(child, storage, hashes, {
+    hashed: true,
+    onFailure: (reason) => {
+      diagnostic = reason;
+    },
+  });
   const timer = setTimeout(() => child.kill('SIGKILL'), 180000);
   let output = '',
     error = '';
@@ -51,7 +57,8 @@ async function initializeDesktopState({ node, entry, env }, source, directory, s
       child.once('error', reject);
       child.once('close', resolve);
     });
-    if (code !== 0) throw new Error('旧数据迁移失败，原始数据已保留。' + error.trim());
+    if (code !== 0)
+      throw new Error('旧数据迁移失败，原始数据已保留。' + error.trim() + ' (' + diagnostic + ')');
     const receipt = JSON.parse(output);
     if (!/^[0-9a-f-]{36}$/.test(receipt.sourceBackupId)) throw new Error('无效的迁移回执。');
     const workspace = path.join(

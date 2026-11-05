@@ -12,7 +12,7 @@ import type {
   PullRequestPage,
   PullRequestProvider,
   PullRequestRemote,
-} from '@alune/shared';
+} from '@alune/protocol';
 import { repositoryApi } from '../api';
 import { errorMessage } from './files-tree';
 import { ErrorState, PanelHeader } from '@alune/ui';

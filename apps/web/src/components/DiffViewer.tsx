@@ -1,5 +1,5 @@
 import { lfsDiffPointers } from './lfs-diff';
-import { diffImageMediaType } from '@alune/shared';
+import { diffImageMediaType } from '@alune/domain';
 import { formatBytes } from './ImageDiffView';
 import { usePartialDiff } from './usePartialDiff';
 import type { PartialDiffControls } from './usePartialDiff';
@@ -30,7 +30,7 @@ import { HIGHLIGHT_MAX_CHARS, useHighlighter } from './useHighlighter';
 import { fileLanguage } from './file-language';
 import type { NumberedDiffLine } from './diff-lines';
 import { ImageDiffView } from './ImageDiffView';
-import type { DiffImageOptions } from '@alune/shared';
+import type { DiffImageOptions } from '@alune/domain';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { SplitViewIcon, UnifiedViewIcon } from './DiffViewIcons';
 import { useDiffFullscreen } from './useDiffFullscreen';

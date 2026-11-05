@@ -8,8 +8,8 @@ export { useTerminalStore, terminalStateLabel } from './terminalState';
 import { io, type Socket } from 'socket.io-client';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/shared';
-import type { Repository, TerminalOutput, TerminalReply, TerminalSession } from '@alune/shared';
+import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/domain';
+import type { Repository, TerminalOutput, TerminalReply, TerminalSession } from '@alune/domain';
 import { useWorkspaceStore } from './workspaceStore';
 import { retainedTerminalLines } from './terminalHistory';
 
@@ -143,6 +143,8 @@ export function connectTerminals() {
   if (uiAgent && !workspaceEnd) {
     const disposers = new Set<() => void>();
     const detach = observeOwners((client) => {
+      if(client.state!=='ready')return;
+      if(client===uiAgent)useTerminalStore.setState({connected:true,error:''});
       const off = client.onEvent((event) => {
         const info = event.payload as unknown as TerminalSession;
         const id =

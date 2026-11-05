@@ -16,10 +16,10 @@ import type {
   PullRequestProvider,
   PullRequestRemote,
   PullRequestResourcePage,
-} from '@alune/shared';
+} from '@alune/protocol';
 import { repositoryApi } from '../api';
 import { errorMessage } from './files-tree';
-import { pullRequestDiffLines, pullRequestRange } from '@alune/shared';
+import { pullRequestDiffLines, pullRequestRange } from '@alune/protocol';
 import { ReviewActionBar, ReviewCommentComposer, useReviewActions } from './PullRequestActions';
 import type { ReviewActions } from './PullRequestActions';
 import { MarkdownContent } from './ReleaseNotes';

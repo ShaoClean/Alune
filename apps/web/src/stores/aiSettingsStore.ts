@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AiSettings } from '@alune/shared';
+import type { AiSettings } from '@alune/protocol';
 import { aiApi, aiError } from '../api/ai';
 
 let request = 0;

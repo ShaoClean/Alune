@@ -14,3 +14,5 @@ export * from './rebase';
 export * from './merge-conflicts';
 export * from './terminal';
 export * from './workspace';
+export * from './connection';
+export * from './change-actions';

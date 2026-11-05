@@ -2,7 +2,7 @@ import { cloneElement, useEffect, useState } from 'react';
 import type { MouseEventHandler, ReactElement } from 'react';
 import { ApartmentOutlined, FolderOutlined } from '@ant-design/icons';
 import { Tooltip } from '@alune/ui';
-import type { Repository } from '@alune/shared';
+import type { Repository } from '@alune/domain';
 import { worktreeKindLabel } from '../stores/repositoryLabels';
 
 export function RepositoryKindIcon({ kind }: { kind: Repository['worktreeKind'] }) {

@@ -1,4 +1,4 @@
-import type { CommitSignature } from '@alune/shared';
+import type { CommitSignature } from '@alune/domain';
 const reasons: Record<string, string> = {
   G: '执行主机验证通过',
   B: '签名不匹配',

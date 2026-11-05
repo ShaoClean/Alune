@@ -19,7 +19,9 @@
     "test:agent-migration": "node scripts/agent-migration-smoke.mjs",
     "agent:stage": "node scripts/stage-agent.mjs",
     "prepack": "npm run agent:stage",
-    "predist": "npm run agent:stage"
+    "predist": "npm run agent:stage",
+    "build:candidate": "node scripts/stage.mjs --candidate",
+    "dist:candidate": "npm run agent:stage && electron-builder --projectDir dist/candidate-app --config ../../electron-builder.cjs --publish never"
   },
   "devDependencies": {
     "server": "*",
@@ -28,6 +30,7 @@
   "dependencies": {
     "builder-util-runtime": "^9.7.0",
     "electron-updater": "^6.8.9",
-    "semver": "^7.8.0"
+    "semver": "^7.8.0",
+    "undici": "^7.30.0"
   }
 }

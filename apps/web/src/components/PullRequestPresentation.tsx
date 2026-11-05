@@ -1,4 +1,4 @@
-import type { PullRequestItem } from '@alune/shared';
+import type { PullRequestItem } from '@alune/protocol';
 import { DialogIcon } from '@alune/ui';
 
 export function PullRequestStatus({ state }: Pick<PullRequestItem, 'state'>) {

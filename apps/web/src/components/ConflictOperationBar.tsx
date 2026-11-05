@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, Tooltip, useAluneConfirm, useFeedbackMessage, DialogPath } from '@alune/ui';
 import { DialogCard, DialogIcon, DialogNote } from '@alune/ui';
-import type { RepositoryOperationState } from '@alune/shared';
+import type { RepositoryOperationState } from '@alune/domain';
 import { gitApi } from '../api';
 import { operationNames, operationProgress, operationTitle, sideNames } from './conflict-model';
 

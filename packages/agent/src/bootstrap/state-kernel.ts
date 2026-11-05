@@ -78,7 +78,7 @@ export async function openStateKernel(
   const network = new ProxyRuntime(settings.proxy);
   const hosts = remote
     ? undefined
-    : hostsKernel(directory, repositories.catalog, settings, state.document('ssh-routes'));
+    : hostsKernel(directory, repositories.catalog, settings, state.document('ssh-routes'),network.fetch);
   const collaboration = collaborationKernel(
     repositories.catalog,
     settings,

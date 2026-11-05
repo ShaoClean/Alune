@@ -1,6 +1,6 @@
 import { FeedbackAlert } from '@alune/ui';
 import { useEffect, useState } from 'react';
-import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/shared';
+import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/domain';
 import { repositoryApi } from '../api';
 import type { ImageDiffKind } from './diff-lines';
 

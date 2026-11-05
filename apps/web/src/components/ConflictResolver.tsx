@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AimOutlined, CloseOutlined, CheckOutlined } from '@ant-design/icons';
 import { AlunePopconfirm, Button, useAluneConfirm, useFeedbackMessage } from '@alune/ui';
-import { parseConflictMarkers } from '@alune/shared';
+import { parseConflictMarkers } from '@alune/domain';
 import type {
   ConflictBlock,
   ConflictBlockChoice,
@@ -9,7 +9,7 @@ import type {
   FileStatus,
   RepositoryFilePreview,
   RepositoryOperationState,
-} from '@alune/shared';
+} from '@alune/domain';
 import { gitApi, repositoryApi } from '../api';
 import {
   conflictHint,

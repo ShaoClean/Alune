@@ -17,7 +17,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, MoonLoader, Tooltip, type TooltipProps } from '@alune/ui';
 import { AlunePopconfirm } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
-import { changeActions, changeKindLabel, type FileStatus } from '@alune/shared';
+import { changeActions, changeKindLabel, type FileStatus } from '@alune/domain';
 import {
   CheckOutlined,
   DeleteOutlined,

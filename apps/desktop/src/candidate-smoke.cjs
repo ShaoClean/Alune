@@ -4,7 +4,9 @@ const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 module.exports = async ({ window, origin, backend, logWindow, updates }) => {
-  const { repo, id, workspace, db, fromRelease } = JSON.parse(process.env.ALUNE_CANDIDATE_FIXTURE);
+  const { repo, id, workspace, db, fromRelease, tokenId } = JSON.parse(
+    process.env.ALUNE_CANDIDATE_FIXTURE,
+  );
   const phase = process.env.ALUNE_SMOKE_PHASE;
   const wait = (contents, test) =>
     contents.executeJavaScript(
@@ -45,7 +47,20 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
       (await wc.capturePage()).toPNG(),
     );
   }
-  if (!fromRelease) {
+  if (fromRelease) {
+    await window.loadURL(origin + '/settings/proxy');
+    await wait(wc, "document.querySelector('[aria-label=代理端口]')?.value === '18291'");
+    if (tokenId) {
+      await window.loadURL(origin + '/settings/tokens');
+      await wait(wc, "document.body.innerText.includes('Upgrade fixture token')");
+      assert.equal(
+        await wc.executeJavaScript(
+          "document.body.innerText.includes('isolated-upgrade-test-token')",
+        ),
+        false,
+      );
+    }
+  } else {
     if (phase === 'write') {
       await require('./dialogs-smoke.cjs')({ window });
       await require('./settings-shell-smoke.cjs')({

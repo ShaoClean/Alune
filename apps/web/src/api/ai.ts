@@ -7,7 +7,7 @@ import type {
   CommitGenerationPreferences,
   GeneratedCommit,
   TestAiProvider,
-} from '@alune/shared';
+} from '@alune/protocol';
 
 const api = axios.create({ baseURL: '/api/ai', timeout: 65_000 });
 export const aiApi = {

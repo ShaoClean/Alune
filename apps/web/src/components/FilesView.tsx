@@ -16,8 +16,8 @@ import {
   MinusSquareOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import { DIFF_IMAGE_MAX_BYTES, REPOSITORY_TREE_MAX_ENTRIES } from '@alune/shared';
-import type { FileStatus, RepositoryFilePreview, RepositoryTreeEntry } from '@alune/shared';
+import { DIFF_IMAGE_MAX_BYTES, REPOSITORY_TREE_MAX_ENTRIES } from '@alune/domain';
+import type { FileStatus, RepositoryFilePreview, RepositoryTreeEntry } from '@alune/domain';
 import { repositoryApi } from '../api';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { FILES_STACKED_WIDTH, FILES_TREE_MAX, FILES_TREE_MIN } from '../stores/workspaceLayout';

@@ -1,7 +1,7 @@
 const { createServer } = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs');
-const { AgentClient, frameTransport, launchUiAgent } = require('@alune/agent-client/node');
+const { superviseUiAgent } = require('@alune/agent-client/node');
 const { isTrustedWorkspaceSender } = require('./workspace-preferences.cjs');
 const { initializeDesktopState } = require('./agent-import.cjs');
 const { createAiSecretStorage } = require('./ai-secret-storage.cjs');
@@ -54,7 +54,14 @@ async function startDesktopAgent({
     directory,
     createAiSecretStorage(require('electron').safeStorage),
   );
-  const host = await launchUiAgent(node, entry, directory);
+  const catalog = path.join(root, '..', 'agent-catalog.json');
+  const host = await superviseUiAgent(
+    node,
+    entry,
+    directory,
+    manifest.version,
+    fs.existsSync(catalog) ? catalog : undefined,
+  );
   const channels = new Map();
   const webRoot = path.join(__dirname, 'web');
   let origin;
@@ -90,12 +97,9 @@ async function startDesktopAgent({
       response.end(request.method === 'HEAD' ? undefined : data);
     });
   });
-  const client = new AgentClient(frameTransport(await host.open('native')));
+
   let stopping = false;
   try {
-    const handshake = await client.initialize({ name: 'alune-desktop', version: app.getVersion() });
-    if (handshake.implementation.version !== manifest.version)
-      throw new Error('本机服务版本不匹配。');
     await new Promise((resolve, reject) => {
       server.once('error', reject);
       server.listen(0, '127.0.0.1', resolve);
@@ -167,9 +171,9 @@ async function startDesktopAgent({
     const { ProxyAgent, fetch: networkFetch } = require('undici');
     let proxy, port;
     const networkProxy = {
-      updaterBridge: () => client.updaterBridge(),
+      updaterBridge: () => host.client.updaterBridge(),
       async fetch(url, init) {
-        const bridge = await client.updaterBridge();
+        const bridge = await host.client.updaterBridge();
         if (bridge.enabled && port !== bridge.port) {
           const old = proxy;
           proxy = new ProxyAgent('http://127.0.0.1:' + bridge.port);
@@ -181,16 +185,18 @@ async function startDesktopAgent({
     };
     return {
       origin,
-      client,
+      get client() {
+        return host.client;
+      },
       networkProxy,
       registry: {
-        impact: () => client.request('desktop.terminals.impact', {}),
-        remove: (_scope, ids) => client.request('desktop.terminals.remove', ids),
+        impact: () => host.client.request('desktop.terminals.impact', {}),
+        remove: (_scope, ids) => host.client.request('desktop.terminals.remove', ids),
       },
       async close() {
         stopping = true;
         for (const c of channels.values()) c.cleanup();
-        client.close();
+
         server.closeAllConnections();
         server.close();
         try {
@@ -201,7 +207,6 @@ async function startDesktopAgent({
       },
     };
   } catch (error) {
-    client.close();
     server.close();
     await host.close();
     throw error;

@@ -2,7 +2,7 @@ import { useCommitSignatures } from '../hooks/useCommitSignatures';
 import { CommitSignatureBadge } from './CommitSignatureBadge';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import type { GraphCommit, CommitReference } from '@alune/shared';
+import type { GraphCommit, CommitReference } from '@alune/domain';
 import { FeedbackNotice, Button, Dropdown } from '@alune/ui';
 import { InteractiveRebaseDialog } from './InteractiveRebaseDialog';
 import {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { CommitSignature } from '@alune/shared';
+import type { CommitSignature } from '@alune/domain';
 import { gitApi } from '../api';
 
 /** Verify only rendered commits; scrolling cancels obsolete work, refresh drops trust results. */

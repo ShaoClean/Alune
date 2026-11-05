@@ -1,4 +1,4 @@
-import type { TerminalSession } from '@alune/shared';
+import type { TerminalSession } from '@alune/domain';
 
 let confirmRemoval: ((sessions: TerminalSession[]) => Promise<boolean>) | undefined;
 export function registerTerminalRemovalConfirmation(confirm?: typeof confirmRemoval) {

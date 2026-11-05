@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CopyOutlined, DeleteOutlined, MoreOutlined } from '@ant-design/icons';
 import { Popover, useFeedbackMessage } from '@alune/ui';
-import type { Repository } from '@alune/shared';
+import type { Repository } from '@alune/domain';
 import { RemoveRepositoryConfirm } from './AlunePopconfirm';
 
 export function WorkspaceRepositoryActions({

@@ -162,6 +162,7 @@ try {
   fs.mkdirSync(restorePoint, { mode: 0o700 });
   const originals = [
     'alune.db',
+    'Local State',
     'alune.db-wal',
     'alune.db-shm',
     'workspace.json',
@@ -175,7 +176,18 @@ try {
       fs.copyFileSync(path.join(data, file), path.join(restorePoint, file));
   fixture.db = digest(path.join(data, 'alune.db'));
   fixture.workspace = digest(path.join(data, 'workspace.json'));
+  if (process.platform === 'win32' && fixture.tokenId) {
+    const state = JSON.parse(fs.readFileSync(path.join(data, 'Local State'), 'utf8'));
+    if (!state.os_crypt?.encrypted_key)
+      throw Error('Published application did not persist its DPAPI master-key descriptor');
+  }
   const exe = await install(candidateFile);
+  if (
+    process.platform === 'win32' &&
+    fixture.tokenId &&
+    digest(path.join(data, 'Local State')) !== digest(path.join(restorePoint, 'Local State'))
+  )
+    throw Error('Installer changed the original Chromium Local State before migration');
   await boot(exe, 'write', fixture);
   await boot(exe, 'restore', fixture);
   const beforeRollback = git('write-tree');

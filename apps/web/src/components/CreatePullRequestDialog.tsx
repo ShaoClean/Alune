@@ -5,7 +5,7 @@ import type {
   CreatedPullRequest,
   PullRequestCreationPreview,
   PullRequestCreationQuery,
-} from '@alune/shared';
+} from '@alune/protocol';
 import { gitApi, repositoryApi } from '../api';
 import { aiApi, aiError } from '../api/ai';
 import { defaultCommitModel, useAiSettingsStore } from '../stores/aiSettingsStore';

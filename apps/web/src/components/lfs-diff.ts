@@ -1,4 +1,4 @@
-import { parseLfsPointer } from '@alune/shared';
+import { parseLfsPointer } from '@alune/domain';
 import { getDiffLines } from './diff-lines';
 
 export function lfsDiffPointers(diff: string) {

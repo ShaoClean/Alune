@@ -11,7 +11,7 @@ import type { IncomingMessage } from 'node:http';
 import { join } from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { MAX_FRAME_BYTES } from '@alune/protocol';
-import { launchUiAgent } from '@alune/agent-client/node';
+import { superviseUiAgent } from '@alune/agent-client/node';
 
 export function agentDev(): Plugin {
   let dispose: (() => Promise<void>) | undefined;
@@ -52,7 +52,12 @@ export function agentDev(): Plugin {
           await rename(marker + '.tmp', marker);
         }
       }
-      const host = await launchUiAgent(process.execPath, entry, data);
+      const host = await superviseUiAgent(
+        process.execPath,
+        entry,
+        data,
+        JSON.parse(await readFile(join(entry, '../../dist/version.json'), 'utf8')).version,
+      );
       const ws = new WebSocketServer({
         noServer: true,
         maxPayload: MAX_FRAME_BYTES,

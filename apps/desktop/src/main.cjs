@@ -40,7 +40,7 @@ process.env.ALUNE_DATA_DIR = app.getPath('userData');
 
 // Loaded lazily: the second instance quits before writing anything.
 function appLog() {
-  if (!candidate) return require('./server/logging/logger.js');
+  if (!candidate) return require('./legacy-backend.cjs').appLog();
   const logger = Object.fromEntries(
     ['debug', 'info', 'warn', 'error'].map((level) => [
       level,
@@ -85,7 +85,7 @@ const logWindow = createLogWindow({
   candidate,
   iconPath,
   openExternal: smokeTest
-    ? (url) => require('./smoke.cjs').openExternal(url)
+    ? (url) => (candidate ? async () => {} : require('./smoke.cjs').openExternal)(url)
     : (url) => shell.openExternal(url),
   show: !smokeTest,
 });
@@ -121,7 +121,7 @@ function createWindow() {
   });
   window.webContents.setWindowOpenHandler(
     createExternalLinkHandler(
-      smokeTest ? require('./smoke.cjs').openExternal : (url) => shell.openExternal(url),
+      smokeTest ? (candidate ? async () => {} : require('./smoke.cjs').openExternal) : (url) => shell.openExternal(url),
     ),
   );
   const guardNavigation = (event, url) => {
@@ -184,7 +184,7 @@ async function start() {
     windowContents: () => window?.webContents,
     logContents: () => logWindow.contents(),
   };
-  if (!candidate) require('./server/logging/redact.js').registerSecret(token);
+  if (!candidate) require('./legacy-backend.cjs').registerSecret(token);
   const service = candidate
     ? await require('./desktop-agent.cjs').startDesktopAgent(options)
     : await require('./legacy-backend.cjs').startLegacyBackend(options);
@@ -209,7 +209,7 @@ async function start() {
   const { UpdateService } = require('./update-service.cjs');
   const { registerUpdateIPC } = require('./update-ipc.cjs');
   const adapter = smokeTest
-    ? require('./smoke.cjs').createUpdateAdapter(app.getVersion())
+    ? require('./smoke-updater.cjs').createUpdateAdapter(app.getVersion())
     : process.platform === 'darwin'
       ? require('./mac-updater.cjs').createMacUpdater({
           version: app.getVersion(),

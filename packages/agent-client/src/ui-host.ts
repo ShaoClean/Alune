@@ -2,12 +2,25 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { MAX_FRAME_BYTES, isRecord } from '@alune/protocol';
-import type { FrameChannel } from './frame-channel';
+import { frameTransport, type FrameChannel } from './frame-channel';
+import { AgentClient } from './client';
 
 export type HostRole = 'workspace' | 'logs' | 'native';
-export async function launchUiAgent(command: string, entry: string, directory: string) {
+export async function launchUiAgent(
+  command: string,
+  entry: string,
+  directory: string,
+  catalogPath?: string,
+) {
   const env = { ...process.env };
-  for (const key of ['NODE_OPTIONS', 'NODE_PATH', 'ELECTRON_RUN_AS_NODE']) delete env[key];
+  for (const key of [
+    'NODE_OPTIONS',
+    'NODE_PATH',
+    'ELECTRON_RUN_AS_NODE',
+    'ALUNE_AGENT_RELEASE_CATALOG',
+  ])
+    delete env[key];
+  if (catalogPath) env.ALUNE_AGENT_RELEASE_CATALOG = catalogPath;
   const child = spawn(
     command,
     ['--max-semi-space-size=2', entry, 'serve-ui', '--data-dir', directory],
@@ -102,6 +115,7 @@ export async function launchUiAgent(command: string, entry: string, directory: s
   }
   return {
     close,
+    pid: child.pid!,
     exited,
     async open(role: HostRole): Promise<FrameChannel> {
       if (closing || ended || channels.size >= 16) throw new Error('Agent session unavailable');
@@ -141,6 +155,67 @@ export async function launchUiAgent(command: string, entry: string, directory: s
           };
         },
       };
+    },
+  };
+}
+
+// The independent process may die while the desktop window or Vite remains
+// alive. Reopen only on a fresh channel request. Never replay an RPC.
+export async function superviseUiAgent(
+  command: string,
+  entry: string,
+  directory: string,
+  version: string,
+  catalogPath?: string,
+) {
+  let current: Awaited<ReturnType<typeof launchUiAgent>> | undefined,
+    control: AgentClient | undefined;
+  let opening: Promise<void> | undefined,
+    stopped = false,
+    owner: string | undefined;
+  function ready(): Promise<void> {
+    if (stopped) return Promise.reject(new Error('Agent host is closing'));
+    if (control?.state === 'ready') return Promise.resolve();
+    return (opening ??= (async () => {
+      await current?.close();
+      const host = await launchUiAgent(command, entry, directory, catalogPath);
+      try {
+        const client = new AgentClient(frameTransport(await host.open('native')));
+        const identity = await client.initialize({ name: 'alune-host', version });
+        if (
+          stopped ||
+          identity.implementation.version !== version ||
+          (owner && owner !== identity.agentId)
+        )
+          throw new Error('Agent identity or version changed; check the data directory');
+        owner = identity.agentId;
+        current = host;
+        control = client;
+      } catch (error) {
+        await host.close();
+        throw error;
+      }
+    })().finally(() => {
+      opening = undefined;
+    }));
+  }
+  await ready();
+  return {
+    get client() {
+      return control!;
+    },
+    get pid() {
+      return current!.pid;
+    },
+    async open(role: HostRole) {
+      await ready();
+      return current!.open(role);
+    },
+    async close() {
+      stopped = true;
+      await opening?.catch(() => {});
+      control?.close();
+      await current?.close();
     },
   };
 }

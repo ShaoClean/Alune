@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { SigningConfig } from '@alune/shared';
+import type { SigningConfig } from '@alune/domain';
 import { AluneModal, Button, DialogNote, Input, Select, Switch, DialogField } from '@alune/ui';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';

@@ -24,9 +24,6 @@ export default defineConfig(
         '@alune/domain': fileURLToPath(
           new URL('../../packages/domain/src/index.ts', import.meta.url),
         ),
-        '@alune/shared': fileURLToPath(
-          new URL('../../packages/shared/src/index.ts', import.meta.url),
-        ),
       },
     },
     server: {

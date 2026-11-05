@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { LogEntry, LogLevel, LoggingSettings, SaveLoggingSettings } from '@alune/shared';
+import type { LogEntry, LogLevel, LoggingSettings, SaveLoggingSettings } from '@alune/protocol';
 
 const api = axios.create({ baseURL: '/api/logs', timeout: 15_000 });
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Input, DialogField } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
-import type { RepositoryContext } from '@alune/shared';
+import type { RepositoryContext } from '@alune/domain';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { AluneModal } from '@alune/ui';

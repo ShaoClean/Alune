@@ -1,4 +1,4 @@
-import { TERMINAL_LIMITS } from '@alune/shared';
+import { TERMINAL_LIMITS } from '@alune/domain';
 
 // Work backwards so the most recent output survives both limits. The public
 // xterm buffer API includes wrapped lines and combined Unicode characters.

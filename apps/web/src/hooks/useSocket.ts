@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-import { uiAgent } from '../api/ui-agent';
+import { currentUiAgent, observeUiAgent } from '../api/ui-agent';
 
 export function useSocket(events: Record<string, (...args: any[]) => void>) {
+  const uiAgent = useSyncExternalStore(observeUiAgent, currentUiAgent);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -16,6 +17,8 @@ export function useSocket(events: Record<string, (...args: any[]) => void>) {
           const p = event.payload as { hostId: string; status: string; updatedAt: number };
           events['connection:status']?.({ ...p, connectionId: p.hostId });
         }
+        if (event.type === 'repositories.changed')
+          events['repository:changed']?.(event.resource?.resourceId);
         if (event.type === 'accounts.tokens.changed') events['access-tokens:changed']?.();
       });
       const close = uiAgent.onClose(() => events.disconnect?.());
@@ -45,7 +48,7 @@ export function useSocket(events: Record<string, (...args: any[]) => void>) {
       });
       socket.disconnect();
     };
-  }, []);
+  }, [uiAgent]);
 
   return socketRef;
 }

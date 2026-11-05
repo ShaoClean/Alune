@@ -1,42 +1,19 @@
-import type { LfsStatus, SubmoduleInfo } from '@alune/shared';
+import type { LfsStatus, SubmoduleInfo } from '@alune/domain';
 import axios from 'axios';
 import { confirmTerminalRemoval } from '../stores/terminalRemoval';
 import {
   REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
   REPOSITORY_FOREGROUND_STATUS_TIMEOUT_MS,
-} from '@alune/shared';
+} from '@alune/domain';
 import type {
   PullRequestAccount,
   PullRequestCenterQuery,
   PullRequestCenterPage,
   PullRequestSources,
-  SigningConfig,
-  CommitSignature,
-  PartialDiffRequest,
-  BlameOptions,
-  BlameResult,
-  BlameCommitDetail,
-  ConnectionTestResult,
   PullRequestCreationQuery,
   PullRequestCreationPreview,
   CreatePullRequest,
   CreatedPullRequest,
-  DiffImageContent,
-  DiffImageOptions,
-  NewFileDeletionPreview,
-  WorkspaceFilePreview,
-  DiscardChangesPreview,
-  DiscardChangesResult,
-  DiscardChangesScope,
-  LogOptions,
-  LogPage,
-  Repository,
-  RepositoryContext,
-  RepositoryStatus,
-  RepositoryAnalyticsEntry,
-  RepositoryFilePreview,
-  RepositoryTreeListing,
-  WorktreeInfo,
   PullRequestRemote,
   PullRequestQuery,
   PullRequestPage,
@@ -53,6 +30,31 @@ import type {
   AccessTokenSettings,
   SaveAccessToken,
   ApplyAccessToken,
+} from '@alune/protocol';
+import type {
+  SigningConfig,
+  CommitSignature,
+  PartialDiffRequest,
+  BlameOptions,
+  BlameResult,
+  BlameCommitDetail,
+  ConnectionTestResult,
+  DiffImageContent,
+  DiffImageOptions,
+  NewFileDeletionPreview,
+  WorkspaceFilePreview,
+  DiscardChangesPreview,
+  DiscardChangesResult,
+  DiscardChangesScope,
+  LogOptions,
+  LogPage,
+  Repository,
+  RepositoryContext,
+  RepositoryStatus,
+  RepositoryAnalyticsEntry,
+  RepositoryFilePreview,
+  RepositoryTreeListing,
+  WorktreeInfo,
   SwitchBranchResult,
   GitTag,
   RemoteTag,
@@ -69,7 +71,7 @@ import type {
   ConflictBlockChoice,
   ConflictSide,
   ConflictStepResult,
-} from '@alune/shared';
+} from '@alune/domain';
 
 const api = axios.create({
   baseURL: '/api',

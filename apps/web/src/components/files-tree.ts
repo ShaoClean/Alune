@@ -1,4 +1,4 @@
-import type { RepositoryTreeEntry, RepositoryTreeListing } from '@alune/shared';
+import type { RepositoryTreeEntry, RepositoryTreeListing } from '@alune/domain';
 
 // State of one lazily loaded directory. A reload keeps the previous listing so the
 // tree does not jump while it refreshes or after a failed retry.

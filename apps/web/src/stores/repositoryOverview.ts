@@ -1,5 +1,5 @@
-import { ANALYTICS_CACHE_MS, ANALYTICS_DAY_MS, REPOSITORY_STATUS_CACHE_MS } from '@alune/shared';
-import type { Repository, RepositoryAnalyticsEntry } from '@alune/shared';
+import { ANALYTICS_CACHE_MS, ANALYTICS_DAY_MS, REPOSITORY_STATUS_CACHE_MS } from '@alune/domain';
+import type { Repository, RepositoryAnalyticsEntry } from '@alune/domain';
 import type { RepositoryStatusEntry } from './repositoryStore';
 import { repositoryGroupId } from './repositorySource';
 

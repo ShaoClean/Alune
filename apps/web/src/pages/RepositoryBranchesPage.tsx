@@ -17,7 +17,7 @@ import {
   Tooltip,
 } from '@alune/ui';
 import type { CompactTableColumn } from '@alune/ui';
-import type { Repository } from '@alune/shared';
+import type { Repository } from '@alune/domain';
 import { RepositoryIdentity } from '../components/RepositoryIdentity';
 import { RepositoryBranchCell } from '../components/RepositoryBranchCell';
 import { RepositoryDetailStrip } from '../components/RepositoryDetailStrip';

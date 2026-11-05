@@ -68,4 +68,8 @@ async function startLegacyBackend({ app, dataDir, smokeTest, token }) {
     registry: backend.get(require('./server/terminal/terminal-registry.js').TerminalRegistry),
   };
 }
-module.exports = { startLegacyBackend };
+module.exports = {
+  startLegacyBackend,
+  appLog: () => require('./server/logging/logger.js'),
+  registerSecret: (token) => require('./server/logging/redact.js').registerSecret(token),
+};

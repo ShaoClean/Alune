@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AccessTokenSettings } from '@alune/shared';
+import type { AccessTokenSettings } from '@alune/protocol';
 import { accessTokenApi } from '../api';
 import { errorMessage } from '../components/files-tree';
 

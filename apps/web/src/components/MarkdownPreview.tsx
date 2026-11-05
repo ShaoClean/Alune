@@ -2,7 +2,7 @@ import { FeedbackAlert } from '@alune/ui';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { diffImageMediaType } from '@alune/shared';
+import { diffImageMediaType } from '@alune/domain';
 import { repositoryApi } from '../api';
 import { errorMessage } from './files-tree';
 import {

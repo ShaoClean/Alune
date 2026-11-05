@@ -1,6 +1,7 @@
 name: 独立 Agent
 
 on:
+  workflow_call:
   pull_request:
   push:
     branches: [development]
@@ -79,3 +80,22 @@ jobs:
           name: ssh-deploy-${{ matrix.target }}
           path: ${{ runner.temp }}/ssh-deploy/ssh-bundles/${{ matrix.target }}
           if-no-files-found: error
+
+  release-catalog:
+    needs: standalone
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ssh-deploy-*
+          path: ${{ runner.temp }}/agent-builds
+      - name: Verify complete candidate release catalog without publishing
+        run: node scripts/agent/release-assets.mjs catalog "$RUNNER_TEMP/agent-builds" "$RUNNER_TEMP/agent-catalog"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-agent-catalog
+          path: ${{ runner.temp }}/agent-catalog/agent-catalog.json
