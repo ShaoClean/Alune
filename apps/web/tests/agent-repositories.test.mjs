@@ -189,3 +189,46 @@ test('aborting a superseded read does not dispatch another request', async () =>
     f.adapter.dispose();
   }
 });
+
+test('status cancelled by an observed repository change refreshes the same foreground worktree, but caller cancellation and backend errors remain visible', async () => {
+  const f = make('agent');
+  try {
+    const calls = [];
+    f.client.readRepository = async (ref, kind, params, { signal }) => {
+      calls.push([ref, kind, params]);
+      if (calls.length === 1)
+        return new Promise((_ok, reject) =>
+          signal.addEventListener('abort', () => reject(new Error('Task cancelled')), {
+            once: true,
+          }),
+        );
+      return { currentBranch: 'after-mutation', files: [] };
+    };
+    const pending = f.adapter.repository.status('repo', undefined, true);
+    f.events.forEach((fn) => fn({ type: 'repositories.changed', resource }));
+    assert.deepEqual(await pending, { currentBranch: 'after-mutation', files: [] });
+    assert.deepEqual(calls, Array(2).fill([resource, 'status', { foreground: true }]));
+    let attempts = 0;
+    f.client.readRepository = async (_ref, _kind, _params, { signal }) => {
+      attempts++;
+      return new Promise((_ok, reject) =>
+        signal.addEventListener('abort', () => reject(new Error('Task cancelled')), { once: true }),
+      );
+    };
+    const user = new AbortController(),
+      abandoned = f.adapter.repository.status('repo', user.signal, true);
+    user.abort();
+    await assert.rejects(abandoned, /Task cancelled|aborted/i);
+    f.client.readRepository = async () => {
+      attempts++;
+      throw new Error('backend unavailable');
+    };
+    await assert.rejects(
+      f.adapter.repository.status('repo', undefined, true),
+      /backend unavailable/,
+    );
+    assert.equal(attempts, 2);
+  } finally {
+    f.adapter.dispose();
+  }
+});

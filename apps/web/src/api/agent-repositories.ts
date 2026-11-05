@@ -93,7 +93,7 @@ export function createAgentRepositoryQueries(
 ) {
   let disposed = false;
   const lifetime = new AbortController();
-  const superseded = Symbol('locally invalidated history read');
+  const superseded = Symbol('locally invalidated repository read');
   const related = new Map<string, ResourceRef>();
   const resolve = (id: string) => related.get(id) ?? resourceFor(id);
   const observed = new Map<string, string>();
@@ -149,11 +149,13 @@ export function createAgentRepositoryQueries(
         throw new Error('仓库读取结果已过期，请刷新后重试。');
       return invocation.select ? invocation.select(result) : result;
     } catch (error) {
-      // An in-flight history read may reject with the wire's generic
+      // An in-flight query may reject with the wire's generic
       // cancellation after a locally observed Git change. Only that case is
       // superseded; a timeout or real verification failure remains visible.
       if (
-        (invocation.kind === 'log' || invocation.kind === 'signatures') &&
+        (invocation.kind === 'status' ||
+          invocation.kind === 'log' ||
+          invocation.kind === 'signatures') &&
         !disposed &&
         !invocation.signal?.aborted &&
         controller.signal.aborted &&
@@ -167,8 +169,8 @@ export function createAgentRepositoryQueries(
     }
   }
   async function query(resource: ResourceRef, invocation: Invocation) {
-    // A mutation can supersede an already-dispatched graph or signature
-    // read. Repeat only that read against the same owner. Other protocol
+    // A mutation can supersede an already-dispatched status, graph or
+    // signature read. Repeat only that read against the same owner. Other protocol
     // errors (including an actually changed log page) are never retried.
     let delay = 120;
     for (;;) {
