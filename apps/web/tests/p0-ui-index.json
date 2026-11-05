@@ -2587,5 +2587,435 @@
     "968ba4ea627070c690a734ca": [
       "ui-listener:apps/web/src/stores/terminalStore.ts:element.addEventListener:205"
     ]
+  },
+  "anchors": {
+    "44a23ebe140d32691b1097da": [
+      "ui-handler:apps/web/src/components/ChangesView.tsx:Button.onClick:481"
+    ],
+    "acfdad685656cd9d95d9693b": [
+      "ui-handler:apps/web/src/components/ChangesView.tsx:Button.onClick:481"
+    ],
+    "24497f18b81423332734c7e2": [
+      "ui-handler:apps/web/src/components/ChangesView.tsx:Button.onClick:727"
+    ],
+    "90b969bda06f5cf1bfa0c3d7": [
+      "ui-handler:apps/web/src/components/ChangesView.tsx:Button.onClick:727"
+    ],
+    "b352a4bac7fd84585bb2cf62": [
+      "ui-listener:apps/web/src/components/FindWidget.tsx:window.addEventListener:95"
+    ],
+    "e2bc40c438e70f5c024f60ee": [
+      "ui-listener:apps/web/src/components/FindWidget.tsx:window.addEventListener:95"
+    ],
+    "134d40d3cdaa3a9185edd729": [
+      "ui-listener:apps/web/src/components/FindWidget.tsx:window.addEventListener:223"
+    ],
+    "3a1cd3971b81f6fef6483cd2": [
+      "ui-listener:apps/web/src/components/FindWidget.tsx:window.addEventListener:223"
+    ],
+    "3a7081fcc1d5f6f4fc9fdb24": [
+      "ui-handler:apps/web/src/components/HistoryFilterBar.tsx:Input.onPressEnter:70"
+    ],
+    "d86de79cad5c5b0a86d73864": [
+      "ui-handler:apps/web/src/components/HistoryFilterBar.tsx:Input.onPressEnter:70"
+    ],
+    "f33990d3535eb119b157a431": [
+      "ui-handler:apps/web/src/components/HistoryFilterBar.tsx:Input.onPressEnter:81"
+    ],
+    "e58330c8bce9ccf35b1966ad": [
+      "ui-handler:apps/web/src/components/HistoryFilterBar.tsx:Input.onPressEnter:81"
+    ],
+    "e3395a42373cebdc770c0137": [
+      "ui-handler:apps/web/src/components/HistoryFilterBar.tsx:Input.onPressEnter:114"
+    ],
+    "754331c662d8607d4989ce30": [
+      "ui-handler:apps/web/src/components/HistoryFilterBar.tsx:Input.onPressEnter:114"
+    ],
+    "e6622a2fe33c9ae993358681": [
+      "ui-handler:apps/web/src/components/Layout.tsx:Button.onClick:386"
+    ],
+    "6510d2904524d752dae3e129": [
+      "ui-handler:apps/web/src/components/Layout.tsx:Button.onClick:386"
+    ],
+    "f5faba2e138d0a0f32b7fd75": [
+      "ui-handler:apps/web/src/components/Layout.tsx:Button.onClick:454"
+    ],
+    "f76b66d5524344a9b97335c3": [
+      "ui-handler:apps/web/src/components/Layout.tsx:Button.onClick:454"
+    ],
+    "c4d7a805a78c5ba6f721947b": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Button.onClick:30"
+    ],
+    "1d73ed044f72f1162e6c81d0": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Button.onClick:30"
+    ],
+    "5581051d1749061680138833": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Switch.onChange:53"
+    ],
+    "b5951200d6b7eb6540456adb": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Switch.onChange:53"
+    ],
+    "d39de31999a6ca4e9318b099": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Switch.onChange:66"
+    ],
+    "6dc7af5262da25886f5f6448": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Switch.onChange:66"
+    ],
+    "8f15b24039c0ad572ebd908c": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:input.onChange:85"
+    ],
+    "77224a81398c6793b233985f": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:input.onChange:85"
+    ],
+    "8f03baf6911e6d46fd21a815": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:input.onChange:98"
+    ],
+    "94bd129f0fd2d69f4795bb90": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:input.onChange:98"
+    ],
+    "69d94aefe8940d29be71dd42": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Segmented.onChange:113"
+    ],
+    "d76894e51558e35246b058d8": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Segmented.onChange:113"
+    ],
+    "9539e0d283e917702af2448b": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Switch.onChange:133"
+    ],
+    "20e56df86cebaeccd6d5b25e": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Switch.onChange:133"
+    ],
+    "b85531870226bfd447bb87c8": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Switch.onChange:143"
+    ],
+    "c483a22c935dc2ef8b17732d": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Switch.onChange:143"
+    ],
+    "3c146bc10cd1c29fc6e41d97": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:input.onChange:158"
+    ],
+    "0e25f8a1de44690330566d3b": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:input.onChange:158"
+    ],
+    "3c720140d2cb3bd86922b812": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:input.onChange:169"
+    ],
+    "9c00006d546fcde2b8bbe4cb": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:input.onChange:169"
+    ],
+    "2dba4c90a6dbbaa3c7680125": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Segmented.onChange:186"
+    ],
+    "4cf21cb4980022887440576e": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Segmented.onChange:186"
+    ],
+    "d6d49d4771132c882936e5f3": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Button.onClick:190"
+    ],
+    "3b39e9bf7c73626e22e1eca8": [
+      "ui-handler:apps/web/src/components/LayoutSettings.tsx:Button.onClick:190"
+    ],
+    "9403667cedcc63129ae0ca27": [
+      "ui-handler:apps/web/src/components/PullRequestActions.tsx:Button.onClick:505"
+    ],
+    "db3edd48274c721574c2445f": [
+      "ui-handler:apps/web/src/components/PullRequestActions.tsx:Button.onClick:505"
+    ],
+    "44f1c2b29337f21d4555365b": [
+      "ui-handler:apps/web/src/components/PullRequestActions.tsx:Button.onClick:542"
+    ],
+    "d9c079739296a741c2953d94": [
+      "ui-handler:apps/web/src/components/PullRequestActions.tsx:Button.onClick:542"
+    ],
+    "e3fce4a73c4b0ede0534f7d0": [
+      "ui-handler:apps/web/src/components/RepositoryContextNotice.tsx:FeedbackNotice.onAction:140"
+    ],
+    "05bc0295afd6e18c334bc3c4": [
+      "ui-handler:apps/web/src/components/RepositoryContextNotice.tsx:FeedbackNotice.onAction:140"
+    ],
+    "3adb1c71b7e6b739c9122e74": [
+      "ui-handler:apps/web/src/components/RepositoryContextNotice.tsx:FeedbackNotice.onAction:148"
+    ],
+    "cabdce6e9533832bbe766696": [
+      "ui-handler:apps/web/src/components/RepositoryContextNotice.tsx:FeedbackNotice.onAction:148"
+    ],
+    "31350776996627b345ad3ee5": [
+      "ui-handler:apps/web/src/components/RepositoryOverview.tsx:RepositoryRows.onRetry:625"
+    ],
+    "e3eaab7d63c87f386e284ae6": [
+      "ui-handler:apps/web/src/components/RepositoryOverview.tsx:RepositoryRows.onRetry:625"
+    ],
+    "5d5d7cd886963ee65be6bc90": [
+      "ui-handler:apps/web/src/components/RepositoryOverview.tsx:RepositoryRows.onRetry:655"
+    ],
+    "90491d0fc6d975dc46907bba": [
+      "ui-handler:apps/web/src/components/RepositoryOverview.tsx:RepositoryRows.onRetry:655"
+    ],
+    "8c0f0b98527476a195664e68": [
+      "ui-handler:apps/web/src/components/StashesView.tsx:Button.onClick:270"
+    ],
+    "8d1004cde756b0a6f67d0236": [
+      "ui-handler:apps/web/src/components/StashesView.tsx:Button.onClick:270"
+    ],
+    "84d92700f0a70c455109fc1c": [
+      "ui-handler:apps/web/src/components/StashesView.tsx:Button.onClick:291"
+    ],
+    "cbf848fe8c62481a0493df8f": [
+      "ui-handler:apps/web/src/components/StashesView.tsx:Button.onClick:291"
+    ],
+    "0aa0c07783e0110fd646c09a": [
+      "ui-handler:apps/web/src/components/TerminalWorkspace.tsx:Button.onClick:423"
+    ],
+    "cb99dcca5203d31c3901d792": [
+      "ui-handler:apps/web/src/components/TerminalWorkspace.tsx:Button.onClick:423"
+    ],
+    "2e1a3f9ec3ac503df57ce225": [
+      "ui-handler:apps/web/src/components/TerminalWorkspace.tsx:Button.onClick:562"
+    ],
+    "29b2e8d8512fdbb69047d911": [
+      "ui-handler:apps/web/src/components/TerminalWorkspace.tsx:Button.onClick:562"
+    ],
+    "31fdaa97cfcb701e7fe8274e": [
+      "ui-handler:apps/web/src/components/UpdatePanel.tsx:Button.onClick:151"
+    ],
+    "b3698a4b3f5a66c7b9484b38": [
+      "ui-handler:apps/web/src/components/UpdatePanel.tsx:Button.onClick:151"
+    ],
+    "0681d444a5e5d48c2d6988fe": [
+      "ui-handler:apps/web/src/components/UpdatePanel.tsx:Button.onClick:156"
+    ],
+    "9b6fdb5ab06cb85840163965": [
+      "ui-handler:apps/web/src/components/UpdatePanel.tsx:Button.onClick:156"
+    ],
+    "2f25a328673f73d3bb5250cc": [
+      "ui-handler:apps/web/src/components/UpdatePanel.tsx:Button.onClick:320"
+    ],
+    "fc0001dd9ee8cc8dc0100aa9": [
+      "ui-handler:apps/web/src/components/UpdatePanel.tsx:Button.onClick:320"
+    ],
+    "22032baa7d69e1cc53a4b8ef": [
+      "ui-handler:apps/web/src/components/UpdatePanel.tsx:Button.onClick:334"
+    ],
+    "e03a71e273e07056f230db08": [
+      "ui-handler:apps/web/src/components/UpdatePanel.tsx:Button.onClick:334"
+    ],
+    "cfeea6a9556a592ae94b11a2": [
+      "ui-listener:apps/web/src/components/WorkspaceFileMenu.tsx:window.addEventListener:87"
+    ],
+    "e922b34af390f43424c6d3f4": [
+      "ui-listener:apps/web/src/components/WorkspaceFileMenu.tsx:window.addEventListener:87"
+    ],
+    "37bcd203a50a9cefa2b24f4a": [
+      "ui-listener:apps/web/src/components/WorkspaceFileMenu.tsx:window.addEventListener:88"
+    ],
+    "1a5f97193be7db268653652d": [
+      "ui-listener:apps/web/src/components/WorkspaceFileMenu.tsx:window.addEventListener:88"
+    ],
+    "c0cfb4568dce97bbc3965545": [
+      "ui-handler:apps/web/src/components/settings/AccessTokenSettings.tsx:Button.onClick:186"
+    ],
+    "903c32decfe43f1e44c19568": [
+      "ui-handler:apps/web/src/components/settings/AccessTokenSettings.tsx:Button.onClick:186"
+    ],
+    "a4f53c563a9fc9018b52f885": [
+      "ui-handler:apps/web/src/components/settings/AccessTokenSettings.tsx:Button.onClick:222"
+    ],
+    "1f28436230b3e79f909e68c3": [
+      "ui-handler:apps/web/src/components/settings/AccessTokenSettings.tsx:Button.onClick:222"
+    ],
+    "eb75429aabfd81cc92732355": [
+      "ui-handler:apps/web/src/components/settings/AccessTokenSettings.tsx:Button.onClick:397"
+    ],
+    "e4dbe2b71621e8518797cf97": [
+      "ui-handler:apps/web/src/components/settings/AccessTokenSettings.tsx:Button.onClick:397"
+    ],
+    "735bb6096094e91dd9a0b793": [
+      "ui-handler:apps/web/src/components/settings/AccessTokenSettings.tsx:Button.onClick:445"
+    ],
+    "04cb2dc3c0415f8326329891": [
+      "ui-handler:apps/web/src/components/settings/AccessTokenSettings.tsx:Button.onClick:445"
+    ],
+    "b057095c79465fc1d45a5db6": [
+      "ui-handler:apps/web/src/components/settings/CommitSettings.tsx:button.onClick:57"
+    ],
+    "96596f7fe9c54faaf00c3f72": [
+      "ui-handler:apps/web/src/components/settings/CommitSettings.tsx:button.onClick:57"
+    ],
+    "89b6c36a0e72720bfb2caade": [
+      "ui-handler:apps/web/src/components/settings/CommitSettings.tsx:button.onClick:93"
+    ],
+    "f3d9de996429ac66f24ad53c": [
+      "ui-handler:apps/web/src/components/settings/CommitSettings.tsx:button.onClick:93"
+    ],
+    "5ea892938b671e01f5337d9f": [
+      "ui-handler:apps/web/src/components/settings/ProxySettings.tsx:FeedbackNotice.onAction:276"
+    ],
+    "a98d85faff4b031e8bff6035": [
+      "ui-handler:apps/web/src/components/settings/ProxySettings.tsx:FeedbackNotice.onAction:276"
+    ],
+    "259e6ea8657b8e6d28c81d6c": [
+      "ui-handler:apps/web/src/components/settings/ProxySettings.tsx:FeedbackNotice.onAction:287"
+    ],
+    "cf385842310735f263e7834f": [
+      "ui-handler:apps/web/src/components/settings/ProxySettings.tsx:FeedbackNotice.onAction:287"
+    ],
+    "3956327238f9352454456c44": [
+      "ui-handler:apps/web/src/pages/ConnectionsPage.tsx:Button.onClick:205"
+    ],
+    "4a37ce4bf8acf230c9b816e7": [
+      "ui-handler:apps/web/src/pages/ConnectionsPage.tsx:Button.onClick:205"
+    ],
+    "12139575b96a7a4998a2a603": [
+      "ui-handler:apps/web/src/pages/ConnectionsPage.tsx:Button.onClick:239"
+    ],
+    "306d4a4618e04c618a3ffe08": [
+      "ui-handler:apps/web/src/pages/ConnectionsPage.tsx:Button.onClick:239"
+    ],
+    "da0fcba0e32e8da6b4fb0b74": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:233"
+    ],
+    "bc4b6412b19f8b1113d7c6da": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:233"
+    ],
+    "cbc6bc052d0750735f67c3e9": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:271"
+    ],
+    "b0bea7eacb0f4c2170906c24": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:271"
+    ],
+    "af1ab00ee773f844fec5214f": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:272"
+    ],
+    "f146b611b3ad7620f009d2c4": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:272"
+    ],
+    "3283eb54582e3b03299c7bcd": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:283"
+    ],
+    "5dcef14faab20334711cf569": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:283"
+    ],
+    "d06c4a959030d5c3456dcd74": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:284"
+    ],
+    "b796806fa392e4c5051b4b26": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:284"
+    ],
+    "17498efb1298cc96dd781546": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:325"
+    ],
+    "0efdfc55aeade47bd2a68496": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:325"
+    ],
+    "aac9e76c5d3a96af4add319d": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:498"
+    ],
+    "21f34474812010a3d2c0cf97": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:498"
+    ],
+    "a89eda31c08213f867919130": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:519"
+    ],
+    "95a6bd2766d742c2af3acdbc": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:519"
+    ],
+    "e91124bbcf63c69922db63f5": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:528"
+    ],
+    "96bf5129aae8440c33af5844": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:528"
+    ],
+    "67be80af7e3507e07e764938": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:529"
+    ],
+    "0e856345ec25eeaf7d05cc41": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:529"
+    ],
+    "f216169f3bc85e10b5cc4546": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:546"
+    ],
+    "52b5c56e7a1de87d50131343": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:546"
+    ],
+    "4e2638614841145e2efcef06": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:552"
+    ],
+    "0fadd1572017bfdddd002ade": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:552"
+    ],
+    "fbaa4e9ff693939c911221f7": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:582"
+    ],
+    "59749cfe2ca020d88ff26ad8": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:582"
+    ],
+    "f3bb8cb7e8a0f63c8ea76e5c": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:590"
+    ],
+    "f4baa7097110b10835102a2d": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:590"
+    ],
+    "a55fc742edbba7d39a278992": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:648"
+    ],
+    "bd12b219a4009d868cbb1828": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:648"
+    ],
+    "5c12343d2f7a53296f7deec0": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:650"
+    ],
+    "89548eda15c7967cb76cee49": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:650"
+    ],
+    "0a75268907d0cd07654c7b74": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:690"
+    ],
+    "6a6ff9b5ee7d4e983b0975c7": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:690"
+    ],
+    "01145e95febba46d8619b0c1": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:732"
+    ],
+    "2e2e006d618ad3b0c01c3571": [
+      "ui-handler:apps/web/src/pages/PullRequestCenterPage.tsx:Button.onClick:732"
+    ],
+    "2a04d2305a6c167c2d8ead45": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:217"
+    ],
+    "4073e11363d0aa25b7665897": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:217"
+    ],
+    "d5f79745e93d1e2ddec94d3d": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:223"
+    ],
+    "478dedcd323c84ec181641a1": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:223"
+    ],
+    "524b6b908562dc218daa2871": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:298"
+    ],
+    "78be895ff4ba44ed0c1cac06": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:298"
+    ],
+    "84e719620197f11c958f825a": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:326"
+    ],
+    "0432c48e1d8976a8db2ce1c1": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:326"
+    ],
+    "8a063ee78f1f6f89b43892bf": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:331"
+    ],
+    "ffc075f2fa37d33b56bc287c": [
+      "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:331"
+    ]
+  },
+  "successors": {
+    "6ff87960979673c07c7b1c7a": [
+      "ui-handler:apps/web/src/components/ChangesView.tsx:DiscardChangesDialog.onClose:742"
+    ],
+    "ab8f477bfdbf9446a74327ca": [
+      "ui-handler:apps/web/src/components/GitOperationNotice.tsx:FeedbackNotice.onAction:112"
+    ]
   }
 }

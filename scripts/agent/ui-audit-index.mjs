@@ -1,26 +1,52 @@
-// Regenerate the compact test fixture from the frozen Wiki Issue-249 ledger.
-// Only stable IDs and structural fingerprints are embedded in acceptance builds.
+// Regenerate from the complete, frozen P0 ledger and its exact Git tree.
 import fs from 'node:fs';
-import { createHash } from 'node:crypto';
-import ts from 'typescript';
+import { execFileSync } from 'node:child_process';
+import { auditKey, bindings } from '../../apps/web/tests/ui-audit-bindings.ts';
 const [input, output] = process.argv.slice(2);
 if (!input || !output) throw Error('Usage: ui-audit-index.mjs LEDGER OUTPUT');
-const ledger = JSON.parse(fs.readFileSync(input, 'utf8')),
-  callbacks = {};
-for (const row of ledger.entries.filter((row) => row.kind.startsWith('ui-'))) {
-  const scan = ts.createScanner(
-    ts.ScriptTarget.Latest,
-    true,
-    ts.LanguageVariant.Standard,
-    row.callback ?? '',
-  );
-  const tokens = [];
-  while (scan.scan() !== ts.SyntaxKind.EndOfFileToken) tokens.push(scan.getTokenText());
-  const tag = row.name.replace(/:\d+$/, '');
-  const key = createHash('sha256')
-    .update(JSON.stringify([row.file, row.kind, tag, tokens]))
-    .digest('hex')
-    .slice(0, 24);
+const ledger = JSON.parse(fs.readFileSync(input, 'utf8'));
+if (ledger.sha !== '3c05f640fcc1a04c864e47bfc2880483ad48c984')
+  throw Error('Unexpected P0 revision');
+const callbacks = {},
+  anchors = {},
+  files = new Map();
+for (const row of ledger.entries.filter((e) => e.kind.startsWith('ui-'))) {
+  const key = auditKey(row.file, row.kind, row.name.replace(/:\d+$/, ''), row.callback ?? '');
   (callbacks[key] ??= []).push(row.id);
+  if (!files.has(row.file)) files.set(row.file, new Set());
+  files.get(row.file).add(row.id);
 }
-fs.writeFileSync(output, JSON.stringify({ baseline: ledger.sha, callbacks }, null, 2) + '\n');
+for (const [file, ids] of files) {
+  const source = execFileSync('git', ['show', ledger.sha + ':' + file], { encoding: 'utf8' });
+  for (const s of bindings(file, source)) {
+    if (!ids.has(s.id) || !callbacks[s.key]?.includes(s.id)) continue;
+    if (callbacks[s.key].length > 1)
+      for (const k of [s.context, s.exact]) (anchors[k] ??= []).push(s.id);
+  }
+}
+// Two changed callback bodies still implement the same UI actions. Pin both
+// token fingerprints; future edits must be compared again, never matched by
+// name or line alone. These mappings do not constitute execution receipts.
+const successors = {};
+for (const [id, oldKey, newKey] of [
+  // Restore trigger focus once the discard dialog has actually closed.
+  [
+    'ui-handler:apps/web/src/components/ChangesView.tsx:DiscardChangesDialog.onClose:742',
+    'c5c9ef03a9eeede4f83ee64c',
+    '6ff87960979673c07c7b1c7a',
+  ],
+  // Cancel exactly the operation displayed in the notice.
+  [
+    'ui-handler:apps/web/src/components/GitOperationNotice.tsx:FeedbackNotice.onAction:112',
+    '6bab6affc04083ee61e6b9ac',
+    'ab8f477bfdbf9446a74327ca',
+  ],
+]) {
+  if (callbacks[oldKey]?.length !== 1 || callbacks[oldKey][0] !== id || callbacks[newKey])
+    throw Error('Invalid reviewed successor: ' + id);
+  successors[newKey] = [id];
+}
+fs.writeFileSync(
+  output,
+  JSON.stringify({ baseline: ledger.sha, callbacks, anchors, successors }, null, 2) + '\n',
+);
