@@ -1,6 +1,8 @@
 // Build an isolated, self-contained Node Agent directory for the current host.
 import fs from 'node:fs';
 import { downloadRuntime } from './download-runtime.mjs';
+import { distributionLicense, readPinnedRuntime } from './runtime-input.mjs';
+import pins from './runtime-pins.json' with { type: 'json' };
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +11,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
-const runtimeVersion = '22.22.0';
+const runtimeVersion = pins.version;
 const targets = new Set(['darwin-arm64', 'darwin-x64', 'linux-x64', 'win32-x64']);
 const target = `${process.platform}-${process.arch}`;
 if (!targets.has(target)) throw new Error(`Unsupported Agent target: ${target}`);
@@ -105,43 +107,53 @@ function allFiles(directory) {
 }
 
 try {
-  const sums = (await download('SHASUMS256.txt', 100000)).toString('utf8');
-  const record = sums.split('\n').find((line) => line.trim().endsWith(' ' + archiveName));
-  const expected = record?.trim().split(/\s+/)[0];
-  if (!expected || !/^[a-f0-9]{64}$/.test(expected))
-    throw new Error('Official Node checksum missing');
-  const archive = await download(archiveName, 150 * 1024 * 1024);
-  if (digest(archive) !== expected) throw new Error('Node archive checksum mismatch');
-  const archivePath = path.join(scratch, archiveName);
-  fs.writeFileSync(archivePath, archive);
-  if (process.platform === 'win32') {
-    const script =
-      'Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory($env:ALUNE_NODE_ARCHIVE,$env:ALUNE_NODE_UNPACK)';
-    execFileSync(
-      'powershell.exe',
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(script, 'utf16le').toString('base64'),
-      ],
-      {
-        env: { ...process.env, ALUNE_NODE_ARCHIVE: archivePath, ALUNE_NODE_UNPACK: scratch },
-        stdio: 'pipe',
-      },
+  const pin = pins.targets[target];
+  if (pin.archive !== archiveName) throw new Error('Missing official runtime pin for ' + target);
+  const expected = pin.archiveSha256;
+  const buildNode = fs.realpathSync(process.execPath);
+  let runtime =
+    process.version === 'v' + runtimeVersion
+      ? readPinnedRuntime(buildNode, distributionLicense(buildNode, process.platform), pin)
+      : null;
+  const runtimeInput = runtime ? 'verified installed distribution' : 'verified official archive';
+  if (!runtime) {
+    const archive = await download(archiveName, 150 * 1024 * 1024);
+    if (digest(archive) !== expected) throw new Error('Node archive checksum mismatch');
+    const archivePath = path.join(scratch, archiveName);
+    fs.writeFileSync(archivePath, archive);
+    if (process.platform === 'win32') {
+      const script =
+        'Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory($env:ALUNE_NODE_ARCHIVE,$env:ALUNE_NODE_UNPACK)';
+      execFileSync(
+        'powershell.exe',
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-EncodedCommand',
+          Buffer.from(script, 'utf16le').toString('base64'),
+        ],
+        {
+          env: { ...process.env, ALUNE_NODE_ARCHIVE: archivePath, ALUNE_NODE_UNPACK: scratch },
+          stdio: 'pipe',
+        },
+      );
+    } else execFileSync('tar', ['-xzf', archivePath, '-C', scratch]);
+    const unpacked = path.join(scratch, runtimeName);
+    runtime = readPinnedRuntime(
+      path.join(unpacked, process.platform === 'win32' ? 'node.exe' : 'bin/node'),
+      path.join(unpacked, 'LICENSE'),
+      pin,
     );
-  } else execFileSync('tar', ['-xzf', archivePath, '-C', scratch]);
-  const unpacked = path.join(scratch, runtimeName);
+    if (!runtime) throw new Error('Official Node executable or license checksum mismatch');
+  }
   const nodeRelative = process.platform === 'win32' ? 'runtime/node.exe' : 'runtime/bin/node';
   const nodePath = path.join(output, nodeRelative);
   fs.mkdirSync(path.dirname(nodePath), { recursive: true });
-  fs.copyFileSync(
-    path.join(unpacked, process.platform === 'win32' ? 'node.exe' : 'bin/node'),
-    nodePath,
-  );
+  fs.writeFileSync(nodePath, runtime.binary);
   fs.chmodSync(nodePath, 0o755);
-  fs.copyFileSync(path.join(unpacked, 'LICENSE'), path.join(output, 'runtime/LICENSE'));
+  fs.writeFileSync(path.join(output, 'runtime/LICENSE'), runtime.license);
+  runtime = null;
   fs.writeFileSync(
     path.join(output, 'package.json'),
     JSON.stringify({ name: 'alune-agent-runtime', private: true, version: '0.0.1' }, null, 2),
@@ -210,7 +222,8 @@ try {
   };
   fs.writeFileSync(path.join(output, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   process.stdout.write(
-    JSON.stringify({ output, target, diagnostic, packageCount: packages.size }) + '\n',
+    JSON.stringify({ output, target, runtimeInput, diagnostic, packageCount: packages.size }) +
+      '\n',
   );
 } finally {
   fs.rmSync(scratch, { recursive: true, force: true });

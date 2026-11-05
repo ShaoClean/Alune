@@ -101,6 +101,8 @@ node scripts/agent/test-ssh-isolated.mjs /tmp/alune-agent-package
 隔离 SSH 验收会把独立包和所需测试对端放进新的临时目录，以包内 Node 与 SDK 验证 SSH 部署、代理、SQLite/PTY、取消和重连。该目录没有 apps/server、旧 shared/ssh-client 或工作区 node_modules，缺失的包不能由开发检出补足；结束后删除临时副本。 四个原生目标的 Agent CI 使用稀疏检出，保留 Agent/SDK/domain/protocol/UI、Web、脚本以及两个用于迁移测试的桌面凭据桥文件；只安装这些工作区。编译前拒绝旧工作区、已有 dist 或可解析的 Electron/Nest 依赖。普通桌面及旧版回归仍在各自的完整检出中运行。
 
 输出目录必须是仓库外的新目录，防止误用仓库依赖验证“独立”运行。包使用官方 Node 22.22.0（核对官方 SHA-256）、对应平台已安装并通过 doctor 的 Node ABI 原生依赖、运行代码、许可证和文件校验清单，不包含 Electron。Windows 提供 `alune-agent.cmd`，POSIX 提供 `alune-agent`；只支持 Windows x64、macOS arm64/x64、Linux x64 的本机打包，不做伪交叉编译。
+构建机已有该版官方发行包时，仅在 Node 可执行文件与配套 LICENSE 均逐字节匹配发布指纹时复用。否则从 nodejs.org 下载当前目标的官方归档，验证归档及解包后两份文件的 SHA-256。切换固定版本时，在独立目录核验上游签名的 SHASUMS256.txt 和四份原始归档，再用 `python3 scripts/agent/pin-runtime.py VERSION DIRECTORY` 生成 `scripts/agent/runtime-pins.json`。最终安装包内仍自带完整 Node，不依赖用户系统的 Node。
+
 
 构建流程不会发布 Release。CI 在四种原生 runner 上分别打包、验证并归档，tar.gz 保留 POSIX 可执行权限。安装、升级、签名及实际远程部署仍须后续阶段验收。
 

@@ -83,3 +83,40 @@ test('a reset during the response discards partial archive bytes', async () => {
   assert.equal(requests, 2);
   assert.equal(bytes.toString(), 'complete');
 });
+
+test('reuse requires exact official executable and license bytes, even at matching sizes', async () => {
+  const fs = await import('node:fs/promises'),
+    path = await import('node:path'),
+    os = await import('node:os');
+  const { createHash } = await import('node:crypto');
+  const { readPinnedRuntime, distributionLicense } = await import('./runtime-input.mjs');
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'alune-runtime-input-'));
+  try {
+    const exe = path.join(dir, 'bin', 'node'),
+      license = distributionLicense(exe, 'linux');
+    assert.equal(license, path.join(dir, 'LICENSE'));
+    assert.equal(distributionLicense(path.join(dir, 'node.exe'), 'win32'), license);
+    const hash = (s) => createHash('sha256').update(s).digest('hex');
+    const pin = {
+      executableBytes: 4,
+      executableSha256: hash('node'),
+      licenseBytes: 4,
+      licenseSha256: hash('text'),
+    };
+    assert.equal(readPinnedRuntime(exe, license, pin), null);
+    await fs.mkdir(path.dirname(exe));
+    await fs.writeFile(exe, 'node');
+    await fs.writeFile(license, 'bad!');
+    assert.equal(readPinnedRuntime(exe, license, pin), null);
+    await fs.writeFile(license, 'text');
+    await fs.writeFile(exe, 'fake');
+    assert.equal(readPinnedRuntime(exe, license, pin), null);
+    await fs.writeFile(exe, 'node');
+    assert.deepEqual(readPinnedRuntime(exe, license, pin), {
+      binary: Buffer.from('node'),
+      license: Buffer.from('text'),
+    });
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});

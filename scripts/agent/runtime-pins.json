@@ -1,0 +1,37 @@
+{
+  "version": "22.22.0",
+  "targets": {
+    "darwin-arm64": {
+      "archive": "node-v22.22.0-darwin-arm64.tar.gz",
+      "archiveSha256": "5ed4db0fcf1eaf84d91ad12462631d73bf4576c1377e192d222e48026a902640",
+      "executableSha256": "913b144fdb40638b1acef7974ab3c33fbd527cc0974cb5da467ab1e6ac51b4d4",
+      "executableBytes": 111673840,
+      "licenseSha256": "e991d81497a85bb24fc6bffae0a3637a6accd6c6bc5ce1f2c5698bd555cf9d49",
+      "licenseBytes": 143299
+    },
+    "darwin-x64": {
+      "archive": "node-v22.22.0-darwin-x64.tar.gz",
+      "archiveSha256": "5ea50c9d6dea3dfa3abb66b2656f7a4e1c8cef23432b558d45fb538c7b5dedce",
+      "executableSha256": "bf0e0ff20d4e5a16436d1ec372e47161e52be8e487db8070ae3f06b01efbba0c",
+      "executableBytes": 114160768,
+      "licenseSha256": "e991d81497a85bb24fc6bffae0a3637a6accd6c6bc5ce1f2c5698bd555cf9d49",
+      "licenseBytes": 143299
+    },
+    "linux-x64": {
+      "archive": "node-v22.22.0-linux-x64.tar.gz",
+      "archiveSha256": "c33c39ed9c80deddde77c960d00119918b9e352426fd604ba41638d6526a4744",
+      "executableSha256": "1bec56ef7cfa9a76f3e0b7c0a87f220eb73f23102b9c0b4c7529a3f7c3ce7c31",
+      "executableBytes": 123405064,
+      "licenseSha256": "e991d81497a85bb24fc6bffae0a3637a6accd6c6bc5ce1f2c5698bd555cf9d49",
+      "licenseBytes": 143299
+    },
+    "win32-x64": {
+      "archive": "node-v22.22.0-win-x64.zip",
+      "archiveSha256": "c97fa376d2becdc8863fcd3ca2dd9a83a9f3468ee7ccf7a6d076ec66a645c77a",
+      "executableSha256": "bae898add4643fcf890a83ad8ae56e20dce7e781cab161a53991ceba70c99ffb",
+      "executableBytes": 85804032,
+      "licenseSha256": "339c50294da6a84322dcbe7285b57b248123bd4d9e37a2f72d68d5abf2574783",
+      "licenseBytes": 145965
+    }
+  }
+}
