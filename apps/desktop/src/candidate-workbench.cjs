@@ -13,8 +13,12 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   const textButton = (label) =>
     `[...document.querySelectorAll('button')].filter(${visible}).find(e=>e.textContent.replace(/\\s/g,'')===${JSON.stringify(label.replace(/\s/g, ''))})`;
   const click = async (expr) => {
-    await wait(wc, '(' + expr + ') && !(' + expr + ').disabled');
-    await evaluate('(' + expr + ').click()');
+    // Re-renders can replace or disable a control between two Chromium tasks.
+    // Check readiness and dispatch exactly one click in the same renderer task.
+    await wait(
+      wc,
+      `(()=>{const e=(${expr});if(!e||e.disabled||e.getAttribute('aria-disabled')==='true'||e.getAttribute('aria-busy')==='true'||e.classList.contains('ant-btn-loading'))return false;e.click();return true;})()`,
+    );
   };
   const button = (label) => element('[aria-label="' + label + '"]'),
     text = (label) => 'document.body.innerText.includes(' + JSON.stringify(label) + ')';

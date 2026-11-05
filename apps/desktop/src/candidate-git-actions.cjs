@@ -41,13 +41,12 @@ module.exports = async ({
       JSON.stringify(label.replace(/\s/g, '')) +
       ')',
     fill = async (expr, value) => {
-      await wait(wc, '(' + expr + ') && !(' + expr + ').disabled');
-      await wc.executeJavaScript(
-        '(()=>{const node=' +
-          expr +
-          ";const proto=node.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(node," +
-          JSON.stringify(value) +
-          ");node.dispatchEvent(new Event('input',{bubbles:true}));})()",
+      await wait(
+        wc,
+        `(()=>{const node=(${expr});if(!node||node.disabled||node.readOnly)return false;
+        const proto=node.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(proto,'value').set.call(node,${JSON.stringify(value)});
+        node.dispatchEvent(new Event('input',{bubbles:true}));return true;})()`,
       );
     };
   async function fact(check, message) {
@@ -61,7 +60,10 @@ module.exports = async ({
       }
       await new Promise((r) => setTimeout(r, 60));
     }
-    throw Error(message, { cause });
+    const feedback = await wc.executeJavaScript(
+      "JSON.stringify({dialog:document.querySelector('.feedback-dialog[open]')?.innerText,errors:[...document.querySelectorAll('[role=alert]')].filter(e=>e.getClientRects().length).map(e=>e.innerText).slice(0,3),current:location.pathname})",
+    );
+    throw Error(message + ' | ' + feedback, { cause });
   }
   await window.loadURL(origin + '/repositories');
   await click(button('打开本地仓库'));
