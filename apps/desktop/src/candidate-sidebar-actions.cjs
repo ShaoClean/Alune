@@ -182,7 +182,13 @@ module.exports = async ({ window, wc, origin, original, linked, linkedPath, wait
   );
   await click(more);
   await click(textButton('移除仓库登记', '.workspace-actions button'));
-  await wait(wc, 'document.body.innerText.includes(' + JSON.stringify(extra) + ')');
+  const removalPath = element('.ant-popconfirm .dlg-path[title]');
+  await wait(wc, removalPath);
+  assert.equal(
+    fs.realpathSync.native(await ev('(' + removalPath + ').title')),
+    fs.realpathSync.native(extra),
+    'removal prompt must identify the same physical repository',
+  );
   await click(textButton('取消', '.ant-popconfirm button'));
   await active(extraId);
   assert.deepEqual(actual(), before);
