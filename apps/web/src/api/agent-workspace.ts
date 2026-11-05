@@ -21,7 +21,7 @@ import {
 import { createAgentRepositoryQueries, createAgentFileWrite } from './agent-repositories';
 import { createAgentCollaboration } from './agent-collaboration';
 import { workspaceTopics } from './ui-agent';
-import { hostConsent } from './host-consent';
+import { hostConsent } from '../features/connections/HostConsent';
 
 type Binding = { localId: string; resource: ResourceRef };
 type Host = {

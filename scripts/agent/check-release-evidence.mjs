@@ -2,6 +2,7 @@
 // without a recorded assertion is not an execution receipt. Missing rows are
 // emitted for the next acceptance pass, never silently considered covered.
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 const [ledgerFile, evidenceFile, out] = process.argv.slice(2);
 if (!ledgerFile || !evidenceFile)
@@ -18,6 +19,15 @@ if (
   throw Error('Invalid evidence header or P0 baseline');
 const ids = new Map(ledger.entries.map((row) => [row.id, row]));
 if (ids.size !== ledger.entries.length) throw Error('Duplicate P0 identity');
+// A shortened export of the ledger must not be able to produce a green gate.
+const baselineIds = createHash('sha256')
+  .update([...ids.keys()].sort().join('\n'))
+  .digest('hex');
+if (
+  ledger.sha !== '3c05f640fcc1a04c864e47bfc2880483ad48c984' ||
+  baselineIds !== 'd449b4d464ce6347c18b7f9b8a4ffd1de22dd22dabcd57479dfbc8fbe81d6e7a'
+)
+  throw Error('Expected the complete reviewed Issue-249 P0 ID set');
 const covered = new Set(),
   platforms = new Set(),
   gates = new Set(),

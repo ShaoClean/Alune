@@ -1,4 +1,5 @@
 import { useSyncExternalStore, useState } from 'react';
+import { hostFingerprint } from './fingerprint';
 import { Input, AluneModal } from '@alune/ui';
 
 type Policy = { hostKey: string; install: boolean };
@@ -37,6 +38,7 @@ export function hostConsent(
 function Consent({ item }: { item: Request }) {
   const [fingerprint, setFingerprint] = useState(item.pinned ?? ''),
     [install, setInstall] = useState(false);
+  const key = hostFingerprint(fingerprint);
   return (
     <AluneModal
       open
@@ -44,16 +46,16 @@ function Consent({ item }: { item: Request }) {
       title={'连接到 ' + item.name}
       description="请核对从服务器管理员处独立获取的 SSH 主机公钥 SHA-256 指纹。"
       okText="连接"
-      okDisabled={!/^[a-f0-9]{64}$/.test(fingerprint)}
-      onOk={() => item.finish({ hostKey: fingerprint, install })}
+      okDisabled={!key}
+      onOk={() => key && item.finish({ hostKey: key, install })}
       onCancel={() => item.finish(null)}
     >
       <Input
         aria-label="SSH 主机公钥 SHA-256 指纹"
-        placeholder="64 位十六进制"
+        placeholder="SHA256:… 或 64 位十六进制"
         value={fingerprint}
         disabled={!!item.pinned}
-        onChange={(e) => setFingerprint(e.target.value.trim().toLowerCase())}
+        onChange={(e) => setFingerprint(e.target.value)}
       />
       {item.allowInstall && (
         <label>

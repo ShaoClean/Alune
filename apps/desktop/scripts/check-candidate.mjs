@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 const root = fileURLToPath(new URL('../dist/candidate-app/', import.meta.url));
@@ -29,3 +29,9 @@ for (const file of [
   'desktop-agent.cjs',
 ])
   assert.ok(existsSync(join(root, file)), file);
+
+for (const name of readdirSync(join(root, 'web/assets')).filter((file) => file.endsWith('.js')))
+  assert.ok(
+    !readFileSync(join(root, 'web/assets', name), 'utf8').includes('alune.audit.counts'),
+    'Acceptance tracing leaked into candidate assets: ' + name,
+  );

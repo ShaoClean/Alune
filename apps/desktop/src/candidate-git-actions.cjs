@@ -36,7 +36,10 @@ module.exports = async ({
   git('remote', 'add', 'origin', bare);
   git('push', '-qu', 'origin', 'main');
   fs.writeFileSync(path.join(work, 'scratch.txt'), 'incoming fixture change\n');
-  const primary = () => element('.a-dlg-actions .ant-btn-primary'),
+  const primary = (label) =>
+      "[...document.querySelectorAll('.a-dlg-actions button')].filter(b=>b.getClientRects().length && !b.closest('[inert]')).find(b=>b.textContent.replace(/\\s/g,'')===" +
+      JSON.stringify(label.replace(/\s/g, '')) +
+      ')',
     fill = async (expr, value) => {
       await wait(wc, '(' + expr + ') && !(' + expr + ').disabled');
       await wc.executeJavaScript(
@@ -64,7 +67,7 @@ module.exports = async ({
   await click(button('打开本地仓库'));
   await fill(element('#local-repo-path'), work);
   await click(textButton('检查仓库'));
-  await click(primary());
+  await click(primary('打开工作区'));
   await wait(wc, button('暂存 scratch.txt'));
   await pass(
     ['UI-028', 'UI-040', 'UI-070', 'UI-072'],
@@ -73,7 +76,7 @@ module.exports = async ({
   await click(button('储藏'));
   await click(textButton('储藏改动'));
   await fill(element('input[placeholder="例如：设置页布局实验"]'), 'workbench-stash');
-  await click(primary());
+  await click(primary('创建储藏'));
   await wait(wc, text('workbench-stash'));
   await fact(() => git('stash', 'list').includes('workbench-stash'), 'missing Git stash');
   assert.equal(fs.readFileSync(path.join(work, 'scratch.txt'), 'utf8'), 'base\n');
@@ -155,6 +158,10 @@ module.exports = async ({
     () => git('ls-remote', '--tags', 'origin').includes('refs/tags/p8-ui-tag'),
     'tag never reached bare remote',
   );
+  await wait(
+    wc,
+    "[...document.querySelectorAll('.tag-row')].some(e=>e.innerText.includes('p8-ui-tag')&&e.innerText.includes('远程已存在'))",
+  );
   await fill(button('搜索标签'), 'absent-tag');
   await wait(wc, text('没有匹配的标签'));
   await fill(button('搜索标签'), '');
@@ -166,7 +173,16 @@ module.exports = async ({
   await click(textButton('添加远程'));
   await fill(element('#remote-name'), 'local-backup');
   await fill(element('#remote-url'), bare);
-  await click(primary());
+  await wait(
+    wc,
+    "document.querySelector('#remote-name')?.value==='local-backup'&&document.querySelector('#remote-url')?.value===" +
+      JSON.stringify(bare),
+  );
+  await click(primary('添加远程'));
+  await wait(
+    wc,
+    "[...document.querySelectorAll('.remote-card')].some(e=>e.innerText.includes('local-backup'))",
+  );
   await fact(() => git('remote').split(/\r?\n/).includes('local-backup'), 'remote not added');
   assert.equal(git('remote', 'get-url', 'local-backup'), bare);
   await pass(

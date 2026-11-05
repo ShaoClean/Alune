@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { spawnAgent } from '../../packages/agent-client/dist/node.js';
 
-const directory = path.resolve(process.argv[2] ?? '');
+const directory = fs.realpathSync.native(path.resolve(process.argv[2] ?? ''));
 const manifest = JSON.parse(fs.readFileSync(path.join(directory, 'manifest.json'), 'utf8'));
 if (process.argv.includes('--require-clean'))
   assert.equal(manifest.dirty, false, 'Package source was not a clean checkout');
