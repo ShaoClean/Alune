@@ -2,18 +2,28 @@ import { useSyncExternalStore, useState } from 'react';
 import { Input, AluneModal } from '@alune/ui';
 
 type Policy = { hostKey: string; install: boolean };
-type Request = { name: string; pinned: string | null; finish: (p: Policy | null) => void };
+type Request = {
+  allowInstall: boolean;
+  name: string;
+  pinned: string | null;
+  finish: (p: Policy | null) => void;
+};
 let request: Request | null = null;
 const changes = new Set<() => void>();
 function notify() {
   for (const fn of changes) fn();
 }
-export function hostConsent(name: string, pinned: string | null): Promise<Policy> {
+export function hostConsent(
+  name: string,
+  pinned: string | null,
+  allowInstall = true,
+): Promise<Policy> {
   if (request) return Promise.reject(new Error('请先完成当前主机的连接确认。'));
   return new Promise((resolve, reject) => {
     request = {
       name,
       pinned,
+      allowInstall,
       finish(policy) {
         request = null;
         notify();
@@ -45,10 +55,12 @@ function Consent({ item }: { item: Request }) {
         disabled={!!item.pinned}
         onChange={(e) => setFingerprint(e.target.value.trim().toLowerCase())}
       />
-      <label>
-        <input type="checkbox" checked={install} onChange={(e) => setInstall(e.target.checked)} />
-        允许在这台服务器上安装或升级 Alune 运行包
-      </label>
+      {item.allowInstall && (
+        <label>
+          <input type="checkbox" checked={install} onChange={(e) => setInstall(e.target.checked)} />
+          允许在这台服务器上安装或升级 Alune 运行包
+        </label>
+      )}
     </AluneModal>
   );
 }

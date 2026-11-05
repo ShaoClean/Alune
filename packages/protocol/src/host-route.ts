@@ -6,6 +6,8 @@ export interface OpenHostRoute {
   hostKey: string;
   /** Explicitly authorize installing the locally provisioned artifact on this connection. */
   install: boolean;
+  /** Explicitly apply this saved proxy revision to an idle route. */
+  reconnectRevision?: string;
 }
 export function validateOpenHost(v: unknown): asserts v is OpenHostRoute {
   if (
@@ -14,7 +16,8 @@ export function validateOpenHost(v: unknown): asserts v is OpenHostRoute {
     typeof v.hostKey !== 'string' ||
     !/^[a-f0-9]{64}$/.test(v.hostKey) ||
     typeof v.install !== 'boolean' ||
-    Object.keys(v).some((k) => !['hostId', 'hostKey', 'install'].includes(k))
+    (v.reconnectRevision !== undefined && !validId(v.reconnectRevision)) ||
+    Object.keys(v).some((k) => !['hostId', 'hostKey', 'install', 'reconnectRevision'].includes(k))
   )
     throw new ProtocolError(
       'invalid-params',

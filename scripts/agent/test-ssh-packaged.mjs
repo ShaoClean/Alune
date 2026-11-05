@@ -338,6 +338,27 @@ try {
   };
   const cancel = await pendingFetch();
   await terminal.until(() => heldFetches === 1, 'cancel target reached upstream');
+  const oldPolicy = await local.getProxySettings();
+  const newPolicy = await local.saveProxySettings({
+    ...oldPolicy,
+    credentials: { action: 'keep' },
+  });
+  assert.notEqual(newPolicy.revision, oldPolicy.revision);
+  assert.equal(
+    (await local.request('hosts.catalog')).hosts.find((r) => r.hostId === host.id).proxyRevision,
+    oldPolicy.revision,
+  );
+  await assert.rejects(
+    openRemoteAgent(local, { ...policy, install: false, reconnectRevision: newPolicy.revision }),
+    (e) => e.kind === 'busy',
+  );
+  const authTest = await local.request('network.testProxy', {
+    kind: 'ssh',
+    connectionId: host.id,
+    revision: newPolicy.revision,
+    hostKey: policy.hostKey,
+  });
+  assert.equal(authTest.success, true, authTest.message);
   await remote.request('repositories.cancelWrite', {
     resource: target.resource,
     operationId: cancel.request.operationId,
@@ -389,6 +410,20 @@ try {
   await terminal.until(
     () => !fs.readdirSync(path.join(login, '.alune-ssh')).some((s) => s.startsWith('run-')),
     'second process disposal',
+  );
+  remote = await openRemoteAgent(local, {
+    ...policy,
+    install: false,
+    reconnectRevision: newPolicy.revision,
+  });
+  assert.equal(
+    (await local.request('hosts.catalog')).hosts.find((r) => r.hostId === host.id).proxyRevision,
+    newPolicy.revision,
+  );
+  remote.close();
+  await terminal.until(
+    () => !fs.readdirSync(path.join(login, '.alune-ssh')).some((s) => s.startsWith('run-')),
+    'explicit reconnect retired',
   );
   fs.writeFileSync(release, JSON.stringify({ ...JSON.parse(original), version: 'unknown' }));
   await assert.rejects(

@@ -78,7 +78,13 @@ export async function openStateKernel(
   const network = new ProxyRuntime(settings.proxy);
   const hosts = remote
     ? undefined
-    : hostsKernel(directory, repositories.catalog, settings, state.document('ssh-routes'),network.fetch);
+    : hostsKernel(
+        directory,
+        repositories.catalog,
+        settings,
+        state.document('ssh-routes'),
+        network.fetch,
+      );
   const collaboration = collaborationKernel(
     repositories.catalog,
     settings,
@@ -149,7 +155,8 @@ export async function openStateKernel(
         async run(params, ctx) {
           const result = await original.run(params, ctx);
           const id = (params as { id?: string }).id;
-          if (method === 'settings.proxy.save' || id) hosts.invalidate(id);
+          if (method === 'settings.proxy.save') hosts.proxyChanged();
+          else if (id) hosts.invalidate(id);
           return result;
         },
       };

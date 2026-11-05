@@ -33,6 +33,7 @@ function validJSON(value: string | null): string | null {
 let owner: string | undefined;
 export function scopeBrowserWorkspace(agentId: string) {
   owner = agentId;
+  try {sessionStorage.setItem('alune.last-owner',agentId);} catch {/* storage may be unavailable in private browsing */}
 }
 const scoped = (name: string) => (owner ? name + ':' + owner : name);
 function readBrowser(name: string) {

@@ -16,6 +16,77 @@ import {
 } from '../network/proxy-transport';
 import type { HostProfilesStore } from '../../modules/accounts/hosts';
 
+type Profile = ReturnType<HostProfilesStore['credential']>;
+async function authenticate(
+  ssh: Client,
+  profile: Profile,
+  hostKey: string,
+  proxy: ProxySnapshot,
+  signal: AbortSignal,
+) {
+  const keyPath = profile.privateKeyPath?.replace(/^~[/\\]/, homedir() + '/');
+  const privateKey =
+    profile.authType === 'privateKey'
+      ? await readFile(keyPath ?? join(homedir(), '.ssh', 'id_rsa'))
+      : undefined;
+  const sock = await connectProxySocket(proxy, profile.host, profile.port, signal);
+  const abandon = () => {
+    sock.destroy();
+    ssh.destroy();
+  };
+  signal.addEventListener('abort', abandon, { once: true });
+  try {
+    signal.throwIfAborted();
+    await new Promise<void>((resolve, reject) => {
+      ssh
+        .once('ready', resolve)
+        .once('error', reject)
+        .once('close', () =>
+          reject(new ProtocolError('disconnected', 'SSH authentication interrupted')),
+        );
+      ssh.connect({
+        sock,
+        host: profile.host,
+        port: profile.port,
+        username: profile.username,
+        privateKey,
+        password: profile.password,
+        passphrase: profile.passphrase,
+        agent: profile.authType === 'sshAgent' ? process.env.SSH_AUTH_SOCK : undefined,
+        hostHash: 'sha256',
+        hostVerifier: (key: string) => key === hostKey,
+        keepaliveInterval: 15000,
+        keepaliveCountMax: 3,
+        readyTimeout: 20000,
+      });
+    });
+    return sock;
+  } catch (error) {
+    abandon();
+    throw error;
+  } finally {
+    signal.removeEventListener('abort', abandon);
+  }
+}
+
+// Test the newly saved policy without disrupting an established SSH/PTY route.
+export async function probeAuthentication(
+  profile: Profile,
+  key: string,
+  proxy: ProxySnapshot,
+  signal: AbortSignal,
+) {
+  const ssh = new Client();
+  ssh.on('error', () => {});
+  let socket: Socket | undefined;
+  try {
+    socket = await authenticate(ssh, profile, key, proxy, signal);
+    signal.throwIfAborted();
+  } finally {
+    ssh.destroy();
+    socket?.destroy();
+  }
+}
 export async function connectHost(
   directory: string,
   profile: ReturnType<HostProfilesStore['credential']>,
@@ -24,7 +95,7 @@ export async function connectHost(
   signal: AbortSignal,
   priorDigest?: string,
   stage?: (phase: string) => void,
-  releaseFetch?:typeof fetch,
+  releaseFetch?: typeof fetch,
 ) {
   let phase = 'authentication';
   const transition = (next: string) => {
@@ -86,38 +157,11 @@ export async function connectHost(
   signal.throwIfAborted();
   signal.addEventListener('abort', abort, { once: true });
   try {
-    const keyPath = profile.privateKeyPath?.replace(/^~[/\\]/, homedir() + '/');
-    const privateKey =
-      profile.authType === 'privateKey'
-        ? await readFile(keyPath ?? join(homedir(), '.ssh', 'id_rsa'))
-        : undefined;
-    sock = await connectProxySocket(proxy, profile.host, profile.port, signal);
-    signal.throwIfAborted();
-    await new Promise<void>((resolve, reject) => {
-      ssh
-        .once('ready', resolve)
-        .once('error', reject)
-        .once('close', () => reject(lost));
-      ssh.connect({
-        sock,
-        host: profile.host,
-        port: profile.port,
-        username: profile.username,
-        privateKey,
-        password: profile.password,
-        passphrase: profile.passphrase,
-        agent: profile.authType === 'sshAgent' ? process.env.SSH_AUTH_SOCK : undefined,
-        hostHash: 'sha256',
-        hostVerifier: (key: string) => key === policy.hostKey,
-        keepaliveInterval: 15000,
-        keepaliveCountMax: 3,
-        readyTimeout: 20000,
-      });
-    });
+    sock = await authenticate(ssh, profile, policy.hostKey, proxy, signal);
     transition('probing');
     let detected = targetFrom(await command(unixProbe).catch(() => ''));
     if (!detected.target) detected = targetFrom(await command(windowsProbe).catch(() => ''));
-    const bundle = await readBundle(directory, detected.target,releaseFetch,signal);
+    const bundle = await readBundle(directory, detected.target, releaseFetch, signal);
     if (priorDigest && priorDigest !== bundle.sha256 && !policy.install)
       throw new ProtocolError(
         'incompatible-version',

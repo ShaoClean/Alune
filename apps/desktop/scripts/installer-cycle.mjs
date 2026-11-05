@@ -216,13 +216,39 @@ try {
     fs.readFileSync(path.join(repo, 'candidate.txt'), 'utf8') !== 'changed in legacy workspace\n'
   )
     throw Error('Application rollback changed Git data');
+  const stable = process.env.ALUNE_VALIDATION_STABLE;
+  if (!stable || version !== stable + '-rc.1')
+    throw Error('Actual update target must match the private test build');
+  let stableDigest = digest(previousFile);
+  if (stable !== previous) {
+    const latest = fs.mkdtempSync(path.join(root, 'checksums-'));
+    run('gh', [
+      'release',
+      'download',
+      'v' + stable,
+      '--repo',
+      'ShaoClean/Alune',
+      '--pattern',
+      'SHA256SUMS',
+      '--dir',
+      latest,
+    ]);
+    const checksum = fs
+      .readFileSync(path.join(latest, 'SHA256SUMS'), 'utf8')
+      .split(/\r?\n/)
+      .find((s) => s.trim().endsWith(' ' + name(stable)))
+      ?.split(/\s/)[0];
+    if (!/^[a-f0-9]{64}$/.test(checksum ?? ''))
+      throw Error('Stable release installer checksum missing');
+    stableDigest = checksum;
+  }
   await verifyLiveUpdate({
     exe: await install(candidateFile),
     candidateFile,
     target,
     data,
-    stable: previous,
-    stableDigest: digest(previousFile),
+    stable,
+    stableDigest,
   });
   console.log(
     JSON.stringify({

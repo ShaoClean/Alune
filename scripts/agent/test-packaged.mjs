@@ -5,7 +5,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { spawnAgent } from '../../packages/agent-client/dist/node.js';
 
 const directory = path.resolve(process.argv[2] ?? '');
@@ -29,6 +29,44 @@ const doctor = JSON.parse(
 assert.equal(doctor.ok, true);
 assert.deepEqual(doctor.native, { sqlite: true, pty: true });
 assert.equal(doctor.node, `v${manifest.node.version}`);
+// Prove the bundled interpreter and native modules work without an external
+// node/electron executable, and that removing Git is diagnosed separately.
+const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-clean-path-'));
+try {
+  const env = { ...process.env };
+  for (const key of Object.keys(env))
+    if (['PATH', 'NODE_PATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE'].includes(key.toUpperCase()))
+      delete env[key];
+  const win = process.platform === 'win32';
+  const absoluteGit = execFileSync(
+    win ? path.join(process.env.SystemRoot, 'System32/where.exe') : '/usr/bin/which',
+    ['git'],
+    { encoding: 'utf8' },
+  )
+    .trim()
+    .split(/\r?\n/)[0];
+  if (!win) fs.symlinkSync(absoluteGit, path.join(emptyBin, 'git'));
+  const cleanBin = win ? path.dirname(absoluteGit) : emptyBin;
+  for (const command of win ? ['node.exe', 'electron.exe'] : ['node', 'electron'])
+    assert(!fs.existsSync(path.join(cleanBin, command)));
+  const probe = execFileSync(node, [entry, 'doctor'], {
+    encoding: 'utf8',
+    env: { ...env, PATH: cleanBin },
+    timeout: 20000,
+  });
+  assert.equal(JSON.parse(probe).ok, true);
+  if (!win) fs.unlinkSync(path.join(emptyBin, 'git'));
+  const missing = spawnSync(node, [entry, 'doctor'], {
+    encoding: 'utf8',
+    env: { ...env, PATH: emptyBin },
+    timeout: 20000,
+  });
+  assert.equal(missing.status, 1);
+  assert.equal(JSON.parse(missing.stdout).git, 'unavailable');
+  assert.deepEqual(JSON.parse(missing.stdout).native, { sqlite: true, pty: true });
+} finally {
+  fs.rmSync(emptyBin, { recursive: true, force: true });
+}
 // This check runs from the packaged entry, not from the checkout's module graph.
 const require = createRequire(entry);
 for (const name of ['electron', 'server', 'web', '@alune/ssh-client'])

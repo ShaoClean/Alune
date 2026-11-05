@@ -3,7 +3,9 @@
 (() => {
   if (window.aluneWorkspace) return;
   try {
-    const saved = JSON.parse(localStorage.getItem('alune-workspace'));
+    const owner = document.documentElement.dataset.workspaceMode === 'agent' ? sessionStorage.getItem('alune.last-owner') : null;
+    const key = owner ? 'alune-workspace:' + owner : 'alune-workspace';
+    const saved = JSON.parse(localStorage.getItem(key));
     const appearance = saved?.version === 1 ? saved.state?.appearance : null;
     if (appearance?.theme === 'light' || appearance?.theme === 'dark') {
       document.documentElement.dataset.theme = appearance.theme;

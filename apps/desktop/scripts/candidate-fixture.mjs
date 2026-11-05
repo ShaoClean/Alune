@@ -10,12 +10,20 @@ export function legacyFixture(directory, { existing = false } = {}) {
   const git = (...args) => execFileSync('git', ['-C', repo, ...args]);
   git('init', '-qb', 'main');
   git('config', 'user.name', 'Fixture');
+  execFileSync('git', ['init', '--bare', '-q', path.join(directory, 'fixture-remote.git')]);
   git('remote', 'add', 'origin', path.join(directory, 'fixture-remote.git'));
   git('config', 'user.email', 'fixture@example.invalid');
   writeFileSync(path.join(repo, 'candidate.txt'), 'original\n');
   writeFileSync(path.join(repo, 'unstaged.txt'), 'keep the index separate\n');
-  git('add', 'candidate.txt', 'unstaged.txt');
+  writeFileSync(
+    path.join(repo, 'README.md'),
+    '# Candidate fixture\n\n[fixture source](example.ts)\n',
+  );
+  writeFileSync(path.join(repo, 'example.ts'), 'export const answer = 42;\n');
+  git('add', 'README.md', 'example.ts', 'candidate.txt', 'unstaged.txt');
   git('-c', 'commit.gpgSign=false', 'commit', '-qm', 'candidate fixture');
+  git('tag', 'ui-baseline');
+  git('push', '-qu', 'origin', 'main', '--tags');
   writeFileSync(path.join(repo, 'candidate.txt'), 'changed in legacy workspace\n');
   writeFileSync(path.join(repo, 'unstaged.txt'), 'keep the working tree separate\n');
   const id = randomUUID(),

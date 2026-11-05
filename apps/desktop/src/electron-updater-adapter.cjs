@@ -6,7 +6,9 @@ function releaseNotes(value) {
   return '';
 }
 
-function createElectronUpdater({ updater, nativeUpdater, proxyBridge, logger = console, checkTimeout = 60000, idleTimeout = 60000 }) {
+function createElectronUpdater({ updater, nativeUpdater, proxyBridge, installDirectory, logger = console, checkTimeout = 60000, idleTimeout = 60000 }) {
+  // Keep a custom per-user NSIS installation in its original directory.
+  if(installDirectory)updater.installDirectory=installDirectory;
   updater.autoDownload = false;
   updater.autoInstallOnAppQuit = false;
   updater.allowPrerelease = false;

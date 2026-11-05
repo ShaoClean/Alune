@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { withInstalledWindow } from './installed-v011.mjs';
@@ -55,28 +56,15 @@ export async function verifyLiveUpdate({ exe, candidateFile, target, data, stabl
   // The assisted NSIS wizard retains the same Next/Finish action a keyboard
   // user would take. Only press IDOK in the verified release installer itself.
   if (win) {
-    const script = `
-Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class Wizard { [DllImport("user32.dll")]public static extern IntPtr GetDlgItem(IntPtr window,int id); [DllImport("user32.dll")]public static extern bool IsWindowEnabled(IntPtr window); [DllImport("user32.dll")]public static extern bool PostMessage(IntPtr window,uint message,IntPtr w,IntPtr l); }'
-$until=(Get-Date).AddMinutes(3)
-$known=@{}
-do{
-  if(Get-Process Alune -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $env:ALUNE_EXPECTED_EXECUTABLE }){exit 0}
-  foreach($p in (Get-Process | Where-Object {$_.MainWindowHandle -ne 0 -and $_.Path -and $_.Path -like '*.exe' -and $_.MainWindowTitle -match 'Alune'})){
-    if(!$known.ContainsKey($p.Path)){$known[$p.Path]=(Get-FileHash -Algorithm SHA256 -LiteralPath $p.Path).Hash.ToLowerInvariant()}
-    if($known[$p.Path] -ne $env:ALUNE_EXPECTED_DIGEST){continue}
-    $ok=[Wizard]::GetDlgItem($p.MainWindowHandle,1)
-    if($ok -ne [IntPtr]::Zero -and [Wizard]::IsWindowEnabled($ok)){[void][Wizard]::PostMessage($ok,0x00F5,[IntPtr]::Zero,[IntPtr]::Zero)}
-  }
-  Start-Sleep -Milliseconds 600
-}while((Get-Date) -lt $until)
-exit 1`;
     execFileSync(
       'powershell.exe',
       [
         '-NoProfile',
         '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(script, 'utf16le').toString('base64'),
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        fileURLToPath(new URL('./finish-update-wizard.ps1', import.meta.url)),
       ],
       {
         env: { ...env, ALUNE_EXPECTED_EXECUTABLE: exe, ALUNE_EXPECTED_DIGEST: stableDigest },

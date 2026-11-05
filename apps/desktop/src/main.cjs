@@ -222,6 +222,7 @@ async function start() {
       : require('./electron-updater-adapter.cjs').createElectronUpdater({
           updater: require('electron-updater').autoUpdater,
           nativeUpdater,
+          installDirectory:process.platform==='win32' && app.isPackaged?path.dirname(app.getPath('exe')):undefined,
           proxyBridge: () => networkProxy.updaterBridge(),
         });
   if (adapter.install) {

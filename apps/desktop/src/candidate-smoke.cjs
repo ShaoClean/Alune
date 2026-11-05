@@ -62,6 +62,7 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
     }
   } else {
     if (phase === 'write') {
+      await require('./candidate-workbench.cjs')({window,origin,id,repo,wait});
       await require('./dialogs-smoke.cjs')({ window });
       await require('./settings-shell-smoke.cjs')({
         window,

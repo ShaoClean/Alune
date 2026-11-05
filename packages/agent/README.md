@@ -1,5 +1,8 @@
 # @alune/agent
 
+当前 P8/P9 候选：桌面和本机 Web 均可通过同一个 Agent Client 使用工作区；独立桌面候选包不含 Nest、旧 SSH 执行器或 Electron ABI 的数据库。普通 stdio、受 SSH 限制的叶节点和客户端宿主的私有多会话 IPC 入口分别为 `serve`、`serve-remote`、`serve-ui`；最后一种只允许通过继承的 IPC 通道启动。仓库文档后面的阶段段落描述当时的交接范围，当前候选构建和回退流程见[开发与打包](../../docs/development.md#独立-agent-候选入口p8p9-验收)。未发布新正式版本。
+
+
 独立 Node Agent，提供会话运行时、版本化状态、配置与凭据、代理、诊断及仓库/文件/Git 读取能力。协议 1.3 可执行本机 Git、文件和 Worktree 写操作；协议 1.4 支持本机仓库终端；桌面默认入口保持现状。
 
 CLI、握手和独立包的应用版本在构建时读取根 package.json，遵循仓库唯一版本来源；workspace 包自身版本不作为对外发行版本。

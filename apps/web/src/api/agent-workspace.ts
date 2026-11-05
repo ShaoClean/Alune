@@ -30,6 +30,7 @@ type Host = {
   state: string;
   reason: string | null;
   gitProxy: string | null;
+  proxyRevision: string | null;
   activeTasks: number;
   updatedAt: number;
   bindings: Binding[];
@@ -86,10 +87,11 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
     (await local.request('hosts.catalog', {})) as unknown as { hosts: Host[] };
   const clients = new Map<string, AgentClient>(),
     opening = new Map<string, Promise<AgentClient>>();
-  function connect(id: string, interactive = false) {
+  function connect(id: string, interactive = false, reconnectRevision?: string) {
     const active = clients.get(id);
-    if (active?.state === 'ready') return Promise.resolve(active);
+    if (!reconnectRevision && active?.state === 'ready') return Promise.resolve(active);
     const pending = opening.get(id);
+    if (pending && reconnectRevision) throw new Error('服务器正在连接。');
     if (pending) return pending;
     const work = (async () => {
       const host = (await catalog()).hosts.find((h) => h.hostId === id);
@@ -101,7 +103,11 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
             host.hostKey,
           )
         : { hostKey: host.hostKey!, install: false };
-      const client = await openRemoteAgent(local, { hostId: id, ...policy });
+      const client = await openRemoteAgent(local, {
+        hostId: id,
+        ...policy,
+        ...(reconnectRevision ? { reconnectRevision } : {}),
+      });
       try {
         await client.subscribe(workspaceTopics);
       } catch (e) {
@@ -356,8 +362,8 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
           name: h.name,
           connected: route?.state === 'ready',
           connecting: opening.has(h.id),
-          revision: route?.state === 'ready' ? settings.revision : null,
-          pendingReconnect: false,
+          revision: route?.proxyRevision ?? null,
+          pendingReconnect: !!route?.proxyRevision && route.proxyRevision !== settings.revision,
           activeTasks: route?.activeTasks ?? 0,
           forwarding:
             route?.gitProxy === 'ready'
@@ -373,19 +379,32 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
     reconnect: async (id, revision) => {
       if ((await local.getProxySettings()).revision !== revision)
         throw new Error('代理设置已变更。');
-      await connect(id);
+      await connect(id, false, revision);
       return proxyApi.connections();
     },
     test: async (input, signal) => {
-      if (input.kind !== 'http') {
-        const client = await connect(input.connectionId);
-        await client.health();
-        if (input.kind === 'git') await repositoryTarget(input.repositoryId);
-      }
-      return (await local.request('network.testProxy', input, {
-        signal,
-        timeoutMs: 35000,
-      })) as unknown as Awaited<ReturnType<typeof proxyApi.test>>;
+      let key;
+      if (input.kind === 'ssh') {
+        const host = (await catalog()).hosts.find((h) => h.hostId === input.connectionId);
+        if (!host) throw new Error('服务器不存在。');
+        key =
+          host.hostKey ??
+          (
+            await hostConsent(
+              (await local.listHostProfiles()).hosts.find((h) => h.id === input.connectionId)!.name,
+              null,
+              false,
+            )
+          ).hostKey;
+      } else if (input.kind === 'git') await targetFor(input.repositoryId);
+      return (await local.request(
+        'network.testProxy',
+        { ...input, ...(key ? { hostKey: key } : {}) },
+        {
+          signal,
+          timeoutMs: 35000,
+        },
+      )) as unknown as Awaited<ReturnType<typeof proxyApi.test>>;
     },
   } satisfies typeof proxyApi);
   async function locate(id: string, path: string) {

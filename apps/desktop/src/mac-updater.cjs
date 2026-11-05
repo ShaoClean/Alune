@@ -18,12 +18,12 @@ function assetURL(asset) {
   return value;
 }
 
-async function githubFetch(fetchImpl, url, signal) {
+async function githubFetch(fetchImpl, url, signal, {method='GET',accept}={}) {
   for (let count = 0; count < 6; count++) {
     const response = await fetchImpl(url, {
-      signal, redirect: 'manual', headers: {
+      signal, method,redirect: 'manual', headers: {
         'User-Agent': 'Alune-Updater',
-        Accept: new URL(url).hostname === 'api.github.com' ? 'application/vnd.github+json' : 'application/octet-stream',
+        Accept: accept ?? (new URL(url).hostname === 'api.github.com' ? 'application/vnd.github+json' : 'application/octet-stream'),
       },
     });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
@@ -40,7 +40,7 @@ async function githubFetch(fetchImpl, url, signal) {
     if (!response.ok) {
       await response.body?.cancel();
       if (response.status === 404) throw new Error('尚无可访问的正式 Release 或更新附件。请确认 GitHub 仓库已公开且发布完整。');
-      if ([403, 429].includes(response.status)) throw new Error('GitHub 请求被限制，请稍后重试或检查网络访问权限。');
+      if ([403, 429].includes(response.status)) throw Object.assign(new Error('GitHub 请求被限制，请稍后重试或检查网络访问权限。'),{status:response.status});
       throw new Error(`GitHub 请求失败（HTTP ${response.status}），请稍后重试。`);
     }
     return response;
@@ -74,8 +74,26 @@ function createMacUpdater({ version, arch, cacheDir, shell, app, installer, fetc
     async check(signal) {
       candidate = null;
       const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(metadataTimeout)]);
-      const response = await githubFetch(fetchImpl, `https://api.github.com/repos/${repository}/releases/latest`, requestSignal);
-      const release = JSON.parse(await smallText(response));
+      let release;
+      try{
+        const response=await githubFetch(fetchImpl,`https://api.github.com/repos/${repository}/releases/latest`,requestSignal);
+        release=JSON.parse(await smallText(response));
+      }catch(error){
+        if(![403,429].includes(error?.status))throw error;
+        // Public release discovery also works without REST API quota. Use only
+        // the stable tag here; never trust page-supplied download URLs or sizes.
+        const response=await githubFetch(fetchImpl,`https://github.com/${repository}/releases/latest`,requestSignal,{accept:'application/json'});
+        const {tag_name:tag}=JSON.parse(await smallText(response,65536));
+        const v=stableVersion(tag);
+        if(!v || ![v,'v'+v].includes(tag))throw new Error('公开 Release 标签无效。');
+        if(!semver.gt(v,version))return null;
+        if(!['arm64','x64'].includes(arch))throw new Error('不支持的 macOS 架构。');
+        const filename=`Alune-${v}-mac-${arch}.dmg`,base=downloadPrefix+tag+'/';
+        const head=await githubFetch(fetchImpl,base+filename,requestSignal,{method:'HEAD'});
+        const size=Number(head.headers.get('content-length'));await head.body?.cancel();
+        release={tag_name:tag,body:`[查看 v${v} 的完整更新说明](https://github.com/${repository}/releases/tag/${tag})`,assets:[
+          {name:filename,size,browser_download_url:base+filename},{name:'SHA256SUMS',browser_download_url:base+'SHA256SUMS'}]};
+      }
       const nextVersion = stableVersion(release.tag_name);
       if (release.draft || release.prerelease || !nextVersion || !semver.gt(nextVersion, version)) return null;
       if (!['arm64', 'x64'].includes(arch)) throw new Error(`暂不支持此 macOS 架构：${arch}`);

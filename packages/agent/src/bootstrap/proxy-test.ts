@@ -50,6 +50,13 @@ export function proxyTest(
           if (!response.ok)
             throw new ProtocolError('unavailable', '目标返回 HTTP ' + response.status);
           message = 'HTTP 测试成功。';
+        } else if (kind === 'ssh') {
+          await hosts.probeAuthentication(
+            connectionId,
+            (p as Record<string, unknown>).hostKey,
+            signal,
+          );
+          message = 'SSH 测试成功，已通过当前保存的代理完成身份认证。';
         } else {
           let resource: ResourceRef | undefined;
           if (kind === 'git') {
@@ -60,7 +67,7 @@ export function proxyTest(
             if (!resource) throw new ProtocolError('unavailable', '请先打开此 SSH 仓库。');
           }
           await hosts.testProxy(connectionId, resource, ctx.sessionId, signal);
-          message = kind === 'ssh' ? 'SSH 连接测试成功。' : '已通过转发代理只读验证仓库远程地址。';
+          message = '已通过转发代理只读验证仓库远程地址。';
         }
         signal.throwIfAborted();
         success = true;

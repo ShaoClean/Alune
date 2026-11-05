@@ -249,6 +249,20 @@ test('macOS selects the correct architecture, verifies SHA-256 and atomically co
   }
 });
 
+test('rate-limited macOS discovery resolves the public stable tag and still verifies the real asset',async(t)=>{
+  const cacheDir=await mkdtemp(path.join(tmpdir(),'alune-public-release-'));t.after(()=>rm(cacheDir,{recursive:true,force:true}));
+  const bytes=Buffer.from('verified test asset'),name='Alune-1.1.0-mac-arm64.dmg',base='https://github.com/ShaoClean/Alune/releases/download/v1.1.0/';
+  const adapter=createMacUpdater({version:'1.0.0',arch:'arm64',cacheDir,shell:{},fetchImpl:async(url,opts)=>{
+    if(url==='https://api.github.com/repos/ShaoClean/Alune/releases/latest')return new Response(null,{status:403});
+    if(url==='https://github.com/ShaoClean/Alune/releases/latest'){assert.equal(opts.headers.Accept,'application/json');return Response.json({tag_name:'v1.1.0',url:'https://wrong.invalid'});}
+    if(url===base+name && opts.method==='HEAD')return new Response(null,{headers:{'content-length':String(bytes.length)}});
+    if(url===base+'SHA256SUMS')return new Response(createHash('sha256').update(bytes).digest('hex')+'  '+name+'\n');
+    assert.equal(url,base+name);return new Response(bytes);
+  }});
+  const signal=new AbortController().signal;assert.equal((await adapter.check(signal)).version,'1.1.0');
+  assert.deepEqual(await readFile(await adapter.download(signal,()=>{})),bytes);
+});
+
 test('macOS revalidates the DMG before preparation and quits only after the helper is ready', async (t) => {
   const order = [];
   const prepared = {};

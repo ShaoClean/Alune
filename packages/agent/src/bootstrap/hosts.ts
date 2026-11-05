@@ -38,6 +38,7 @@ type Connection = {
   phase: string;
   gitAvailable: boolean;
   gitProxy?: string;
+  appliedProxy?: import('../adapters/network/proxy-transport').ProxySnapshot;
   fresh: boolean;
   failure?: ProtocolError;
   reason?: string;
@@ -51,7 +52,7 @@ export function hostsKernel(
   local: RepositoryCatalog,
   settings: ReturnType<typeof settingsKernel>,
   document: JsonDocument,
-  releaseFetch?:typeof fetch,
+  releaseFetch?: typeof fetch,
 ) {
   const records = document.read() ?? [];
   if (
@@ -154,6 +155,7 @@ export function hostsKernel(
         reason: r?.reason ?? null,
         sshConnected: r?.sshConnected ?? false,
         failurePhase: r?.failurePhase ?? null,
+        proxyRevision: r?.appliedProxy?.revision ?? null,
         gitAvailable: r?.phase === 'ready' ? r.gitAvailable : null,
         updatedAt: r?.updatedAt ?? 0,
         activeTasks:
@@ -283,10 +285,20 @@ export function hostsKernel(
         if (!profile) throw new ProtocolError('not-found', 'Unknown host profile');
         const prev = live.get(p.hostId),
           prior = saved.get(p.hostId);
-        if (prev && prev.phase !== 'offline')
-          throw new ProtocolError('busy', 'Host already has an active route');
         if (prior && prior.hostKey !== p.hostKey)
           throw new ProtocolError('permission-denied', 'Pinned SSH host key changed');
+        if (p.reconnectRevision) settings.proxy.assertRevision(p.reconnectRevision);
+        if (prev && prev.phase !== 'offline') {
+          if (
+            !p.reconnectRevision ||
+            prev.session !== c.sessionId ||
+            prev.phase !== 'ready' ||
+            prev.relay?.activeTasks ||
+            prev.relay?.terminalImpact.length
+          )
+            throw new ProtocolError('busy', '服务器仍有运行中任务、终端或正在连接，请结束后重试。');
+          stop(prev);
+        }
         if ([...live.values()].filter((r) => r.phase !== 'offline').length >= 16)
           throw new ProtocolError('overloaded', 'Too many SSH hosts');
         const r: Connection = {
@@ -324,11 +336,17 @@ export function hostsKernel(
           if (profile.hasPassword || profile.hasPassphrase || settings.proxy.read().authEnabled)
             await settings.readyCredentials(signal);
           const { connectHost } = await import('../adapters/ssh/connect');
+          if (p.reconnectRevision) settings.proxy.assertRevision(p.reconnectRevision);
+          signal.throwIfAborted();
+          r.appliedProxy =
+            (!p.reconnectRevision && prev?.session === c.sessionId
+              ? prev.appliedProxy
+              : undefined) ?? settings.proxy.snapshot();
           const conn = await connectHost(
             directory,
             settings.hosts.credential(p.hostId),
             p,
-            settings.proxy.snapshot(),
+            r.appliedProxy,
             signal,
             prior?.digest,
             (phase) => {
@@ -460,6 +478,20 @@ export function hostsKernel(
       for (const r of live.values()) stop(r);
       live.clear();
     },
+    async probeAuthentication(id: string, provided: unknown, signal: AbortSignal) {
+      const pin = saved.get(id)?.hostKey;
+      const key = provided ?? pin;
+      if (typeof key !== 'string' || !/^[0-9a-f]{64}$/.test(key) || (pin && pin !== key))
+        throw new ProtocolError('permission-denied', '请核对 SSH 主机公钥指纹。');
+      await settings.readyCredentials(signal);
+      const { probeAuthentication } = await import('../adapters/ssh/connect');
+      await probeAuthentication(
+        settings.hosts.credential(id),
+        key,
+        settings.proxy.snapshot(),
+        signal,
+      );
+    },
     async testProxy(
       id: string,
       resource: import('@alune/protocol').ResourceRef | undefined,
@@ -472,6 +504,7 @@ export function hostsKernel(
         r.phase !== 'ready' ||
         r.session !== sessionId ||
         !r.sshConnected ||
+        r.appliedProxy?.revision !== settings.proxy.read().revision ||
         r.gitProxy === 'disabled'
       )
         throw new ProtocolError('unavailable', '请先使用当前代理重新连接服务器。');
@@ -482,10 +515,27 @@ export function hostsKernel(
       }
     },
     disconnect(sessionId: string) {
-      for (const r of live.values()) if (r.session === sessionId) stop(r);
+      for (const r of live.values())
+        if (r.session === sessionId) {
+          r.appliedProxy = undefined;
+          stop(r);
+        }
+    },
+    proxyChanged() {
+      // Established tunnels and outstanding writes keep the snapshot they opened
+      // with. Only an explicit reconnect applies a newly saved policy.
+      for (const r of live.values())
+        if (r.phase !== 'ready' && r.phase !== 'offline') {
+          r.appliedProxy = undefined;
+          stop(r);
+        }
     },
     invalidate(hostId?: string) {
-      for (const r of live.values()) if (!hostId || r.hostId === hostId) stop(r);
+      for (const r of live.values())
+        if (!hostId || r.hostId === hostId) {
+          r.appliedProxy = undefined;
+          stop(r);
+        }
     },
   };
 }
