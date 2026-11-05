@@ -5,7 +5,7 @@ const { createServer } = require('node:http');
 const { join } = require('node:path');
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
 const { startServer } = require('../dist/bootstrap');
 const { ConnectionService } = require('../dist/connection/connection.service');
 const { RepositoryService } = require('../dist/repository/repository.service');

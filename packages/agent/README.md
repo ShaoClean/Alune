@@ -95,7 +95,10 @@ node packages/agent/bin/alune-agent.cjs recovery-restore --data-dir /path/to/age
 ```sh
 node scripts/agent/package.mjs --output /tmp/alune-agent-package
 node scripts/agent/test-packaged.mjs /tmp/alune-agent-package
+node scripts/agent/test-ssh-isolated.mjs /tmp/alune-agent-package
 ```
+
+隔离 SSH 验收会把独立包和所需测试对端放进新的临时目录，以包内 Node 与 SDK 验证 SSH 部署、代理、SQLite/PTY、取消和重连。该目录没有 apps/server、旧 shared/ssh-client 或工作区 node_modules，缺失的包不能由开发检出补足；结束后删除临时副本。
 
 输出目录必须是仓库外的新目录，防止误用仓库依赖验证“独立”运行。包使用官方 Node 22.22.0（核对官方 SHA-256）、对应平台已安装并通过 doctor 的 Node ABI 原生依赖、运行代码、许可证和文件校验清单，不包含 Electron。Windows 提供 `alune-agent.cmd`，POSIX 提供 `alune-agent`；只支持 Windows x64、macOS arm64/x64、Linux x64 的本机打包，不做伪交叉编译。
 

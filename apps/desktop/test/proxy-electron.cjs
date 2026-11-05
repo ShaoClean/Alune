@@ -10,7 +10,7 @@ const { NsisUpdater, AppImageUpdater } = require('electron-updater');
 const { ElectronHttpExecutor } = require('electron-updater/out/electronHttpExecutor');
 const { createElectronUpdater } = require('../src/electron-updater-adapter.cjs');
 const { createProxyBridge } = require('../../../packages/ssh-client/dist');
-const { listen, httpProxy, socksProxy, tlsOptions } = require('../../../packages/ssh-client/tests/helpers/proxy-fixture.cjs');
+const { listen, httpProxy, socksProxy, tlsOptions } = require('../../../packages/agent/tests/helpers/proxy-fixture.cjs');
 
 const root = process.env.ALUNE_PROXY_TEST_DIR;
 if (!root) throw new Error('Run npm run test:proxy -w desktop with an isolated data directory');

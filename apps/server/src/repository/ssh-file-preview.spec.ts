@@ -10,10 +10,10 @@ import { ConnectionService } from '../connection/connection.service';
 
 const {
   createRepository,
-} = require('../../../../packages/ssh-client/tests/helpers/local-repository.cjs');
+} = require('../../../../packages/agent/tests/helpers/local-repository.cjs');
 const {
   startSSHServer,
-} = require('../../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../../packages/agent/tests/helpers/ssh-server.cjs');
 
 describe('SSH file preview HTTP errors', () => {
   it('returns a readable channel failure and keeps the API usable for retry and another file', async () => {

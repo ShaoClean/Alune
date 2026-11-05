@@ -41,9 +41,9 @@ jobs:
       - name: 用目标平台 shell 验证二进制部署引导
         run: node --experimental-strip-types scripts/agent/test-bootstrap.mjs
       - run: npm ci
-      - run: node --test scripts/agent/download-runtime.test.mjs
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: node --test scripts/agent/download-runtime.test.mjs
       - run: npm test -w @alune/protocol
       - run: npm test -w @alune/agent-client
       - run: npm test -w @alune/agent
@@ -61,9 +61,9 @@ jobs:
       - name: 验证包内协议与生命周期
         shell: bash
         run: node scripts/agent/test-packaged.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}" --require-clean
-      - name: 验证独立包经过 SSH 的路由、代理、PTY 和 Worktree 保护
+      - name: 在无旧工作区的临时目录验证包内 SDK、SSH、代理与 PTY
         shell: bash
-        run: node scripts/agent/test-ssh-packaged.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}"
+        run: node scripts/agent/test-ssh-isolated.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}"
       - name: 保存可执行权限并生成归档
         shell: bash
         working-directory: ${{ runner.temp }}

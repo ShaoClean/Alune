@@ -4,8 +4,8 @@ const fs = require('node:fs');
 const { createServer } = require('node:http');
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
-const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
+const { startSSHServer } = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 const { startServer } = require('../../server/dist/bootstrap');
 const { ConnectionService } = require('../../server/dist/connection/connection.service');
 const { RepositoryService } = require('../../server/dist/repository/repository.service');

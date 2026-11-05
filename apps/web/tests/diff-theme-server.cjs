@@ -4,8 +4,8 @@ const { tmpdir } = require('node:os');
 const path = require('node:path');
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
-const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
+const { startSSHServer } = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 const root = mkdtempSync(path.join(tmpdir(), 'alune-diff-web-'));
 process.env.ALUNE_DATA_DIR = root;
 const { startServer } = require('../../server/dist/bootstrap');

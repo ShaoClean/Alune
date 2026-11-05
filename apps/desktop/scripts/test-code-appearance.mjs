@@ -7,8 +7,8 @@ import { spawn } from 'node:child_process';
 const require = createRequire(import.meta.url);
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
-const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
+const { startSSHServer } = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 const fixture = createRepository();
 const root = await mkdtemp(path.join(tmpdir(), 'alune-code-appearance-'));
 let remote;

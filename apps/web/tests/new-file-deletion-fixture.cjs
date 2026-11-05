@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
 const { GitCommands } = require('@alune/ssh-client');
 const { GitService } = require('../../server/dist/git/git.service');
 

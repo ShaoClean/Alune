@@ -3,8 +3,8 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
-const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
+const { startSSHServer } = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 
 async function createSigningFixture() {
   const f = createRepository();

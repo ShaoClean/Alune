@@ -6,8 +6,8 @@ const { createServer } = require('node:http');
 const { createHash } = require('node:crypto');
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
-const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
+const { startSSHServer } = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 
 async function createMarkdownFixture() {
   const fixture = createRepository();

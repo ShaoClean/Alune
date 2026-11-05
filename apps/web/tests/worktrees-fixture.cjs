@@ -2,11 +2,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   createWorktreeRepository,
-} = require('../../../packages/ssh-client/tests/helpers/worktree-repository.cjs');
+} = require('../../../packages/agent/tests/helpers/worktree-repository.cjs');
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
-const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
+const { startSSHServer } = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 
 // Production HTTP/SQLite/SSH/Git on loopback and disposable directories only.
 // Build shared, ssh-client, server and web before starting this fixture.

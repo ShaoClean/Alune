@@ -10,7 +10,7 @@ import { parseCommit } from './ai-provider';
 import { localSecretStorage } from './secret-storage';
 const {
   createRepository,
-} = require('../../../../packages/ssh-client/tests/helpers/local-repository.cjs');
+} = require('../../../../packages/agent/tests/helpers/local-repository.cjs');
 
 describe('AI service with real isolated Git and mock HTTP providers', () => {
   let server: Server;

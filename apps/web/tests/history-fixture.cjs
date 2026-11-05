@@ -4,10 +4,10 @@ const path = require('node:path');
 const { GitCommands, GitLogChangedError } = require('../../../packages/ssh-client/dist');
 const {
   createHistoryRepository,
-} = require('../../../packages/ssh-client/tests/helpers/history-repository.cjs');
+} = require('../../../packages/agent/tests/helpers/history-repository.cjs');
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
 
 // Browser acceptance uses real, isolated Git history through production readers.
 // No configured connections, user repositories or credentials are accessed.

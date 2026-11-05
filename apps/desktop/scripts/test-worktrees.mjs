@@ -8,8 +8,8 @@ import { spawn } from 'node:child_process';
 const require = createRequire(import.meta.url);
 const {
   createWorktreeRepository,
-} = require('../../../packages/ssh-client/tests/helpers/worktree-repository.cjs');
-const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../packages/agent/tests/helpers/worktree-repository.cjs');
+const { startSSHServer } = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 const fixture = createWorktreeRepository();
 const root = await mkdtemp(path.join(tmpdir(), 'alune-worktree-desktop-'));
 let remote;

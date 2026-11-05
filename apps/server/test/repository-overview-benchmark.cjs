@@ -14,7 +14,7 @@ const { startServer } = require('../dist/bootstrap');
 const { ConnectionService } = require('../dist/connection/connection.service');
 const {
   startSSHServer,
-} = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 (async () => {
   const ssh = await startSSHServer();
   const app = await startServer({

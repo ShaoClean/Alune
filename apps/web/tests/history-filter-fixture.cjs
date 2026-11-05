@@ -4,8 +4,8 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   createRepository,
-} = require('../../../packages/ssh-client/tests/helpers/local-repository.cjs');
-const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+} = require('../../../packages/agent/tests/helpers/local-repository.cjs');
+const { startSSHServer } = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 
 const DAY = 86400;
 const START = 1767225600; // 2026-01-01T00:00:00Z

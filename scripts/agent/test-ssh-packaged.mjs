@@ -14,7 +14,7 @@ import {
   openRemoteAgent,
   spawnAgent,
 } from '../../packages/agent-client/dist/node.js';
-import fixtures from '../../packages/ssh-client/tests/helpers/proxy-fixture.cjs';
+import fixtures from '../../packages/agent/tests/helpers/proxy-fixture.cjs';
 import terminal from '../../packages/agent/tests/terminal-scenario.cjs';
 const pkg = path.resolve(process.argv[2]),
   root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'alune-ssh-')));

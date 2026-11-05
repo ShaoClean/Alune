@@ -5,7 +5,7 @@ import { openStateKernel } from '@alune/agent/state-kernel';
 import type { HandlerContext } from '@alune/agent';
 const {
   createRepository,
-} = require('../../../../packages/ssh-client/tests/helpers/local-repository.cjs');
+} = require('../../../../packages/agent/tests/helpers/local-repository.cjs');
 const {
   connectFixture,
 } = require('../../../../packages/ssh-client/tests/helpers/ssh-server.cjs');

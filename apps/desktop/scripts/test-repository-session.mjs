@@ -7,7 +7,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 
 const require = createRequire(import.meta.url);
-const { startSSHServer } = require('../../../packages/ssh-client/tests/helpers/ssh-server.cjs');
+const { startSSHServer } = require('../../../packages/agent/tests/helpers/ssh-server.cjs');
 const root = await mkdtemp(path.join(tmpdir(), 'alune-tab-session-'));
 let remote;
 try {
