@@ -20,6 +20,7 @@ type Runtime = {
   element: HTMLDivElement;
   lines: number;
   sequence: number;
+  closing?: Promise<void>;
 };
 const runtimes = new Map<string, Runtime>();
 let socket: Socket | undefined;
@@ -144,7 +145,13 @@ const outputEvent = (packet: TerminalOutput) => {
       void request('terminal:ack', {
         sessionId: packet.sessionId,
         sequence: packet.sequence,
-      }).catch(report);
+      }).catch(async (error) => {
+        // A parser ACK can cross the confirmed close on its way to the Agent.
+        // Only surface errors belonging to a session that is still open.
+        await runtime.closing?.catch(() => {});
+        if (runtimes.get(packet.sessionId) === runtime && activeTransport(packet.sessionId) === connectionId)
+          report(error);
+      });
   });
 };
 export function connectTerminals() {
@@ -464,13 +471,24 @@ function removeLocal(id: string) {
   }));
 }
 export async function closeTerminal(session: TerminalSession) {
-  if (connected(session.id)) {
-    try {
-      await request('terminal:close', { sessionId: session.id, confirmed: true });
-    } catch (error) {
-      if (terminalNeedsConfirmation(session)) throw error;
-      // Socket disconnect already destroyed these sessions on the server.
+  const runtime = runtimes.get(session.id);
+  if (runtime?.closing) return runtime.closing;
+  const close = async () => {
+    if (connected(session.id)) {
+      try {
+        await request('terminal:close', { sessionId: session.id, confirmed: true });
+      } catch (error) {
+        if (terminalNeedsConfirmation(session)) throw error;
+        // Disconnect already destroyed this finished session on the server.
+      }
     }
+    removeLocal(session.id);
+  };
+  const done = close();
+  if (runtime) runtime.closing = done;
+  try {
+    await done;
+  } finally {
+    if (runtime) runtime.closing = undefined;
   }
-  removeLocal(session.id);
 }

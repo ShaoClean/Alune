@@ -20,7 +20,9 @@ async function terminalScenario(client, resource, repo, whileRunning) {
   const states = new Map(),
     output = new Map(),
     sequences = new Map(),
-    removed = new Set();
+    removed = new Set(),
+    closing = new Set(),
+    pendingAcks = new Set();
   let hold = true,
     held,
     ackError;
@@ -36,10 +38,13 @@ async function terminalScenario(client, resource, repo, whileRunning) {
       output.set(p.sessionId, (output.get(p.sessionId) ?? '') + p.data);
       const packet = { sessionId: p.sessionId, sequence: p.sequence };
       if (hold && p.sessionId === id) held = packet;
-      else
-        void run('ack', packet).catch((e) => {
+      else if (!closing.has(p.sessionId)) {
+        const ack = run('ack', packet).catch((e) => {
           ackError = e;
         });
+        pendingAcks.add(ack);
+        void ack.finally(() => pendingAcks.delete(ack));
+      }
     }
   });
   try {
@@ -91,11 +96,19 @@ async function terminalScenario(client, resource, repo, whileRunning) {
       data: process.platform === 'win32' ? 'exit /b 7\r' : 'exit 7\r',
     });
     await until(() => states.get(second)?.exitCode === 7, 'terminal exit code');
+    // Finish checking all ACKs issued for live sessions. A close releases
+    // remaining output; later ACKs must not succeed or recreate the PTY.
+    closing.add(second);
+    closing.add(id);
+    await Promise.all(pendingAcks);
+    assert.ifError(ackError);
     await run('close', { sessionId: second, confirmed: false });
     await run('close', { sessionId: id, confirmed: true });
     await until(() => removed.size === 2, 'reliable removal events');
+    await assert.rejects(run('ack', { sessionId: id, sequence: sequences.get(id) }), {
+      kind: 'conflict',
+    });
     assert.deepEqual(await run('list', {}), []);
-    assert.ifError(ackError);
   } finally {
     off();
     fs.rmSync(path.join(repo, 'terminal-fixture.txt'), { force: true });
