@@ -88,6 +88,9 @@ module.exports = async ({ window }) => {
   const motion = () =>
     execute('new Promise((resolve) => setTimeout(() => resolve(window.__dialogMotion), 1600))');
   const open = async () => {
+    // A scripted click cannot activate a background native window. Establish
+    // the keyboard user's precondition on every reopen, not just the first.
+    await require('./smoke-window.cjs')(window);
     await execute(
       `(() => { const trigger = document.querySelector(${JSON.stringify(trigger)}); trigger.focus(); trigger.click(); })()`,
     );
@@ -118,7 +121,6 @@ module.exports = async ({ window }) => {
       `(${JSON.stringify(originalMotion)} === null) ? delete document.documentElement.dataset.reducedMotion : (document.documentElement.dataset.reducedMotion = ${JSON.stringify(originalMotion)})`,
     );
   try {
-    await require('./smoke-window.cjs')(window);
     await wait(
       `document.querySelector(${JSON.stringify(trigger)}) && !document.querySelector(${JSON.stringify(trigger)}).disabled`,
     );
