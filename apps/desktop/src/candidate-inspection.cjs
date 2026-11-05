@@ -143,14 +143,22 @@ module.exports = async ({
   );
   await click(button('关闭提交详情'));
   const filter = button('搜索提交信息或哈希');
-  await fill(filter, head.slice(0, 10));
+  async function applyFilter(input, value) {
+    await wc.executeJavaScript('(' + input + ').focus()');
+    await fill(input, value);
+    await wait(wc, '(' + input + ')?.value === ' + JSON.stringify(value));
+    // Enter explicitly applies the visible draft even if an earlier filter's
+    // debounce is still settling on a slower renderer.
+    await key(input, 'Enter', { code: 'Enter', keyCode: 13, which: 13 });
+  }
+  await applyFilter(filter, head.slice(0, 10));
   await wait(
     wc,
     "[...document.querySelectorAll('.history-row__message')].map(e=>e.title).join('')==='inspection after edits'",
   );
-  await fill(button('按文件或目录路径筛选'), 'absent-history-file.txt');
+  await applyFilter(button('按文件或目录路径筛选'), 'absent-history-file.txt');
   await wait(wc, "document.body.innerText.includes('没有符合筛选条件的提交')");
-  await fill(button('按文件或目录路径筛选'), file);
+  await applyFilter(button('按文件或目录路径筛选'), file);
   await wait(
     wc,
     "document.querySelector('.history-row__message')?.title==='inspection after edits'",
