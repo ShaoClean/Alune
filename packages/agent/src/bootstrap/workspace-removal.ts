@@ -12,6 +12,7 @@ export function workspaceRemoval(
   settings: ReturnType<typeof settingsKernel>,
 ): Handler {
   return {
+    minimumProtocolMinor: 6,
     effect: 'mutation',
     validate(p) {
       if (

@@ -12,6 +12,7 @@ export function proxyTest(
   catalog: RepositoryCatalog,
 ): Handler {
   return {
+    minimumProtocolMinor: 6,
     effect: 'query',
     validate(v) {
       if (

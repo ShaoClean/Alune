@@ -84,6 +84,14 @@ jobs:
       - name: 验证包内协议与生命周期
         shell: bash
         run: node scripts/agent/test-packaged.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}" --require-clean
+      - name: Verify packaged protocol 1.0–1.6 negotiation and refused capabilities
+        shell: bash
+        run: node scripts/agent/test-negotiated-package.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}" "$RUNNER_TEMP/protocol-${{ matrix.target }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: negotiated-protocol-${{ matrix.target }}
+          path: ${{ runner.temp }}/protocol-${{ matrix.target }}.json
+          if-no-files-found: error
       - name: 在无旧工作区的临时目录验证包内 SDK、SSH、代理与 PTY
         shell: bash
         run: node scripts/agent/test-ssh-isolated.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}"

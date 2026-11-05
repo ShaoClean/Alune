@@ -1,18 +1,31 @@
 # @alune/protocol
 
 Agent 消息契约和运行时校验；不依赖 Node、Electron、SSH、数据库或服务商 SDK。
-当前协议 major 为 1，minor 为 1。消息采用 JSON-RPC 2.0 形状，传输层按 UTF-8 换行分帧。初始化协商双方较低的 minor，只暴露该版本支持的方法。1.0 客户端仍可调用核心方法；1.1 的存储方法不会被误暴露，新增领域错误在旧会话降为旧客户端可解析的错误信封。
+当前协议为 **1.6**。消息采用 JSON-RPC 2.0 结构，stdio 按 UTF-8 换行分帧。不同 major 的握手直接拒绝；相同 major 协商双方支持的较低 minor。客户端以初始化响应中本次会话的 `capabilities` 为准：较低 minor 不公布、也不能直接调用较高 minor 的方法。普通桌面/Web 的默认入口与协议版本是两个独立选择。
+
+| 协商版本 | 本机独立 Agent 新增能力（在前一行基础上） |
+| --- | --- |
+| 1.0 | 健康、版本、能力查询，订阅、事件确认、取消请求和任务查询，共 7 个核心方法。 |
+| 1.1 | 状态和数据库备份、代理设置和更新桥、账户与凭据管理、诊断日志及 AI 配置。 |
+| 1.2 | 仓库发现、登记和读取，含状态、分析、快照分块与释放。 |
+| 1.3 | 仓库写操作预检、执行、取消及操作状态。 |
+| 1.4 | PTY 创建、列举、写入、调整大小、确认输出及关闭。 |
+| 1.5 | AI 请求、PR/MR 读取与协作，以及跨仓库审查和工作区分组。 |
+| 1.6 | SSH 主机目录、绑定和转发通道，跨主机工作区移除及代理连通性测试。 |
+
+[逐方法清单](../../scripts/agent/protocol-1-capabilities.json)对应普通 `serve` 的本机 stdio 会话。SSH 叶节点和桌面只读日志窗口另有限权，不得用版本号推断它们拥有同样权限。用 `node scripts/agent/test-negotiated-package.mjs PACKAGE_DIRECTORY` 可对安装包逐版本握手，并验证调用被隐藏的方法会在校验参数和执行前返回 `unknown-method`。
+
 
 请求 ID 使用 `固定前缀:递增正整数`（整数必须安全且无前导零）。一个会话内前缀不变，序号可跳过但不能倒退或重用；响应仍回显请求 ID。SDK 自动生成。Agent 只保存已接收序号上界，既能拒绝历史重复写，又不因长时间使用而积累无限 tombstone 或强制重连。
 
 ```ts
-import { encodeMessage, parseMessage, validateInitialize } from '@alune/protocol';
+import { encodeMessage, parseMessage, PROTOCOL_VERSION, validateInitialize } from '@alune/protocol';
 
 const frame = encodeMessage({
   jsonrpc: '2.0',
   id: 'request:1',
   method: 'initialize',
-  params: { protocol: { major: 1, minor: 1 }, client: { name: 'example', version: '1' } },
+  params: { protocol: PROTOCOL_VERSION, client: { name: 'example', version: '1' } },
 });
 const message = parseMessage(frame);
 if ('method' in message && message.method === 'initialize') {
@@ -37,4 +50,4 @@ if ('method' in message && message.method === 'initialize') {
 协议 1.2 增加按能力协商的 `repositories.*` 读取入口。仓库查询携带
 `{ resource: { agentId, resourceId }, kind, params }`；跨 Agent 标识、未知查询和额外字段被拒绝。
 `repositories.read` 的小结果直接返回，大结果以不可变快照和 32 KiB 块传输；SDK 负责校验身份、重组及释放。
-1.0/1.1 会话不声明或接受这些入口。Git 写操作仍留在旧执行路径，P3 不提供任意 Git 命令接口。
+1.0/1.1 会话不声明或接受这些入口。1.2 不提供 Git 写接口；从 1.3 起按协商能力开放明确列出的仓库写操作，不提供任意 Git 命令接口。
