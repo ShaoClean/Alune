@@ -22,6 +22,12 @@ export class RepositoryAnalyticsCache {
       signal: AbortSignal,
     ) => Promise<RepositoryAnalytics>,
   ) {}
+  private remember(entry: AnalyticsEntry) {
+    this.cache.delete(entry.id);
+    this.cache.set(entry.id, entry);
+    while (this.cache.size > 1000) this.cache.delete(this.cache.keys().next().value!);
+    return entry;
+  }
   invalidate(id: string) {
     this.cache.delete(id);
     this.reads.invalidate(id);
@@ -56,19 +62,19 @@ export class RepositoryAnalyticsCache {
           signal.throwIfAborted();
           if (this.reads.generation(id) !== generation)
             throw new ProtocolError('conflict', 'Repository analytics changed');
-          const entry = { id, resource, data: value };
-          this.cache.delete(id);
-          this.cache.set(id, entry);
-          while (this.cache.size > 1000) this.cache.delete(this.cache.keys().next().value!);
-          return entry;
+          return this.remember({ id, resource, data: value });
         } catch (error) {
           signal.throwIfAborted();
-          return {
+          const current = this.reads.generation(id) === generation;
+          const entry = {
             id,
             resource,
-            ...(cached?.data ? { data: cached.data } : {}),
+            ...(current && cached?.data ? { data: cached.data } : {}),
             error: error instanceof Error ? error.message : '统计读取失败',
           };
+          // Cache-only queries must retain the failure marker with any older data.
+          // An invalidated in-flight collection must never resurrect that old cache.
+          return current ? this.remember(entry) : entry;
         }
       }),
     );

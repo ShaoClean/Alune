@@ -405,3 +405,85 @@ test(
     await assert.rejects(restarted.client.prepareCredentials());
   },
 );
+
+test(
+  'metadata stays offline in promisor repositories while object reads retain proxy failure boundaries',
+  { timeout: 30000 },
+  async (t) => {
+    const f = await setup(t);
+    f.git('config', 'remote.origin.promisor', 'true');
+    let snapshots = 0;
+    const connection = new NativeRepositoryConnection(
+      undefined,
+      async () => {
+        snapshots++;
+        throw new Error('fixture proxy unavailable');
+      },
+      true,
+    );
+    t.after(() => connection.close());
+    assert.equal(
+      (await connection.execGit(f.repo, ['rev-parse', '--is-shallow-repository'])).exitCode,
+      0,
+    );
+    assert.equal(
+      (await connection.execGit(f.repo, ['symbolic-ref', '--quiet', 'HEAD'])).exitCode,
+      0,
+    );
+    assert.equal(snapshots, 0);
+    for (const args of [
+      ['log', '-1'],
+      ['show', 'HEAD:重命名 file.txt'],
+      ['diff'],
+      ['status', '--porcelain'],
+    ])
+      await assert.rejects(connection.execGit(f.repo, args), /fixture proxy unavailable/);
+    assert.equal(snapshots, 4);
+  },
+);
+
+test('analytics retains cached failure markers and invalidation cannot resurrect old data', async () => {
+  const { RepositoryAnalyticsCache } = require('../dist/modules/repositories/analytics');
+  const resource = { agentId: 'agent', resourceId: 'repo' },
+    signal = new AbortController().signal;
+  let fail = false,
+    finish;
+  const sample = {
+    endDay: new Date().toISOString().slice(0, 10),
+    daily: Array(180).fill(0),
+    collectedAt: Date.now(),
+    language: null,
+    sampledFiles: 0,
+    shallow: false,
+    unborn: false,
+    truncated: false,
+  };
+  const cache = new RepositoryAnalyticsCache(async () => {
+    if (fail) throw new Error('offline');
+    return sample;
+  });
+  await cache.batch([resource], true, false, signal);
+  fail = true;
+  const failed = await cache.batch([resource], true, true, signal);
+  assert.equal(failed[0].error, 'offline');
+  assert.deepEqual(failed[0].data, sample);
+  assert.deepEqual(await cache.batch([resource], false, false, signal), failed);
+  cache.invalidate('repo');
+  assert.deepEqual(await cache.batch([resource], false, false, signal), [{ id: 'repo', resource }]);
+  await cache.close();
+  const delayed = new RepositoryAnalyticsCache(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const pending = delayed.batch([resource], true, true, signal);
+  await new Promise((resolve) => setImmediate(resolve));
+  delayed.invalidate('repo');
+  finish(sample);
+  await pending;
+  assert.deepEqual(await delayed.batch([resource], false, false, signal), [
+    { id: 'repo', resource },
+  ]);
+  await delayed.close();
+});

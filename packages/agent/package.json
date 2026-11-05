@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -b && node scripts/version.cjs && node scripts/native-secrets.mjs",
     "dev": "tsc -b --watch",
-    "test": "npm run build && node --test tests/*.test.cjs"
+    "test": "npm run build && node --test --test-concurrency=2 tests/*.test.cjs"
   },
   "dependencies": {
     "@alune/agent-client": "*",

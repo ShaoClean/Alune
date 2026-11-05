@@ -142,6 +142,40 @@ exit 0`;
   });
 }
 
+// These commands inspect repository metadata rather than Git objects. Explicitly
+// disable lazy fetching for this narrow set, so they need no proxy-discovery
+// subprocess. Object reads still probe promisor settings before every command.
+function metadataRead(args: string[]): boolean {
+  if (args[0] === 'config')
+    return (
+      !args.some((arg) => arg === '--blob' || arg.startsWith('--blob=')) &&
+      args.some((arg) => ['--get', '--get-all', '--get-regexp'].includes(arg))
+    );
+  if (args[0] === 'symbolic-ref')
+    return (
+      args.at(-1) === 'HEAD' &&
+      args.slice(1, -1).every((arg) => ['-q', '--quiet', '--short'].includes(arg))
+    );
+  return (
+    args[0] === 'rev-parse' &&
+    args.length > 1 &&
+    args
+      .slice(1)
+      .every((arg) =>
+        [
+          '--path-format=absolute',
+          '--git-dir',
+          '--git-common-dir',
+          '--absolute-git-dir',
+          '--show-prefix',
+          '--show-toplevel',
+          '--is-shallow-repository',
+          '--is-bare-repository',
+        ].includes(arg),
+      )
+  );
+}
+
 export class NativeRepositoryConnection implements RepositoryTransport {
   private readonly lifetime = new AbortController();
   private readonly owned = new Set<Promise<unknown>>();
@@ -223,6 +257,11 @@ export class NativeRepositoryConnection implements RepositoryTransport {
     this.signal?.throwIfAborted();
     if (this.readOnly)
       options = { ...options, environment: { ...options.environment, GIT_OPTIONAL_LOCKS: '0' } };
+    if (this.readOnly && metadataRead(args))
+      return this.executeGit(path, args, signal, {
+        ...options,
+        environment: { ...options.environment, GIT_NO_LAZY_FETCH: '1' },
+      });
     if (this.proxySnapshot) {
       let network =
         ['fetch', 'pull', 'push', 'ls-remote'].includes(args[0]) ||

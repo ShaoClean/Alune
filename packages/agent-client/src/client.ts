@@ -347,26 +347,36 @@ export class AgentClient {
       };
     });
   }
+  private repositoryResult(value: unknown, expected?: ResourceRef): RepositoryResource {
+    const repository = validateRepositoryResource(value);
+    if (
+      repository.resource.agentId !== this.identity?.agentId ||
+      (expected &&
+        (repository.resource.agentId !== expected.agentId ||
+          repository.resource.resourceId !== expected.resourceId))
+    )
+      throw new ProtocolError('invalid-request', 'Repository response identity mismatch');
+    return repository;
+  }
   async listRepositories(options?: RequestOptions): Promise<RepositoryResource[]> {
     return this.decode(this.request('repositories.list', undefined, options), (value) => {
       if (!Array.isArray(value))
         throw new ProtocolError('invalid-request', 'Invalid repository catalog');
-      return value.map(validateRepositoryResource);
+      return value.map((entry) => this.repositoryResult(entry));
     });
   }
   getRepository(resource: ResourceRef, options?: RequestOptions): Promise<RepositoryResource> {
     return this.decode(
       this.request('repositories.get', { resource } as unknown as JsonValue, options),
-      validateRepositoryResource,
+      (value) => this.repositoryResult(value, resource),
     );
   }
   unregisterRepository(resource: ResourceRef, options?: RequestOptions): Promise<JsonValue> {
     return this.request('repositories.unregister', { resource } as unknown as JsonValue, options);
   }
   registerRepository(path: string, options?: RequestOptions): Promise<RepositoryResource> {
-    return this.decode(
-      this.request('repositories.register', { path }, options),
-      validateRepositoryResource,
+    return this.decode(this.request('repositories.register', { path }, options), (value) =>
+      this.repositoryResult(value),
     );
   }
   inspectRepository(path: string, options?: RequestOptions): Promise<JsonValue> {
@@ -382,7 +392,7 @@ export class AgentClient {
   ): Promise<RepositoryResource> {
     return this.decode(
       this.request('repositories.pin', { resource, pinned } as unknown as JsonValue, options),
-      validateRepositoryResource,
+      (value) => this.repositoryResult(value, resource),
     );
   }
   openRelatedRepository(
@@ -397,7 +407,7 @@ export class AgentClient {
         { resource, path, kind } as unknown as JsonValue,
         options,
       ),
-      validateRepositoryResource,
+      (value) => this.repositoryResult(value),
     );
   }
   invalidateRepository(resource: ResourceRef, options?: RequestOptions): Promise<JsonValue> {
