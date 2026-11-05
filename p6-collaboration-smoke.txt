@@ -1,0 +1,2 @@
+Temporary Alune collaboration acceptance fixture.
+Review anchor for P6.
