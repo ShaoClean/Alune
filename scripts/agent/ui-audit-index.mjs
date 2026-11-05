@@ -24,7 +24,7 @@ for (const [file, ids] of files) {
       for (const k of [s.context, s.exact]) (anchors[k] ??= []).push(s.id);
   }
 }
-// Two changed callback bodies still implement the same UI actions. Pin both
+// Changed callback bodies still implement the same UI actions. Pin both
 // token fingerprints; future edits must be compared again, never matched by
 // name or line alone. These mappings do not constitute execution receipts.
 const successors = {};
@@ -34,6 +34,13 @@ for (const [id, oldKey, newKey] of [
     'ui-handler:apps/web/src/components/ChangesView.tsx:DiscardChangesDialog.onClose:742',
     'c5c9ef03a9eeede4f83ee64c',
     '6ff87960979673c07c7b1c7a',
+  ],
+  // A trailing tab click is suppressed after dragging; a portaled menu
+  // command is not itself a click on the dragged tab.
+  [
+    'ui-handler:apps/web/src/components/RepositoryTabs.tsx:div.onClickCapture:410',
+    '1b2e8f355f857db2c16bc1d4',
+    '881d56fdf071d04049598e86',
   ],
   // Cancel exactly the operation displayed in the notice.
   [

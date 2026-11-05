@@ -3014,6 +3014,9 @@
     "6ff87960979673c07c7b1c7a": [
       "ui-handler:apps/web/src/components/ChangesView.tsx:DiscardChangesDialog.onClose:742"
     ],
+    "881d56fdf071d04049598e86": [
+      "ui-handler:apps/web/src/components/RepositoryTabs.tsx:div.onClickCapture:410"
+    ],
     "ab8f477bfdbf9446a74327ca": [
       "ui-handler:apps/web/src/components/GitOperationNotice.tsx:FeedbackNotice.onAction:112"
     ]

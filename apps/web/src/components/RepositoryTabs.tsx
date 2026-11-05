@@ -408,7 +408,12 @@ export function RepositoryTabs({
           }
         }}
         onClickCapture={(event) => {
-          if (dragSource.current || Date.now() < suppressClickUntil.current) {
+          // React propagates the dropdown's portal clicks through this list
+          // too. Suppress only the trailing native click inside the tab strip.
+          if (
+            event.currentTarget.contains(event.target as Node) &&
+            (dragSource.current || Date.now() < suppressClickUntil.current)
+          ) {
             event.preventDefault();
             event.stopPropagation();
           }
