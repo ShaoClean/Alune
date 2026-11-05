@@ -10,11 +10,16 @@ const executable = process.env.ALUNE_TEST_EXECUTABLE || require('electron');
 const args = process.env.ALUNE_TEST_EXECUTABLE ? [] : ['dist/app'];
 const env = { ...process.env, ALUNE_SMOKE_DIR: dataDir };
 delete env.ELECTRON_RUN_AS_NODE;
+let peer;
 try {
   if (env.ALUNE_DESKTOP_EXECUTOR === 'agent')
     env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
       (await import('./candidate-fixture.mjs')).legacyFixture(dataDir),
     );
+  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent') {
+    peer = await (await import('./candidate-review-fixture.mjs')).reviewFixture(dataDir);
+    Object.assign(env, peer.env);
+  }
   if (env.ALUNE_CANDIDATE_FIXTURE) {
     env.GIT_CONFIG_GLOBAL = path.join(dataDir, 'empty.gitconfig');
     env.GIT_CONFIG_NOSYSTEM = '1';
@@ -37,7 +42,9 @@ try {
     }).finally(() => clearTimeout(timeout));
     process.exitCode = code;
     if (code !== 0) break;
+    if (phase === 'write') peer?.verify();
   }
 } finally {
+  await peer?.close();
   await rm(dataDir, { recursive: true, force: true, maxRetries: 15, retryDelay: 200 });
 }

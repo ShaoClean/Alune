@@ -255,6 +255,20 @@ module.exports = async ({
       ['UI-058'],
       'save an isolated log directory and retention limits, reload and verify directory, days and megabytes',
     );
+    await require('./candidate-network-settings.cjs')({
+      window,
+      origin,
+      wc,
+      wait,
+      element,
+      button,
+      textButton,
+      click,
+      input,
+      select,
+      footer,
+      pass,
+    });
     await window.loadURL(origin + '/repositories/' + id);
     await wait(wc, button('取消暂存 candidate.txt'));
   } finally {

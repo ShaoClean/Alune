@@ -163,5 +163,19 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     click,
     pass,
   });
+  if (process.env.ALUNE_TEST_REVIEW_REPO) {
+    await require('./candidate-review-actions.cjs')({
+      window,
+      origin,
+      wait,
+      pass,
+      element,
+      button,
+      textButton,
+      click,
+    });
+    await window.loadURL(origin + '/repositories/' + id);
+    await wait(wc, button('取消暂存 candidate.txt'));
+  }
   console.log('Candidate native workbench:', JSON.stringify(evidence));
 };
