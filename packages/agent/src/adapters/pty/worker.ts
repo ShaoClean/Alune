@@ -6,16 +6,22 @@ const controller = new AbortController();
 let terminal: TerminalTransport | undefined;
 let starting: Promise<void> | undefined;
 let ending = false;
-function send(value: object) {
-  if (process.connected)
+function send(value: object): Promise<void> {
+  return new Promise((resolve) => {
+    if (!process.connected) return resolve();
     process.send!(value, (error) => {
+      resolve();
       if (error) void stop();
     });
+  });
 }
-async function stop() {
+async function stop(final?: object) {
   if (ending) return;
   ending = true;
   controller.abort();
+  // Hand the native exit status to IPC before tearing down ConPTY. Its helper
+  // may close handles synchronously; a queued send alone is not a receipt.
+  if (final) await send(final);
   await starting;
   await terminal?.dispose();
   if (process.connected) process.disconnect();
@@ -34,23 +40,35 @@ process.on('message', (m: any) => {
         if (!ending && !process.stdout.write(data)) terminal?.pause();
       },
       exit(code, signal) {
-        send({ type: 'exit', code, signal });
-        void stop();
+        void stop({ type: 'exit', code, signal });
       },
       disconnect(message) {
-        send({ type: 'error', message });
-        void stop();
+        void stop({ type: 'error', message });
       },
     })
       .then((value) => {
         terminal = value;
         if (process.stdout.writableNeedDrain) terminal.pause();
-        if (!ending) send({ type: 'ready' });
+        if (!ending) void send({ type: 'ready' });
       })
       .catch(() => {
-        send({ type: 'error', message: '无法启动仓库终端，请检查目录与 shell。' });
-        void stop();
+        void stop({ type: 'error', message: '无法启动仓库终端，请检查目录与 shell。' });
       });
-  } else if (m.type === 'input') terminal?.write(m.data);
-  else if (m.type === 'resize') terminal?.resize(m.cols, m.rows);
+  } else {
+    try {
+      if (m.type === 'input') terminal?.write(m.data);
+      else if (m.type === 'resize') terminal?.resize(m.cols, m.rows);
+    } catch (error) {
+      // ConPTY rejects resize as soon as cmd exits, before its final output
+      // has drained and before node-pty delivers onExit. Keep that exit event.
+      if (
+        process.platform === 'win32' &&
+        m.type === 'resize' &&
+        error instanceof Error &&
+        error.message === 'Cannot resize a pty that has already exited'
+      )
+        return;
+      void stop({ type: 'error', message: '终端控制通道已关闭，请显式新建。' });
+    }
+  }
 });

@@ -23,7 +23,10 @@ export function supervisedTerminal(
     // Explicit IPC disconnect can suppress ChildProcess 'close' even after exit.
     // Wait for both OS process termination and the final output descriptor instead.
     const exited = new Promise<void>((done) => {
-      child.once('exit', () => done());
+      child.once('exit', (code, signal) => {
+        failure ??= `终端进程已断开（worker ${signal ?? code}），请显式新建。`;
+        done();
+      });
       child.once('error', () => {
         if (!child.pid) done();
       });

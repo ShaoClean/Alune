@@ -4,7 +4,12 @@ import type { SessionOptions } from '../server/session';
 
 export async function serveStdio(options: SessionOptions): Promise<void> {
   const transport = new StdioTransport(process.stdin, process.stdout);
-  const session = new AgentSession(transport, options);
+  // ConPTY drains output and may wait five seconds for its console-list
+  // helper. Give that cleanup its own bounded window before reporting failure.
+  const session = new AgentSession(transport, {
+    shutdownMs: process.platform === 'win32' ? 12000 : 3000,
+    ...options,
+  });
   const stop = () => {
     void session.close();
   };

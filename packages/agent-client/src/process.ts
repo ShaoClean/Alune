@@ -57,7 +57,7 @@ export function spawnAgent(
         const terminate = setTimeout(() => {
           child.kill('SIGTERM');
           force = setTimeout(() => child.kill('SIGKILL'), 1000);
-        }, options.shutdownMs ?? 4000);
+        }, options.shutdownMs ?? (process.platform === 'win32' ? 14000 : 4000));
         try {
           await exited;
         } finally {

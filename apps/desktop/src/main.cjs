@@ -480,7 +480,7 @@ if (!app.requestSingleInstanceLock()) {
       appLog().logger.error('app', '关闭本地服务超时');
       appLog().logStore().flush();
       app.exit(1);
-    }, 5000);
+    }, process.platform === 'win32' ? 14000 : 5000);
     closeBackend()
       .then(() => {
         clearTimeout(timeout);
