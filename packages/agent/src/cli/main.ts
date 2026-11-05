@@ -16,7 +16,9 @@ function stateOptions(args: string[]): Map<string, string> {
     const name = args[i],
       value = args[i + 1];
     if (
-      !['--data-dir', '--backup', '--source', '--input', '--output'].includes(name) ||
+      !['--data-dir', '--backup', '--source', '--input', '--output', '--git-proxy-port'].includes(
+        name,
+      ) ||
       !value ||
       options.has(name)
     )
@@ -54,6 +56,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
   if (
     [
       'serve',
+      'serve-remote',
       'state-backup',
       'state-restore',
       'legacy-import',
@@ -78,9 +81,15 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       throw new Error('recovery-backup requires --output FILE');
     if (command === 'recovery-restore' && !options.has('--input'))
       throw new Error('recovery-restore requires --input FILE');
+    const gitPort = options.get('--git-proxy-port');
+    if (
+      gitPort !== undefined &&
+      (command !== 'serve-remote' || !/^[1-9][0-9]{0,4}$/.test(gitPort) || Number(gitPort) > 65535)
+    )
+      throw new Error('Invalid remote Git proxy port');
     const directory = resolve(options.get('--data-dir') ?? defaultDataDirectory());
     if (
-      !['serve', 'legacy-import', 'recovery-restore'].includes(command) &&
+      !['serve', 'serve-remote', 'legacy-import', 'recovery-restore'].includes(command) &&
       !statePathExists(join(directory, 'state'))
     )
       throw new StateFault('unavailable', 'Agent state is not initialized');
@@ -156,7 +165,16 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         process.stdout.write(JSON.stringify({ ...result, scope: 'database-only' }) + '\n');
         return 0;
       }
-      kernel = await openStateKernel(directory, agentId, controller.signal);
+      kernel = await openStateKernel(
+        directory,
+        agentId,
+        controller.signal,
+        {},
+        undefined,
+        command === 'serve-remote'
+          ? { gitProxyPort: gitPort ? Number(gitPort) : undefined }
+          : undefined,
+      );
       controller.signal.throwIfAborted();
       if (command === 'state-backup') {
         const backup = await kernel.state.backup(controller.signal);

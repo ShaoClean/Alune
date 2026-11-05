@@ -19,12 +19,14 @@
     "better-sqlite3": "^13.0.3",
     "node-pty": "1.1.0",
     "socks": "^2.8.10",
-    "undici": "^7.30.0"
+    "undici": "^7.30.0",
+    "ssh2": "^1.15.0"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",
     "typescript": "^6.0.3",
-    "@types/better-sqlite3": "^7.6.0"
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/ssh2": "^1.15.0"
   },
   "exports": {
     ".": {
@@ -94,6 +96,10 @@
     "./state-kernel": {
       "types": "./dist/bootstrap/state-kernel.d.ts",
       "default": "./dist/bootstrap/state-kernel.js"
+    },
+    "./ssh-queue": {
+      "types": "./dist/adapters/ssh/channel-queue.d.ts",
+      "default": "./dist/adapters/ssh/channel-queue.js"
     }
   },
   "typesVersions": {
@@ -145,6 +151,9 @@
       ],
       "state-kernel": [
         "dist/bootstrap/state-kernel.d.ts"
+      ],
+      "ssh-queue": [
+        "dist/adapters/ssh/channel-queue.d.ts"
       ]
     }
   }

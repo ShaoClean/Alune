@@ -19,3 +19,4 @@ export * from './pull-requests';
 export * from './pull-request-center';
 export * from './pull-request-lines';
 export * from './collaboration';
+export * from './host-route';

@@ -160,3 +160,24 @@ Web 的显式适配器支持选择测试资源；未选择资源继续走原入�
 - `catalog.reviews.sources/context/list` 沿用发现和列表各自的快照游标，用完整资源引用区分来源，依项目与请求编号跨页去重。来源未能发现时标记 offline，已发现的来源读取失败时标记 stale；错误和成功来源可同时出现。`workspace.groups` 仅返回连接分组与登记资源。布局、草稿、生成票据和编辑/撤销仍由客户端管理。
 - 单机 stdio 默认不访问旧 SSH 连接。可信的本机宿主可在打开独立状态目录时为 `openStateKernel` 注入 `legacyCollaborationReads`：它核对旧登记的连接与路径，仅提供远端列表、分支 SHA 和暂存快照。旧 HTTP 宿主也复用 Agent 的业务模块；没有可用通道时显式报告离线。
 - Web 接入点为 `createAgentCollaboration`，必须显式选择持有凭据的 Agent。浏览器验收可运行 `node scripts/agent/browser-reads-fixture.mjs --collaboration`，在打印的隔离页面加载 `/tests/agent-browser.ts` 的 `connectFixture()`。桌面及 Web 的默认入口不变。
+
+## SSH 远程 Agent（协议 1.6，显式选择）
+
+本机 Agent 用已保存的 SSH 主机配置连接目标，将同款独立包的标准输入输出接到一条 SSH exec 通道。目标不需要安装 Node、Electron 或开放业务端口。主机指纹必须从可信的独立渠道取得。SSH 认证和本地代理凭据留在本机；远程 Agent 使用自己的持久身份、仓库登记、账户和任务回执。
+
+1. 在目标平台用 `scripts/agent/package.mjs` 构建独立包。在本机运行 `node scripts/agent/ssh-bundle.mjs PACKAGED_AGENT LOCAL_AGENT_DATA_DIR`，将可信构建登记到对应平台。不要从远程主机接收信任清单。
+2. 通过 `accounts.hosts.save` 保存主机配置。把 OpenSSH 主机公钥指纹的 SHA-256 摘要转换成小写十六进制（不含 `SHA256:` 前缀）。
+3. 通过 SDK 选择该主机。首次安装或升级传 `install: true`；普通连接使用 `false`。每次启动前在目标上重新校验归档，解压到独立运行目录。失败保留已有版本，绝不启动旧包代为执行请求。
+
+```ts
+const remote = await openRemoteAgent(local, {hostId, hostKey, install: false});
+const repo = await remote.registerRepository(pathOnRemote);
+const status = await remote.readRepository(repo.resource, 'status', {});
+await remote.listRepositories(); // 刷新该主机在本机保存的目录快照
+const catalog = await local.request('hosts.catalog');
+remote.close();
+```
+
+旧 SSH 登记可用 `openLegacyRepository(local, remote, hostId, legacyResourceId)` 显式打开；不会把远端路径当作本机路径。Git、文件、Worktree 和 PTY 均在目标机本地执行；远端 Worktree 删除沿用当前/锁定/脏目录和忽略文件保护。本机启用代理时，SSH 和远端 Git 均经过受控代理；反向转发只接受回环来源，不在目标保存代理认证。
+
+SSH EOF、超时或进程退出会结束该路由；目录快照保留并标为陈旧。重连创建新会话并核对上次保存的 Agent 身份，只刷新该主机的目录。写入结果不明时使用同一 Agent 的 `getTask({taskId: operationId})` 并核对仓库或平台；不要重发。原桌面和 HTTP 入口仍可显式用于迁移期恢复。

@@ -31,8 +31,9 @@ assert.deepEqual(doctor.native, { sqlite: true, pty: true });
 assert.equal(doctor.node, `v${manifest.node.version}`);
 // This check runs from the packaged entry, not from the checkout's module graph.
 const require = createRequire(entry);
-for (const name of ['electron', 'server', 'web', 'ssh2', '@alune/ssh-client'])
+for (const name of ['electron', 'server', 'web', '@alune/ssh-client'])
   assert.throws(() => require.resolve(name), { code: 'MODULE_NOT_FOUND' });
+assert(require.resolve('ssh2').startsWith(directory + path.sep));
 for (const [location, pkg] of Object.entries(manifest.packages)) {
   const base = path.join(directory, location);
   const metadata = JSON.parse(fs.readFileSync(path.join(base, 'package.json'), 'utf8'));

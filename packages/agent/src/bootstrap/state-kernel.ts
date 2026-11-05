@@ -1,3 +1,4 @@
+import { hostsKernel } from './hosts';
 import type { LegacyRepositoryReads } from '../ports/legacy-repository-reads';
 import { collaborationKernel } from './collaboration';
 import type { DatabaseBackupReceipt } from '@alune/protocol';
@@ -20,6 +21,7 @@ export async function openStateKernel(
   signal?: AbortSignal,
   secretOptions: Pick<ProtectedSecretOptions, 'backend' | 'keychain'> = {},
   legacyReads?: LegacyRepositoryReads,
+  remote?: { gitProxyPort?: number },
 ) {
   const state = await AgentState.open(directory, agentId, signal);
   let settings: ReturnType<typeof settingsKernel>;
@@ -43,6 +45,14 @@ export async function openStateKernel(
       async () => {
         // Offline Git/file reads must not require unrelated AI/account keys.
         // The native adapter invokes this only for network/lazy-object reads.
+        if (remote?.gitProxyPort)
+          return {
+            enabled: true,
+            revision: 'ssh-session',
+            host: '127.0.0.1',
+            port: remote.gitProxyPort,
+            protocol: 'http' as const,
+          };
         const config = settings.proxy.read();
         if (config.enabled && config.authEnabled) await settings.readyCredentials(signal);
         return settings.proxy.snapshot();
@@ -50,7 +60,7 @@ export async function openStateKernel(
       !write,
       () => {
         try {
-          return settings.proxy.read().enabled;
+          return !!remote?.gitProxyPort || settings.proxy.read().enabled;
         } catch {
           return undefined;
         } // Corrupt policy is not permission to go direct.
@@ -75,7 +85,11 @@ export async function openStateKernel(
     },
     legacyReads,
   );
+  const hosts = remote
+    ? undefined
+    : hostsKernel(directory, repositories.catalog, settings, state.document('ssh-routes'));
   const handlers: Record<string, Handler> = {
+    ...hosts?.handlers,
     ...collaboration,
     ...repositories.handlers,
     ...settings.handlers,
@@ -113,12 +127,27 @@ export async function openStateKernel(
       },
     },
   };
+  // A profile or proxy change retires even an in-flight handshake with the old destination.
+  if (hosts)
+    for (const method of ['accounts.hosts.save', 'accounts.hosts.delete', 'settings.proxy.save']) {
+      const original = handlers[method];
+      handlers[method] = {
+        ...original,
+        async run(params, ctx) {
+          const result = await original.run(params, ctx);
+          const id = (params as { id?: string }).id;
+          if (method === 'settings.proxy.save' || id) hosts.invalidate(id);
+          return result;
+        },
+      };
+    }
   return {
     state,
     handlers,
     taskJournal: state.taskJournal(),
     close: async () => {
       try {
+        hosts?.close();
         await repositories.close();
         await network.close();
       } finally {

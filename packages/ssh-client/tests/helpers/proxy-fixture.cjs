@@ -83,7 +83,7 @@ async function socksProxy({ credentials, map = (_host, port) => ({ host: '127.0.
   return { ...await listen(server), records };
 }
 
-async function forwardingSSH({ deny = false, wildcard = false, originator, environment = {} } = {}) {
+async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, environment = {} } = {}) {
   const key = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' });
   const forwards = new Map();
   const clients = new Set();
@@ -113,7 +113,7 @@ async function forwardingSSH({ deny = false, wildcard = false, originator, envir
       session.on('exec', (accept, _reject, info) => {
         commands.push(info.command);
         const channel = accept();
-        const child = spawn(info.command, { shell: true, env: { ...process.env, ...environment } });
+        const child = spawn(info.command, { shell: true, cwd, env: { ...process.env, ...environment } });
         child.stdout.pipe(channel, { end: false }); child.stderr.pipe(channel.stderr, { end: false }); channel.pipe(child.stdin);
         child.stdin.on('error', () => {}); channel.on('error', () => {});
         channel.once('close', () => child.kill());
