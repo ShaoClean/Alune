@@ -287,6 +287,24 @@ module.exports = async ({
     pass,
   });
 
+  await require('./candidate-toolbar-actions.cjs')({
+    wc,
+    window,
+    scratchUrl,
+    work,
+    bare,
+    git,
+    wait,
+    fact,
+    element,
+    button,
+    textButton,
+    click,
+    fill,
+    primary,
+    pass,
+  });
+
   // The target directory lives entirely inside this test root.
   await click(button('查看关联 Worktrees'));
   await click(button('新建本地 Worktree'));
@@ -300,6 +318,17 @@ module.exports = async ({
     execFileSync('git', ['-C', linked, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     verifiedHead,
   );
+  await require('./candidate-tab-actions.cjs')({
+    window,
+    wc,
+    origin,
+    original: id,
+    scratch: new URL(scratchUrl).pathname.split('/').at(-1),
+    linked: new URL(wc.getURL()).pathname.split('/').at(-1),
+    linkedPath: linked,
+    wait,
+    pass,
+  });
   await window.loadURL(scratchUrl);
   await click(button('查看关联 Worktrees'));
   await wait(wc, text('ui-linked'));

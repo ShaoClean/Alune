@@ -29,6 +29,17 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
       .activeId,
     id,
   );
+  if (!fromRelease && phase === 'restore') {
+    const expected = JSON.parse(readFileSync(path.join(process.env.ALUNE_SMOKE_DIR,'tab-restore-proof.json'),'utf8'));
+    await measure(wc,['UI-041','UI-025'],'restart restores deliberately reordered tabs, exact active repository and real linked working tree',async()=>{
+      assert.equal(expected.activeId,id);
+      const order = JSON.stringify(expected.ids);
+      await wait(wc,'location.pathname==='+JSON.stringify('/repositories/'+id)+' && JSON.stringify([...document.querySelectorAll("[data-repository-tab]")].map(e=>e.dataset.repositoryTab))==='+JSON.stringify(order));
+      const saved = JSON.parse(await wc.executeJavaScript('window.aluneWorkspace.load()')).state.repositorySession;
+      assert.deepEqual(saved,{ids:expected.ids,activeId:id});
+      assert.equal(execFileSync('git',['-C',expected.linkedPath,'branch','--show-current'],{encoding:'utf8'}).trim(),'ui-linked');
+    });
+  }
   await window.loadURL(origin + '/repositories/' + id);
   const button = phase === 'write' ? '暂存 candidate.txt' : '取消暂存 candidate.txt';
   const selector = (label) =>
