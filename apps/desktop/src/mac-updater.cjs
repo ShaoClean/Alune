@@ -1,4 +1,5 @@
 const { createHash } = require('node:crypto');
+const { setTimeout: delay } = require('node:timers/promises');
 const { createReadStream } = require('node:fs');
 const { mkdir, open, rename, rm, access } = require('node:fs/promises');
 const path = require('node:path');
@@ -19,13 +20,21 @@ function assetURL(asset) {
 }
 
 async function githubFetch(fetchImpl, url, signal, {method='GET',accept}={}) {
-  for (let count = 0; count < 6; count++) {
+  let retries = 0;
+  for (let redirects = 0; redirects < 6;) {
     const response = await fetchImpl(url, {
       signal, method,redirect: 'manual', headers: {
         'User-Agent': 'Alune-Updater',
         Accept: accept ?? (new URL(url).hostname === 'api.github.com' ? 'application/vnd.github+json' : 'application/octet-stream'),
       },
     });
+    // No response bytes have reached the file yet. Only transient gateway
+    // responses to these read-only requests can be retried.
+    if (['GET', 'HEAD'].includes(method) && [502, 503, 504].includes(response.status) && retries < 2) {
+      await response.body?.cancel();
+      await delay(250 * 2 ** retries++, undefined, { signal });
+      continue;
+    }
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get('location');
       await response.body?.cancel();
@@ -35,6 +44,7 @@ async function githubFetch(fetchImpl, url, signal, {method='GET',accept}={}) {
         throw new Error('更新下载重定向到了不受信任的地址。');
       }
       url = next.href;
+      redirects++;
       continue;
     }
     if (!response.ok) {

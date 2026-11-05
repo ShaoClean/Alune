@@ -332,6 +332,25 @@ test('macOS checks handle prereleases, missing assets, unsupported architectures
   assert.throws(() => checksumFor(`${'a'.repeat(64)}  a.dmg\n${'a'.repeat(64)}  a.dmg`, 'a.dmg'));
 });
 
+test('macOS retries a transient release gateway before reading bytes and stops on cancellation', async () => {
+  const url = 'https://github.com/ShaoClean/Alune/releases/download/v1.0.0/test.dmg';
+  let calls = 0;
+  const result = await githubFetch(async (request) => {
+    assert.equal(request, url);
+    return ++calls === 1 ? new Response('unavailable', { status: 504 }) : new Response('verified separately');
+  }, url, new AbortController().signal);
+  assert.equal(await result.text(), 'verified separately');
+  assert.equal(calls, 2);
+  const controller = new AbortController();
+  calls = 0;
+  await assert.rejects(githubFetch(async () => {
+    calls++;
+    controller.abort();
+    return new Response('', { status: 503 });
+  }, url, controller.signal), { name: 'AbortError' });
+  assert.equal(calls, 1);
+});
+
 test('GitHub errors and redirects are bounded and do not follow untrusted hosts', async () => {
   for (const status of [404, 403, 429, 500]) {
     await assert.rejects(githubFetch(async () => new Response('', { status }), 'https://api.github.com/repos/ShaoClean/Alune/releases/latest', new AbortController().signal), /GitHub|Release/);
