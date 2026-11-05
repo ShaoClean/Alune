@@ -243,6 +243,33 @@ module.exports = async ({
     pass,
   });
 
+  await require('./candidate-inspection.cjs')({
+    wc,
+    window,
+    scratchUrl,
+    work,
+    git,
+    wait,
+    element,
+    button,
+    textButton,
+    click,
+    fill,
+    pass,
+  });
+
+  await require('./candidate-terminal-actions.cjs')({
+    wc,
+    work,
+    wait,
+    fact,
+    element,
+    button,
+    click,
+    primary,
+    pass,
+  });
+
   // The target directory lives entirely inside this test root.
   await click(button('查看关联 Worktrees'));
   await click(button('新建本地 Worktree'));

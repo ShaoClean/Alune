@@ -34,12 +34,29 @@ module.exports = async ({
     "[...document.querySelectorAll('.workspace-file-menu [role=menuitem]')].find(e=>e.getClientRects().length && e.textContent.trim()===" +
     JSON.stringify(label) +
     " && e.getAttribute('aria-disabled')!=='true' && !e.classList.contains('ant-dropdown-menu-item-disabled'))";
+  // A diff row remains clickable while a refresh or merge write still
+  // disables its file menu. Wait for the neighbouring write control (without
+  // clicking it). If a layout resize dismisses the popup, open it once more.
+  async function openFileAction(name, keyboard, label) {
+    const event = keyboard
+      ? "new KeyboardEvent('keydown',{key:'F10',shiftKey:true,bubbles:true,cancelable:true})"
+      : "new MouseEvent('contextmenu',{button:2,bubbles:true,cancelable:true})";
+    await wc.executeJavaScript(`new Promise((resolve,reject)=>{
+      const until=Date.now()+15000;let opened=0,last=0;
+      const check=()=>{const target=(${row(name)}),menu=[...document.querySelectorAll('.workspace-file-menu__path')].find(e=>e.getClientRects().length && e.textContent===${JSON.stringify(name)});
+        const choice=(${item(label)});if(menu && choice){choice.click();return resolve(true);}
+        if(Date.now()>until)return reject(Error('File menu did not open: '+${JSON.stringify(name)}+'; dispatched='+opened));
+        const action=target?.closest('.file-row')?.querySelector('.file-row__actions button');
+        if(!menu && action && !action.disabled && !action.classList.contains('ant-btn-loading') && opened<2 && Date.now()-last>1000){
+          last=Date.now();opened++;target.focus();target.dispatchEvent(${event});
+        }setTimeout(check,40);
+      };check()})`);
+  }
   fs.writeFileSync(source, 'staged bytes\n');
   git('add', '--', file);
   fs.writeFileSync(source, 'first preview\n');
   await click(button('刷新仓库'));
-  await send(row(file), 'MouseEvent', { type: 'contextmenu', button: 2 });
-  await click(item('重命名…'));
+  await openFileAction(file, false, '重命名…');
   const input = button('新文件名');
   await fill(input, '.git');
   await wait(
@@ -82,8 +99,7 @@ module.exports = async ({
 
   async function openDelete() {
     await wait(wc, "!document.querySelector('.a-dlg-shell')");
-    await key(row(moved), 'F10', true);
-    await click(item('删除文件…'));
+    await openFileAction(moved, true, '删除文件…');
     await wait(wc, '(' + primary('永久删除') + ')?.disabled===true');
   }
   await openDelete();
