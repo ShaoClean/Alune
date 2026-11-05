@@ -170,8 +170,18 @@ export class TerminalSessions {
 
   private pump(entry: Session) {
     if (entry.inFlight !== undefined || !entry.owner.connected) return;
-    const data = entry.pending.shift();
+    let data: string = entry.pending.shift() ?? '';
     if (!data) return;
+    // node-pty often delivers several tiny adjacent chunks. Send one bounded
+    // packet per parser ACK, without delaying the first interactive character.
+    for (let i = 0; entry.owner.protocolSession && i < 8 && entry.pending.length; i++) {
+      const next = entry.pending[0];
+      if (Buffer.byteLength(data) + Buffer.byteLength(next) > TERMINAL_LIMITS.packetBytes) break;
+      const combined = data + next;
+      if (Buffer.byteLength(JSON.stringify(combined)) > 48 * 1024) break;
+      data = combined;
+      entry.pending.shift();
+    }
     entry.pendingBytes -= Buffer.byteLength(data);
     const sequence = ++entry.sequence;
     entry.inFlight = sequence;

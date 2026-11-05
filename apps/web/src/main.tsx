@@ -19,6 +19,7 @@ import './repository-branches.css';
 import './theme.css';
 import './dialogs.css';
 import { initializeAppearance } from './appearance';
+import { scopeBrowserWorkspace } from './stores/workspaceStorage';
 import { hydrateWorkspace } from './stores/workspaceStore';
 import { installClientErrorReporting } from './logging/clientErrors';
 import { LogViewerRoot } from './pages/LogViewerPage';
@@ -28,7 +29,11 @@ import { installWorkspaceAgent } from './api/agent-workspace';
 
 async function mount() {
   const client = await connectUiAgent();
-  if (client) await installWorkspaceAgent(client, window.location.pathname === '/logs');
+  if (client) {
+    if (!window.aluneWorkspace && window.location.pathname !== '/logs')
+      scopeBrowserWorkspace(client.initialized!.agentId);
+    await installWorkspaceAgent(client, window.location.pathname === '/logs');
+  }
   installClientErrorReporting();
 
   // The log viewer is a standalone window/tab: it never hydrates or writes the
@@ -42,7 +47,7 @@ async function mount() {
     );
   } else {
     // Mount only after asynchronous desktop preferences have been restored.
-    void hydrateWorkspace().then(() => {
+    await hydrateWorkspace().then(() => {
       const disposeAppearance = initializeAppearance();
       if (import.meta.hot) import.meta.hot.dispose(disposeAppearance);
       ReactDOM.createRoot(document.getElementById('root')!).render(

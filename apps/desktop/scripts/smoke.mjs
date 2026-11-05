@@ -32,5 +32,5 @@ try {
     if (code !== 0) break;
   }
 } finally {
-  await rm(dataDir, { recursive: true, force: true });
+  await rm(dataDir, { recursive: true, force: true, maxRetries: 15, retryDelay: 200 });
 }

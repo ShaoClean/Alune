@@ -247,7 +247,9 @@ async function start() {
     platform: process.platform,
     supported,
     adapter,
-    closeBackend,
+    confirmClose: confirmTerminalShutdown,
+    closeBackend: () => closeBackend(true),
+    cleanupTimeout: process.platform === 'win32' ? 17000 : 6500,
   });
   const installError =
     !smokeTest && process.platform === 'darwin'
@@ -473,12 +475,12 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
-function closeBackend() {
+function closeBackend(confirmed = false) {
   if (!backend) return Promise.resolve();
   if (!closingBackend) {
     closingBackend = Promise.resolve()
       .then(async () => {
-        if (!(await confirmTerminalShutdown()))
+        if (!confirmed && !(await confirmTerminalShutdown()))
           throw Object.assign(new Error('已取消关闭终端；应用保持运行。'), { cancelled: true });
         const timer = setTimeout(() => app.exit(1), process.platform === 'win32' ? 18000 : 8000);
         try {

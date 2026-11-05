@@ -1,3 +1,5 @@
+import { EnableCredentialStorage } from './EnableCredentialStorage';
+import { uiAgent } from '../../api/ui-agent';
 import { FeedbackAlert, DialogPath } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { Fragment, useEffect, useRef, useState } from 'react';
@@ -457,13 +459,16 @@ export function ProxySettings() {
                   <p className="settings-field-hint">
                     用户名和密码加密保存在此设备。保留认证时无需重新输入；改变代理地址后需重新填写。
                   </p>
-                  {!saved.secretStorageAvailable && (
-                    <FeedbackAlert
-                      source="ProxySettings-1"
-                      type="warning"
-                      title="设备安全存储不可用，暂时无法保存新的认证信息。"
-                    />
-                  )}
+                  {!saved.secretStorageAvailable &&
+                    (uiAgent ? (
+                      <EnableCredentialStorage refresh={load} />
+                    ) : (
+                      <FeedbackAlert
+                        source="ProxySettings-1"
+                        type="warning"
+                        title="设备安全存储不可用，暂时无法保存新的认证信息。"
+                      />
+                    ))}
                 </fieldset>
               </form>
               <section className="proxy-panel" aria-label="代理连接测试">

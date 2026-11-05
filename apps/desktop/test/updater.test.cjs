@@ -98,6 +98,26 @@ test('install only runs after an explicit request and successful backend cleanup
   assert.deepEqual(order, ['closing', 'closed', 'install']);
 });
 
+test('time spent deciding whether to close terminals never starts shutdown or expires the installer', async () => {
+  const decision = deferred();
+  let closes = 0,
+    installs = 0;
+  const updater = service(
+    { install: async () => installs++ },
+    { confirmClose: () => decision.promise, closeBackend: async () => closes++, cleanupTimeout: 5 },
+  );
+  await updater.check();
+  await updater.download();
+  const installing = updater.install();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(updater.getState().status, 'installing');
+  assert.equal(closes, 0);
+  decision.resolve(false);
+  assert.equal((await installing).status, 'downloaded');
+  assert.equal(installs, 0);
+  assert.equal(closes, 0);
+});
+
 test('failed or timed-out cleanup never installs, including late cleanup completion', async () => {
   for (const fails of [true, false]) {
     const cleanup = deferred();

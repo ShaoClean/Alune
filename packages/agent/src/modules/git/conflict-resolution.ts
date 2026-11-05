@@ -71,6 +71,14 @@ export class GitOperationReads {
     if (dir.exitCode !== 0) throw new Error(dir.stderr || '无法定位 Git 目录。');
     const gitDir = dir.stdout.replace(/\r?\n$/, '');
     if (!gitDir) return undefined;
+    return this.stateInGitDirectory(repoPath, gitDir, signal);
+  }
+
+  async stateInGitDirectory(
+    repoPath: string,
+    gitDir: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryOperationState | undefined> {
     const state = await this.connection.withSftp<RepositoryOperationState | undefined>(
       async (sftp) => {
         const names = new Set(

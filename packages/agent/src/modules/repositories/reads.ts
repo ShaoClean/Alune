@@ -72,16 +72,33 @@ export class RepositoryReader {
     };
   }
   async status(path: string): Promise<RepositoryStatus> {
+    // Both projections refer to the same worktree-specific Git directory.
+    // Common repositories have no commondir file; linked and unusual layouts
+    // still use Git's canonical comparison, including paths containing newlines.
+    const gitDirectory = this.text(path, ['rev-parse', '--absolute-git-dir']);
     const settled = await Promise.allSettled([
       this.git.status(path, this.connection.signal, false),
-      new GitWorktrees(this.connection).kind(
-        path,
-        AbortSignal.any([
-          ...(this.connection.signal ? [this.connection.signal] : []),
-          AbortSignal.timeout(1500),
-        ]),
+      gitDirectory.then(async (dir) => {
+        if (
+          this.connection.hasAnyPath &&
+          !(await this.connection.hasAnyPath([joinRepositoryPath(dir, 'commondir')]))
+        )
+          return 'main' as const;
+        return new GitWorktrees(this.connection).kind(
+          path,
+          AbortSignal.any([
+            ...(this.connection.signal ? [this.connection.signal] : []),
+            AbortSignal.timeout(1500),
+          ]),
+        );
+      }),
+      gitDirectory.then((dir) =>
+        new GitOperationReads(this.connection).stateInGitDirectory(
+          path,
+          dir,
+          this.connection.signal,
+        ),
       ),
-      new GitOperationReads(this.connection).state(path),
     ] as const);
     this.connection.signal?.throwIfAborted();
     if (settled[0].status === 'rejected') throw settled[0].reason;

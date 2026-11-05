@@ -1,6 +1,10 @@
 // Dev-only gateway. No service token or Agent/native imports in the browser.
 import { type Plugin } from 'vite';
 import { createRequire } from 'node:module';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { existsSync } from 'node:fs';
+import { readFile, writeFile, rename } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
@@ -10,7 +14,11 @@ import { MAX_FRAME_BYTES } from '@alune/protocol';
 import { launchUiAgent } from '@alune/agent-client/node';
 
 export function agentDev(): Plugin {
+  let dispose: (() => Promise<void>) | undefined;
   return {
+    async closeBundle() {
+      await dispose?.();
+    },
     name: 'alune-dev-agent',
     async configureServer(server) {
       const http = server.httpServer;
@@ -20,11 +28,31 @@ export function agentDev(): Plugin {
         createRequire(import.meta.url).resolve('@alune/agent'),
         '../../bin/alune-agent.cjs',
       );
-      const host = await launchUiAgent(
-        process.execPath,
-        entry,
-        process.env.ALUNE_AGENT_DATA_DIR ?? join(homedir(), '.alune', 'agent'),
-      );
+      const legacy =
+        process.env.ALUNE_AGENT_LEGACY_DIR ??
+        (!process.env.ALUNE_AGENT_DATA_DIR ? join(homedir(), '.alune') : undefined);
+      const data = process.env.ALUNE_AGENT_DATA_DIR ?? join(homedir(), '.alune', 'agent'),
+        marker = join(data, 'web-import.json');
+      if (legacy && existsSync(join(legacy, 'alune.db'))) {
+        if (existsSync(marker)) {
+          const proof = JSON.parse(await readFile(marker, 'utf8'));
+          if (proof.source !== legacy || !existsSync(join(data, 'identity.json')))
+            throw Error('旧数据导入记录不匹配，请恢复备份。');
+        } else {
+          const imported = await promisify(execFile)(
+            process.execPath,
+            [entry, 'legacy-import', '--source', legacy, '--data-dir', data],
+            { timeout: 180000 },
+          );
+          await writeFile(
+            marker + '.tmp',
+            JSON.stringify({ source: legacy, receipt: JSON.parse(imported.stdout) }),
+            { mode: 0o600 },
+          );
+          await rename(marker + '.tmp', marker);
+        }
+      }
+      const host = await launchUiAgent(process.execPath, entry, data);
       const ws = new WebSocketServer({
         noServer: true,
         maxPayload: MAX_FRAME_BYTES,
@@ -93,8 +121,12 @@ export function agentDev(): Plugin {
           );
         });
       });
-      http.once('close', () => {
+      dispose = async () => {
+        for (const peer of ws.clients) peer.terminate();
         ws.close();
+        await host.close();
+      };
+      http.once('close', () => {
         void host.close();
       });
       return () => {};
