@@ -54,6 +54,14 @@
     "./process": {
       "types": "./dist/ports/process.d.ts",
       "default": "./dist/ports/process.js"
+    },
+    "./git/*": {
+      "types": "./dist/modules/git/*.d.ts",
+      "default": "./dist/modules/git/*.js"
+    },
+    "./native-repository": {
+      "types": "./dist/adapters/git/native.d.ts",
+      "default": "./dist/adapters/git/native.js"
     }
   },
   "typesVersions": {
@@ -75,6 +83,12 @@
       ],
       "process": [
         "dist/ports/process.d.ts"
+      ],
+      "git/*": [
+        "dist/modules/git/*.d.ts"
+      ],
+      "native-repository": [
+        "dist/adapters/git/native.d.ts"
       ]
     }
   }

@@ -1,14 +1,16 @@
+import type { DatabaseBackupReceipt } from '@alune/protocol';
+import { validateEmpty } from '@alune/protocol';
 import { basename } from 'node:path';
-import { ProtocolError, validateEmpty } from '@alune/protocol';
+import { NativeRepositoryConnection } from '../adapters/git/native';
+import { ProxyRuntime } from '../adapters/network/runtime';
+import type { ProtectedSecretOptions } from '../adapters/secrets/protected';
 import { AgentState } from '../adapters/sqlite/state';
+import { diagnosticLogs } from '../modules/diagnostics/logs';
+import type { Handler } from '../ports/handler';
 import { StateFault } from '../ports/state';
 import { stateFailure } from '../server/errors';
-import type { Handler } from '../ports/handler';
-import type { DatabaseBackupReceipt } from '@alune/protocol';
+import { repositoriesKernel } from './repositories-kernel';
 import { settingsKernel } from './settings-kernel';
-import type { ProtectedSecretOptions } from '../adapters/secrets/protected';
-import { diagnosticLogs } from '../modules/diagnostics/logs';
-import { ProxyRuntime } from '../adapters/network/runtime';
 
 export async function openStateKernel(
   directory: string,
@@ -32,7 +34,24 @@ export async function openStateKernel(
     await state.close();
     throw error;
   }
+  const repositories = repositoriesKernel(
+    state.database,
+    agentId,
+    async (signal) =>
+      new NativeRepositoryConnection(
+        signal,
+        async () => {
+          // Offline Git/file reads must not require unrelated AI/account keys.
+          // The native adapter invokes this only for network/lazy-object reads.
+          const config = settings.proxy.read();
+          if (config.enabled && config.authEnabled) await settings.readyCredentials(signal);
+          return settings.proxy.snapshot();
+        },
+        true,
+      ),
+  );
   const handlers: Record<string, Handler> = {
+    ...repositories.handlers,
     ...settings.handlers,
     ...diagnostics.handlers,
     'network.updaterBridge': {
@@ -75,6 +94,7 @@ export async function openStateKernel(
     taskJournal: state.taskJournal(),
     close: async () => {
       try {
+        await repositories.close();
         await network.close();
       } finally {
         try {

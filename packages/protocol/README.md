@@ -33,3 +33,8 @@ if ('method' in message && message.method === 'initialize') {
 
 `legacy-events` 保留旧 Socket.IO 类型，供 shared 兼容导出；新消息使用 `AgentEvent`。
 运行 `npm test -w @alune/protocol` 验证协议边界。
+
+协议 1.2 增加按能力协商的 `repositories.*` 读取入口。仓库查询携带
+`{ resource: { agentId, resourceId }, kind, params }`；跨 Agent 标识、未知查询和额外字段被拒绝。
+`repositories.read` 的小结果直接返回，大结果以不可变快照和 32 KiB 块传输；SDK 负责校验身份、重组及释放。
+1.0/1.1 会话不声明或接受这些入口。Git 写操作仍留在旧执行路径，P3 不提供任意 Git 命令接口。

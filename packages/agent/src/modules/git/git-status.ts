@@ -1,0 +1,112 @@
+import type { ConflictKind, FileStatus, RepositoryStatus } from '@alune/domain';
+
+export interface StatusRecord {
+  path: string;
+  oldPath?: string;
+  raw: string;
+  kind: string;
+  xy: string;
+}
+
+// Porcelain v2 -z preserves literal paths, including whitespace and newlines.
+export function parseStatus(output: string): RepositoryStatus & {
+  head: string;
+  records: StatusRecord[];
+} {
+  const result: ReturnType<typeof parseStatus> = {
+    branch: '',
+    head: '',
+    ahead: 0,
+    behind: 0,
+    files: [],
+    records: [],
+  };
+  const tokens = output.split('\0');
+  const statuses: Record<string, FileStatus['status']> = {
+    A: 'added',
+    M: 'modified',
+    T: 'modified',
+    D: 'deleted',
+    R: 'renamed',
+    C: 'copied',
+  };
+  // Unmerged XY codes, ours first: "U" means the side changed the path, "A" added, "D" deleted.
+  const conflicts: Record<string, ConflictKind> = {
+    UU: 'both-modified',
+    AA: 'both-added',
+    DD: 'both-deleted',
+    AU: 'added-by-us',
+    UA: 'added-by-them',
+    DU: 'deleted-by-us',
+    UD: 'deleted-by-them',
+  };
+  for (let i = 0; i < tokens.length; i++) {
+    const raw = tokens[i];
+    if (raw.startsWith('# branch.head '))
+      result.branch = raw.slice(14) === '(detached)' ? '' : raw.slice(14);
+    else if (raw.startsWith('# branch.oid ')) result.head = raw.slice(13);
+    else if (raw.startsWith('# branch.upstream ')) result.upstream = raw.slice(18);
+    else if (raw.startsWith('# branch.ab ')) {
+      const match = raw.match(/\+(\d+) -(\d+)/);
+      if (match) {
+        result.ahead = Number(match[1]);
+        result.behind = Number(match[2]);
+      }
+    } else if (/^[12u] /.test(raw)) {
+      const fields = raw.split(' ');
+      const kind = fields[0];
+      const xy = fields[1];
+      const path = fields.slice(kind === '1' ? 8 : kind === '2' ? 9 : 10).join(' ');
+      const oldPath = kind === '2' ? tokens[++i] : undefined;
+      const submodule =
+        fields[2].startsWith('S') || fields.slice(3, 6).includes('160000')
+          ? {
+              kind: 'submodule' as const,
+              submodule: {
+                commitChanged: fields[2][1] === 'C',
+                trackedChanges: fields[2][2] === 'M',
+                untrackedChanges: fields[2][3] === 'U',
+              },
+            }
+          : {};
+      result.records.push({ path, oldPath, raw, kind, xy });
+      if (kind === 'u')
+        result.files.push({
+          path,
+          ...submodule,
+          status: 'modified',
+          staged: false,
+          conflicted: true,
+          ...(conflicts[xy] ? { conflict: conflicts[xy] } : {}),
+        });
+      else {
+        if (xy[0] !== '.')
+          result.files.push({
+            path,
+            ...submodule,
+            ...(oldPath && (xy[0] === 'R' || xy[0] === 'C') ? { oldPath } : {}),
+            status: statuses[xy[0]] || 'modified',
+            staged: true,
+          });
+        if (xy[1] !== '.')
+          result.files.push({
+            path,
+            ...submodule,
+            ...(oldPath && (xy[1] === 'R' || xy[1] === 'C') ? { oldPath } : {}),
+            status: statuses[xy[1]] || 'modified',
+            staged: false,
+          });
+      }
+    } else if (raw.startsWith('? ') || raw.startsWith('! ')) {
+      const path = raw.slice(2);
+      result.records.push({ path, raw, kind: raw[0], xy: raw[0].repeat(2) });
+      result.files.push({
+        path,
+        ...(path.endsWith('/') ? { kind: 'directory' as const } : {}),
+        status: raw[0] === '?' ? 'untracked' : 'ignored',
+        staged: false,
+      });
+    }
+  }
+  return result;
+}

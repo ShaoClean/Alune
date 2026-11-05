@@ -1,6 +1,6 @@
 # @alune/agent
 
-独立 Node Agent，提供会话运行时、版本化状态、配置与凭据、代理和诊断基础。Git、文件与终端业务按后续阶段接入；桌面默认入口保持现状。
+独立 Node Agent，提供会话运行时、版本化状态、配置与凭据、代理、诊断及仓库/文件/Git 读取能力。Git 写操作与终端业务按后续阶段接入；桌面默认入口保持现状。
 
 CLI、握手和独立包的应用版本在构建时读取根 package.json，遵循仓库唯一版本来源；workspace 包自身版本不作为对外发行版本。
 
@@ -97,3 +97,30 @@ node scripts/agent/test-packaged.mjs /tmp/alune-agent-package
 输出目录必须是仓库外的新目录，防止误用仓库依赖验证“独立”运行。包使用官方 Node 22.22.0（核对官方 SHA-256）、对应平台已安装并通过 doctor 的 Node ABI 原生依赖、运行代码、许可证和文件校验清单，不包含 Electron。Windows 提供 `alune-agent.cmd`，POSIX 提供 `alune-agent`；只支持 Windows x64、macOS arm64/x64、Linux x64 的本机打包，不做伪交叉编译。
 
 构建流程不会发布 Release。CI 在四种原生 runner 上分别打包、验证并归档，tar.gz 保留 POSIX 可执行权限。安装、升级、签名及实际远程部署仍须后续阶段验收。
+
+## 仓库与文件读取（协议 1.2）
+
+`repositories.inspect/discover/register/list/pin/openRelated` 负责本机发现、登记、收藏与打开既有 Worktree/子模块。
+登记复用规范化路径对应的仓库 ID，旧导入的登记与布局引用保留；SSH 登记仍显示在目录中，读取需要 P7 的主机路由。
+每次查询使用 `agentId + resourceId`，不能用路径代替已登记资源，也不能将远端登记误作本机目录。
+
+`repositories.read` 的 `kind` 包括：`status/context/worktrees/branches/remotes/stashes/stashDiff/tags/log/diff/editableDiff/diffImage/commitFiles/tree/file/blame/blameCommit/analytics/signing/signatures/submodules/lfs/snapshot`。
+查询类型和返回值由 `@alune/protocol` 定义，原 `ssh-client` 导出继续转发到这些读取模块；旧 Git/文件写操作保持原执行者。
+
+原生 Git 以结构化 argv 执行，读取设置 `GIT_OPTIONAL_LOCKS=0`，不刷新索引。部分克隆仍可能补取对象，沿用本机代理及失败即中止规则；本地 LFS 预览只读缓存。
+离线查询不要求解锁无关的 AI/账户密钥。文件读取通过文件系统端口，保留路径、符号链接、编码、大小和二进制边界。
+
+状态查询合并相同仓库的在途任务；后台限时 10 秒，前台可提升至从任务开始计时的 120 秒。
+每个调用者独立取消，最后一个调用者离开才终止共享任务；关闭会话时等待拥有的 Git 进程和文件句柄回收。
+`repositories.analytics` 提供最多 20 个仓库的统计批次、3 路采集、40 项等待队列与最多 1,000 项的五分钟缓存；仅查询缓存不会触发采集。
+
+读取结果超过 32 KiB 时分块返回，单结果最多 32 MiB，快照缓存合计最多 64 MiB / 16 项，60 秒过期。
+超限或过期明确报错；不会截断为看似完整的结果。快照属于创建它的会话。
+`repositories.invalidate` 使相关在途读取、统计缓存和结果快照失效，并发送带资源身份的 `repositories.changed` 通知。
+混用旧写路径的客户端在写入前后调用失效接口；写入失败或断线也不会自动重放写操作。
+
+`snapshot` 查询两次核对 HEAD 和原始索引摘要，并返回当前工作树 Git 目录和共享 common 目录。
+它为 P4 提供仓库/索引校验与共享引用锁的范围；文件写入仍须另外核对目标文件内容，不能把此快照视作工作区整体事务。
+
+隔离验收使用 `apps/web/src/api/agent-repositories.ts` 的显式查询适配器；订阅 `repositories.changed` 后按 UI 仓库 ID 映射资源。
+正式桌面/Web 默认入口尚未切换，部署和远程路由遵循后续阶段。

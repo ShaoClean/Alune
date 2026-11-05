@@ -78,3 +78,28 @@ for (const pkg of ['domain', 'protocol']) {
 console.log(
   `Workspace dependency graph is acyclic (${done.size} packages); domain/protocol have no I/O imports or globals.`,
 );
+
+// Read business code is transport-neutral; the compatibility dependency points
+// from ssh-client into Agent, never back to the retired runtime.
+for (const directory of ['modules/git', 'modules/repositories']) {
+  for (const file of files(path.join(root, 'packages/agent/src', directory))) {
+    const source = ts.createSourceFile(
+      file,
+      fs.readFileSync(file, 'utf8'),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    for (const statement of source.statements) {
+      if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue;
+      const specifier = statement.moduleSpecifier?.text;
+      if (!specifier) continue;
+      assert(
+        !/^(?:@alune\/(?:shared|ssh-client)|@nestjs\/|electron$|ssh2$|(?:node:)?(?:fs(?:\/promises)?|child_process)$)/.test(
+          specifier,
+        ),
+        `${file}: legacy runtime or native I/O crossed the repository port: ${specifier}`,
+      );
+    }
+  }
+}
+console.log('Repository read modules use domain models and Agent ports only.');

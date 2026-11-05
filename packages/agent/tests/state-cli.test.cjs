@@ -20,7 +20,7 @@ test(
     const a = spawnAgent(process.execPath, [cli, 'serve', '--data-dir', root]);
     children.push(a);
     const identity = await a.client.initialize();
-    assert.equal(identity.protocol.minor, 1);
+    assert.equal(identity.protocol.minor, require('@alune/protocol').PROTOCOL_VERSION.minor);
     assert.equal((await a.client.storageStatus()).writer, true);
     const receipt = await a.client.backupDatabase();
     assert.equal(receipt.scope, 'database-only');

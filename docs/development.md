@@ -155,3 +155,19 @@ npm run test:terminals -w desktop -- --packaged
 构建 shared、ssh-client、server 和 web 后，运行 `node --test packages/ssh-client/tests/signing.test.cjs` 与 `node --test apps/web/tests/signing.integration.cjs`，在临时本地与 SSH 仓库验证真实签名、修改提交、附注标签、篡改、缺失信任配置、密钥缺失和失败后 HEAD／暂存区保留。真实 GPG 测试需要安装 GPG，缺失时明确跳过；pinentry 失败使用受控程序模拟，不替代桌面弹窗验收。
 
 运行 `node apps/web/tests/signing-fixture.cjs` 可打开生产界面做签名验收。fixture 使用临时 SSH 密钥、本地 SSH 服务与独立数据目录，输出本地和远端仓库 URL；退出时清理。Windows 的测试 SSH 服务暂不支持执行命令，只运行本地用例。发布前仍需在各平台实际确认 GPG／SSH agent 和桌面 pinentry；使用说明见[提交签名](commit-signing.md)。
+
+### Agent 仓库读取验收
+
+P3 默认入口保持旧路径；开发者可在一次性夹具中接入新查询：
+
+```sh
+node scripts/agent/browser-reads-fixture.mjs
+```
+
+该脚本使用临时仓库和数据目录，启动本机 Web、旧写入口与 stdio Agent 的测试 WebSocket 桥。
+在测试页面动态导入 `/tests/agent-browser.ts` 并调用 `connectFixture()` 后，所选夹具仓库的读取经过真实 Browser SDK/Agent；写入仍执行一次旧入口，并协调读取失效。
+结束时关闭返回的连接，并停止脚本清理临时资源。此桥只用于本机测试，不是对外部署入口。
+
+现有 `scripts/agent-baseline.cjs` 支持 `ALUNE_BASELINE_READS_ONLY=1` 仅测 P3 读取；
+同时设置 `ALUNE_BASELINE_AGENT_READS=1` 可测 HTTP 查询桥加真实 stdio Agent。
+`ALUNE_BASELINE_SOURCE_ROOT` 可指定已构建的冻结旧检出。比较必须使用同机同 Node、相同样本数与场景，保留原始结果；冷进程不代表系统冷缓存。

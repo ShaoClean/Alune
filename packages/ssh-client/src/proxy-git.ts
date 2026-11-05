@@ -1,8 +1,9 @@
+import { deflateSync } from 'node:zlib';
 import type { SSHConnection } from './connection-manager';
 import { gitFileCommand, quotePosixArgument } from './git-shell';
-import { deflateSync } from 'node:zlib';
 
-export class GitProxyError extends Error {}
+import { GitProxyError } from '@alune/agent/native-repository';
+export { GitProxyError } from '@alune/agent/native-repository';
 
 export const isLoopbackAddress = (address: string) =>
   /^127\.\d+\.\d+\.\d+$/.test(address) ||

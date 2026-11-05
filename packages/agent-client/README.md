@@ -29,3 +29,19 @@ stdio 传输严格验证 UTF-8/帧大小，支持半帧和多帧，出站队列�
 检查：`npm test -w @alune/agent-client`、`node scripts/agent/check-browser.mjs`、`node scripts/agent/check-boundaries.mjs`。
 
 协议 1.1 的 `storageStatus()` 与 `backupDatabase()` 具有同源结果校验，并检查 Agent 归属。备份收据当前明确限定为新 Agent 数据库，不包含完整凭据迁移。连接 1.0 Agent 时，这两个方法在发送前按能力集拒绝，核心方法仍可用。
+
+读取仓库时先登记并使用返回的资源身份：
+
+```ts
+const repository = await client.registerRepository('/absolute/path/to/repository');
+await client.subscribe(['repositories.changed']);
+const status = await client.readRepository(repository.resource, 'status', { foreground: true });
+const diff = await client.readRepository(repository.resource, 'diff', {
+  file: 'src/index.ts',
+  fullFile: true,
+});
+```
+
+`readRepository` 自动重组大结果并释放快照，日期使用 JSON 字符串，支持每次调用的 `signal` 和 `timeoutMs`。
+`repositoryAnalytics(resources, collect, refresh)` 保留仅看缓存/显式采集语义。
+混用旧写入口时，在写入前后调用 `invalidateRepository(resource)`；这只使读取缓存失效，不执行、回滚或重放 Git 写入。

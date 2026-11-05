@@ -1,59 +1,69 @@
-import {
-  encodeMessage,
-  parseEvent,
-  ProtocolError,
-  PROTOCOL_VERSION,
-  validateInitialized,
-  validateHealth,
-  validateVersion,
-  validateCapabilities,
-  validateSubscription,
-  validateTaskResult,
-  validateTaskQuery,
-  validateStorageStatus,
-  validateDatabaseBackupReceipt,
-  validateAiSettings,
-  validateProxySettings,
-  validateCredentialStorageStatus,
-  validateAccessTokenSettings,
-  validateLogSettingsResult,
-  validateLogSnapshot,
-  validateLogChunk,
-  validateLogEntries,
-  validateUpdaterBridge,
-  validateHostProfiles,
-  MAX_EVENT_QUEUE_BYTES,
-  MAX_EVENT_QUEUE_LENGTH,
-} from '@alune/protocol';
 import type {
+  AccessTokenSettings,
   AgentEvent,
+  AiModel,
+  AiSettings,
+  CapabilitiesResult,
+  CommitGenerationPreferences,
+  CredentialStorageStatus,
+  DatabaseBackupReceipt,
+  HealthResult,
+  HostProfilesResult,
   InitializeResult,
   JsonValue,
+  LogEntry,
+  LogSettingsResult,
+  NetworkProxyConfig,
   RpcMessage,
   RpcRequest,
-  HealthResult,
-  VersionResult,
-  CapabilitiesResult,
+  SaveAccessToken,
+  SaveAiProvider,
+  SaveHostProfile,
+  SaveLoggingSettings,
+  SaveNetworkProxy,
+  StorageStatus,
   SubscriptionResult,
   TaskQuery,
   TaskResult,
-  StorageStatus,
-  DatabaseBackupReceipt,
-  AiSettings,
-  AiModel,
-  SaveAiProvider,
-  CommitGenerationPreferences,
-  NetworkProxyConfig,
-  SaveNetworkProxy,
-  CredentialStorageStatus,
-  AccessTokenSettings,
-  SaveAccessToken,
-  LogSettingsResult,
-  SaveLoggingSettings,
-  LogEntry,
   UpdaterBridge,
-  HostProfilesResult,
-  SaveHostProfile,
+  VersionResult,
+} from '@alune/protocol';
+import {
+  encodeMessage,
+  MAX_EVENT_QUEUE_BYTES,
+  MAX_EVENT_QUEUE_LENGTH,
+  parseEvent,
+  PROTOCOL_VERSION,
+  ProtocolError,
+  REPOSITORY_CHUNK_BYTES,
+  validateAccessTokenSettings,
+  validateAiSettings,
+  validateCapabilities,
+  validateCredentialStorageStatus,
+  validateDatabaseBackupReceipt,
+  validateHealth,
+  validateHostProfiles,
+  validateInitialized,
+  validateLogChunk,
+  validateLogEntries,
+  validateLogSettingsResult,
+  validateLogSnapshot,
+  validateProxySettings,
+  validateRepositoryQuery,
+  validateRepositoryReceipt,
+  validateRepositoryResource,
+  validateRepositoryValue,
+  validateStorageStatus,
+  validateSubscription,
+  validateTaskQuery,
+  validateTaskResult,
+  validateUpdaterBridge,
+  validateVersion,
+  type RepositoryQueryKind,
+  type RepositoryQueryMap,
+  type RepositoryQueryResult,
+  type RepositoryResource,
+  type ResourceRef,
 } from '@alune/protocol';
 import type { MessageTransport } from './transport';
 
@@ -296,6 +306,148 @@ export class AgentClient {
       validateLogSettingsResult,
     );
   }
+  async repositoryAnalytics(
+    resources: ResourceRef[],
+    collect = false,
+    refresh = false,
+    options?: RequestOptions,
+  ): Promise<
+    Array<{
+      id: string;
+      resource: ResourceRef;
+      data?: RepositoryQueryResult<'analytics'>;
+      error?: string;
+    }>
+  > {
+    const value = await this.request(
+      'repositories.analytics',
+      { resources, collect, refresh } as unknown as JsonValue,
+      { timeoutMs: 220000, ...options },
+    );
+    if (!Array.isArray(value))
+      throw new ProtocolError('invalid-request', 'Invalid analytics batch response');
+    return value.map((entry) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry))
+        throw new ProtocolError('invalid-request', 'Invalid analytics entry');
+      const found = resources.find((r) => r.resourceId === entry.id);
+      if (
+        !found ||
+        !entry.resource ||
+        typeof entry.resource !== 'object' ||
+        Array.isArray(entry.resource) ||
+        entry.resource.agentId !== found.agentId ||
+        entry.resource.resourceId !== found.resourceId
+      )
+        throw new ProtocolError('invalid-request', 'Analytics resource mismatch');
+      return {
+        id: found.resourceId,
+        resource: found,
+        ...(entry.data ? { data: validateRepositoryValue('analytics', entry.data) } : {}),
+        ...(typeof entry.error === 'string' ? { error: entry.error } : {}),
+      };
+    });
+  }
+  async listRepositories(options?: RequestOptions): Promise<RepositoryResource[]> {
+    return this.decode(this.request('repositories.list', undefined, options), (value) => {
+      if (!Array.isArray(value))
+        throw new ProtocolError('invalid-request', 'Invalid repository catalog');
+      return value.map(validateRepositoryResource);
+    });
+  }
+  registerRepository(path: string, options?: RequestOptions): Promise<RepositoryResource> {
+    return this.decode(
+      this.request('repositories.register', { path }, options),
+      validateRepositoryResource,
+    );
+  }
+  inspectRepository(path: string, options?: RequestOptions): Promise<JsonValue> {
+    return this.request('repositories.inspect', { path }, options);
+  }
+  discoverRepositories(path: string, depth = 4, options?: RequestOptions): Promise<JsonValue> {
+    return this.request('repositories.discover', { path, depth }, options);
+  }
+  pinRepository(
+    resource: ResourceRef,
+    pinned: boolean,
+    options?: RequestOptions,
+  ): Promise<RepositoryResource> {
+    return this.decode(
+      this.request('repositories.pin', { resource, pinned } as unknown as JsonValue, options),
+      validateRepositoryResource,
+    );
+  }
+  openRelatedRepository(
+    resource: ResourceRef,
+    path: string,
+    kind: 'worktree' | 'submodule',
+    options?: RequestOptions,
+  ): Promise<RepositoryResource> {
+    return this.decode(
+      this.request(
+        'repositories.openRelated',
+        { resource, path, kind } as unknown as JsonValue,
+        options,
+      ),
+      validateRepositoryResource,
+    );
+  }
+  invalidateRepository(resource: ResourceRef, options?: RequestOptions): Promise<JsonValue> {
+    return this.request('repositories.invalidate', { resource } as unknown as JsonValue, options);
+  }
+  async readRepository<K extends RepositoryQueryKind>(
+    resource: ResourceRef,
+    kind: K,
+    params: RepositoryQueryMap[K]['params'],
+    options: RequestOptions = {},
+  ): Promise<RepositoryQueryResult<K>> {
+    params = JSON.parse(JSON.stringify(params));
+    validateRepositoryQuery({ resource, kind, params });
+    const receipt = await this.decode(
+      this.request('repositories.read', { resource, kind, params } as unknown as JsonValue, {
+        timeoutMs: 125000,
+        ...options,
+      }),
+      validateRepositoryReceipt,
+    );
+    if (
+      receipt.resource.agentId !== resource.agentId ||
+      receipt.resource.resourceId !== resource.resourceId ||
+      receipt.kind !== kind
+    )
+      throw new ProtocolError('invalid-request', 'Repository response identity mismatch');
+    let value: unknown;
+    if ('value' in receipt) value = receipt.value;
+    else {
+      try {
+        const bytes = new Uint8Array(receipt.bytes);
+        let offset = 0;
+        for (let index = 0; index < receipt.chunks; index++) {
+          const chunk = await this.decode(
+            this.request('repositories.chunk', { snapshotId: receipt.snapshotId, index }, options),
+            validateLogChunk,
+          );
+          if (chunk.snapshotId !== receipt.snapshotId || chunk.index !== index)
+            throw new ProtocolError('invalid-request', 'Repository chunk identity mismatch');
+          const decoded = globalThis.atob(chunk.base64);
+          if (
+            decoded.length !== Math.min(REPOSITORY_CHUNK_BYTES, receipt.bytes - offset) ||
+            globalThis.btoa(decoded) !== chunk.base64
+          )
+            throw new ProtocolError('invalid-request', 'Invalid repository chunk encoding');
+          for (let n = 0; n < decoded.length; n++) bytes[offset++] = decoded.charCodeAt(n);
+        }
+        value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+      } finally {
+        await this.request(
+          'repositories.release',
+          { snapshotId: receipt.snapshotId },
+          { timeoutMs: 1000 },
+        ).catch(() => {});
+      }
+    }
+    return validateRepositoryValue(kind, value);
+  }
+
   async recentLogs(limit = 1000, options: RequestOptions = {}): Promise<LogEntry[]> {
     const snapshot = await this.decode(
       this.request('diagnostics.logs.snapshot', { limit }, options),

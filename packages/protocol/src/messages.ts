@@ -1,6 +1,6 @@
 import type { ResourceRef } from '@alune/domain';
 
-export const PROTOCOL_VERSION = Object.freeze({ major: 1, minor: 1 });
+export const PROTOCOL_VERSION = Object.freeze({ major: 1, minor: 2 });
 export const MAX_FRAME_BYTES = 8 * 1024 * 1024;
 export const MAX_EVENT_QUEUE_BYTES = 1024 * 1024;
 export const MAX_EVENT_QUEUE_LENGTH = 256;

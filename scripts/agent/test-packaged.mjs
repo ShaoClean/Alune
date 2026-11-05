@@ -30,7 +30,7 @@ assert.deepEqual(doctor.native, { sqlite: true, pty: true });
 assert.equal(doctor.node, `v${manifest.node.version}`);
 // This check runs from the packaged entry, not from the checkout's module graph.
 const require = createRequire(entry);
-for (const name of ['electron', 'server', 'web'])
+for (const name of ['electron', 'server', 'web', 'ssh2', '@alune/ssh-client'])
   assert.throws(() => require.resolve(name), { code: 'MODULE_NOT_FOUND' });
 for (const [location, pkg] of Object.entries(manifest.packages)) {
   const base = path.join(directory, location);
@@ -115,6 +115,34 @@ try {
     scope: 'session',
     task: null,
   });
+  const repositoryPath = path.join(data, 'repository');
+  fs.mkdirSync(repositoryPath);
+  const git = (...args) => execFileSync('git', ['-C', repositoryPath, ...args], { stdio: 'pipe' });
+  git('init', '-b', 'main');
+  git('config', 'user.name', 'Packaged fixture');
+  git('config', 'user.email', 'fixture@example.invalid');
+  git('config', 'commit.gpgSign', 'false');
+  fs.writeFileSync(path.join(repositoryPath, 'fixture.txt'), 'before\n');
+  git('add', '.');
+  git('commit', '-m', 'packaged fixture');
+  fs.writeFileSync(path.join(repositoryPath, 'fixture.txt'), 'after\n');
+  const repository = await a.client.registerRepository(repositoryPath);
+  assert.equal(
+    (await a.client.readRepository(repository.resource, 'status', {})).files[0].path,
+    'fixture.txt',
+  );
+  assert.match(
+    await a.client.readRepository(repository.resource, 'diff', {
+      file: 'fixture.txt',
+      fullFile: true,
+    }),
+    /after/,
+  );
+  assert.equal((await a.client.readRepository(repository.resource, 'log', {})).commits.length, 1);
+  assert.equal(
+    (await a.client.readRepository(repository.resource, 'file', { path: 'fixture.txt' })).content,
+    'after\n',
+  );
   const settings = await a.client.getAiSettings();
   assert.equal(settings.secretStorage.available, false);
   const update = a.client.startRequest('settings.ai.saveCommit', {
@@ -191,6 +219,7 @@ console.log(
           : 'file-backend-covered-by-agent-tests',
     state: 'configuration revision and mutation receipt survived restart',
     recovery: 'encrypted CLI capsule restored identity and public configuration',
+    repositories: 'packaged registration/status/diff/log/file passed without ssh-client',
     node: doctor.node,
     electron: 'not resolvable',
   }),

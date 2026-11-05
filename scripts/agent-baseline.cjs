@@ -7,6 +7,8 @@ const { fork, execFileSync } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { performance } = require('node:perf_hooks');
 const root = path.resolve(__dirname, '..');
+const sourceRoot = process.env.ALUNE_BASELINE_SOURCE_ROOT || root;
+const readsOnly = process.env.ALUNE_BASELINE_READS_ONLY === '1';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function worker() {
@@ -14,8 +16,10 @@ async function worker() {
   process.env.ALUNE_DATA_DIR = data;
   process.env.SHELL = '/bin/sh';
   process.env.PS1 = 'ALUNE_BASELINE> ';
-  const { startServer } = require('../apps/server/dist/bootstrap');
-  const { RepositoryService } = require('../apps/server/dist/repository/repository.service');
+  const { startServer } = require(path.join(sourceRoot, 'apps/server/dist/bootstrap'));
+  const { RepositoryService } = require(
+    path.join(sourceRoot, 'apps/server/dist/repository/repository.service'),
+  );
   const { io } = require('socket.io-client');
   const token = randomUUID();
   const app = await startServer({
@@ -44,22 +48,24 @@ async function worker() {
         ? response.json()
         : response.text();
     };
-    socket = io(base + '/terminal', {
-      transports: ['websocket'],
-      reconnection: false,
-      extraHeaders: { Authorization: `Bearer ${token}` },
-    });
     const states = new Map();
     const outputs = new Map();
-    socket.on('terminal:state', (state) => states.set(state.id, state));
-    socket.on('terminal:output', (packet) => {
-      outputs.set(packet.sessionId, (outputs.get(packet.sessionId) || '') + packet.data);
-      socket.emit('terminal:ack', { sessionId: packet.sessionId, sequence: packet.sequence });
-    });
-    await new Promise((resolve, reject) => {
-      socket.once('connect', resolve);
-      socket.once('connect_error', reject);
-    });
+    if (!readsOnly) {
+      socket = io(base + '/terminal', {
+        transports: ['websocket'],
+        reconnection: false,
+        extraHeaders: { Authorization: `Bearer ${token}` },
+      });
+      socket.on('terminal:state', (state) => states.set(state.id, state));
+      socket.on('terminal:output', (packet) => {
+        outputs.set(packet.sessionId, (outputs.get(packet.sessionId) || '') + packet.data);
+        socket.emit('terminal:ack', { sessionId: packet.sessionId, sequence: packet.sequence });
+      });
+      await new Promise((resolve, reject) => {
+        socket.once('connect', resolve);
+        socket.once('connect_error', reject);
+      });
+    }
     const request = async (name, body) => {
       const reply = await socket.timeout(10000).emitWithAck('terminal:' + name, body);
       if (!reply.ok) throw new Error(reply.error);
@@ -93,21 +99,23 @@ async function worker() {
           throw new Error(`Invalid ${name} fixture response`);
         }
       }
-      const id = randomUUID();
-      await request('create', { requestId: id, repositoryId: record.id, cols: 80, rows: 24 });
-      await until(() => states.get(id)?.state === 'running');
-      const start = performance.now();
-      await request('input', {
-        sessionId: id,
-        data: `${JSON.stringify(process.execPath)} -e "process.stdout.write('X'.repeat(65536)+'\\nALUNE_BENCH_DONE\\n')"\r`,
-      });
-      await until(() => (outputs.get(id) || '').includes('\r\nALUNE_BENCH_DONE\r\n'));
-      row.terminalOutput = performance.now() - start;
-      if ((outputs.get(id).match(/X/g) || []).length < 65536)
-        throw new Error('Truncated PTY output');
-      await request('close', { sessionId: id, confirmed: true });
-      outputs.delete(id);
-      states.delete(id);
+      if (!readsOnly) {
+        const id = randomUUID();
+        await request('create', { requestId: id, repositoryId: record.id, cols: 80, rows: 24 });
+        await until(() => states.get(id)?.state === 'running');
+        const start = performance.now();
+        await request('input', {
+          sessionId: id,
+          data: `${JSON.stringify(process.execPath)} -e "process.stdout.write('X'.repeat(65536)+'\\nALUNE_BENCH_DONE\\n')"\r`,
+        });
+        await until(() => (outputs.get(id) || '').includes('\r\nALUNE_BENCH_DONE\r\n'));
+        row.terminalOutput = performance.now() - start;
+        if ((outputs.get(id).match(/X/g) || []).length < 65536)
+          throw new Error('Truncated PTY output');
+        await request('close', { sessionId: id, confirmed: true });
+        outputs.delete(id);
+        states.delete(id);
+      }
       rows.push(row);
     }
     process.send({ rows, nodeMaxRssKiB: process.resourceUsage().maxRSS });
@@ -115,6 +123,81 @@ async function worker() {
     process.removeListener('SIGTERM', stop);
     socket?.disconnect();
     await app.close();
+  }
+}
+
+// Same HTTP request boundary as P0, with only a thin query bridge in the caller.
+// The measured descendant set includes the real standalone Agent process.
+async function agentReadWorker() {
+  if (!readsOnly) throw new Error('Agent P3 measurements require ALUNE_BASELINE_READS_ONLY=1');
+  const [repo, count, data] = process.argv.slice(3);
+  const { createServer } = require('node:http');
+  const { spawnAgent } = require('../packages/agent-client/dist/node');
+  const agent = spawnAgent(process.execPath, [
+    path.join(root, 'packages/agent/bin/alune-agent.cjs'),
+    'serve',
+    '--data-dir',
+    data,
+  ]);
+  let server;
+  const stop = async () => {
+    await agent.close();
+    server?.close();
+    process.exit(1);
+  };
+  process.once('SIGTERM', stop);
+  try {
+    await agent.client.initialize();
+    const registered = await agent.client.registerRepository(repo);
+    const routes = {
+      status: ['status', { foreground: true }],
+      diff: ['diff', { file: 'tracked.txt' }],
+      log: ['log', { count: 50 }],
+    };
+    server = createServer(async (req, res) => {
+      try {
+        const name = new URL(req.url, 'http://localhost').pathname.split('/').at(-1);
+        const route = routes[name];
+        if (!route) {
+          res.writeHead(404).end();
+          return;
+        }
+        const result = await agent.client.readRepository(registered.resource, route[0], route[1]);
+        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));
+      } catch (error) {
+        res.writeHead(500).end(String(error));
+      }
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${server.address().port}/api/repositories/${registered.id}`;
+    const rows = [];
+    for (let i = 0; i < Number(count); i++) {
+      const row = {};
+      for (const [name, suffix] of [
+        ['status', 'status?foreground=true'],
+        ['diff', 'diff?file=tracked.txt'],
+        ['history', 'log?limit=50'],
+      ]) {
+        const start = performance.now();
+        const response = await fetch(`${base}/${suffix}`, { signal: AbortSignal.timeout(30000) });
+        if (!response.ok) throw new Error(await response.text());
+        const result = await response.json();
+        row[name] = performance.now() - start;
+        if (
+          result == null ||
+          (name === 'status' && !result.files?.some((f) => f.path === 'tracked.txt')) ||
+          (name === 'history' && result.commits?.length !== 50) ||
+          (name === 'diff' && !result.includes('modified'))
+        )
+          throw new Error(`Invalid ${name} fixture response`);
+      }
+      rows.push(row);
+    }
+    process.send({ rows, nodeMaxRssKiB: process.resourceUsage().maxRSS });
+  } finally {
+    process.removeListener('SIGTERM', stop);
+    if (server) await new Promise((resolve) => server.close(resolve));
+    await agent.close();
   }
 }
 
@@ -283,7 +366,13 @@ async function main() {
           methodology: {
             cold: 'fresh application process; OS page cache NOT flushed',
             warm: 'same process, one warm-up excluded',
-            transport: 'production HTTP + Socket.IO, loopback, local repository',
+            transport:
+              process.env.ALUNE_BASELINE_AGENT_READS === '1'
+                ? 'HTTP read bridge + production stdio Agent, loopback'
+                : readsOnly
+                  ? 'production HTTP, loopback, local repository'
+                  : 'production HTTP + Socket.IO, loopback, local repository',
+            sourceRoot: sourceRoot === root ? 'current checkout' : 'frozen baseline checkout',
             memory:
               '25ms sampled aggregate RSS of application worker and observed descendants; includes startup; may miss short-lived peaks',
             processes:
@@ -308,7 +397,12 @@ async function main() {
   }
 }
 
-(process.argv[2] === '--worker' ? worker() : main()).catch((error) => {
+(process.argv[2] === '--worker'
+  ? process.env.ALUNE_BASELINE_AGENT_READS === '1'
+    ? agentReadWorker()
+    : worker()
+  : main()
+).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

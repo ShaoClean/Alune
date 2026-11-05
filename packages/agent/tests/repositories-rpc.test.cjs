@@ -1,0 +1,390 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const { createHash, randomUUID } = require('node:crypto');
+const { spawnAgent } = require('@alune/agent-client/node');
+const { GitReads } = require('../dist/modules/git/git-commands');
+const { NativeRepositoryConnection } = require('../dist/adapters/git/native');
+const { RepositoryReads } = require('../dist/runtime/reads');
+const fixture = path.resolve(__dirname, 'settings-fixture.cjs');
+const plain = (x) => JSON.parse(JSON.stringify(x));
+async function setup(t) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-repositories-rpc-'));
+  const repo = path.join(root, '中文 repo');
+  fs.mkdirSync(repo);
+  const git = (...args) =>
+    execFileSync('git', ['-C', repo, ...args], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GIT_CONFIG_NOSYSTEM: '1',
+        GIT_CONFIG_GLOBAL: path.join(root, 'no-config'),
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  git('init', '-b', 'main');
+  git('config', 'user.name', 'P3 Fixture');
+  git('config', 'user.email', 'fixture@example.test');
+  fs.writeFileSync(path.join(repo, 'file.txt'), 'first\nsecond\nthird\n');
+  fs.writeFileSync(path.join(repo, '.gitignore'), 'ignored/\n');
+  fs.writeFileSync(path.join(repo, 'image.png'), Buffer.from([137, 80, 78, 71, 0, 1, 2, 3]));
+  git('add', '.');
+  git('commit', '-m', 'initial');
+  const first = git('rev-parse', 'HEAD');
+  git('mv', 'file.txt', '重命名 file.txt');
+  git('commit', '-m', 'rename');
+  git('tag', 'v1');
+  git('branch', 'feature');
+  fs.writeFileSync(path.join(repo, '重命名 file.txt'), 'first\nchanged\nthird\n');
+  git('add', '.');
+  fs.appendFileSync(path.join(repo, '重命名 file.txt'), 'working\n');
+  fs.writeFileSync(path.join(repo, 'literal [x] $().txt'), 'literal\r\n');
+  fs.writeFileSync(path.join(repo, 'large.txt'), '中文🚀\n'.repeat(15000));
+  fs.writeFileSync(path.join(repo, 'binary.dat'), Buffer.from([0, 1, 2, 255]));
+  fs.writeFileSync(
+    path.join(repo, 'utf16.txt'),
+    Buffer.concat([Buffer.from([255, 254]), Buffer.from('中文\r\n', 'utf16le')]),
+  );
+  fs.mkdirSync(path.join(repo, 'ignored'));
+  fs.writeFileSync(path.join(repo, 'ignored', 'hidden'), 'ignore');
+  const index = path.join(repo, '.git', 'index');
+  const digest = () => createHash('sha256').update(fs.readFileSync(index)).digest('hex');
+  const children = [];
+  const start = async () => {
+    const child = spawnAgent(process.execPath, [fixture, path.join(root, 'state')]);
+    children.push(child);
+    await child.client.initialize();
+    return child;
+  };
+  t.after(async () => {
+    await Promise.all(children.map((c) => c.close()));
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  return { root, repo, git, first, digest, start };
+}
+
+test(
+  'repository RPC reads real Git and native files, preserves index and returns bounded snapshots',
+  { timeout: 120000 },
+  async (t) => {
+    const f = await setup(t),
+      child = await f.start(),
+      client = child.client;
+    const init = await client.initialize();
+    assert(init.capabilities.includes('repositories.read'));
+    const repo = await client.registerRepository(f.repo);
+    assert.equal((await client.registerRepository(path.join(f.repo, 'ignored'))).id, repo.id);
+    assert.equal(repo.resource.agentId, init.agentId);
+    assert.deepEqual(
+      (await client.listRepositories()).map((r) => r.id),
+      [repo.id],
+    );
+    const query = (kind, params = {}) => client.readRepository(repo.resource, kind, params);
+    const before = f.digest();
+    const old = new GitReads(new NativeRepositoryConnection());
+    const status = await query('status');
+    assert.deepEqual(status.files, (await old.status(f.repo)).files);
+    assert.equal(status.worktreeKind, 'main');
+    for (const [kind, params, expected] of [
+      ['branches', {}, await old.branchList(f.repo)],
+      ['remotes', {}, await old.remoteList(f.repo)],
+      ['stashes', {}, await old.stashList(f.repo)],
+      [
+        'diff',
+        { file: '重命名 file.txt', fullFile: true },
+        await old.diff(f.repo, { file: '重命名 file.txt', fullFile: true }),
+      ],
+      ['commitFiles', { commit: f.first }, await old.commitFiles(f.repo, f.first)],
+    ])
+      assert.deepEqual(await query(kind, params), plain(expected), kind);
+    const context = await query('context');
+    assert.equal(context.author.name, 'P3 Fixture');
+    assert.equal(context.path, fs.realpathSync(f.repo));
+    const log = await query('log', { count: 1 });
+    assert.equal(log.commits[0].message, 'rename');
+    assert.equal(log.hasMore, true);
+    const next = await query('log', { count: 1, skip: log.nextSkip, revision: log.revision });
+    assert.equal(next.commits[0].hash, f.first);
+    const followed = await query('log', { file: '重命名 file.txt', follow: true });
+    assert.equal(followed.commits.length, 2);
+    assert.equal((await query('log', { search: 'initial' })).commits.length, 1);
+    assert.equal((await query('tags')).local[0].name, 'v1');
+    const tree = await query('tree', { path: '' });
+    assert(!tree.entries.some((e) => e.name === '.git'));
+    assert(tree.entries.find((e) => e.name === 'ignored').ignored);
+    assert.equal((await query('file', { path: 'literal [x] $().txt' })).content, 'literal\r\n');
+    assert.equal((await query('file', { path: 'utf16.txt' })).encoding, 'utf-16le');
+    assert.equal((await query('file', { path: 'binary.dat' })).kind, 'binary');
+    assert.equal((await query('file', { path: 'large.txt' })).content, '中文🚀\n'.repeat(15000));
+    const receipt = await client.request('repositories.read', {
+      resource: repo.resource,
+      kind: 'file',
+      params: { path: 'large.txt' },
+    });
+    assert(receipt.chunks > 1);
+    const chunk = await client.request('repositories.chunk', {
+      snapshotId: receipt.snapshotId,
+      index: 0,
+    });
+    assert(Buffer.byteLength(JSON.stringify(chunk)) < 65536);
+    await client.invalidateRepository(repo.resource);
+    await assert.rejects(
+      client.request('repositories.chunk', { snapshotId: receipt.snapshotId, index: 0 }),
+      (e) => e.kind === 'not-found',
+    );
+    const diff = await query('editableDiff', {
+      file: '重命名 file.txt',
+      staged: true,
+      fullFile: true,
+    });
+    assert(diff.revision);
+    assert.match(diff.diff, /changed/);
+    const image = await query('diffImage', { file: 'image.png', commit: f.first, side: 'after' });
+    assert.equal(image.byteLength, 8);
+    assert.equal((await query('blame', { path: '重命名 file.txt' })).kind, 'ready');
+    assert.equal((await query('blameCommit', { hash: f.first })).hash, f.first);
+    assert.equal(
+      (
+        await query('analytics', {
+          endDay: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+        })
+      ).daily.reduce((a, b) => a + b, 0),
+      2,
+    );
+    assert.equal((await query('signing')).enabled, false);
+    assert.equal((await query('signatures', { hashes: [f.first] }))[0].status, 'unsigned');
+    assert.deepEqual(await query('submodules'), []);
+    assert.equal(typeof (await query('lfs')).installed, 'boolean');
+    const uncached = await client.repositoryAnalytics([repo.resource]);
+    assert.equal(uncached[0].data, undefined);
+    const collected = await client.repositoryAnalytics([repo.resource], true);
+    assert(collected[0].data);
+    assert.equal(
+      (await client.repositoryAnalytics([repo.resource]))[0].data.collectedAt,
+      collected[0].data.collectedAt,
+    );
+    await client.invalidateRepository(repo.resource);
+    assert.equal((await client.repositoryAnalytics([repo.resource]))[0].data, undefined);
+    const snapshot = await query('snapshot');
+    assert.equal(snapshot.indexDigest, before);
+    assert.equal(snapshot.head, f.git('rev-parse', 'HEAD'));
+    assert.equal(f.digest(), before, 'read-only queries must not refresh the index');
+    await assert.rejects(query('file', { path: '../outside' }), (e) => e.kind === 'invalid-params');
+    await assert.rejects(
+      client.readRepository({ ...repo.resource, agentId: randomUUID() }, 'status', {}),
+      (e) => e.kind === 'not-found',
+    );
+    await assert.rejects(
+      client.request('repositories.read', {
+        resource: repo.resource,
+        kind: 'execute',
+        params: { args: ['reset', '--hard'] },
+      }),
+      (e) => e.kind === 'invalid-params',
+    );
+    await assert.rejects(
+      client.request('git.stage', { resource: repo.resource, files: ['.'] }),
+      (e) => e.kind === 'unknown-method',
+    );
+    const linked = path.join(f.root, 'linked tree');
+    f.git('worktree', 'add', linked, 'feature');
+    const worktrees = await query('worktrees');
+    assert.equal(worktrees.length, 2);
+    const opened = await client.openRelatedRepository(
+      repo.resource,
+      worktrees.find((w) => !w.isCurrent).path,
+      'worktree',
+    );
+    assert.notEqual(opened.id, repo.id);
+    const other = await client.readRepository(opened.resource, 'snapshot', {});
+    assert.equal(other.commonDirectory, snapshot.commonDirectory);
+    assert.notEqual(other.gitDirectory, snapshot.gitDirectory);
+    await client.pinRepository(repo.resource, true);
+    await child.close();
+    const restarted = await f.start();
+    assert.equal((await restarted.client.listRepositories())[0].id, repo.id);
+    assert.equal((await restarted.client.listRepositories())[0].pinned, true);
+  },
+);
+
+test('coalesced status cancellation has separate owners; invalidation rejects stale work', async () => {
+  const reads = new RepositoryReads();
+  const a = new AbortController(),
+    b = new AbortController();
+  let calls = 0,
+    finish;
+  const run = (signal) => {
+    calls++;
+    return new Promise((resolve, reject) => {
+      finish = resolve;
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    });
+  };
+  const first = reads.status('repo', false, a.signal, run),
+    second = reads.status('repo', true, b.signal, run);
+  const cancelled = assert.rejects(first);
+  await new Promise((r) => setImmediate(r));
+  a.abort();
+  await cancelled;
+  assert.equal(calls, 1);
+  finish('ok');
+  assert.equal(await second, 'ok');
+  const stale = reads.status('repo', false, b.signal, run);
+  const rejected = assert.rejects(stale, (e) => e.kind === 'conflict');
+  await new Promise((r) => setImmediate(r));
+  reads.invalidate('repo');
+  await rejected;
+  await reads.close();
+});
+
+test(
+  'frozen pre-P3 implementation matches Agent query results on an isolated repository',
+  { skip: !process.env.ALUNE_READ_BASELINE_ROOT, timeout: 120000 },
+  async (t) => {
+    const baseline = path.resolve(process.env.ALUNE_READ_BASELINE_ROOT);
+    const legacy = require(path.join(baseline, 'packages/ssh-client/dist'));
+    const f = await setup(t),
+      child = await f.start(),
+      repo = await child.client.registerRepository(f.repo);
+    const root = fs.realpathSync(f.repo),
+      connection = new legacy.LocalConnection(),
+      git = new legacy.GitCommands(connection);
+    const cases = [
+      ['status', {}, () => git.status(root)],
+      ['branches', {}, () => git.branchList(root)],
+      ['remotes', {}, () => git.remoteList(root)],
+      ['stashes', {}, () => git.stashList(root)],
+      ['log', { count: 1 }, () => git.log(root, { count: 1 })],
+      [
+        'log',
+        { file: '重命名 file.txt', follow: true },
+        () => git.log(root, { file: '重命名 file.txt', follow: true }),
+      ],
+      [
+        'log',
+        { search: 'initial', author: 'P3 Fixture' },
+        () => git.log(root, { search: 'initial', author: 'P3 Fixture' }),
+      ],
+      [
+        'diff',
+        { file: '重命名 file.txt', fullFile: true },
+        () => git.diff(root, { file: '重命名 file.txt', fullFile: true }),
+      ],
+      [
+        'diff',
+        { file: '重命名 file.txt', staged: true },
+        () => git.diff(root, { file: '重命名 file.txt', staged: true }),
+      ],
+      [
+        'diff',
+        { commit: f.first, fullFile: true },
+        () => git.diff(root, { commit: f.first, fullFile: true }),
+      ],
+      ['commitFiles', { commit: f.first }, () => git.commitFiles(root, f.first)],
+      ['tree', { path: '' }, () => new legacy.RepositoryFiles(connection).list(root, '')],
+      ...['utf16.txt', 'binary.dat', 'large.txt', 'literal [x] $().txt'].map((file) => [
+        'file',
+        { path: file },
+        () => new legacy.RepositoryFiles(connection).read(root, file),
+      ]),
+      [
+        'diffImage',
+        { file: 'image.png', commit: f.first, side: 'after' },
+        () =>
+          new legacy.DiffImages(connection).read(root, {
+            file: 'image.png',
+            commit: f.first,
+            side: 'after',
+          }),
+      ],
+      [
+        'blame',
+        { path: '重命名 file.txt' },
+        () => new legacy.GitBlame(connection).read(root, { path: '重命名 file.txt' }),
+      ],
+      [
+        'blameCommit',
+        { hash: f.first },
+        () => new legacy.GitBlame(connection).commit(root, f.first),
+      ],
+      ['worktrees', {}, () => new legacy.GitWorktrees(connection).list(root)],
+      ['tags', {}, async () => ({ local: await new legacy.GitTags(connection).list(root) })],
+      ['signing', {}, () => new legacy.GitSigning(connection).read(root)],
+      [
+        'signatures',
+        { hashes: [f.first] },
+        () => new legacy.GitSigning(connection).signatures(root, [f.first]),
+      ],
+      ['submodules', {}, () => new legacy.GitSubmodules(connection).list(root)],
+      ['lfs', {}, () => new legacy.GitLfs(connection).status(root)],
+      [
+        'analytics',
+        { endDay: '2026-11-05' },
+        () => legacy.collectRepositoryAnalytics(connection, root, '2026-11-05'),
+      ],
+      [
+        'editableDiff',
+        { file: '重命名 file.txt', staged: true, fullFile: true },
+        () => new legacy.PartialChanges(connection).preview(root, '重命名 file.txt', true, true),
+      ],
+    ];
+    for (const [kind, params, read] of cases) {
+      const expected = plain(await read());
+      const actual = await child.client.readRepository(repo.resource, kind, params);
+      if (kind === 'status') {
+        delete actual.worktreeKind;
+        delete actual.operation;
+      }
+      if (kind === 'analytics') {
+        delete actual.collectedAt;
+        delete expected.collectedAt;
+      }
+      assert.deepEqual(actual, expected, `${kind} ${JSON.stringify(params)}`);
+    }
+  },
+);
+
+test(
+  'offline repository reads do not unlock or repair missing unrelated credentials',
+  { timeout: 60000 },
+  async (t) => {
+    const f = await setup(t),
+      child = await f.start(),
+      client = child.client;
+    const repo = await client.registerRepository(f.repo);
+    const settings = await client.getAiSettings();
+    const provider = settings.providers.find((p) => p.id === 'openai');
+    await client.saveAiProvider(
+      'openai',
+      {
+        name: provider.name,
+        protocol: provider.protocol,
+        baseUrl: provider.baseUrl,
+        enabled: true,
+        models: provider.models,
+        apiKey: 'fixture-key-to-lose',
+      },
+      settings.revision,
+    );
+    await child.close();
+    const keys = path.join(f.root, 'state', 'keys');
+    const key = fs.readdirSync(keys).find((name) => name.endsWith('.key'));
+    assert(key);
+    fs.renameSync(path.join(keys, key), path.join(keys, key + '.retained'));
+    const restarted = await f.start();
+    assert.equal(
+      (await restarted.client.readRepository(repo.resource, 'status', {})).branch,
+      'main',
+    );
+    assert.equal(
+      (await restarted.client.readRepository(repo.resource, 'file', { path: 'utf16.txt' }))
+        .encoding,
+      'utf-16le',
+    );
+    assert.equal(fs.existsSync(path.join(keys, key)), false, 'must not replace the missing key');
+    await assert.rejects(restarted.client.prepareCredentials());
+  },
+);
