@@ -1,5 +1,6 @@
 // Build an isolated, self-contained Node Agent directory for the current host.
 import fs from 'node:fs';
+import { downloadRuntime } from './download-runtime.mjs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -28,18 +29,7 @@ const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const packages = new Map();
 const copied = new Map();
 
-async function download(name, limit) {
-  const response = await fetch(baseURL + name, { signal: AbortSignal.timeout(180000) });
-  if (!response.ok || !response.body) throw new Error(`Node download failed: ${response.status}`);
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of response.body) {
-    size += chunk.length;
-    if (size > limit) throw new Error('Node download exceeded expected size limit');
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
-}
+const download = (name, limit) => downloadRuntime(baseURL + name, limit);
 function packageDirectory(name, parent) {
   const require = createRequire(path.join(parent, 'package.json'));
   try {

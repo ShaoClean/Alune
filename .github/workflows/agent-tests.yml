@@ -41,6 +41,7 @@ jobs:
       - name: 用目标平台 shell 验证二进制部署引导
         run: node --experimental-strip-types scripts/agent/test-bootstrap.mjs
       - run: npm ci
+      - run: node --test scripts/agent/download-runtime.test.mjs
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm test -w @alune/protocol
