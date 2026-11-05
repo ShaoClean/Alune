@@ -222,7 +222,11 @@ test(
       privateKeyPath: null,
       password: 'fixture-host-private-password',
     };
-    const saved = await first.client.saveHostProfile(null, profile, empty.revision);
+    const saved = await first.client.saveHostProfile(
+      null,
+      { ...profile, passphrase: undefined },
+      empty.revision,
+    );
     assert.equal(saved.hosts[0].hasPassword, true);
     await assert.rejects(
       first.client.deleteHostProfile(saved.hosts[0].id, empty.revision),
@@ -236,10 +240,16 @@ test(
     const next = await f.start();
     const restored = await next.client.listHostProfiles();
     assert.deepEqual(restored, saved);
+    const retained = await next.client.saveHostProfile(
+      saved.hosts[0].id,
+      { ...profile, password: undefined, passphrase: undefined },
+      restored.revision,
+    );
+    assert.equal(retained.hosts[0].hasPassword, true);
     const cleared = await next.client.saveHostProfile(
       saved.hosts[0].id,
       { ...profile, password: null },
-      restored.revision,
+      retained.revision,
     );
     assert.equal(cleared.hosts[0].id, saved.hosts[0].id);
     assert.equal(cleared.hosts[0].hasPassword, false);

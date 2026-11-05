@@ -621,10 +621,18 @@ export class AgentClient {
     revision: string,
     options: RequestOptions = {},
   ): Promise<HostProfilesResult> {
+    // Forms may supply an empty optional credential as undefined. Do not
+    // encode that property; an explicit null remains a request to clear it.
+    const { password, passphrase, ...fields } = profile;
+    const payload = {
+      ...fields,
+      ...(password === undefined ? {} : { password }),
+      ...(passphrase === undefined ? {} : { passphrase }),
+    };
     return this.decode(
       this.request(
         'accounts.hosts.save',
-        { id, profile, revision } as unknown as JsonValue,
+        { id, profile: payload, revision } as unknown as JsonValue,
         options,
       ),
       validateHostProfiles,
