@@ -20,15 +20,26 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     text = (label) => 'document.body.innerText.includes(' + JSON.stringify(label) + ')';
   const git = (...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
   const evidence = [];
-  const readHits = () =>
-    wc.executeJavaScript(
-      "Array.from(window.__aluneAudit?.hits ?? JSON.parse(sessionStorage.getItem('alune.audit.cases')||'[]'))",
-    );
-  const seen = new Set(await readHits());
+  const { counts } = require('./candidate-ui-audit.cjs');
+  let before = await counts(wc);
   async function pass(ui, scenario) {
-    const executed = (await readHits()).filter((id) => !seen.has(id));
-    executed.forEach((id) => seen.add(id));
-    evidence.push({ ui, scenario, executed, platform: process.platform, arch: process.arch });
+    const current = await counts(wc);
+    const executed = [...current].filter(([id, n]) => n > (before.get(id) ?? 0)).map(([id]) => id);
+    before = current;
+    evidence.push({
+      ui,
+      scenario,
+      executed,
+      sha: process.env.GITHUB_SHA ?? null,
+      proof: process.env.GITHUB_RUN_ID
+        ? 'https://github.com/' +
+          process.env.GITHUB_REPOSITORY +
+          '/actions/runs/' +
+          process.env.GITHUB_RUN_ID
+        : null,
+      platform: process.platform,
+      arch: process.arch,
+    });
     if (process.env.ALUNE_CANDIDATE_EVIDENCE)
       fs.writeFileSync(
         path.join(process.env.ALUNE_CANDIDATE_EVIDENCE, 'workbench.json'),

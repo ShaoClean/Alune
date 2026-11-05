@@ -191,7 +191,14 @@ try {
     throw Error('Installer changed the original Chromium Local State before migration');
   await boot(exe, 'write', fixture);
   await boot(exe, 'restore', fixture);
-  const beforeRollback = git('write-tree');
+  const gitFacts = () =>
+    JSON.stringify({
+      head: git('rev-parse', 'HEAD'),
+      refs: git('for-each-ref', '--format=%(refname) %(objectname)'),
+      index: git('ls-files', '--stage', '-z'),
+      worktree: digest(path.join(repo, 'candidate.txt')),
+    });
+  const beforeRollback = gitFacts();
   for (const file of originals) {
     const backup = path.join(restorePoint, file);
     if (fs.existsSync(backup)) fs.copyFileSync(backup, path.join(data, file));
@@ -212,7 +219,7 @@ try {
       throw Error('Released desktop lost token metadata');
   });
   if (
-    git('write-tree') !== beforeRollback ||
+    gitFacts() !== beforeRollback ||
     fs.readFileSync(path.join(repo, 'candidate.txt'), 'utf8') !== 'changed in legacy workspace\n'
   )
     throw Error('Application rollback changed Git data');

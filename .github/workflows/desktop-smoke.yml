@@ -93,3 +93,13 @@ jobs:
         run: node apps/desktop/scripts/installer-cycle.mjs
       - if: runner.os == 'Linux'
         run: xvfb-run -a node apps/desktop/scripts/installer-cycle.mjs
+      - name: 保存已通过原生升级演练的候选安装器供逐项验收
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-candidate-${{ matrix.os }}
+          path: |
+            apps/desktop/release/Alune-*.exe
+            apps/desktop/release/Alune-*.dmg
+            apps/desktop/release/Alune-*.AppImage
+          if-no-files-found: error
+          retention-days: 7

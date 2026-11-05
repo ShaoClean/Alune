@@ -32,6 +32,18 @@ if (smokeTest) {
     throw new Error('Smoke tests require an isolated data directory');
   if (process.env.CI === 'true') app.disableHardwareAcceleration();
   app.setPath('userData', process.env.ALUNE_SMOKE_DIR);
+} else if (candidate && process.env.ALUNE_CANDIDATE_DATA_DIR) {
+  const dir = process.env.ALUNE_CANDIDATE_DATA_DIR;
+  if (!path.isAbsolute(dir)) throw new Error('候选工作区必须指定绝对数据目录。');
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const info = require('node:fs').lstatSync(dir);
+  if (
+    !info.isDirectory() ||
+    info.isSymbolicLink() ||
+    (process.getuid && info.uid !== process.getuid())
+  )
+    throw new Error('隔离工作区必须是当前用户的目录。');
+  app.setPath('userData', dir);
 } else {
   app.setPath('userData', path.join(app.getPath('appData'), 'Alune'));
 }
@@ -121,7 +133,11 @@ function createWindow() {
   });
   window.webContents.setWindowOpenHandler(
     createExternalLinkHandler(
-      smokeTest ? (candidate ? async () => {} : require('./smoke.cjs').openExternal) : (url) => shell.openExternal(url),
+      smokeTest
+        ? candidate
+          ? async () => {}
+          : require('./smoke.cjs').openExternal
+        : (url) => shell.openExternal(url),
     ),
   );
   const guardNavigation = (event, url) => {
@@ -222,7 +238,10 @@ async function start() {
       : require('./electron-updater-adapter.cjs').createElectronUpdater({
           updater: require('electron-updater').autoUpdater,
           nativeUpdater,
-          installDirectory:process.platform==='win32' && app.isPackaged?path.dirname(app.getPath('exe')):undefined,
+          installDirectory:
+            process.platform === 'win32' && app.isPackaged
+              ? path.dirname(app.getPath('exe'))
+              : undefined,
           proxyBridge: () => networkProxy.updaterBridge(),
         });
   if (adapter.install) {

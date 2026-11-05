@@ -185,3 +185,5 @@ node scripts/agent/browser-reads-fixture.mjs
 最终退役前、后分别核对 [P0 台账](https://github.com/ShaoClean/Alune/wiki/Issue-249) 与该提交的执行回执：`node scripts/agent/check-release-evidence.mjs ledger.json receipts.json missing.json`。回执含 `stage`（before-retirement / after-retirement）、`sha`、`baseline`、`runs`；每个 run 明确 target、sha、scenario、assertion、proof URL、result 与覆盖的 P0 原始 entry ID 数组。原生安装、打包、更新、clean checkout 单列平台。缺少条目、平台或放行项目时命令退出非零；人工仍须核对证据与断言是否匹配，运行过一个文件不等于其中所有控件已验收。
 
 在桌面冒烟的专用 Web 构建中设置 `ALUNE_UI_AUDIT=1`，以 `ALUNE_CANDIDATE_EVIDENCE` 接收实际执行的 P0 UI 回调。测试索引只含基线 ID 及回调源码指纹；`node scripts/agent/ui-audit-index.mjs ledger.json apps/web/tests/p0-ui-index.json` 可重建。只有源文件、控件/事件及回调 token 唯一匹配才自动归属；改写、移动、歧义和需成对解绑的 DOM 监听器留给人工核对。记录回调进入不等同其所有分支均已验证；workbench 结果同时保存 Git/界面断言。常规构建和正式安装包不启用此追踪。
+
+下载同一作业的四个 `candidate-ui-*` 附件到独立子目录后，执行 `node scripts/agent/ui-receipts.mjs ARTIFACTS ledger.json ui-receipts.json`。仅将实际触发且属于对应断言范围的 P0 回调交给台账；其他运行记录和功能/平台门槛仍需另行归入同一阶段的回执。

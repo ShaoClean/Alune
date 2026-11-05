@@ -105,9 +105,20 @@ module.exports = async ({
     () => git('log', '-1', '--format=%s') === 'commit from actual UI',
     'commit did not reach HEAD',
   );
+  // The store may still be refreshing after Git has written HEAD. Await
+  // the UI's own post-commit state, then amend the populated HEAD snapshot.
+  await wait(wc, text('0 个文件已暂存'));
   await click(textButton('修改上一次提交'));
+  await wait(
+    wc,
+    "document.querySelector('[aria-label=修改后的提交信息]')?.value.includes('commit from actual UI')",
+  );
   await fill(button('修改后的提交信息'), 'amended from actual UI');
-  await click(primary());
+  await wait(
+    wc,
+    "document.querySelector('[aria-label=修改后的提交信息]').value==='amended from actual UI'",
+  );
+  await click(textButton('确认修改提交'));
   await fact(
     () => git('log', '-1', '--format=%s') === 'amended from actual UI',
     'amend did not update HEAD',

@@ -44,6 +44,7 @@ async function startDesktopAgent({
   const standalone = path.join(require('node:os').homedir(), '.alune');
   const source =
     !smokeTest &&
+    !process.env.ALUNE_CANDIDATE_DATA_DIR &&
     !fs.existsSync(path.join(dataDir, 'alune.db')) &&
     fs.existsSync(path.join(standalone, 'alune.db'))
       ? standalone

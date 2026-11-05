@@ -28,12 +28,13 @@ function __aluneAuditBind(key,fn){
   const state=window.__aluneAudit??=(()=>{
     let saved;try{saved=JSON.parse(sessionStorage.getItem('alune.audit.cases')||'[]');}catch{}
     const hits=new Set(Array.isArray(saved)?saved:[]);
-    addEventListener('pagehide',()=>{try{sessionStorage.setItem('alune.audit.cases',JSON.stringify([...hits]));}catch{}});
-    return {hits,functions:new WeakMap()};
+    const counts=new Map(JSON.parse(sessionStorage.getItem('alune.audit.counts')||'[]'));
+    addEventListener('pagehide',()=>{try{sessionStorage.setItem('alune.audit.cases',JSON.stringify([...hits]));sessionStorage.setItem('alune.audit.counts',JSON.stringify([...counts]));}catch{}});
+    return {hits,counts,functions:new WeakMap()};
   })();
   let wrappers=state.functions.get(fn);
   if(!wrappers){wrappers=new Map();state.functions.set(fn,wrappers);}
-  if(!wrappers.has(key))wrappers.set(key,function(...args){state.hits.add(key);return Reflect.apply(fn,this,args);});
+  if(!wrappers.has(key))wrappers.set(key,function(...args){state.hits.add(key);state.counts.set(key,(state.counts.get(key)||0)+1);return Reflect.apply(fn,this,args);});
   return wrappers.get(key);
 }`;
 export function auditUi(root: string): Plugin {

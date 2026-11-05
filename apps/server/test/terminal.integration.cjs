@@ -189,7 +189,9 @@ for (const rpc of [false, true])
       if (posix) {
         await a.input(local, "stty size; printf 'SIZE_DONE\\n'\r");
         await until(() => a.output.get(local)?.includes('35 100'));
-        await a.input(local, "printf '\\nSLEEP_READY\\n'; sleep 30\r");
+        // Print from the foreground job, after the interactive shell handed
+        // it the terminal. A marker from the parent before fork races Ctrl-C.
+        await a.input(local, "sh -c 'printf \"\\nSLEEP_READY\\n\"; exec sleep 30'\r");
         await until(() => a.output.get(local)?.includes('\r\nSLEEP_READY\r\n'));
         const beforeInterrupt = a.output.get(local).length;
         await a.input(local, '\x03');

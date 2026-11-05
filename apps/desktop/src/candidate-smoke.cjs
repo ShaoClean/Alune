@@ -11,7 +11,7 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
   const wait = (contents, test) =>
     contents.executeJavaScript(`new Promise((resolve,reject)=>{const until=Date.now()+20000;function poll(){if(${test})return resolve(true);
       if(Date.now()>until)return reject(Error('Candidate UI timeout: '+${JSON.stringify(test)}+' | '+JSON.stringify([...document.querySelectorAll('.a-dlg-actions button')].filter(b=>b.getClientRects().length).map(b=>[b.textContent,b.disabled]))+' | '+document.body.innerText.slice(0,1500)));setTimeout(poll,40)}poll()})`);
-  const wc = window.webContents;
+  const wc=window.webContents;const {measure}=require('./candidate-ui-audit.cjs');
   await wait(wc, "document.querySelector('.app-shell')");
   assert.equal(await wc.executeJavaScript('typeof window.require'), 'undefined');
   assert.equal(await wc.executeJavaScript("fetch('/api/connections').then(r=>r.status)"), 404);
@@ -60,15 +60,15 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
   } else {
     if (phase === 'write') {
       await require('./candidate-workbench.cjs')({ window, origin, id, repo, wait });
-      await require('./dialogs-smoke.cjs')({ window });
-      await require('./settings-shell-smoke.cjs')({
+      await measure(wc,['UI-002','UI-007','UI-016'],'discard dialog: cancel focus, key trapping, destructive acknowledgement and no write on escape',()=>require('./dialogs-smoke.cjs')({window}));
+      await measure(wc,['UI-025','UI-026','UI-040','UI-050','UI-057','UI-059','UI-060','UI-061'],'settings shell: retained DOM, draft, scroll and focus, keyboard, proxy navigation guards',()=>require('./settings-shell-smoke.cjs')({
         window,
         origin,
         repositoryId: id,
         candidate: true,
-      });
+      }));
     }
-    await require('./appearance-smoke.cjs')({ window, origin, restore: phase === 'restore' });
+    await measure(wc,['UI-001','UI-055','UI-056'],'theme, reduced motion, imported code colors, font and size write/restore',()=>require('./appearance-smoke.cjs')({ window, origin, restore: phase === 'restore' }));
   }
   const target = logWindow.open();
   if (target.webContents.isLoading())
