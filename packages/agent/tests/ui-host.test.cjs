@@ -45,7 +45,7 @@ test('two windows share committed state, not terminal ownership, request IDs or 
     await until(() => invalidated, 'other window received catalog change');
     assert.equal(
       (await b.getRepository(resource)).path,
-      require('node:fs').realpathSync.native(repo),
+      require('node:fs').realpathSync.native(repo).split(require('node:path').sep).join('/'),
     );
     const intent = { resource, kind: 'stage', args: [['a.txt']] },
       operationId = randomUUID();

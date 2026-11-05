@@ -1,5 +1,7 @@
 import {
   ProtocolError,
+  validateTerminalCommand,
+  isRecord,
   validateInitialized,
   validateRepositoryResource,
   parseEvent,
@@ -28,6 +30,19 @@ export class HostRelay {
   private waiting?: () => void;
   private failure?: Error;
   private pending = new Map<string, string>();
+  // Track shells before dispatch: a dropped creation response is not proof there is no PTY.
+  private shells = new Map<string, { repositoryId: string; requestId: string }>();
+  private shellCreates = new Map<string, string>();
+  get terminalImpact() {
+    return [...this.shells.values()];
+  }
+  get pendingWrites() {
+    return [...this.pending]
+      .filter(([, method]) =>
+        ['repositories.write', 'reviews.create', 'reviews.mutate'].includes(method),
+      )
+      .map(([requestId, method]) => ({ requestId, method }));
+  }
   get activeTasks() {
     return (
       this.reads.size +
@@ -117,6 +132,15 @@ export class HostRelay {
         throw new ProtocolError('invalid-request', 'Reserved SSH snapshot request ID');
       if (this.pending.has(m.id) || this.pending.size >= 128)
         throw new ProtocolError('overloaded', 'Remote request limit exceeded');
+      if (m.method === 'terminals.create') {
+        const { requestId, resource } = validateTerminalCommand('create', m.params);
+        if (!this.shells.has(requestId)) {
+          if (this.shells.size >= 8)
+            throw new ProtocolError('overloaded', 'Terminal session limit reached');
+          this.shells.set(requestId, { requestId, repositoryId: resource.resourceId });
+          this.shellCreates.set(m.id, requestId);
+        }
+      }
       this.pending.set(m.id, m.method);
       if (m.method === 'repositories.list') this.lastList = m.id;
     }
@@ -138,6 +162,19 @@ export class HostRelay {
         e.sessionId !== this.identity.sessionId
       )
         throw new ProtocolError('conflict', 'Remote event owner changed');
+      if (
+        e.type === 'terminal:removed' &&
+        isRecord(e.payload) &&
+        typeof e.payload.sessionId === 'string'
+      )
+        this.shells.delete(e.payload.sessionId);
+      if (
+        e.type === 'terminal:state' &&
+        isRecord(e.payload) &&
+        typeof e.payload.id === 'string' &&
+        ['exited', 'disconnected', 'failed'].includes(String(e.payload.state))
+      )
+        this.shells.delete(e.payload.id);
     } else {
       if (m.id?.startsWith('ssh-read:')) {
         const read = this.reads.get(m.id);
@@ -150,6 +187,10 @@ export class HostRelay {
       const method = m.id && this.pending.get(m.id);
       if (!m.id || !method) throw disconnected();
       this.pending.delete(m.id);
+      const creation = this.shellCreates.get(m.id);
+      if (creation && 'error' in m && m.error.data.outcome !== 'unknown')
+        this.shells.delete(creation);
+      this.shellCreates.delete(m.id);
       if (
         [
           'repositories.register',

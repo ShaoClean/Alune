@@ -55,6 +55,7 @@ export function terminalHandlers(
           );
         }
         if (command === 'list') return wire(sessions.list(owner));
+        if (command === 'close') return invoke(() => sessions.close(owner, p)).then(() => null);
         invoke(() => sessions[command](owner, p));
         return null;
       },

@@ -8,12 +8,16 @@ export type HostRole = 'workspace' | 'logs' | 'native';
 export async function launchUiAgent(command: string, entry: string, directory: string) {
   const env = { ...process.env };
   for (const key of ['NODE_OPTIONS', 'NODE_PATH', 'ELECTRON_RUN_AS_NODE']) delete env[key];
-  const child = spawn(command, [entry, 'serve-ui', '--data-dir', directory], {
-    env,
-    stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
-    windowsHide: true,
-    shell: false,
-  });
+  const child = spawn(
+    command,
+    ['--optimize-for-size', '--max-semi-space-size=2', entry, 'serve-ui', '--data-dir', directory],
+    {
+      env,
+      stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
+      windowsHide: true,
+      shell: false,
+    },
+  );
   const channels = new Map<string, EventEmitter>();
   let ended = false;
   let closing: Promise<void> | undefined;

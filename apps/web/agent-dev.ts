@@ -2,6 +2,8 @@
 import { type Plugin } from 'vite';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
+import { randomBytes } from 'node:crypto';
+import type { IncomingMessage } from 'node:http';
 import { join } from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { MAX_FRAME_BYTES } from '@alune/protocol';
@@ -28,6 +30,25 @@ export function agentDev(): Plugin {
         maxPayload: MAX_FRAME_BYTES,
         perMessageDeflate: false,
       });
+      const invite = randomBytes(32).toString('hex');
+      const localRequest = (req: IncomingMessage) => {
+        const address = http.address();
+        if (!address || typeof address !== 'object') return false;
+        const authority = req.headers.host;
+        return (
+          (authority === '127.0.0.1:' + address.port ||
+            authority === 'localhost:' + address.port) &&
+          req.headers.origin === 'http://' + authority &&
+          req.socket.remoteAddress === '127.0.0.1'
+        );
+      };
+      http.once('listening', () => {
+        const address = http.address();
+        if (address && typeof address === 'object')
+          server.config.logger.info(
+            '打开本机工作区：http://127.0.0.1:' + address.port + '/#alune-session=' + invite,
+          );
+      });
       http.on('upgrade', (req, socket, head) => {
         if (!req.url?.startsWith('/__alune_agent/')) return;
         const role =
@@ -36,14 +57,10 @@ export function agentDev(): Plugin {
             : req.url === '/__alune_agent/logs'
               ? 'logs'
               : null;
-        const address = http.address();
-        const authority = address && typeof address === 'object' ? '127.0.0.1:' + address.port : '';
         if (
           !role ||
-          !authority ||
-          req.headers.host !== authority ||
-          req.headers.origin !== 'http://' + authority ||
-          req.socket.remoteAddress !== '127.0.0.1'
+          !localRequest(req) ||
+          req.headers['sec-websocket-protocol'] !== 'alune.' + invite
         ) {
           socket.destroy();
           return;

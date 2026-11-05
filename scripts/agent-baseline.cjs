@@ -403,12 +403,17 @@ async function main() {
             cold: 'fresh application process; OS page cache NOT flushed',
             warm: 'same process, one warm-up excluded',
             transport:
-              process.env.ALUNE_BASELINE_AGENT_READS === '1'
-                ? 'HTTP read bridge + production stdio Agent, loopback'
-                : readsOnly
-                  ? 'production HTTP, loopback, local repository'
-                  : 'production HTTP + Socket.IO, loopback, local repository',
-            caller: 'node:http; fresh first-request socket, response decoding timed identically',
+              process.env.ALUNE_BASELINE_UI === '1'
+                ? 'production UI host IPC / Agent Client, no Chromium render or preload hop'
+                : process.env.ALUNE_BASELINE_AGENT_READS === '1'
+                  ? 'HTTP read bridge + production stdio Agent, loopback'
+                  : readsOnly
+                    ? 'production HTTP, loopback, local repository'
+                    : 'production HTTP + Socket.IO, loopback, local repository',
+            caller:
+              process.env.ALUNE_BASELINE_UI === '1'
+                ? 'Agent Client via parent/child IPC; same Git fixtures and PTY payload'
+                : 'node:http; fresh first-request socket, response decoding timed identically',
             sourceRoot: sourceRoot === root ? 'current checkout' : 'frozen baseline checkout',
             memory:
               '25ms sampled aggregate RSS of application worker and observed descendants; includes startup; may miss short-lived peaks',
@@ -435,9 +440,11 @@ async function main() {
 }
 
 (process.argv[2] === '--worker'
-  ? process.env.ALUNE_BASELINE_AGENT_READS === '1'
-    ? agentReadWorker()
-    : worker()
+  ? process.env.ALUNE_BASELINE_UI === '1'
+    ? require('./agent/ui-benchmark-worker.cjs')(...process.argv.slice(3))
+    : process.env.ALUNE_BASELINE_AGENT_READS === '1'
+      ? agentReadWorker()
+      : worker()
   : main()
 ).catch((error) => {
   console.error(error);

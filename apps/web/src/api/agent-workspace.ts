@@ -28,6 +28,7 @@ type Host = {
   reason: string | null;
   gitProxy: string | null;
   activeTasks: number;
+  updatedAt: number;
   bindings: Binding[];
 };
 export type Target = { client: AgentClient; resource: ResourceRef; alias: RepositoryResource };
@@ -224,6 +225,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         return {
           ...h,
           status: route?.state === 'ready' ? 'connected' : route?.reason ? 'error' : 'disconnected',
+          updatedAt: route?.updatedAt ?? 0,
           error: route?.reason,
         };
       });

@@ -11,6 +11,7 @@ export async function localTerminal(
   rows: number,
   signal: AbortSignal,
   callbacks: TerminalCallbacks,
+  guardian?: string,
 ): Promise<TerminalTransport> {
   if (!path.isAbsolute(cwd) || !(await stat(cwd)).isDirectory())
     throw new Error('启动目录不存在或不是目录。');
@@ -29,13 +30,17 @@ export async function localTerminal(
   // Do not pass desktop/test controls to child shells.
   for (const key of Object.keys(env))
     if (key.startsWith('ALUNE_') || key === 'ELECTRON_RUN_AS_NODE') delete env[key];
-  const child = pty.spawn(shell, process.platform === 'win32' ? [] : ['-i'], {
-    name: 'xterm-256color',
-    cwd,
-    cols,
-    rows,
-    env,
-  });
+  const child = pty.spawn(
+    guardian ?? shell,
+    guardian ? [shell, String(process.pid)] : process.platform === 'win32' ? [] : ['-i'],
+    {
+      name: 'xterm-256color',
+      cwd,
+      cols,
+      rows,
+      env,
+    },
+  );
   let exited = false;
   let disposed = false;
   let resolveStopped!: () => void;

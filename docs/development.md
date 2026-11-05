@@ -174,7 +174,7 @@ node scripts/agent/browser-reads-fixture.mjs
 
 ### 独立 Agent 候选入口（P8/P9 验收）
 
-使用 Node 22，在根目录执行 `npm ci`。启动独立 Web 工作区用 `npm run web:agent`，在终端显示的 **127.0.0.1** 地址打开。Vite 只接受本机同源 WebSocket，停止 Vite 时关闭其 Agent。开发数据默认在 `~/.alune/agent`，可用 `ALUNE_AGENT_DATA_DIR` 指向独立测试目录。Web 旧数据可在停用旧服务后用独立包的 `legacy-import --source 旧目录 --data-dir 新目录` 导入；受 Electron safeStorage 保护的数据须使用原设备的桌面程序迁移。
+使用 Node 22，在根目录执行 `npm ci`。启动独立 Web 工作区用 `npm run web:agent`，使用终端显示的“打开本机工作区”完整链接（含本次启动的片段口令，请勿分享）。Vite 只接受本机同源 WebSocket，停止 Vite 时关闭其 Agent。开发数据默认在 `~/.alune/agent`，可用 `ALUNE_AGENT_DATA_DIR` 指向独立测试目录。Web 旧数据可在停用旧服务后用独立包的 `legacy-import --source 旧目录 --data-dir 新目录` 导入；受 Electron safeStorage 保护的数据须使用原设备的桌面程序迁移。
 
 桌面源码验收依次运行 `npm run desktop:build`、`npm run agent:stage -w desktop`，再设置环境变量 `ALUNE_DESKTOP_EXECUTOR=agent` 并运行 `npm start -w desktop`。候选安装包使用 Resources 中随应用分发的 Node/Agent，不依赖系统 Node；Git 仍需另行安装。每个工作区会话单独初始化，日志窗口只能读取日志。首次连接 SSH 主机须提供独立核对的主机公钥指纹；按 [Agent 部署说明](../packages/agent/README.md) 预置对应平台运行包，然后显式批准在目标安装。
 

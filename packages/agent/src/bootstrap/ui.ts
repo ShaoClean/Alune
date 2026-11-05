@@ -10,6 +10,7 @@ import type { openStateKernel } from './state-kernel';
 type Kernel = Awaited<ReturnType<typeof openStateKernel>>;
 const sharedEvents = new Set([
   'repositories.changed',
+  'hosts.changed',
   'settings.changed',
   'accounts.hosts.changed',
   'accounts.tokens.changed',
@@ -25,6 +26,7 @@ const native = new Set([
   'network.updaterBridge',
   'diagnostics.logs.settings',
   'diagnostics.logs.client',
+  'desktop.tasks.impact',
   'desktop.terminals.impact',
   'desktop.terminals.remove',
 ]);

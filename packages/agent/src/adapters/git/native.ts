@@ -57,85 +57,17 @@ const localFiles = {
 // has already exited. Merge MSYS's logical ancestry with the native process
 // tree before stopping descendants; taskkill /T alone misses these children.
 function terminateWindowsTree(pid: number): Promise<void> {
-  const script = `
-$ErrorActionPreference = 'Stop'
-$ProgressPreference = 'SilentlyContinue'
-$env:COLUMNS = '4096'
-$snapshot = @(Get-CimInstance Win32_Process)
-$root = $snapshot | Where-Object { $_.ProcessId -eq ${pid} } | Select-Object -First 1
-$msysPs = $null
-if ($root.ExecutablePath) {
-  $directory = Split-Path -Parent $root.ExecutablePath
-  for ($level = 0; $level -lt 4 -and $directory; $level++) {
-    $candidate = Join-Path $directory 'usr\\bin\\ps.exe'
-    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-      $msysPs = $candidate
-      break
-    }
-    $directory = Split-Path -Parent $directory
-  }
-}
-$known = @{ ${pid} = $true }
-for ($pass = 0; $pass -lt 3; $pass++) {
-  $snapshot = @(Get-CimInstance Win32_Process)
-  if ($msysPs) {
-    $msysRows = @(& $msysPs -W)
-    $msysIds = @{}
-    $msysProcesses = @()
-    foreach ($row in $msysRows) {
-      if ($row -match '^\\s*[SIO]?\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+') {
-        $logicalId = [int]$Matches[1]
-        $nativeId = [int]$Matches[4]
-        $msysIds[$logicalId] = $nativeId
-        $msysProcesses += [pscustomobject]@{
-          ProcessId = $nativeId
-          ParentProcessId = [int]$Matches[2]
-        }
-      }
-    }
-    foreach ($entry in $msysProcesses) {
-      if ($msysIds.ContainsKey($entry.ParentProcessId)) {
-        $entry.ParentProcessId = $msysIds[$entry.ParentProcessId]
-      }
-    }
-    $snapshot += $msysProcesses
-  }
-  $targets = @(${pid})
-  do {
-    $added = $false
-    foreach ($entry in $snapshot) {
-      $childId = [int]$entry.ProcessId
-      if (!$known.ContainsKey($childId) -and $known.ContainsKey([int]$entry.ParentProcessId)) {
-        $known[$childId] = $true
-        $targets += $childId
-        $added = $true
-      }
-    }
-  } while ($added)
-  [array]::Reverse($targets)
-  foreach ($childId in $targets) {
-    Stop-Process -Id $childId -Force -ErrorAction SilentlyContinue
-  }
-  foreach ($childId in @($known.Keys)) {
-    Stop-Process -Id $childId -Force -ErrorAction SilentlyContinue
-  }
-  if ($pass -lt 2) { Start-Sleep -Milliseconds 100 }
-}
-exit 0`;
   return new Promise((resolve) => {
     let settled = false;
     let fallbackStarted = false;
-    const helper = spawn(
-      'powershell.exe',
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(script, 'utf16le').toString('base64'),
-      ],
-      { windowsHide: true, stdio: 'ignore', shell: false },
-    );
+    const binary = require('node:path')
+      .join(__dirname, '../../native/git-tree.exe')
+      .replace(/app\.asar([\\/])/i, 'app.asar.unpacked$1');
+    const helper = spawn(binary, [String(pid)], {
+      windowsHide: true,
+      stdio: 'ignore',
+      shell: false,
+    });
     const finish = () => {
       if (settled) return;
       settled = true;

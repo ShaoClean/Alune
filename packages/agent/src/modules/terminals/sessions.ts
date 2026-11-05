@@ -27,6 +27,8 @@ interface Session {
   owner: TerminalOwner;
   controller: AbortController;
   transport?: TerminalTransport;
+  starting?: Promise<void>;
+  stopping?: Promise<void>;
   pending: string[];
   pendingBytes: number;
   inFlight?: number;
@@ -99,6 +101,7 @@ export class TerminalSessions {
     });
     entry.startTimer = setTimeout(() => this.finish(entry, 'failed', '终端启动超时。'), 35_000);
     const start = this.start(entry, body.cols, body.rows);
+    entry.starting = start;
     this.starts.add(start);
     void start.finally(() => this.starts.delete(start));
     return { ...info };
@@ -123,7 +126,7 @@ export class TerminalSessions {
       };
       const transport = await open(cols, rows, signal, callbacks);
       if (signal.aborted || !entry.owner.connected || this.sessions.get(entry.info.id) !== entry) {
-        this.dispose(transport);
+        await this.dispose(transport);
         return;
       }
       entry.transport = transport;
@@ -218,7 +221,7 @@ export class TerminalSessions {
     const entry = this.owned(owner, body?.sessionId);
     if (entry.info.state === 'running' && body.confirmed !== true)
       throw new Error('请先确认关闭正在运行的终端。');
-    this.remove(entry);
+    return this.remove(entry);
   }
 
   list(owner: TerminalOwner) {
@@ -240,7 +243,7 @@ export class TerminalSessions {
     entry.finished = true;
     clearTimeout(entry.startTimer);
     entry.controller.abort();
-    if (entry.transport) this.dispose(entry.transport);
+    if (entry.transport) entry.stopping = this.dispose(entry.transport);
     entry.transport = undefined;
     Object.assign(entry.info, { state, error });
     this.state(entry);
@@ -253,10 +256,11 @@ export class TerminalSessions {
     clearTimeout(entry.startTimer);
     clearTimeout(entry.ackTimer);
     entry.controller.abort();
-    if (entry.transport) this.dispose(entry.transport);
+    if (entry.transport) entry.stopping = this.dispose(entry.transport);
     entry.pending = [];
     entry.pendingBytes = 0;
     if (entry.owner.connected) entry.owner.emit('terminal:removed', { sessionId: entry.info.id });
+    return Promise.all([entry.starting, entry.stopping]).then(() => {});
   }
 
   disconnect(owner: Pick<TerminalOwner, 'id'> & Partial<TerminalOwner>) {
@@ -266,7 +270,11 @@ export class TerminalSessions {
     const promise = transport.dispose();
     if (promise) {
       this.disposals.add(promise);
-      void promise.finally(() => this.disposals.delete(promise));
+      void promise.then(
+        () => this.disposals.delete(promise),
+        () => this.disposals.delete(promise),
+      );
+      return promise;
     }
   }
   async onModuleDestroy() {

@@ -15,7 +15,7 @@ import {
   type OpenHostRoute,
 } from '@alune/protocol';
 import { HostRelay } from '../modules/hosts/relay';
-import { connectHost } from '../adapters/ssh/connect';
+
 import type { JsonDocument } from '../ports/state';
 import type { Handler } from '../ports/handler';
 import type { settingsKernel } from './settings-kernel';
@@ -41,6 +41,8 @@ type Connection = {
   fresh: boolean;
   failure?: ProtocolError;
   reason?: string;
+  updatedAt?: number;
+  notify?: () => void;
   sshConnected?: boolean;
   failurePhase?: string;
 };
@@ -99,6 +101,34 @@ export function hostsKernel(
       );
     return r;
   };
+  let lastChange = Date.now();
+  function notify(r: Connection) {
+    r.updatedAt = lastChange = Math.max(Date.now(), lastChange + 1);
+    r.notify?.();
+  }
+  function remoteTerminals() {
+    return [...live.values()].flatMap((r) =>
+      r.phase === 'ready' && r.relay
+        ? r.relay.terminalImpact.map((t) => {
+            const repo = saved
+              .get(r.hostId)
+              ?.repositories.find((repo) => repo.id === t.repositoryId);
+            return {
+              id: r.routeId + ':' + t.requestId,
+              requestId: t.requestId,
+              repositoryId: t.repositoryId,
+              repositoryName: repo?.name ?? t.repositoryId,
+              initialPath: repo?.path ?? '',
+              source: 'ssh',
+              connectionId: r.hostId,
+              environment: 'SSH',
+              state: 'running',
+              createdAt: r.updatedAt ?? 0,
+            };
+          })
+        : [],
+    );
+  }
   function stop(r: Connection) {
     r.controller.abort();
     r.relay?.close();
@@ -124,7 +154,11 @@ export function hostsKernel(
         sshConnected: r?.sshConnected ?? false,
         failurePhase: r?.failurePhase ?? null,
         gitAvailable: r?.phase === 'ready' ? r.gitAvailable : null,
-        activeTasks: r?.relay?.activeTasks ?? 0,
+        updatedAt: r?.updatedAt ?? 0,
+        activeTasks:
+          r?.phase === 'ready'
+            ? (r.relay?.activeTasks ?? 0) + (r.relay?.terminalImpact.length ?? 0)
+            : 0,
         gitProxy: r?.phase === 'ready' ? r.gitProxy : null,
         stale: !r?.fresh,
         repositories: s?.repositories ?? [],
@@ -263,7 +297,22 @@ export function hostsKernel(
           gitAvailable: false,
           fresh: false,
         };
+        r.notify = () =>
+          c.events.notifyState('hosts.changed', {
+            hostId: p.hostId,
+            updatedAt: r.updatedAt ?? 0,
+            status:
+              r.phase === 'ready'
+                ? 'connected'
+                : r.phase === 'offline'
+                  ? r.reason
+                    ? 'error'
+                    : 'disconnected'
+                  : 'connecting',
+            ...(r.reason ? { error: r.reason } : {}),
+          });
         live.set(p.hostId, r);
+        notify(r);
         const signal = AbortSignal.any([
           r.controller.signal,
           c.signal,
@@ -273,6 +322,7 @@ export function hostsKernel(
         try {
           if (profile.hasPassword || profile.hasPassphrase || settings.proxy.read().authEnabled)
             await settings.readyCredentials(signal);
+          const { connectHost } = await import('../adapters/ssh/connect');
           const conn = await connectHost(
             directory,
             settings.hosts.credential(p.hostId),
@@ -319,6 +369,7 @@ export function hostsKernel(
               });
               clearTimeout(timer);
               r.phase = 'ready';
+              notify(r);
             },
             (rows) => {
               const s = saved.get(p.hostId)!;
@@ -333,6 +384,7 @@ export function hostsKernel(
               clearTimeout(timer);
               r.phase = 'offline';
               r.fresh = false;
+              notify(r);
               conn.close();
             },
             () => {
@@ -344,6 +396,7 @@ export function hostsKernel(
           r.failurePhase = r.phase;
           stop(r);
           r.reason = e instanceof ProtocolError ? e.message : 'SSH connection failed';
+          notify(r);
           throw e;
         }
       },
@@ -390,6 +443,17 @@ export function hostsKernel(
   return {
     handlers,
     reads,
+    remoteTerminals,
+    activeWrites: () =>
+      [...live.values()].flatMap((r) =>
+        r.phase === 'ready' && r.relay
+          ? r.relay.pendingWrites.map((w) => ({ ...w, hostId: r.hostId }))
+          : [],
+      ),
+    closeShellRoutes() {
+      for (const r of live.values())
+        if (r.phase === 'ready' && r.relay?.terminalImpact.length) stop(r);
+    },
     close() {
       for (const r of live.values()) stop(r);
       live.clear();

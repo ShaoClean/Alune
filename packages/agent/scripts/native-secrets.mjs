@@ -39,3 +39,45 @@ if (process.platform === 'darwin') {
     );
   }
 }
+
+if (['linux', 'darwin'].includes(process.platform)) {
+  const dir = fileURLToPath(new URL('..', import.meta.url));
+  const source = path.join(dir, 'native/pty-guardian.c'),
+    output = path.join(dir, 'dist/native/pty-guardian');
+  if (!fs.existsSync(output) || fs.statSync(output).mtimeMs < fs.statSync(source).mtimeMs) {
+    fs.mkdirSync(path.dirname(output), { recursive: true });
+    execFileSync(
+      'cc',
+      [
+        '-O2',
+        '-Wall',
+        '-Wextra',
+        '-Werror',
+        ...(process.platform === 'darwin' ? ['-mmacosx-version-min=11.0'] : []),
+        source,
+        '-o',
+        output,
+      ],
+      { stdio: 'inherit' },
+    );
+  }
+}
+
+if (process.platform === 'win32') {
+  const dir = fileURLToPath(new URL('..', import.meta.url));
+  const source = path.join(dir, 'native/git-tree.cs'),
+    output = path.join(dir, 'dist/native/git-tree.exe');
+  if (!fs.existsSync(output) || fs.statSync(output).mtimeMs < fs.statSync(source).mtimeMs) {
+    fs.mkdirSync(path.dirname(output), { recursive: true });
+    const compiler = path.join(
+      process.env.SystemRoot,
+      'Microsoft.NET',
+      'Framework64',
+      'v4.0.30319',
+      'csc.exe',
+    );
+    execFileSync(compiler, ['/nologo', '/optimize+', '/target:exe', '/out:' + output, source], {
+      stdio: 'inherit',
+    });
+  }
+}

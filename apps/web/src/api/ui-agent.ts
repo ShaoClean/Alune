@@ -16,12 +16,20 @@ export const workspaceTopics = [
 export let uiAgent: AgentClient | undefined;
 
 async function webChannel(): Promise<FrameChannel> {
+  const invite = new URLSearchParams(location.hash.slice(1)).get('alune-session');
+  if (invite) {
+    history.replaceState(history.state, '', location.pathname + location.search);
+    sessionStorage.setItem('alune.dev.session', invite);
+  }
   const url = new URL(
     '/__alune_agent/' + (location.pathname === '/logs' ? 'logs' : 'workspace'),
     location.href,
   );
   url.protocol = 'ws:';
-  const socket = new WebSocket(url);
+  const token = sessionStorage.getItem('alune.dev.session');
+  if (!token || !/^[a-f0-9]{64}$/.test(token))
+    throw new Error('请使用终端显示的完整工作区链接打开。');
+  const socket = new WebSocket(url, 'alune.' + token);
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => socket.close(), 10000);
     socket.onopen = () => {
@@ -30,7 +38,7 @@ async function webChannel(): Promise<FrameChannel> {
     };
     socket.onclose = socket.onerror = () => {
       clearTimeout(timer);
-      reject(new Error('本地服务连接失败。'));
+      reject(new Error('本地服务连接失败，请使用终端中本次启动的完整工作区链接。'));
     };
   });
   return {

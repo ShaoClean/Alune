@@ -1,3 +1,4 @@
+import { EnableCredentialStorage } from './EnableCredentialStorage';
 import { FeedbackAlert, DialogField, CountBadge } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
@@ -416,11 +417,14 @@ function ProviderForm({
             )}
           </div>
           {!settings.secretStorage.available && (
-            <FeedbackAlert
-              source="ProviderSettings-1"
-              type="info"
-              title={settings.secretStorage.description}
-            />
+            <>
+              <FeedbackAlert
+                source="ProviderSettings-1"
+                type="info"
+                title={settings.secretStorage.description}
+              />
+              <EnableCredentialStorage refresh={useAiSettingsStore.getState().load} />
+            </>
           )}
           <label htmlFor="provider-test-model" className="settings-field">
             测试模型

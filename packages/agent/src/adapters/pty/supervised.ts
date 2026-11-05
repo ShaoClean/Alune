@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { fork } from 'node:child_process';
 import type { TerminalTransport, TerminalCallbacks } from '../../ports/terminal';
 
@@ -9,10 +10,21 @@ export function supervisedTerminal(
   callbacks: TerminalCallbacks,
 ): Promise<TerminalTransport> {
   signal.throwIfAborted();
+  if (process.platform !== 'win32' && !process.versions.electron) {
+    const { localTerminal } = require('./local') as typeof import('./local');
+    return localTerminal(
+      cwd,
+      cols,
+      rows,
+      signal,
+      callbacks,
+      join(__dirname, '../../native/pty-guardian'),
+    );
+  }
   return new Promise((resolve, reject) => {
     const child = fork(require.resolve('./worker'), [], {
       stdio: ['ignore', 'pipe', 'ignore', 'ipc'],
-      execArgv: [],
+      execArgv: process.versions.electron ? [] : ['--optimize-for-size', '--max-semi-space-size=2'],
       env: process.versions.electron ? { ...process.env, ELECTRON_RUN_AS_NODE: '1' } : process.env,
     });
     const stream = child.stdout!;

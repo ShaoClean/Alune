@@ -12,6 +12,10 @@ export function useSocket(events: Record<string, (...args: any[]) => void>) {
       const dispose = uiAgent.onEvent((event) => {
         if (event.type === 'events.resync-required' || event.type === 'accounts.hosts.changed')
           events.connect?.();
+        if (event.type === 'hosts.changed') {
+          const p = event.payload as { hostId: string; status: string; updatedAt: number };
+          events['connection:status']?.({ ...p, connectionId: p.hostId });
+        }
         if (event.type === 'accounts.tokens.changed') events['access-tokens:changed']?.();
       });
       const close = uiAgent.onClose(() => events.disconnect?.());

@@ -21,7 +21,7 @@ module.exports = {
   ],
   afterPack: require('./scripts/bundle-agent.cjs'),
   asar: true,
-  asarUnpack: ['**/*.node', 'node_modules/node-pty/**/*'],
+  asarUnpack: ['**/git-tree.exe', '**/*.node', 'node_modules/node-pty/**/*'],
   npmRebuild: false,
   mac: {
     category: 'public.app-category.developer-tools',

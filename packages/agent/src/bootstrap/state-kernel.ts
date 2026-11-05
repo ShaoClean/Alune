@@ -175,10 +175,29 @@ export async function openStateKernel(
           return null;
         },
       },
+      'desktop.tasks.impact': {
+        effect: 'query',
+        validate: validateEmpty,
+        run: () =>
+          JSON.parse(
+            JSON.stringify([
+              ...state.database
+                .prepare("SELECT id AS requestId,method FROM operations WHERE state='running'")
+                .all(),
+              ...(hosts?.activeWrites() ?? []),
+            ]),
+          ),
+      },
       'desktop.terminals.impact': {
         effect: 'query',
         validate: validateEmpty,
-        run: () => JSON.parse(JSON.stringify(repositories.terminals.registry.impact({}))),
+        run: () =>
+          JSON.parse(
+            JSON.stringify([
+              ...repositories.terminals.registry.impact({}),
+              ...(hosts?.remoteTerminals() ?? []),
+            ]),
+          ),
       },
       'desktop.terminals.remove': {
         effect: 'mutation',
@@ -192,7 +211,10 @@ export async function openStateKernel(
             throw new ProtocolError('invalid-params', 'Invalid terminal confirmation');
         },
         run(ids) {
+          if (hosts?.remoteTerminals().some((t) => !Array.isArray(ids) || !ids.includes(t.id)))
+            throw new ProtocolError('conflict', '远程终端会话发生了变化，请重新确认。');
           repositories.terminals.registry.remove({}, ids);
+          hosts?.closeShellRoutes();
           return null;
         },
       },

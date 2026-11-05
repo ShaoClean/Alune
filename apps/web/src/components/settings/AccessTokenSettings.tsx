@@ -1,3 +1,4 @@
+import { EnableCredentialStorage } from './EnableCredentialStorage';
 import {
   FeedbackAlert,
   DialogField,
@@ -202,12 +203,15 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
         </div>
       )}
       {settings && !settings.secretStorage.available && (
-        <FeedbackAlert
-          source="AccessTokenSettings-1"
-          type="warning"
-          title="加密存储不可用"
-          description={settings.secretStorage.description}
-        />
+        <>
+          <FeedbackAlert
+            source="AccessTokenSettings-1"
+            type="warning"
+            title="加密存储不可用"
+            description={settings.secretStorage.description}
+          />
+          <EnableCredentialStorage refresh={load} />
+        </>
       )}
       {loading && !settings ? (
         <Spin aria-label="正在读取访问令牌" />

@@ -512,6 +512,24 @@ async function openLogDirectory() {
 }
 
 async function confirmTerminalShutdown() {
+  if (candidate && backend?.client) {
+    const tasks = await backend.client.request('desktop.tasks.impact', {});
+    if (tasks.length) {
+      const result = await dialog.showMessageBox({
+        type: 'warning',
+        title: '仍有操作正在执行',
+        message: '退出将中断 ' + tasks.length + ' 个操作。',
+        detail: '操作可能已在仓库或托管平台执行，重新打开后请核对结果。',
+        buttons: ['保持运行', '确认退出'],
+        defaultId: 0,
+        cancelId: 0,
+      });
+      if (result.response !== 1) return false;
+      const current = await backend.client.request('desktop.tasks.impact', {});
+      if (current.some((t) => !tasks.some((previous) => previous.requestId === t.requestId)))
+        return false;
+    }
+  }
   const sessions = (await registry?.impact({})) || [];
   if (!sessions.length) return true;
   if (window && !window.isDestroyed() && !window.webContents.isCrashed()) {
