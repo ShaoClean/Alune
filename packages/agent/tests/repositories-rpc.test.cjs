@@ -529,3 +529,43 @@ test(
     assert.equal(snapshots, 1);
   },
 );
+
+test(
+  'diff revisions cannot turn a read into Git output-file writes',
+  { timeout: 30000 },
+  async (t) => {
+    const f = await setup(t),
+      child = await f.start(),
+      repo = await child.client.registerRepository(f.repo);
+    const target = path.join(f.root, 'must-not-be-created');
+    const option = '--output=' + target;
+    const connection = new NativeRepositoryConnection();
+    t.after(() => connection.close());
+    const reads = new GitReads(connection);
+    for (const params of [{ commit: option }, { commit: 'HEAD', parentCommit: option }]) {
+      await assert.rejects(reads.diff(f.repo, params), /无效的提交引用/);
+      await assert.rejects(
+        child.client.request('repositories.read', {
+          resource: repo.resource,
+          kind: 'diff',
+          params,
+        }),
+        (e) => e.kind === 'invalid-params',
+      );
+    }
+    const { DiffImages } = require('../dist/modules/git/diff-images');
+    await assert.rejects(
+      new DiffImages(connection).read(f.repo, { file: 'image.png', side: 'after', commit: option }),
+      /无效的提交引用/,
+    );
+    await assert.rejects(
+      child.client.request('repositories.read', {
+        resource: repo.resource,
+        kind: 'diffImage',
+        params: { file: 'image.png', side: 'after', commit: option },
+      }),
+      (e) => e.kind === 'invalid-params',
+    );
+    assert.equal(fs.existsSync(target), false);
+  },
+);

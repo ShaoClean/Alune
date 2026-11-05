@@ -68,6 +68,14 @@ export class DiffImages {
     options: DiffImageOptions,
     signal?: AbortSignal,
   ): Promise<DiffImageContent> {
+    if (
+      [options.commit, options.parentCommit].some(
+        (value) =>
+          value !== undefined &&
+          (typeof value !== 'string' || !value || value.startsWith('-') || value.includes('\0')),
+      )
+    )
+      throw new DiffImageError('无效的提交引用。');
     validateFilePath(options.file);
     if (isWindowsPath(repoPath) && /[\\:]/.test(options.file))
       throw new DiffImageError('Windows 仓库中的文件路径必须使用 / 分隔，不能包含反斜杠或冒号。');

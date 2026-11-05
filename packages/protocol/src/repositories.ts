@@ -164,6 +164,10 @@ export function validateRepositoryQuery(value: unknown): RepositoryQuery {
   const kind = value.kind as RepositoryQueryKind;
   repositoryShape(value.params, fields[kind]);
   const p = value.params;
+  for (const field of ['commit', 'parentCommit']) {
+    if (typeof p[field] === 'string' && p[field].startsWith('-'))
+      throw new ProtocolError('invalid-params', 'A revision cannot be a Git option');
+  }
   for (const [key, item] of Object.entries(p)) {
     if (
       ['foreground', 'follow', 'staged', 'fullFile', 'ignoreWhitespace', 'useIgnoreRevs'].includes(

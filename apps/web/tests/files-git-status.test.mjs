@@ -12,7 +12,7 @@ import {
   filesStatusRevision,
 } from '../src/components/files-git-status.ts';
 import { TreeItem } from '../src/components/FilesView.tsx';
-import { parseStatus } from '../../../packages/ssh-client/src/git-status.ts';
+import { parseStatus } from '../../../packages/agent/src/modules/git/git-status.ts';
 
 const change = (path, status, extra = {}) => ({ path, status, staged: false, ...extra });
 const entry = (path, kind = 'file') => ({ path, name: path.split('/').at(-1), kind });

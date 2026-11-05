@@ -70,6 +70,14 @@ export class GitReads {
   }
 
   async diff(repoPath: string, options?: DiffOptions): Promise<string> {
+    if (
+      [options?.commit, options?.parentCommit].some(
+        (value) =>
+          value !== undefined &&
+          (typeof value !== 'string' || !value || value.startsWith('-') || value.includes('\0')),
+      )
+    )
+      throw new Error('无效的提交引用。');
     if (options?.file !== undefined) this._validateFilePath(options.file);
     if (options?.file && isWindowsPath(repoPath) && /[\\:]/.test(options.file))
       throw new Error('Windows 仓库中的文件路径必须使用 / 分隔，不能包含反斜杠或冒号。');
