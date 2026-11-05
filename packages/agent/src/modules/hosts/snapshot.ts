@@ -15,7 +15,7 @@ import { isProviderError } from '../../ports/provider-error';
 
 export interface SnapshotRequest {
   resource: ResourceRef;
-  kind: 'remotes' | 'branch' | 'staged' | 'checkStaged';
+  kind: 'proxyGitTest' | 'remotes' | 'branch' | 'staged' | 'checkStaged';
   argument?: string;
 }
 export function snapshotHandler(
@@ -28,7 +28,7 @@ export function snapshotHandler(
     validate(v) {
       if (
         !isRecord(v) ||
-        !['remotes', 'branch', 'staged', 'checkStaged'].includes(String(v.kind)) ||
+        !['proxyGitTest', 'remotes', 'branch', 'staged', 'checkStaged'].includes(String(v.kind)) ||
         Object.keys(v).some((k) => !['resource', 'kind', 'argument'].includes(k)) ||
         (v.argument !== undefined &&
           (typeof v.argument !== 'string' ||
@@ -47,6 +47,35 @@ export function snapshotHandler(
       try {
         const staged = new StagedChanges(conn, repo.path);
         switch (kind) {
+          case 'proxyGitTest': {
+            const urls = [
+              ...new Set(
+                (await new GitReads(conn).remoteList(repo.path, signal))
+                  .flatMap((r) => [r.fetchUrl, r.pushUrl])
+                  .filter(Boolean),
+              ),
+            ];
+            if (
+              !urls.length ||
+              urls.length > 20 ||
+              urls.some((url) => !/^(https?:\/\/|ssh:\/\/|[^/\s:]+@[^/\s:]+:)/.test(url))
+            )
+              throw new ProtocolError(
+                'invalid-params',
+                '请选择配置了 1 至 20 个 HTTP(S)/SSH 远程地址的仓库。',
+              );
+            for (const url of urls) {
+              const result = await conn.execGit!(
+                repo.path,
+                ['ls-remote', '--heads', '--', url],
+                signal,
+                { maxOutputBytes: 1024 * 1024 },
+              );
+              if (result.exitCode !== 0)
+                throw new ProtocolError('unavailable', '远端 Git 连接测试失败。');
+            }
+            return true;
+          }
           case 'remotes':
             return (await new GitReads(conn).remoteList(repo.path, signal)) as unknown as JsonValue;
           case 'branch':

@@ -16,7 +16,10 @@
     "test:code-appearance": "node scripts/test-code-appearance.mjs",
     "test:proxy": "node scripts/test-proxy.mjs",
     "test:notifications": "node scripts/test-notifications.mjs",
-    "test:agent-migration": "node scripts/agent-migration-smoke.mjs"
+    "test:agent-migration": "node scripts/agent-migration-smoke.mjs",
+    "agent:stage": "node scripts/stage-agent.mjs",
+    "prepack": "npm run agent:stage",
+    "predist": "npm run agent:stage"
   },
   "devDependencies": {
     "server": "*",

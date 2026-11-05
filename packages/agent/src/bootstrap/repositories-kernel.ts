@@ -332,6 +332,7 @@ export function repositoriesKernel(
   };
   return {
     handlers,
+    terminals,
     catalog,
     async close() {
       await Promise.all([reads.close(), analytics.close(), terminals.close()]);

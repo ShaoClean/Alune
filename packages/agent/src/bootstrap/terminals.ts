@@ -21,6 +21,7 @@ export function terminalsKernel(catalog: RepositoryCatalog) {
   return {
     handlers: terminalHandlers(sessions, (r) => catalog.get(r)),
     registry,
+    disconnect: (id: string) => sessions.disconnect({ id }),
     close: () => sessions.onModuleDestroy(),
   };
 }

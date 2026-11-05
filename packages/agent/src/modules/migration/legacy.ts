@@ -461,16 +461,31 @@ export async function importLegacyState(
       'Legacy import requires an empty Agent business state; existing configuration was retained',
     );
   const stateBackup = await state.backup(options.signal);
-  const cipher = await openProtectedSecrets(
-    state.root,
-    state.agentId,
-    state.document('credential-key'),
-    {
-      ...options.secretOptions,
-      allowInitialize: !state.hasCredentialMaterial(),
-      signal: options.signal,
-    },
-  );
+  const ai = snapshot.documents['ai-settings.json'],
+    proxy = snapshot.documents['network-proxy.json'];
+  const hasSecrets =
+    snapshot.rows.access_token_secrets.length ||
+    snapshot.rows.connections.some((row) => row.password || row.passphrase) ||
+    (isRecord(ai) &&
+      Array.isArray(ai.providers) &&
+      ai.providers.some((p) => isRecord(p) && p.encryptedKey)) ||
+    (isRecord(proxy) && proxy.encryptedCredentials);
+  const unavailable = () => {
+    throw new StateFault('unavailable', 'Credential store not initialized');
+  };
+  const cipher = hasSecrets
+    ? await openProtectedSecrets(state.root, state.agentId, state.document('credential-key'), {
+        ...options.secretOptions,
+        allowInitialize: !state.hasCredentialMaterial(),
+        signal: options.signal,
+      })
+    : {
+        available: false,
+        description: 'No legacy credentials',
+        encrypt: unavailable,
+        decrypt: unavailable,
+        close() {},
+      };
   try {
     const data = await convert(snapshot, cipher, options);
     await verifyLegacySource(snapshot, options.signal);

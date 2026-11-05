@@ -11,8 +11,15 @@ const args = process.env.ALUNE_TEST_EXECUTABLE ? [] : ['dist/app'];
 const env = { ...process.env, ALUNE_SMOKE_DIR: dataDir };
 delete env.ELECTRON_RUN_AS_NODE;
 try {
+  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent')
+    env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
+      (await import('./candidate-fixture.mjs')).legacyFixture(dataDir),
+    );
   for (const phase of ['write', 'restore']) {
-    const child = spawn(executable, [...args, '--smoke-test'], { stdio: 'inherit', env: { ...env, ALUNE_SMOKE_PHASE: phase } });
+    const child = spawn(executable, [...args, '--smoke-test'], {
+      stdio: 'inherit',
+      env: { ...env, ALUNE_SMOKE_PHASE: phase },
+    });
     const timeout = setTimeout(() => {
       console.error(`Desktop smoke ${phase} timed out after 150 seconds`);
       child.kill('SIGKILL');

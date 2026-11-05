@@ -118,11 +118,13 @@ export function hostsKernel(
       return {
         hostId: p.id,
         agentId: s?.agentId ?? null,
+        hostKey: s?.hostKey ?? null,
         state: r?.phase ?? 'offline',
         reason: r?.reason ?? null,
         sshConnected: r?.sshConnected ?? false,
         failurePhase: r?.failurePhase ?? null,
         gitAvailable: r?.phase === 'ready' ? r.gitAvailable : null,
+        activeTasks: r?.relay?.activeTasks ?? 0,
         gitProxy: r?.phase === 'ready' ? r.gitProxy : null,
         stale: !r?.fresh,
         repositories: s?.repositories ?? [],
@@ -391,6 +393,30 @@ export function hostsKernel(
     close() {
       for (const r of live.values()) stop(r);
       live.clear();
+    },
+    async testProxy(
+      id: string,
+      resource: import('@alune/protocol').ResourceRef | undefined,
+      sessionId: string,
+      signal: AbortSignal,
+    ) {
+      const r = live.get(id);
+      if (
+        !r?.relay ||
+        r.phase !== 'ready' ||
+        r.session !== sessionId ||
+        !r.sshConnected ||
+        r.gitProxy === 'disabled'
+      )
+        throw new ProtocolError('unavailable', '请先使用当前代理重新连接服务器。');
+      if (resource) {
+        if (r.gitProxy !== 'ready')
+          throw new ProtocolError('unavailable', 'SSH 主机没有允许 Git 回环转发。');
+        await r.relay.snapshot({ kind: 'proxyGitTest', resource }, signal);
+      }
+    },
+    disconnect(sessionId: string) {
+      for (const r of live.values()) if (r.session === sessionId) stop(r);
     },
     invalidate(hostId?: string) {
       for (const r of live.values()) if (!hostId || r.hostId === hostId) stop(r);

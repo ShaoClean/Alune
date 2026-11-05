@@ -28,6 +28,14 @@ export class HostRelay {
   private waiting?: () => void;
   private failure?: Error;
   private pending = new Map<string, string>();
+  get activeTasks() {
+    return (
+      this.reads.size +
+      [...this.pending.values()].filter(
+        (m) => !['events.ack', 'repositories.operation', 'agent.health'].includes(m),
+      ).length
+    );
+  }
   private identity?: InitializeResult;
   private lastList?: string;
   private readSequence = 0;

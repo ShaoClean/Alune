@@ -43,3 +43,22 @@ jobs:
       - name: 真实桌面隔离数据冒烟 (Xvfb)
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run desktop:test
+      - name: 打包与内置 Agent 版本、架构绑定的候选桌面
+        run: npm run pack -w desktop -- --publish never
+      - name: 安装目录运行、升级旧数据与再次启动
+        if: runner.os != 'Linux'
+        run: node apps/desktop/scripts/test-packaged.mjs
+        env:
+          ALUNE_DESKTOP_EXECUTOR: agent
+          ALUNE_CANDIDATE_EVIDENCE: ${{ runner.temp }}/candidate-ui
+      - name: 安装目录运行、升级旧数据与再次启动 (Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node apps/desktop/scripts/test-packaged.mjs
+        env:
+          ALUNE_DESKTOP_EXECUTOR: agent
+          ALUNE_CANDIDATE_EVIDENCE: ${{ runner.temp }}/candidate-ui
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-ui-${{ matrix.os }}
+          path: ${{ runner.temp }}/candidate-ui
+          if-no-files-found: error

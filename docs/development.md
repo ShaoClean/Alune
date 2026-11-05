@@ -171,3 +171,11 @@ node scripts/agent/browser-reads-fixture.mjs
 现有 `scripts/agent-baseline.cjs` 支持 `ALUNE_BASELINE_READS_ONLY=1` 仅测 P3 读取；
 同时设置 `ALUNE_BASELINE_AGENT_READS=1` 可测 HTTP 查询桥加真实 stdio Agent。
 `ALUNE_BASELINE_SOURCE_ROOT` 可指定已构建的冻结旧检出。比较必须使用同机同 Node、相同样本数与场景，保留原始结果；冷进程不代表系统冷缓存。
+
+### 独立 Agent 候选入口（P8/P9 验收）
+
+使用 Node 22，在根目录执行 `npm ci`。启动独立 Web 工作区用 `npm run web:agent`，在终端显示的 **127.0.0.1** 地址打开。Vite 只接受本机同源 WebSocket，停止 Vite 时关闭其 Agent。开发数据默认在 `~/.alune/agent`，可用 `ALUNE_AGENT_DATA_DIR` 指向独立测试目录。Web 旧数据可在停用旧服务后用独立包的 `legacy-import --source 旧目录 --data-dir 新目录` 导入；受 Electron safeStorage 保护的数据须使用原设备的桌面程序迁移。
+
+桌面源码验收依次运行 `npm run desktop:build`、`npm run agent:stage -w desktop`，再设置环境变量 `ALUNE_DESKTOP_EXECUTOR=agent` 并运行 `npm start -w desktop`。候选安装包使用 Resources 中随应用分发的 Node/Agent，不依赖系统 Node；Git 仍需另行安装。每个工作区会话单独初始化，日志窗口只能读取日志。首次连接 SSH 主机须提供独立核对的主机公钥指纹；按 [Agent 部署说明](../packages/agent/README.md) 预置对应平台运行包，然后显式批准在目标安装。
+
+首次启动从旧数据捕获只读快照，导入到用户数据下独立的 `agent` 目录。原数据库、工作区偏好和凭据保留；导入失败会停止启动。退出候选程序并取消 `ALUNE_DESKTOP_EXECUTOR` 即可还原旧入口和旧数据。重新启用旧程序不会撤销已执行的 Git、文件或平台写入，应先检查写回执和实际仓库状态。没有全平台逐项放行之前，不删除旧执行器、备份或兼容入口。

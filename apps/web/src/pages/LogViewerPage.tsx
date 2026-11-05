@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { uiAgent } from '../api/ui-agent';
 import { io } from 'socket.io-client';
 import { AluneUIProvider, Button, Input, Select, Tooltip } from '@alune/ui';
 import {
@@ -137,6 +138,46 @@ export function LogViewerPage() {
 
   useEffect(() => {
     let disposed = false;
+    if (uiAgent) {
+      let running = false,
+        dirty = false,
+        previous: LogEntry[] = [];
+      const refresh = async () => {
+        dirty = true;
+        if (running) return;
+        running = true;
+        try {
+          while (dirty && !disposed) {
+            dirty = false;
+            const next = await loggingApi.recent(LOGGING_LIMITS.history);
+            if (disposed) return;
+            // Match the ordered overlap, retaining repeated identical log lines.
+            const keys = next.map(keyOf),
+              old = previous.map(keyOf);
+            let overlap = Math.min(old.length, keys.length);
+            while (overlap && !old.slice(-overlap).every((key, i) => key === keys[i])) overlap--;
+            append(next.slice(overlap).map(withId));
+            previous = next;
+            setLoadError(null);
+            setConnection('live');
+          }
+        } catch (error) {
+          if (!disposed) setLoadError(loggingError(error, '无法读取日志。'));
+        } finally {
+          running = false;
+        }
+      };
+      const off = uiAgent.onEvent((e) => {
+        if (['diagnostics.logs.changed', 'events.resync-required'].includes(e.type)) void refresh();
+      });
+      const close = uiAgent.onClose(() => setConnection('offline'));
+      void refresh();
+      return () => {
+        disposed = true;
+        off();
+        close();
+      };
+    }
     // Stream entries that arrive before history is loaded are held, then merged
     // without duplicating lines already present in the history response.
     let pending: Row[] | null = [];

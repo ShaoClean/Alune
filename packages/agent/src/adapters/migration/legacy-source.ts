@@ -264,3 +264,34 @@ export async function verifyLegacySource(
       'Legacy source changed after capture; stop its writer before importing',
     );
 }
+
+// Return only hashes of the legacy credential fields to the native decryptor.
+// A compromised importer cannot select new ciphertexts for Electron to decrypt.
+export async function legacyCiphertextHashes(source: string) {
+  const info = lstatSync(source);
+  if (
+    !info.isDirectory() ||
+    info.isSymbolicLink() ||
+    (process.getuid && info.uid !== process.getuid())
+  )
+    throw new StateFault('permission', 'Invalid legacy source');
+  const file = join(source, 'alune.db');
+  for (const suffix of ['', '-wal', '-shm']) assertRegularFile(file + suffix);
+  const hashes = new Set<string>();
+  const add = (value: unknown) => {
+    if (typeof value === 'string' && value.startsWith('safe-storage:'))
+      hashes.add(createHash('sha256').update(value).digest('hex'));
+  };
+  for (const row of readRows(file).access_token_secrets) add(row.ciphertext);
+  for (const name of ['ai-settings.json', 'network-proxy.json']) {
+    const path = join(source, name);
+    if (!statePathExists(path)) continue;
+    assertRegularFile(path);
+    const doc = JSON.parse(
+      (await nativeFiles.read(path, { maxBytes: 64 * 1024 * 1024 })).toString('utf8'),
+    );
+    if (name === 'ai-settings.json') for (const p of doc.providers) add(p.encryptedKey);
+    else add(doc.encryptedCredentials);
+  }
+  return [...hashes];
+}

@@ -1,3 +1,4 @@
+import { proxyTest } from './proxy-test';
 import { snapshotHandler } from '../modules/hosts/snapshot';
 import { hostsKernel } from './hosts';
 import type { LegacyRepositoryReads } from '../ports/legacy-repository-reads';
@@ -96,6 +97,9 @@ export async function openStateKernel(
   );
   const handlers: Record<string, Handler> = {
     ...hosts?.handlers,
+    ...(hosts
+      ? { 'network.testProxy': proxyTest(settings, network, hosts, repositories.catalog) }
+      : {}),
     ...(remote ? { 'repositories.hostRead': snapshotHandler(repositories.catalog, connect) } : {}),
     ...collaboration,
     ...repositories.handlers,
@@ -150,6 +154,53 @@ export async function openStateKernel(
     }
   return {
     state,
+    desktopHandlers: {
+      'desktop.log': {
+        effect: 'mutation',
+        durable: false,
+        validate(p) {
+          if (
+            !p ||
+            typeof p !== 'object' ||
+            Array.isArray(p) ||
+            !['INFO', 'DEBUG', 'WARN', 'ERROR'].includes(String(p.level)) ||
+            typeof p.source !== 'string' ||
+            typeof p.message !== 'string'
+          )
+            throw new ProtocolError('invalid-params', 'Invalid desktop log');
+        },
+        run(p) {
+          const { level, source, message, context } = p as any;
+          diagnostics.logs.write(level, source, message, context);
+          return null;
+        },
+      },
+      'desktop.terminals.impact': {
+        effect: 'query',
+        validate: validateEmpty,
+        run: () => JSON.parse(JSON.stringify(repositories.terminals.registry.impact({}))),
+      },
+      'desktop.terminals.remove': {
+        effect: 'mutation',
+        durable: false,
+        validate(p) {
+          if (
+            !Array.isArray(p) ||
+            p.length > 128 ||
+            !p.every((id) => typeof id === 'string' && id.length <= 128)
+          )
+            throw new ProtocolError('invalid-params', 'Invalid terminal confirmation');
+        },
+        run(ids) {
+          repositories.terminals.registry.remove({}, ids);
+          return null;
+        },
+      },
+    } satisfies Record<string, Handler>,
+    disconnect(sessionId: string) {
+      repositories.terminals.disconnect(sessionId);
+      hosts?.disconnect(sessionId);
+    },
     handlers,
     taskJournal: state.taskJournal(),
     close: async () => {

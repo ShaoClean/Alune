@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "node --import ./tests/resolve-ts.mjs --test tests/*.test.mjs"
+    "test": "node --import ./tests/resolve-ts.mjs --test tests/*.test.mjs",
+    "dev:agent": "vite --mode agent"
   },
   "dependencies": {
     "@alune/shared": "*",
@@ -39,6 +40,9 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "typescript": "~6.0.2",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "ws": "8.18.3",
+    "@types/ws": "8.18.1",
+    "@alune/agent": "*"
   }
 }

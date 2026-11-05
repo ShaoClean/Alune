@@ -3,7 +3,14 @@ const { createExternalLinkHandler } = require('./external-links.cjs');
 
 // A single standalone log viewer window, sharing the main window's session so the
 // per-launch Authorization header and CSP apply to it as well.
-function createLogWindow({ BrowserWindow, getOrigin, iconPath, openExternal, show = true }) {
+function createLogWindow({
+  BrowserWindow,
+  getOrigin,
+  iconPath,
+  openExternal,
+  candidate = false,
+  show = true,
+}) {
   let logWindow = null;
 
   function open() {
@@ -30,6 +37,7 @@ function createLogWindow({ BrowserWindow, getOrigin, iconPath, openExternal, sho
       webPreferences: {
         preload: path.join(__dirname, 'preload.cjs'),
         partition: 'alune-desktop',
+        additionalArguments: candidate ? ['--alune-agent-ui'] : [],
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,

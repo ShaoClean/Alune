@@ -42,3 +42,5 @@ Release 提供 `SHA256SUMS`，可使用系统的 SHA-256 工具核对下载文�
 开发、打包和测试命令见[开发与打包](development.md)，版本发布流程见[贡献与发布指南](../CONTRIBUTE.md)。
 
 [返回项目首页](../README.md) · [文档索引](README.md)
+
+内部候选包附带匹配平台与应用版本的独立 Agent。候选入口、首次升级、回退及 SSH 运行包准备见[开发与打包](development.md#独立-agent-候选入口p8p9-验收)。设置 `ALUNE_DESKTOP_EXECUTOR=agent` 后可用 `node apps/desktop/scripts/test-packaged.mjs` 对已打包程序执行隔离的升级、暂存、日志及重启测试；它只使用临时目录。

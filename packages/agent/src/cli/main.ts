@@ -48,6 +48,11 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     );
     return 0;
   }
+  if (command === 'legacy-ciphertext-hashes' && args.length === 3 && args[1] === '--source') {
+    const { legacyCiphertextHashes } = await import('../adapters/migration/legacy-source');
+    process.stdout.write(JSON.stringify(await legacyCiphertextHashes(resolve(args[2]))) + '\n');
+    return 0;
+  }
   if (command === 'doctor') {
     const result = await doctor();
     process.stdout.write(JSON.stringify(result) + '\n');
@@ -56,6 +61,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
   if (
     [
       'serve',
+      'serve-ui',
       'serve-remote',
       'state-backup',
       'state-restore',
@@ -64,6 +70,8 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       'recovery-restore',
     ].includes(command)
   ) {
+    if (command === 'serve-ui' && !process.connected)
+      throw new Error('Private host channel is required');
     const options = stateOptions(args);
     if (command !== 'state-restore' && options.has('--backup'))
       throw new Error('--backup is only valid for state-restore');
@@ -90,7 +98,9 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       throw new Error('Invalid remote Git proxy port');
     const directory = resolve(options.get('--data-dir') ?? defaultDataDirectory());
     if (
-      !['serve', 'serve-remote', 'legacy-import', 'recovery-restore'].includes(command) &&
+      !['serve', 'serve-ui', 'serve-remote', 'legacy-import', 'recovery-restore'].includes(
+        command,
+      ) &&
       !statePathExists(join(directory, 'state'))
     )
       throw new StateFault('unavailable', 'Agent state is not initialized');
@@ -187,6 +197,11 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       }
       process.off('SIGTERM', stop);
       process.off('SIGINT', stop);
+      if (command === 'serve-ui') {
+        const { serveUi } = await import('../bootstrap/ui');
+        await serveUi(kernel, agentId, version);
+        return 0;
+      }
       await serveStdio({
         agentId,
         version,

@@ -40,3 +40,20 @@ contextBridge.exposeInMainWorld('aluneLogs', {
   openDirectory: () => ipcRenderer.invoke('logs:open-directory'),
   chooseDirectory: () => ipcRenderer.invoke('logs:choose-directory'),
 });
+
+if (process.argv.includes('--alune-agent-ui')) {
+  const listen = (name, fn) => {
+    const listener = (_event, frame) => fn(frame);
+    ipcRenderer.on(name, listener);
+    return () => ipcRenderer.off(name, listener);
+  };
+  contextBridge.exposeInMainWorld('aluneAgent', {
+    open: () => ipcRenderer.invoke('agent:open'),
+    send: (frame) => ipcRenderer.invoke('agent:frame', frame),
+    close: () => {
+      void ipcRenderer.invoke('agent:close').catch(() => {});
+    },
+    onFrame: (fn) => listen('agent:frame', fn),
+    onEnd: (fn) => listen('agent:end', fn),
+  });
+}

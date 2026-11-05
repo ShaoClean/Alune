@@ -1,10 +1,25 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 
+import { uiAgent } from '../api/ui-agent';
+
 export function useSocket(events: Record<string, (...args: any[]) => void>) {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    if (uiAgent) {
+      events.connect?.();
+      const dispose = uiAgent.onEvent((event) => {
+        if (event.type === 'events.resync-required' || event.type === 'accounts.hosts.changed')
+          events.connect?.();
+        if (event.type === 'accounts.tokens.changed') events['access-tokens:changed']?.();
+      });
+      const close = uiAgent.onClose(() => events.disconnect?.());
+      return () => {
+        dispose();
+        close();
+      };
+    }
     const socket = io({ transports: ['websocket'] });
     socketRef.current = socket;
 

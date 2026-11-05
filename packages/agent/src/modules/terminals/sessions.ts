@@ -259,7 +259,7 @@ export class TerminalSessions {
     if (entry.owner.connected) entry.owner.emit('terminal:removed', { sessionId: entry.info.id });
   }
 
-  disconnect(owner: TerminalOwner) {
+  disconnect(owner: Pick<TerminalOwner, 'id'> & Partial<TerminalOwner>) {
     for (const entry of this.sessions.values()) if (entry.owner.id === owner.id) this.remove(entry);
   }
   private dispose(transport: TerminalTransport) {

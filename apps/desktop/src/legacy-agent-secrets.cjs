@@ -1,7 +1,8 @@
 // Main-process-only bridge for a dedicated import child. No renderer IPC or TCP
 // endpoint is registered. The caller supplies exact ciphertexts read from the
 // stopped legacy store; the child cannot use this as a general decrypt oracle.
-function bridgeLegacyAgentSecrets(child, storage, ciphertexts) {
+const { createHash } = require('node:crypto');
+function bridgeLegacyAgentSecrets(child, storage, ciphertexts, { hashed = false } = {}) {
   if (!child || typeof child.send !== 'function' || !child.connected)
     throw new Error('Private import child IPC is required');
   const allowed = new Set(ciphertexts);
@@ -20,18 +21,22 @@ function bridgeLegacyAgentSecrets(child, storage, ciphertexts) {
     if (typeof id !== 'string' || id.length > 100) return;
     const response = { kind: 'alune.legacy.decrypted', id, ok: false };
     try {
+      const key =
+        hashed && typeof ciphertext === 'string' && ciphertext.length <= 1400000
+          ? createHash('sha256').update(ciphertext).digest('hex')
+          : ciphertext;
       if (
         !storage.available ||
         typeof ciphertext !== 'string' ||
         ciphertext.length > 1400000 ||
         !ciphertext.startsWith('safe-storage:') ||
-        !allowed.has(ciphertext)
+        !allowed.has(key)
       )
         throw new Error();
       const plaintext = storage.decrypt(ciphertext);
       if (typeof plaintext !== 'string' || Buffer.byteLength(plaintext) > 1024 * 1024)
         throw new Error();
-      allowed.delete(ciphertext);
+      allowed.delete(key);
       response.ok = true;
       response.plaintext = plaintext;
     } catch {

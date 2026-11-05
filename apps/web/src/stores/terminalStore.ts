@@ -1,5 +1,7 @@
 import { AgentClient, terminalChannel } from '@alune/agent-client';
 import { TERMINAL_TOPICS, type JsonValue, type TerminalCommand } from '@alune/protocol';
+import { uiAgent } from '../api/ui-agent';
+import { observeOwners, repositoryTarget } from '../api/agent-workspace';
 import { useTerminalStore } from './terminalState';
 import type { ViewSession } from './terminalState';
 export { useTerminalStore, terminalStateLabel } from './terminalState';
@@ -33,7 +35,33 @@ const report = (error: unknown) =>
     error: error instanceof Error ? error.message : String(error),
   });
 
+const owners = new Map<string, AgentClient>();
+let workspaceEnd: (() => void) | undefined;
+function activeTransport(id: string) {
+  return uiAgent ? owners.get(id)?.initialized?.sessionId : socket?.id;
+}
+function connected(id: string) {
+  return uiAgent ? owners.get(id)?.state === 'ready' : socket?.connected;
+}
 async function request<T = undefined>(event: string, payload: unknown): Promise<T> {
+  if (uiAgent) {
+    const command = event.slice('terminal:'.length);
+    const body = payload as { sessionId: string; repositoryId: string; requestId: string };
+    if (command === 'create') {
+      const { repositoryId, ...input } = body;
+      const { client, resource } = await repositoryTarget(repositoryId);
+      owners.set(body.requestId, client);
+      return (await client.request('terminals.create', {
+        ...input,
+        resource: { ...resource },
+      })) as T;
+    }
+    const owner = owners.get(body.sessionId);
+    if (!owner || owner.state !== 'ready') throw new Error('终端连接已断开。');
+    return (await owner.request('terminals.' + command, payload as JsonValue, {
+      timeoutMs: 10000,
+    })) as T;
+  }
   if (!socket?.connected) throw new Error('终端连接不可用。请检查连接后重试。');
   if (agent) {
     const command = event.slice('terminal:'.length) as TerminalCommand;
@@ -59,9 +87,109 @@ async function request<T = undefined>(event: string, payload: unknown): Promise<
   return reply.value;
 }
 
+const stateEvent = (info: TerminalSession) => {
+  // Only locally requested sessions may become visible in this window.
+  if (!useTerminalStore.getState().sessions.some((item) => item.id === info.id)) return;
+  patch(info.id, info);
+  const runtime = ensureRuntime(info.id);
+  runtime.terminal.options.disableStdin = info.state !== 'running';
+  if (info.state === 'running') fitTerminal(info.id);
+};
+const outputEvent = (packet: TerminalOutput) => {
+  const runtime = runtimes.get(packet.sessionId);
+  const connectionId = activeTransport(packet.sessionId);
+  if (!runtime || packet.sequence <= runtime.sequence) return;
+  runtime.sequence = packet.sequence;
+  // The parser runs even when its DOM is detached. ACK only after parsing:
+  // server output is bounded while a hidden/slow renderer catches up.
+  runtime.terminal.write(packet.data, () => {
+    if (runtimes.get(packet.sessionId) !== runtime) return;
+    runtime.lines += (packet.data.match(/\n/g) || []).length;
+    {
+      const terminal = runtime.terminal;
+      const buffer = terminal.buffer.active;
+      const retained = retainedTerminalLines(
+        buffer.length,
+        (index) => buffer.getLine(index)?.translateToString(true) || '',
+      );
+      if (retained < buffer.length) {
+        if (buffer.type === 'normal' && retained >= terminal.rows) {
+          terminal.options.scrollback = Math.max(0, retained - terminal.rows);
+          terminal.options.scrollback = TERMINAL_LIMITS.historyLines - 200;
+        } else {
+          // Pathological output can fill a single cell with combining marks.
+          // Clear that viewport too instead of keeping an oversized live line.
+          terminal.reset();
+        }
+        patch(packet.sessionId, { truncated: true });
+      }
+    }
+    if (
+      runtime.lines >= TERMINAL_LIMITS.historyLines ||
+      runtime.terminal.buffer.normal.length >=
+        TERMINAL_LIMITS.historyLines - 200 + runtime.terminal.rows
+    ) {
+      patch(packet.sessionId, { truncated: true });
+    }
+    if (connected(packet.sessionId) && activeTransport(packet.sessionId) === connectionId)
+      void request('terminal:ack', {
+        sessionId: packet.sessionId,
+        sequence: packet.sequence,
+      }).catch(report);
+  });
+};
 export function connectTerminals() {
   references++;
-  if (!socket) {
+  if (uiAgent && !workspaceEnd) {
+    const disposers = new Set<() => void>();
+    const detach = observeOwners((client) => {
+      const off = client.onEvent((event) => {
+        const info = event.payload as unknown as TerminalSession;
+        const id =
+          event.type === 'terminal:state'
+            ? info.id
+            : (event.payload as { sessionId?: string })?.sessionId;
+        if (!id || owners.get(id) !== client) return;
+        if (event.type === 'terminal:state') {
+          const original = useTerminalStore.getState().sessions.find((s) => s.id === id);
+          if (original)
+            stateEvent({
+              ...info,
+              repositoryId: original.repositoryId,
+              source: original.source,
+              connectionId: original.connectionId,
+              environment: original.environment,
+            });
+        } else if (event.type === 'terminal:output')
+          outputEvent(event.payload as unknown as TerminalOutput);
+        else if (event.type === 'terminal:removed') removeLocal(id);
+      });
+      const close = client.onClose(() => {
+        if (client === uiAgent) useTerminalStore.setState({ connected: false });
+        for (const [id, owner] of owners)
+          if (owner === client) {
+            owners.delete(id);
+            const session = useTerminalStore.getState().sessions.find((s) => s.id === id);
+            if (session && terminalNeedsConfirmation(session))
+              patch(id, { state: 'disconnected', error: '连接已断开，请显式新建会话。' });
+            const runtime = runtimes.get(id);
+            if (runtime) runtime.terminal.options.disableStdin = true;
+          }
+        off();
+        disposers.delete(dispose);
+      });
+      const dispose = () => {
+        off();
+        close();
+      };
+      disposers.add(dispose);
+    });
+    useTerminalStore.setState({ connected: uiAgent.state === 'ready', error: '' });
+    workspaceEnd = () => {
+      detach();
+      for (const dispose of disposers) dispose();
+    };
+  } else if (!uiAgent && !socket) {
     const useAgent = new URLSearchParams(location.search).get('terminalExecutor') === 'agent';
     socket = io('/terminal', {
       transports: ['websocket'],
@@ -113,58 +241,6 @@ export function connectTerminals() {
       }));
       for (const runtime of runtimes.values()) runtime.terminal.options.disableStdin = true;
     });
-    const stateEvent = (info: TerminalSession) => {
-      // Only locally requested sessions may become visible in this window.
-      if (!useTerminalStore.getState().sessions.some((item) => item.id === info.id)) return;
-      patch(info.id, info);
-      const runtime = ensureRuntime(info.id);
-      runtime.terminal.options.disableStdin = info.state !== 'running';
-      if (info.state === 'running') fitTerminal(info.id);
-    };
-    const outputEvent = (packet: TerminalOutput) => {
-      const runtime = runtimes.get(packet.sessionId);
-      const transport = socket;
-      const connectionId = transport?.id;
-      if (!runtime || packet.sequence <= runtime.sequence) return;
-      runtime.sequence = packet.sequence;
-      // The parser runs even when its DOM is detached. ACK only after parsing:
-      // server output is bounded while a hidden/slow renderer catches up.
-      runtime.terminal.write(packet.data, () => {
-        if (runtimes.get(packet.sessionId) !== runtime) return;
-        runtime.lines += (packet.data.match(/\n/g) || []).length;
-        {
-          const terminal = runtime.terminal;
-          const buffer = terminal.buffer.active;
-          const retained = retainedTerminalLines(
-            buffer.length,
-            (index) => buffer.getLine(index)?.translateToString(true) || '',
-          );
-          if (retained < buffer.length) {
-            if (buffer.type === 'normal' && retained >= terminal.rows) {
-              terminal.options.scrollback = Math.max(0, retained - terminal.rows);
-              terminal.options.scrollback = TERMINAL_LIMITS.historyLines - 200;
-            } else {
-              // Pathological output can fill a single cell with combining marks.
-              // Clear that viewport too instead of keeping an oversized live line.
-              terminal.reset();
-            }
-            patch(packet.sessionId, { truncated: true });
-          }
-        }
-        if (
-          runtime.lines >= TERMINAL_LIMITS.historyLines ||
-          runtime.terminal.buffer.normal.length >=
-            TERMINAL_LIMITS.historyLines - 200 + runtime.terminal.rows
-        ) {
-          patch(packet.sessionId, { truncated: true });
-        }
-        if (transport?.connected && transport.id === connectionId)
-          void request('terminal:ack', {
-            sessionId: packet.sessionId,
-            sequence: packet.sequence,
-          }).catch(report);
-      });
-    };
     if (!useAgent) {
       socket.on('terminal:state', stateEvent);
       socket.on('terminal:output', outputEvent);
@@ -178,6 +254,8 @@ export function connectTerminals() {
     // React StrictMode immediately reattaches effects; do not kill its shells.
     queueMicrotask(() => {
       if (!references) {
+        workspaceEnd?.();
+        workspaceEnd = undefined;
         socket?.disconnect();
         socket = undefined;
       }
@@ -356,11 +434,12 @@ export async function createTerminal(repo: Repository) {
       error: error instanceof Error ? error.message : '终端启动失败。',
     });
     // A timed-out ACK is not proof that creation failed on the server.
-    if (socket?.connected && socket.id === connectionId)
+    if (uiAgent ? connected(id) : socket?.connected && socket.id === connectionId)
       void request('terminal:close', { sessionId: id, confirmed: true }).catch(() => {});
   }
 }
 function removeLocal(id: string) {
+  owners.delete(id);
   runtimes.get(id)?.terminal.dispose();
   runtimes.get(id)?.element.remove();
   runtimes.delete(id);
@@ -372,7 +451,7 @@ function removeLocal(id: string) {
   }));
 }
 export async function closeTerminal(session: TerminalSession) {
-  if (socket?.connected) {
+  if (connected(session.id)) {
     try {
       await request('terminal:close', { sessionId: session.id, confirmed: true });
     } catch (error) {
