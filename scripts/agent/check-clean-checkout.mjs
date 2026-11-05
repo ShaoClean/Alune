@@ -3,11 +3,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-const [phase] = process.argv.slice(2);
+const [phase, target = 'agent'] = process.argv.slice(2);
+assert.ok(['agent', 'desktop-candidate'].includes(target), 'unknown clean-checkout target');
 for (const file of [
   'packages/agent/package.json',
   'apps/web/package.json',
   'apps/desktop/src/legacy-agent-secrets.cjs',
+  ...(target === 'desktop-candidate' ? ['apps/desktop/package.json'] : []),
 ])
   assert.ok(fs.existsSync(file), 'required sparse source missing: ' + file);
 assert.ok(
@@ -18,7 +20,9 @@ for (const file of [
   'apps/server',
   'packages/shared',
   'packages/ssh-client',
-  'apps/desktop/package.json',
+  ...(target === 'agent'
+    ? ['apps/desktop/package.json']
+    : ['apps/desktop/dist', 'apps/desktop/release']),
   ...[
     'packages/agent',
     'packages/agent-client',
@@ -44,7 +48,13 @@ else {
     require('node-gyp/package.json').version,
     require('../../packages/agent/package.json').devDependencies['node-gyp'],
   );
-  for (const name of ['electron', '@nestjs/core', '@alune/shared', '@alune/ssh-client', 'server'])
+  for (const name of [
+    ...(target === 'agent' ? ['electron'] : []),
+    '@nestjs/core',
+    '@alune/shared',
+    '@alune/ssh-client',
+    'server',
+  ])
     assert.throws(
       () => require.resolve(name),
       { code: 'MODULE_NOT_FOUND' },

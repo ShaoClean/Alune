@@ -78,11 +78,27 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .githooks
+            .github
+            scripts
+            apps/desktop
+            apps/web
+            packages/agent
+            packages/agent-client
+            packages/domain
+            packages/protocol
+            packages/ui
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.0'
           cache: npm
-      - run: npm ci
+      - run: node scripts/agent/check-clean-checkout.mjs before-install desktop-candidate
+      # Root supplies Electron packaging tools; stage.mjs installs the candidate's
+      # own runtime manifest. Do not select the regular desktop's legacy build deps.
+      - run: npm ci --workspace=@alune/agent --workspace=@alune/agent-client --workspace=@alune/domain --workspace=@alune/protocol --workspace=@alune/ui --workspace=web --include-workspace-root=true
+      - run: node scripts/agent/check-clean-checkout.mjs after-install desktop-candidate
       - name: Prepare a private RC version below the published stable update
         run: node apps/desktop/scripts/acceptance-version.mjs
       - run: npm run desktop:candidate:build
