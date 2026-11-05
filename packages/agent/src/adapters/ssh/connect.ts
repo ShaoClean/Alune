@@ -142,15 +142,28 @@ export async function connectHost(
         stream.on('error', () => socket.destroy()).once('close', () => socket.destroy());
         stream.pipe(socket).pipe(stream);
       });
-      forwardPort = await new Promise<number>((resolve, reject) =>
-        ssh.forwardIn('127.0.0.1', 0, (err, port) => (err ? reject(err) : resolve(port))),
-      );
+      forwardPort = await new Promise<number | undefined>((resolve, reject) => {
+        const expired = () => {
+          close();
+          reject(new ProtocolError('timeout', 'SSH loopback forwarding timed out'));
+        };
+        const timer = setTimeout(expired, 15000);
+        ssh.forwardIn('127.0.0.1', 0, (err, port) => {
+          clearTimeout(timer);
+          resolve(err ? undefined : port);
+        });
+      });
+      signal.throwIfAborted();
+      if (!forwardPort) {
+        bridge.close();
+        bridge = undefined;
+      }
     }
     const commands = bootstrapCommands(
       detected.target === 'win32-x64',
       bundle.sha256,
       randomUUID(),
-      forwardPort,
+      forwardPort ?? (proxy.enabled ? 'blocked' : undefined),
     );
     stage?.(policy.install ? 'installing' : 'verifying');
     if (policy.install) await command(commands.upload, await bundle.bytes());
@@ -171,7 +184,14 @@ export async function connectHost(
     channel.stderr.resume();
     const transport = new StdioTransport(channel, channel);
     transport.onClose(close);
-    return { transport, close, version: bundle.version, digest: bundle.sha256, ...detected };
+    return {
+      transport,
+      close,
+      version: bundle.version,
+      digest: bundle.sha256,
+      gitProxy: proxy.enabled ? (forwardPort ? 'ready' : 'blocked') : 'disabled',
+      ...detected,
+    };
   } catch (error) {
     close();
     sock?.destroy();

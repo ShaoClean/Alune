@@ -2,6 +2,8 @@ import {
   ProtocolError,
   isRecord,
   validId,
+  validateResource,
+  validateRepositoryResource,
   type OpenHostRoute,
   type ResourceRef,
   type PullRequestCenterQuery,
@@ -33,6 +35,15 @@ export class HostWorkspace {
       throw new ProtocolError('disconnected', 'Resource owner is offline');
     return client;
   }
+  /** Use this local alias for AI/PR operations so provider credentials remain here. */
+  async collaborationResource(resource: ResourceRef, options: RequestOptions = {}) {
+    if (resource.agentId === this.local.initialized?.agentId) return resource;
+    const owner = this.owner(resource);
+    await owner.listRepositories(options);
+    return validateRepositoryResource(
+      await this.local.request('hosts.bindRepository', { resource: { ...resource } }, options),
+    ).resource;
+  }
   async catalog(options: RequestOptions = {}) {
     await Promise.allSettled(
       [...this.owners.values()]
@@ -44,24 +55,60 @@ export class HostWorkspace {
   }
   /** Pull one bounded wave at a time. Cursors and responses stay attached to the
    * original connection; reconnect starts a new scan, never resumes an old cursor. */
-  async *reviews(query: PullRequestCenterQuery, options: RequestOptions = {}) {
-    const sessions = [...this.owners].map(([agentId, client]) => ({
-      agentId,
-      client,
-      discovered: false,
-      discoveryId: '',
-      cursor: '',
-      done: false,
-    }));
+  async *reviews(
+    query: PullRequestCenterQuery,
+    options: RequestOptions & { useRemoteAccounts?: boolean } = {},
+  ) {
+    const sessions = [...this.owners]
+      .filter(([, client]) => options.useRemoteAccounts || client === this.local)
+      .map(([agentId, client]) => ({
+        agentId,
+        client,
+        discovered: false,
+        discoveryId: '',
+        cursor: '',
+        done: false,
+      }));
     const sources = new Map<string, PullRequestSource>(),
       items = new Map<string, PullRequestCenterItem>(),
       offline = new Set<string>();
-    const saved = await this.local.request('hosts.catalog', {}, options);
+    const saved = await this.catalog(options);
     if (!isRecord(saved) || !Array.isArray(saved.hosts))
       throw new ProtocolError('invalid-request', 'Invalid host catalog');
-    for (const host of saved.hosts)
-      if (isRecord(host) && validId(host.agentId) && !this.owners.has(host.agentId))
-        offline.add(host.agentId);
+    const aliases = new Map<string, ResourceRef>();
+    for (const host of saved.hosts) {
+      if (!isRecord(host) || !validId(host.agentId)) continue;
+      if (!this.owners.has(host.agentId)) offline.add(host.agentId);
+      if (Array.isArray(host.bindings))
+        for (const b of host.bindings) {
+          if (isRecord(b) && validId(b.localId))
+            aliases.set(b.localId, validateResource(b.resource));
+        }
+      if (
+        !options.useRemoteAccounts &&
+        this.owners.has(host.agentId) &&
+        Array.isArray(host.repositories)
+      ) {
+        for (const row of host.repositories) {
+          const repo = validateRepositoryResource(row);
+          if (host.agentId !== repo.resource.agentId)
+            throw new ProtocolError('invalid-request', 'Foreign catalog entry');
+          try {
+            const localRow = validateRepositoryResource(
+              await this.local.request(
+                'hosts.bindRepository',
+                { resource: { ...repo.resource } },
+                options,
+              ),
+            );
+            aliases.set(localRow.id, repo.resource);
+          } catch (error) {
+            options.signal?.throwIfAborted();
+            offline.add(host.agentId);
+          }
+        }
+      }
+    }
     while (sessions.some((s) => !s.done)) {
       await Promise.all(
         sessions
@@ -85,10 +132,18 @@ export class HostWorkspace {
                   );
               if (page.sources.some((source) => source.resource?.agentId !== s.agentId))
                 throw new ProtocolError('conflict', 'Review source belongs to another Agent');
-              for (const source of page.sources)
-                sources.set(JSON.stringify([s.agentId, source.id]), source);
+              for (const source of page.sources) {
+                const owner =
+                  s.client === this.local ? aliases.get(source.repositoryId) : undefined;
+                if (owner && options.useRemoteAccounts) continue;
+                sources.set(
+                  JSON.stringify([s.agentId, source.id]),
+                  owner ? { ...source, resource: owner } : source,
+                );
+              }
               if ('items' in page) {
                 for (const item of page.items) {
+                  if (!sources.has(JSON.stringify([s.agentId, item.sourceId]))) continue;
                   const key = JSON.stringify([item.projectKey, item.number]),
                     old = items.get(key);
                   const latest = old && old.updatedAt >= item.updatedAt ? old : item;

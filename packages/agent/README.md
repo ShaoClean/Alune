@@ -183,3 +183,6 @@ remote.close();
 SSH EOF、超时或进程退出会结束该路由；目录快照保留并标为陈旧。重连创建新会话并核对上次保存的 Agent 身份，只刷新该主机的目录。写入结果不明时使用同一 Agent 的 `getTask({taskId: operationId})` 并核对仓库或平台；不要重发。原桌面和 HTTP 入口仍可显式用于迁移期恢复。
 
 多个主机可由 SDK 的 `HostWorkspace` 管理：`connect(policy)` 建立连接，`owner(resource)` 只返回该资源的 Agent，`catalog()` 刷新已连接来源并保留离线目录。`for await (const page of workspace.reviews(query))` 按各主机独立游标推进 PR/MR 中心，按项目和编号去重，返回累计结果及不可用 Agent ID；重连后重新开始发现。
+
+
+协作默认由本机持有账户：用 `await workspace.collaborationResource(remoteRepo.resource)` 取得本机别名，再以该别名调用 **local** 的 `ai.generate` / `reviews.*`。别名绑定到主机和远端登记 ID，重新登记同一路径不会继承旧账户。SSH 侧的只读快照接口仅提供已登记仓库的远端、分支和暂存摘要/差异；生成返回前再次核对暂存摘要。PR/MR 写回执向执行平台调用的本机查询。中心默认使用本机账户；显式传 `{useRemoteAccounts:true}` 才使用目标机自身的协作配置。服务器禁止反向转发时，目录、文件和离线 Git 仍可用，依赖代理的 Git 网络操作会明确失败。

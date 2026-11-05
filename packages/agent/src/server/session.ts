@@ -24,6 +24,7 @@ import type { TaskJournal } from '../ports/task-journal';
 export interface SessionOptions {
   agentId: string;
   version: string;
+  sshSnapshotChannel?: boolean;
   handlers?: Readonly<Record<string, Handler>>;
   taskJournal?: TaskJournal;
   onDispose?: () => Promise<void>;
@@ -41,6 +42,7 @@ export class AgentSession {
   private closing?: Promise<void>;
   private requestPrefix?: string;
   private lastRequestSequence = 0;
+  private lastSnapshotSequence = 0;
   private activeRequests = 0;
   private requestBytes = 0;
   private tasks = new Map<
@@ -123,9 +125,14 @@ export class AgentSession {
       return;
     }
     const sequence = requestSequence(message.id);
-    if (!sequence || (this.requestPrefix && this.requestPrefix !== sequence.prefix))
+    // Only the leaf permits the broker's independent, read-only snapshot stream.
+    const snapshot =
+      this.options.sshSnapshotChannel &&
+      sequence?.prefix === 'ssh-read' &&
+      message.method === 'repositories.hostRead';
+    if (!sequence || (!snapshot && this.requestPrefix && this.requestPrefix !== sequence.prefix))
       throw new ProtocolError('invalid-request', 'Request ID prefix changed within the session');
-    if (sequence.sequence <= this.lastRequestSequence) {
+    if (sequence.sequence <= (snapshot ? this.lastSnapshotSequence : this.lastRequestSequence)) {
       // Never let a duplicate ID resolve a still-running request with a second result.
       await this.transport.send({
         jsonrpc: '2.0',
@@ -139,8 +146,11 @@ export class AgentSession {
       void this.close();
       return;
     }
-    this.requestPrefix = sequence.prefix;
-    this.lastRequestSequence = sequence.sequence;
+    if (snapshot) this.lastSnapshotSequence = sequence.sequence;
+    else {
+      this.requestPrefix = sequence.prefix;
+      this.lastRequestSequence = sequence.sequence;
+    }
     const bytes = Buffer.byteLength(JSON.stringify(message));
     const control =
       message.method === 'initialize' ||

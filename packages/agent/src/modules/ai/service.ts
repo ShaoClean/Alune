@@ -16,7 +16,7 @@ import { complete, fetchModels, parseCommit } from '../../adapters/providers/ai-
 import { sendUntraced, type TraceHttp } from '../../ports/provider-http';
 
 export interface StagedRepository {
-  staged: StagedChanges;
+  staged: Pick<StagedChanges, 'read' | 'assertRevision'>;
   release(): void | Promise<void>;
 }
 export class AiService {

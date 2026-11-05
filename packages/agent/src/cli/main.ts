@@ -84,7 +84,8 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     const gitPort = options.get('--git-proxy-port');
     if (
       gitPort !== undefined &&
-      (command !== 'serve-remote' || !/^[1-9][0-9]{0,4}$/.test(gitPort) || Number(gitPort) > 65535)
+      (command !== 'serve-remote' ||
+        (gitPort !== 'blocked' && (!/^[1-9][0-9]{0,4}$/.test(gitPort) || Number(gitPort) > 65535)))
     )
       throw new Error('Invalid remote Git proxy port');
     const directory = resolve(options.get('--data-dir') ?? defaultDataDirectory());
@@ -172,7 +173,10 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         {},
         undefined,
         command === 'serve-remote'
-          ? { gitProxyPort: gitPort ? Number(gitPort) : undefined }
+          ? {
+              gitProxyPort:
+                gitPort === 'blocked' ? 'blocked' : gitPort ? Number(gitPort) : undefined,
+            }
           : undefined,
       );
       controller.signal.throwIfAborted();
@@ -186,6 +190,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       await serveStdio({
         agentId,
         version,
+        sshSnapshotChannel: command === 'serve-remote',
         handlers: kernel.handlers,
         taskJournal: kernel.taskJournal,
         onDispose: kernel.close,

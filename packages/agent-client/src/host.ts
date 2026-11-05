@@ -107,5 +107,6 @@ export async function openLegacyRepository(
     throw new ProtocolError('conflict', 'Legacy host does not match the selected Agent');
   const repo = await remote.registerRepository(source.path);
   await remote.listRepositories();
+  await local.request('hosts.bindRepository', { resource: { ...repo.resource } });
   return repo;
 }

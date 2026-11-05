@@ -1,8 +1,9 @@
+import { snapshotHandler } from '../modules/hosts/snapshot';
 import { hostsKernel } from './hosts';
 import type { LegacyRepositoryReads } from '../ports/legacy-repository-reads';
 import { collaborationKernel } from './collaboration';
 import type { DatabaseBackupReceipt } from '@alune/protocol';
-import { validateEmpty } from '@alune/protocol';
+import { validateEmpty, ProtocolError } from '@alune/protocol';
 import { basename } from 'node:path';
 import { NativeRepositoryConnection } from '../adapters/git/native';
 import { ProxyRuntime } from '../adapters/network/runtime';
@@ -21,7 +22,7 @@ export async function openStateKernel(
   signal?: AbortSignal,
   secretOptions: Pick<ProtectedSecretOptions, 'backend' | 'keychain'> = {},
   legacyReads?: LegacyRepositoryReads,
-  remote?: { gitProxyPort?: number },
+  remote?: { gitProxyPort?: number | 'blocked' },
 ) {
   const state = await AgentState.open(directory, agentId, signal);
   let settings: ReturnType<typeof settingsKernel>;
@@ -45,6 +46,11 @@ export async function openStateKernel(
       async () => {
         // Offline Git/file reads must not require unrelated AI/account keys.
         // The native adapter invokes this only for network/lazy-object reads.
+        if (remote?.gitProxyPort === 'blocked')
+          throw new ProtocolError(
+            'unavailable',
+            'Remote Git proxy forwarding was denied; direct access is disabled',
+          );
         if (remote?.gitProxyPort)
           return {
             enabled: true,
@@ -68,6 +74,9 @@ export async function openStateKernel(
     );
   const repositories = repositoriesKernel(state.database, agentId, connect);
   const network = new ProxyRuntime(settings.proxy);
+  const hosts = remote
+    ? undefined
+    : hostsKernel(directory, repositories.catalog, settings, state.document('ssh-routes'));
   const collaboration = collaborationKernel(
     repositories.catalog,
     settings,
@@ -83,13 +92,11 @@ export async function openStateKernel(
       );
       return response;
     },
-    legacyReads,
+    legacyReads ?? hosts?.reads,
   );
-  const hosts = remote
-    ? undefined
-    : hostsKernel(directory, repositories.catalog, settings, state.document('ssh-routes'));
   const handlers: Record<string, Handler> = {
     ...hosts?.handlers,
+    ...(remote ? { 'repositories.hostRead': snapshotHandler(repositories.catalog, connect) } : {}),
     ...collaboration,
     ...repositories.handlers,
     ...settings.handlers,

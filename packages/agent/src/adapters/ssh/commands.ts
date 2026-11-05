@@ -25,12 +25,13 @@ export function bootstrapCommands(
   windows: boolean,
   digest: string,
   nonce: string,
-  forwardPort?: number,
+  forwardPort?: number | 'blocked',
 ) {
   if (
     !/^[a-f0-9]{64}$/.test(digest) ||
     !/^[a-f0-9-]{36}$/.test(nonce) ||
     (forwardPort !== undefined &&
+      forwardPort !== 'blocked' &&
       (!Number.isSafeInteger(forwardPort) || forwardPort < 1 || forwardPort > 65535))
   )
     throw Error('Invalid bootstrap identifiers');

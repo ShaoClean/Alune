@@ -46,7 +46,7 @@ fs.writeFileSync(path.join(repo, 'file.txt'), 'base\n');
 fs.writeFileSync(path.join(repo, '.gitignore'), 'ignored.txt\n');
 git('add', '.');
 git('commit', '-m', 'base');
-git('remote', 'add', 'origin', 'https://github.com/fixture/example.git');
+git('remote', 'add', 'origin', 'https://github.com/team/repo.git');
 const sshPassword = randomUUID();
 const ssh = await fixtures.forwardingSSH({
   password: sshPassword,
@@ -75,8 +75,13 @@ const proxy = await fixtures.httpProxy({
 });
 const localProc = spawnAgent(
   process.execPath,
-  [path.resolve('packages/agent/tests/settings-fixture.cjs'), localDir],
-  { env },
+  [
+    '--require',
+    path.resolve('packages/agent/tests/collaboration-provider.cjs'),
+    path.resolve('packages/agent/tests/settings-fixture.cjs'),
+    localDir,
+  ],
+  { env: { ...env, ALUNE_P6_FIXTURE: root } },
 );
 const local = localProc.client;
 let remote, secondPeer, other;
@@ -142,6 +147,7 @@ try {
   assert.equal(catalog.hosts[0].repositories.length, 1);
   assert.equal(catalog.hosts[0].gitAvailable, true);
   secondPeer = await fixtures.forwardingSSH({
+    deny: true,
     password: sshPassword,
     cwd: login,
     environment: { ...env, ALUNE_AGENT_DATA_DIR: path.join(root, 'other agent') },
@@ -167,6 +173,23 @@ try {
     install: false,
   });
   const same = await other.registerRepository(repo);
+  assert.equal(
+    (await local.request('hosts.catalog')).hosts.find((h) => h.hostId === profile2.id).gitProxy,
+    'blocked',
+  );
+  assert.equal(
+    (await other.readRepository(same.resource, 'file', { path: 'file.txt' })).content,
+    'base\n',
+  );
+  const blockedIntent = { kind: 'fetch', args: ['origin'], resource: same.resource };
+  await assert.rejects(
+    other.writeRepository({
+      ...blockedIntent,
+      revision: await other.prepareRepositoryWrite(blockedIntent),
+      operationId: randomUUID(),
+    }),
+    /forwarding was denied/,
+  );
   assert.notEqual(same.resource.agentId, target.resource.agentId);
   assert.equal(workspace.owner(same.resource), other);
   const combined = await workspace.catalog();
@@ -189,6 +212,72 @@ try {
     new Set(discovery.sources.map((s) => s.resource.agentId)),
     new Set([local.initialized.agentId, owner, other.initialized.agentId]),
   );
+  const binding = await workspace.collaborationResource(target.resource);
+  const cfg = await local.getAiSettings(),
+    provider = cfg.providers.find((p) => p.id === 'openai');
+  const saved = await local.saveAiProvider(
+    provider.id,
+    {
+      ...provider,
+      enabled: true,
+      baseUrl: 'https://ai.fixture.invalid/v1',
+      apiKey: 'fixture-ai-secret',
+      models: [{ name: 'fixture', id: 'fixture', enabled: true }],
+    },
+    cfg.revision,
+  );
+  const prefs = await local.saveCommitPreferences(
+    { ...saved.commit, providerId: provider.id, modelId: 'fixture' },
+    saved.revision,
+  );
+  fs.writeFileSync(path.join(repo, 'file.txt'), 'STAGED_ONLY');
+  git('add', 'file.txt');
+  fs.writeFileSync(path.join(repo, 'file.txt'), 'PRIVATE_UNSTAGED');
+  assert.equal(
+    (
+      await local.collaboration('ai.generate', {
+        resource: binding,
+        input: { revision: prefs.revision },
+      })
+    ).message,
+    'fixture commit',
+  );
+  git('restore', '--staged', 'file.txt');
+  git('restore', 'file.txt');
+  const tokens = await local.saveAccessToken(null, {
+    name: 'local only',
+    value: 'fixture-review-secret',
+    revision: (await local.listAccessTokens()).revision,
+  });
+  const q = { remote: 'origin', target: 'https://github.com/team/repo', provider: 'github' };
+  await local.collaboration('reviews.applyToken', {
+    resource: binding,
+    input: { ...q, tokenId: tokens.tokens[0].id, revision: tokens.revision },
+  });
+  const detail = { ...q, number: 12 };
+  const actions = await local.collaboration('reviews.actions', {
+    resource: binding,
+    input: detail,
+  });
+  const mutation = {
+    ...detail,
+    revision: actions.revision,
+    action: 'comment',
+    body: 'fixture',
+    operationId: randomUUID(),
+  };
+  await assert.rejects(
+    local.collaboration('reviews.mutate', { resource: binding, input: mutation }),
+    { outcome: 'unknown' },
+  );
+  await assert.rejects(
+    local.collaboration('reviews.mutate', { resource: binding, input: mutation }),
+    { kind: 'duplicate-request' },
+  );
+  assert.equal((await local.getTask({ taskId: mutation.operationId })).task.state, 'unknown');
+  assert.equal((await remote.getTask({ taskId: mutation.operationId })).task, null);
+  assert.equal((await remote.listAccessTokens()).tokens.length, 0);
+  assert.equal(fs.readFileSync(path.join(root, 'dispatched'), 'utf8'), 'comment\n');
   const otherEvents = [];
   other.onEvent((event) => otherEvents.push(event));
   await other.subscribe(['terminal:state', 'terminal:output', 'terminal:removed']);

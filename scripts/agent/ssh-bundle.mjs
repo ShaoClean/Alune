@@ -1,6 +1,15 @@
 // Provision only trusted build output. RPC clients cannot choose a local file or URL.
-import { readFileSync, writeFileSync, mkdirSync, renameSync, mkdtempSync, rmSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  realpathSync,
+  lstatSync,
+  renameSync,
+  mkdtempSync,
+  rmSync,
+} from 'node:fs';
+import { join, resolve, relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 const [source, data] = process.argv.slice(2);
@@ -10,27 +19,31 @@ const manifest = JSON.parse(bytes);
 const digest = (b) => createHash('sha256').update(b).digest('hex');
 if (!['darwin-arm64', 'darwin-x64', 'linux-x64', 'win32-x64'].includes(manifest.target))
   throw Error('Unsupported target');
-for (const [name, hash] of Object.entries(manifest.files))
-  if (digest(readFileSync(join(source, name))) !== hash)
+const root = realpathSync(source),
+  names = Object.keys(manifest.files);
+for (const name of names) {
+  if (
+    !name ||
+    name.startsWith('-') ||
+    /[\r\n\\:]/.test(name) ||
+    name.split('/').some((part) => ['', '.', '..'].includes(part))
+  )
+    throw Error('Unsafe package member');
+  const file = join(root, name);
+  if (
+    !lstatSync(file).isFile() ||
+    relative(root, realpathSync(file)).split('\\').join('/') !== name
+  )
+    throw Error('Package member must be an ordinary file inside the bundle: ' + name);
+  if (digest(readFileSync(file)) !== manifest.files[name])
     throw Error('Invalid package file: ' + name);
+}
 const dest = join(resolve(data), 'ssh-bundles', manifest.target);
 mkdirSync(dest, { recursive: true, mode: 0o700 });
 const staging = mkdtempSync(join(dest, '.build-'));
 try {
   const file = join(staging, 'agent.tar.gz');
   // Only manifest-listed files enter the archive; archive paths have no build-directory prefix.
-  const names = Object.keys(manifest.files);
-  if (
-    names.some(
-      (n) =>
-        !n ||
-        n.startsWith('-') ||
-        n.includes('..' + '/') ||
-        n.startsWith('/') ||
-        /[\r\n\\]/.test(n),
-    )
-  )
-    throw Error('Unsafe package member');
   execFileSync('tar', ['-czf', file, '-T', '-'], {
     cwd: source,
     input: ['manifest.json', ...names].join('\n') + '\n',

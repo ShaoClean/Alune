@@ -6,6 +6,7 @@ import {
   PROTOCOL_VERSION,
   MAX_FRAME_BYTES,
   type InitializeResult,
+  type JsonValue,
   type RpcMessage,
   type RpcRequest,
   type RpcNotification,
@@ -29,6 +30,53 @@ export class HostRelay {
   private pending = new Map<string, string>();
   private identity?: InitializeResult;
   private lastList?: string;
+  private readSequence = 0;
+  private reads = new Map<
+    string,
+    { resolve: (value: JsonValue) => void; reject: (e: Error) => void }
+  >();
+  async snapshot(
+    request: import('./snapshot').SnapshotRequest,
+    signal: AbortSignal,
+  ): Promise<JsonValue> {
+    signal.throwIfAborted();
+    if (this.failure || !this.identity?.capabilities.includes('repositories.hostRead'))
+      throw new ProtocolError('unavailable', 'Remote repository snapshot unavailable');
+    if (this.reads.size >= 16) throw new ProtocolError('overloaded', 'Snapshot read limit reached');
+    const id = 'ssh-read:' + ++this.readSequence;
+    return new Promise((resolve, reject) => {
+      const finish = () => {
+        this.reads.delete(id);
+        signal.removeEventListener('abort', abort);
+      };
+      const abort = () => {
+        finish();
+        void this.wire
+          .send({ jsonrpc: '2.0', method: '$/cancelRequest', params: { requestId: id } })
+          .catch(() => {});
+        reject(signal.reason);
+      };
+      this.reads.set(id, {
+        resolve: (value) => {
+          finish();
+          resolve(value);
+        },
+        reject: (e) => {
+          finish();
+          reject(e);
+        },
+      });
+      signal.addEventListener('abort', abort, { once: true });
+      void this.wire
+        .send({
+          jsonrpc: '2.0',
+          method: 'repositories.hostRead',
+          id,
+          params: request as unknown as JsonValue,
+        })
+        .catch((e) => this.reads.get(id)?.reject(e));
+    });
+  }
   constructor(
     private wire: MessageTransport,
     private version: string,
@@ -57,6 +105,8 @@ export class HostRelay {
     )
       throw new ProtocolError('unknown-method', 'Remote capability unavailable');
     if ('id' in m) {
+      if (m.id.startsWith('ssh-read:'))
+        throw new ProtocolError('invalid-request', 'Reserved SSH snapshot request ID');
       if (this.pending.has(m.id) || this.pending.size >= 128)
         throw new ProtocolError('overloaded', 'Remote request limit exceeded');
       this.pending.set(m.id, m.method);
@@ -81,6 +131,14 @@ export class HostRelay {
       )
         throw new ProtocolError('conflict', 'Remote event owner changed');
     } else {
+      if (m.id?.startsWith('ssh-read:')) {
+        const read = this.reads.get(m.id);
+        if (!read) return; // cancelled read: never deliver its late response to the other client
+        if ('result' in m) read.resolve(m.result);
+        else
+          read.reject(new ProtocolError(m.error.data.kind, m.error.message, m.error.data.outcome));
+        return;
+      }
       const method = m.id && this.pending.get(m.id);
       if (!m.id || !method) throw disconnected();
       this.pending.delete(m.id);
@@ -103,9 +161,13 @@ export class HostRelay {
           id.implementation.version !== this.version ||
           id.protocol.minor !== PROTOCOL_VERSION.minor ||
           id.capabilities.includes('hosts.open') ||
-          !['repositories.list', 'repositories.write', 'terminals.create', 'reviews.list'].every(
-            (c) => id.capabilities.includes(c),
-          )
+          ![
+            'repositories.list',
+            'repositories.write',
+            'terminals.create',
+            'reviews.list',
+            'repositories.hostRead',
+          ].every((c) => id.capabilities.includes(c))
         )
           throw new ProtocolError(
             'incompatible-version',
@@ -162,6 +224,7 @@ export class HostRelay {
   close(error: Error = disconnected()) {
     if (this.failure) return;
     this.failure = error;
+    for (const read of this.reads.values()) read.reject(error);
     this.pending.clear();
     this.queue = [];
     this.bytes = 0;
