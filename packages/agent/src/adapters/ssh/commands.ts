@@ -45,8 +45,14 @@ export function bootstrapCommands(
     temp = base + '/upload-' + nonce;
   const arg = ' serve-remote' + (forwardPort ? ' --git-proxy-port ' + forwardPort : '');
   if (windows) {
-    const hash = (file: string) =>
-      "(Get-FileHash -LiteralPath '" + file + "' -Algorithm SHA256).Hash.ToLowerInvariant()";
+    // Get-FileHash is an optional PowerShell module (often missing from
+    // noninteractive OpenSSH environments). Hash the file as bytes in .NET.
+    const check = (file: string) => `
+      $sha=[Security.Cryptography.SHA256]::Create();
+      $reader=[IO.File]::OpenRead('${file}');
+      try { $actual=[BitConverter]::ToString($sha.ComputeHash($reader)).Replace('-','').ToLowerInvariant() }
+      finally { $reader.Dispose(); $sha.Dispose() }
+      if ($actual -ne '${digest}') { throw 'checksum' }`;
     return {
       installed: ps("if(Test-Path -LiteralPath '" + archive + "'){[Console]::Write('present')}"),
       upload: ps(
@@ -54,13 +60,13 @@ export function bootstrapCommands(
          try {
            $f=[IO.File]::Open('${temp}','CreateNew');
            try { [Console]::OpenStandardInput().CopyTo($f) } finally { $f.Dispose() }
-           if (${hash(temp)} -ne '${digest}') { throw 'checksum' }
+           ${check(temp)}
            Move-Item -Force -LiteralPath '${temp}' -Destination '${archive}';
          } finally { if ([IO.File]::Exists('${temp}')) { [IO.File]::Delete('${temp}') } }
          exit 0`,
       ),
       prepare: ps(
-        `if (${hash(archive)} -ne '${digest}') { throw 'checksum' }
+        `${check(archive)}
          New-Item -ItemType Directory '${run}' | Out-Null;
          & (Join-Path $env:SystemRoot 'System32/tar.exe') -xzf '${archive}' -C '${run}';
          exit $LASTEXITCODE`,

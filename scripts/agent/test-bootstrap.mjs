@@ -31,6 +31,21 @@ try {
   assert.equal(run('installed').toString(), 'present');
   run('prepare');
   assert.deepEqual(fs.readFileSync(path.join(home, '.alune-ssh', 'run-' + id, 'asset')), data);
+  const folder = path.join(home, '.alune-ssh', 'run-' + id);
+  const node = path.join(
+    folder,
+    process.platform === 'win32' ? 'runtime/node.exe' : 'runtime/bin/node',
+  );
+  fs.mkdirSync(path.dirname(node), { recursive: true });
+  if (process.platform === 'win32') fs.copyFileSync(process.execPath, node);
+  else fs.symlinkSync(process.execPath, node);
+  const entry = path.join(folder, 'node_modules/@alune/agent/bin/alune-agent.cjs');
+  fs.mkdirSync(path.dirname(entry), { recursive: true });
+  fs.writeFileSync(entry, 'process.stdin.pipe(process.stdout)');
+  const frame = Buffer.from('{"jsonrpc":"2.0","id":"test:1","result":"中文"}\n');
+  assert.deepEqual(run('serve', frame), frame);
+  assert.equal(fs.existsSync(folder), false);
+  run('prepare');
   run('clean');
 } finally {
   fs.rmSync(root, { recursive: true, force: true, maxRetries: 4 });
