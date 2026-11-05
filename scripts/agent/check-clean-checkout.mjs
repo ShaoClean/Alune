@@ -37,6 +37,13 @@ if (phase === 'before-install')
   assert.equal(fs.existsSync('node_modules'), false, 'use a fresh checkout');
 else {
   const require = createRequire(import.meta.url);
+  // Windows VS 2026 is not recognized by npm 10's bundled node-gyp 11.
+  // better-sqlite3 builds from source; the Agent declares its compiler
+  // driver itself instead of inheriting it transitively from Electron.
+  assert.equal(
+    require('node-gyp/package.json').version,
+    require('../../packages/agent/package.json').devDependencies['node-gyp'],
+  );
   for (const name of ['electron', '@nestjs/core', '@alune/shared', '@alune/ssh-client', 'server'])
     assert.throws(
       () => require.resolve(name),

@@ -60,7 +60,7 @@ try {
     [
       '-e',
       `const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-    for(const name of ['@alune/shared','@alune/ssh-client','server','electron'])assert.throws(()=>require.resolve(name),{code:'MODULE_NOT_FOUND'});
+    for(const name of ['@alune/shared','@alune/ssh-client','server','electron','node-gyp'])assert.throws(()=>require.resolve(name),{code:'MODULE_NOT_FOUND'});
     const root=fs.realpathSync(process.argv[1])+path.sep;
     for(const name of ['@alune/agent','@alune/agent-client/node','@alune/protocol','ssh2','better-sqlite3','node-pty'])
       assert.ok(fs.realpathSync(require.resolve(name)).startsWith(root),name+' escaped the bundle');
