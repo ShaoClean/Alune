@@ -29,6 +29,7 @@ module.exports = async ({
   git('config', 'user.name', 'UI fixture');
   git('config', 'user.email', 'test@example.invalid');
   git('config', 'commit.gpgSign', 'false');
+  git('config', 'core.autocrlf', 'false');
   fs.writeFileSync(path.join(work, 'scratch.txt'), 'base\n');
   git('add', '.');
   git('commit', '-qm', 'base');
@@ -226,6 +227,21 @@ module.exports = async ({
     ['UI-010', 'UI-011', 'UI-007'],
     'resolve an actual Git merge hunk, stage the chosen side, continue and verify both parents and committed bytes',
   );
+
+  await require('./candidate-file-actions.cjs')({
+    wc,
+    work,
+    git,
+    wait,
+    fact,
+    button,
+    element,
+    click,
+    fill,
+    primary,
+    textButton,
+    pass,
+  });
 
   // The target directory lives entirely inside this test root.
   await click(button('查看关联 Worktrees'));

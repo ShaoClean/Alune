@@ -127,7 +127,15 @@ test('file operations protect staged bytes, stale previews, literal paths, and c
   assert.equal(fs.readFileSync(path.join(f.repo, name), 'utf8'), 'one\r\n');
   const original = await f.read('previewWorkspaceFile', { path: name });
   await f.write('writeFile', [name, 'two\r\n', original.token]);
-  await assert.rejects(f.write('mutateWorkspaceFile', [name, original.token, 'delete']));
+  const staleDelete = await f.prepare('mutateWorkspaceFile', [name, original.token, 'delete']);
+  await assert.rejects(
+    f.client.writeRepository(staleDelete),
+    (error) => error.kind === 'conflict' && error.outcome === 'not-started',
+  );
+  const { task } = await f.client.getTask({ taskId: staleDelete.operationId });
+  assert.equal(task.state, 'failed');
+  assert.equal(task.outcome, 'not-started');
+  assert.equal(fs.readFileSync(path.join(f.repo, name), 'utf8'), 'two\r\n');
   await f.write('stage', [[name]]);
   const preview = await f.read('previewWorkspaceFile', { path: name });
   await f.write('mutateWorkspaceFile', [name, preview.token, 'rename', 'renamed.txt']);

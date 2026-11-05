@@ -80,6 +80,9 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
     target.webContents,
     'document.body.innerText.includes(' + JSON.stringify(marker) + ')',
   );
+  if (!fromRelease && phase === 'write')
+    await measure(target.webContents, ['UI-068'], 'log window: pause queues a host entry, resume delivers it once, search and level filters compose, clearing the view preserves history on reload',
+      () => require('./candidate-log-actions.cjs')({contents:target.webContents, client:backend.client, wait, marker}));
   await updates.check();
   assert.equal(updates.getState().status, 'available');
   for (const [file, expected] of [

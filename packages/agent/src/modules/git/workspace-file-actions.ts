@@ -14,6 +14,13 @@ const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(valu
 const missing = (error: any) => error?.code === 2 || error?.code === 'ENOENT';
 const fail = (message: string) => new RepositoryFileError(message, 409);
 
+// This failure can only be raised before a filesystem mutation is attempted.
+export class StaleWorkspaceFilePreview extends Error {
+  constructor() {
+    super('文件、暂存内容或路径已变化，请重新读取并确认。');
+  }
+}
+
 function unsafeMetadataName(root: string, part: string) {
   // Windows 8.3/trailing-dot aliases and HFS ignorable characters.
   if (part.toLowerCase() === '.git') return true;
@@ -155,7 +162,8 @@ export class WorkspaceFileActions {
     try {
       return await operation();
     } catch (error) {
-      if (error instanceof RepositoryFileError) throw error;
+      if (error instanceof StaleWorkspaceFilePreview || error instanceof RepositoryFileError)
+        throw error;
       const code = (error as any)?.code;
       const message = missing(error)
         ? '文件或父目录已消失，请刷新。'
@@ -183,8 +191,7 @@ export class WorkspaceFileActions {
         throw fail('请先核验文件并确认。');
       if (action === 'rename') validateWorkspaceName(repo, name!);
       const snapshot = await this.inspect(repo, path);
-      if (!snapshot.canModify || snapshot.token !== token)
-        throw fail('文件、暂存内容或路径已变化，请重新读取并确认。');
+      if (!snapshot.canModify || snapshot.token !== token) throw new StaleWorkspaceFilePreview();
       const next =
         action === 'rename'
           ? posix.dirname(path) === '.'
