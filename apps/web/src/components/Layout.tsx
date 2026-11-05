@@ -297,20 +297,24 @@ export function Layout() {
     navigate(`/repositories/${repo.id}`);
   };
 
-  const handleCloseRepository = (id: string) => {
-    const closedIndex = openRepositories.findIndex((repo: any) => repo.id === id);
-    const isActive = activeRepositoryId === id;
-    const nextRepository = openRepositories[closedIndex + 1] || openRepositories[closedIndex - 1];
-
-    closeRepository(id);
-    if (isActive) navigate(nextRepository ? `/repositories/${nextRepository.id}` : '/repositories');
+  // Closing multiple tabs can update the session before React commits the
+  // previous navigation. Derive the destination from the resulting session,
+  // not a neighbor or active ID captured from an earlier render.
+  const followClosedWorkspace = (closedSelection: boolean) => {
+    const { ids, activeId } = useWorkspaceStore.getState().repositorySession;
+    const routeId = window.location.pathname.match(/^\/repositories\/([^/]+)/)?.[1];
+    if (routeId && (closedSelection || !ids.includes(routeId)))
+      navigate(activeId ? `/repositories/${activeId}` : '/repositories', { flushSync: true });
   };
-
-  // Batch closes keep a surviving active tab; otherwise the menu's target takes over.
+  const handleCloseRepository = (id: string) => {
+    const closedSelection = useWorkspaceStore.getState().repositorySession.activeId === id;
+    closeRepository(id);
+    followClosedWorkspace(closedSelection);
+  };
   const handleCloseRepositories = (ids: string[], targetId: string) => {
+    const selected = useWorkspaceStore.getState().repositorySession.activeId;
     closeRepositories(ids, targetId);
-    if (activeRepositoryId && ids.includes(activeRepositoryId))
-      navigate(`/repositories/${targetId}`);
+    followClosedWorkspace(selected !== null && ids.includes(selected));
   };
 
   const handleDeleteRepository = async (repo: any) => {

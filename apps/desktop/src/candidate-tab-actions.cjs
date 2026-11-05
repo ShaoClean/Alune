@@ -25,15 +25,36 @@ module.exports = async ({
   const disk = async () =>
     JSON.parse(await ev('window.aluneWorkspace.load()')).state.repositorySession;
   async function check(ids, active) {
-    await wait(
-      wc,
-      'JSON.stringify(' +
-        dom +
-        ')===' +
-        JSON.stringify(JSON.stringify(ids)) +
-        '&&location.pathname===' +
-        JSON.stringify('/repositories/' + active),
-    );
+    const route = active ? '/repositories/' + active : '/repositories';
+    const selected =
+      "document.querySelector('[data-repository-tab] [role=tab][aria-selected=true]')?.closest('[data-repository-tab]')?.dataset.repositoryTab??null";
+    try {
+      await wait(
+        wc,
+        'JSON.stringify(' +
+          dom +
+          ')===' +
+          JSON.stringify(JSON.stringify(ids)) +
+          '&&location.pathname===' +
+          JSON.stringify(route) +
+          '&&(' +
+          selected +
+          ')===' +
+          JSON.stringify(active),
+      );
+    } catch (error) {
+      throw new Error(
+        'Tab transition: ' +
+          JSON.stringify({
+            expected: { route, ids, active },
+            rendered: await ev(
+              '({route:location.pathname,ids:' + dom + ',active:' + selected + '})',
+            ),
+            saved: await disk(),
+          }),
+        { cause: error },
+      );
+    }
     const end = Date.now() + 12000;
     let last;
     do {
@@ -57,6 +78,24 @@ module.exports = async ({
           `(()=>{const e=(${wrap(id)});if(!e)return false;const rect=e.getBoundingClientRect();e.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:rect.left+8,clientY:rect.top+3}));return true})()`,
         );
   await check([original, scratch, linked], linked);
+  // Two actions in one renderer task expose a router transition that has
+  // not yet committed. A closing tab must not reopen on that obsolete URL.
+  await wait(
+    wc,
+    `(()=>{const pick=(${handle(original)}),close=(${element(selector(original) + ' .repository-tab__close')});if(!pick||!close)return false;pick.click();close.click();return true})()`,
+  );
+  await check([scratch, linked], scratch);
+  await window.loadURL(origin + '/repositories/' + original);
+  await check([scratch, linked, original], original);
+  await keys(handle(original), 'ArrowLeft', { altKey: true });
+  await check([scratch, original, linked], original);
+  await keys(handle(original), 'ArrowLeft', { altKey: true });
+  await check([original, scratch, linked], original);
+  await pass(
+    ['UI-041', 'UI-025'],
+    'select and immediately close the newly selected tab; navigate to the surviving neighbor and never reopen the closed registration',
+  );
+
   await click(handle(original));
   await check([original, scratch, linked], original);
   await keys(handle(original), 'ArrowRight', { altKey: true });
@@ -103,7 +142,7 @@ module.exports = async ({
   await click(closeCommand('关闭其他标签页', 1));
   await check([linked], linked);
   await click(element(selector(linked) + ' .repository-tab__close'));
-  await wait(wc, dom + '.length===0 && location.pathname==="/repositories"');
+  await check([], null);
   assert.ok(fs.existsSync(path.join(linkedPath, '.git')));
   await window.loadURL(origin + '/repositories/' + original);
   await check([original], original);

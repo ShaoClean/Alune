@@ -70,8 +70,10 @@ module.exports = async ({
   await fill(button('签名密钥'), 'local-fixture-key');
   await click(primary('保存到此仓库'));
   await fact(
-    () => git('config', '--get', 'user.signingkey') === 'local-fixture-key',
-    'signing key not saved in local Git config',
+    () =>
+      git('config', '--get', 'user.signingkey') === 'local-fixture-key' &&
+      git('config', '--get', 'gpg.format') === 'ssh',
+    'signing key and format were not saved in local Git config',
   );
   assert.equal(git('config', '--get', 'gpg.format'), 'ssh');
   assert.equal(git('config', '--get', 'commit.gpgSign'), 'false');
