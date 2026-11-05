@@ -115,6 +115,66 @@ module.exports = async ({
       wc,
       "[...document.querySelectorAll('.connection-table tr')].some(e=>e.textContent.includes('No saved password') && e.textContent.includes('密码'))",
     );
+    // Both hosts are disposable saved profiles. Sorting or dropping a repository
+    // on another group must not start SSH or transfer its registration.
+    const groups =
+      '[...document.querySelectorAll("#remote-workspace-tree .tree-group")].map(g=>g.dataset.connectionId)';
+    const localGroup = '.tree-group[data-connection-id="@local"]';
+    const remoteId = await ev(
+      'document.querySelector(' +
+        JSON.stringify('.tree-group .tree-node__label[title="' + name + '"]') +
+        ')?.closest(".tree-group")?.dataset.connectionId',
+    );
+    assert.ok(remoteId);
+    const remoteGroup = '.tree-group[data-connection-id="' + remoteId + '"]';
+    const localIds =
+      '[...document.querySelectorAll(' +
+      JSON.stringify(localGroup + ' [data-repository-id]') +
+      ')].map(r=>r.dataset.repositoryId)';
+    const oldGroups = await ev(groups),
+      oldRepos = await ev(localIds);
+    assert.ok(
+      oldGroups.includes('@local') &&
+        oldGroups.includes(remoteId) &&
+        oldGroups.length >= 3 &&
+        oldRepos.length >= 1,
+    );
+    const dragTree = async (from, to, after) => {
+      await wait(
+        wc,
+        `(()=>{const src=(${element(from)}),dst=(${element(to)});if(!src||!dst||src.disabled)return false;const dt=new DataTransfer(),box=dst.getBoundingClientRect(),args={dataTransfer:dt,bubbles:true,cancelable:true,clientX:box.left+8,clientY:${after ? 'box.bottom-1' : 'box.top+1'}};src.dispatchEvent(new DragEvent('dragstart',args));dst.dispatchEvent(new DragEvent('dragover',args));dst.dispatchEvent(new DragEvent('drop',args));src.dispatchEvent(new DragEvent('dragend',args));return true})()`,
+      );
+    };
+    await dragTree(localGroup + ' [data-repository-id] .tree-sort-handle', remoteGroup, false);
+    assert.deepEqual(await ev(groups), oldGroups);
+    assert.deepEqual(await ev(localIds), oldRepos);
+    assert.equal(
+      await ev(
+        'document.querySelectorAll(' +
+          JSON.stringify(remoteGroup + ' [data-repository-id]') +
+          ').length',
+      ),
+      0,
+    );
+    await dragTree(
+      remoteGroup + ' .tree-node--connection .tree-sort-handle',
+      localGroup + ' .tree-node--connection',
+      false,
+    );
+    const reordered = oldGroups.filter((id) => id !== remoteId);
+    reordered.splice(reordered.indexOf('@local'), 0, remoteId);
+    assert.notDeepEqual(reordered, oldGroups);
+    const ordered = 'JSON.stringify(' + groups + ')===' + JSON.stringify(JSON.stringify(reordered));
+    await wait(wc, ordered);
+    await open('/connections');
+    await wait(wc, ordered);
+    assert.deepEqual(await ev(localIds), oldRepos);
+    const persisted = JSON.parse(await ev('window.aluneWorkspace.load()')).state;
+    assert.deepEqual(persisted.connectionOrder, reordered);
+    await pass(
+      ['UI-051', 'UI-025', 'UI-067'],
+      'reject moving a local repository onto a disconnected SSH host; drag the host group, reopen the sidebar and verify its saved order and original repository ownership',
+    );
     await click(button('卡片视图'));
     await wait(wc, button('删除 ' + blank));
     await click(button('删除 ' + blank));
