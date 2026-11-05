@@ -224,7 +224,10 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
       const { client, resource } = await repositoryTarget(id);
       const invoke = adapter(client)[group] as Record<string, (...args: any[]) => Promise<any>>;
       const value = await invoke[key](resource.resourceId, ...args);
-      if (client !== local && key === 'context') return { ...value, source: 'ssh' };
+      // Each Agent sees the repository as local. The UI must describe the host
+      // relative to this window when explaining where signing keys are used.
+      if (key === 'context' || key === 'signingConfig' || key === 'saveSigningConfig')
+        return { ...value, source: client === local ? 'local' : 'ssh' };
       if (client !== local && ['createWorktree', 'openWorktree', 'openSubmodule'].includes(key))
         return aliasFor(client, validateRepositoryResource(value).resource);
       if (client !== local && key === 'removeWorktree') {

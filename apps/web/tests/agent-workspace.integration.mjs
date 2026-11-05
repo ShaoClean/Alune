@@ -66,6 +66,9 @@ test('UI facade keeps mixed-host analytics, Git writes, Worktree aliases, termin
     await client.subscribe(workspaceTopics);
     await installWorkspaceAgent(client);
     assert.equal((await connectionApi.list())[0].status, 'unknown');
+    const signing = await gitApi.signingConfig(localId);
+    assert.equal(signing.source, 'local');
+    assert.equal((await gitApi.saveSigningConfig(localId, signing)).source, 'local');
     const batch = await repositoryApi.analytics([remoteId, localId], true, true);
     assert.deepEqual(
       batch.map((r) => r.id),
