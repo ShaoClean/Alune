@@ -869,7 +869,7 @@ export function ChangesView({
                 type="button"
                 className="commit-ai-generate"
                 aria-label="AI 生成提交信息"
-                disabled={busy || ai.generating}
+                disabled={!status || busy || ai.generating}
                 onClick={() => void ai.generate()}
               >
                 {ai.generating ? <MoonLoader /> : <Sparkles />}

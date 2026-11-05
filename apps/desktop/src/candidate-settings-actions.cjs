@@ -189,6 +189,8 @@ module.exports = async ({
       'select persisted provider/model, English and natural language format; reopen to verify all values and custom prompt',
     );
     await window.loadURL(origin + '/repositories/' + id);
+    await wait(wc, button('取消暂存 candidate.txt'));
+    await wait(wc, button('AI 模型 ' + nickname + '，打开提交生成设置'));
     const summary = button('提交摘要'),
       description = button('提交描述');
     await input(summary, 'handwritten summary');
