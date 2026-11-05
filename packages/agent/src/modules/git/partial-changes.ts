@@ -2,6 +2,7 @@ import type { PartialDiffPreview } from '@alune/domain';
 import { parsePatchHunks } from '@alune/domain';
 import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
+import { GitWorktrees, worktreePathKey } from './worktrees';
 import { GitReads as GitCommands } from './git-commands';
 import { validateRepositoryPath } from './repository-files';
 import { joinRepositoryPath } from './repository-path';
@@ -188,7 +189,10 @@ export class PartialReads {
     const after = await this.snapshot(root, file, blobs);
     if (partialHash(state) !== partialHash(after)) throw partialStale();
     if (!hunks.length) throw new PartialUnsupported('没有可按块或按行操作的文本改动。');
-    return { state, diff, hunks, revision: partialHash([root, file, staged, state, diff]) };
+    // Legacy UI and Agent may spell the same native path differently (including
+    // Windows 8.3 names and slash styles). Bind the token to the canonical root.
+    const identity = worktreePathKey(await new GitWorktrees(this.connection).canonicalPath(root));
+    return { state, diff, hunks, revision: partialHash([identity, file, staged, state, diff]) };
   }
   async preview(
     root: string,

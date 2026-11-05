@@ -48,6 +48,13 @@ export async function openStateKernel(
           return settings.proxy.snapshot();
         },
         true,
+        () => {
+          try {
+            return settings.proxy.read().enabled;
+          } catch {
+            return undefined;
+          } // Corrupt policy is not permission to go direct.
+        },
       ),
   );
   const handlers: Record<string, Handler> = {

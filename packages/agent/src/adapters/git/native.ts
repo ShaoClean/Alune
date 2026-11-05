@@ -151,6 +151,14 @@ function metadataRead(args: string[]): boolean {
       !args.some((arg) => arg === '--blob' || arg.startsWith('--blob=')) &&
       args.some((arg) => ['--get', '--get-all', '--get-regexp'].includes(arg))
     );
+  if (args[0] === 'ls-files') {
+    const separator = args.indexOf('--');
+    return args
+      .slice(1, separator < 0 ? args.length : separator)
+      .every((arg) =>
+        ['--stage', '-z', '--cached', '--others', '--exclude-standard', '--unmerged'].includes(arg),
+      );
+  }
   if (args[0] === 'symbolic-ref')
     return (
       args.at(-1) === 'HEAD' &&
@@ -192,6 +200,7 @@ export class NativeRepositoryConnection implements RepositoryTransport {
     signal?: AbortSignal,
     private readonly proxySnapshot?: () => ProxySnapshot | Promise<ProxySnapshot>,
     private readonly readOnly = false,
+    private readonly proxyEnabled?: () => boolean | undefined,
   ) {
     this.signal = signal ? AbortSignal.any([signal, this.lifetime.signal]) : this.lifetime.signal;
   }
@@ -262,7 +271,9 @@ export class NativeRepositoryConnection implements RepositoryTransport {
         ...options,
         environment: { ...options.environment, GIT_NO_LAZY_FETCH: '1' },
       });
-    if (this.proxySnapshot) {
+    // A known-disabled application proxy needs no promisor probe. Unknown or
+    // unreadable policy remains conservative; never cache this hint across commands.
+    if (this.proxySnapshot && this.proxyEnabled?.() !== false) {
       let network =
         ['fetch', 'pull', 'push', 'ls-remote'].includes(args[0]) ||
         (args[0] === 'submodule' && args[1] === 'update');

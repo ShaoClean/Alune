@@ -147,6 +147,19 @@ test(
       fullFile: true,
     });
     assert(diff.revision);
+    const { PartialReads } = require('../dist/modules/git/partial-changes');
+    assert.equal(
+      (
+        await new PartialReads(new NativeRepositoryConnection()).preview(
+          f.repo,
+          '重命名 file.txt',
+          true,
+          true,
+        )
+      ).revision,
+      diff.revision,
+      'native aliases must produce the same actionable revision',
+    );
     assert.match(diff.diff, /changed/);
     const image = await query('diffImage', { file: 'image.png', commit: f.first, side: 'after' });
     assert.equal(image.byteLength, 8);
@@ -430,15 +443,18 @@ test(
       (await connection.execGit(f.repo, ['symbolic-ref', '--quiet', 'HEAD'])).exitCode,
       0,
     );
+    assert.equal((await connection.execGit(f.repo, ['ls-files', '--stage', '-z'])).exitCode, 0);
     assert.equal(snapshots, 0);
     for (const args of [
       ['log', '-1'],
       ['show', 'HEAD:重命名 file.txt'],
       ['diff'],
       ['status', '--porcelain'],
+      ['for-each-ref', '--format=%(contents)'],
+      ['config', '--blob=HEAD:config', '--get', 'user.name'],
     ])
       await assert.rejects(connection.execGit(f.repo, args), /fixture proxy unavailable/);
-    assert.equal(snapshots, 4);
+    assert.equal(snapshots, 6);
   },
 );
 
@@ -487,3 +503,29 @@ test('analytics retains cached failure markers and invalidation cannot resurrect
   ]);
   await delayed.close();
 });
+
+test(
+  'disabled proxy hint is read per command and never retained after configuration changes',
+  { timeout: 30000 },
+  async (t) => {
+    const f = await setup(t);
+    f.git('config', 'remote.origin.promisor', 'true');
+    let enabled = false,
+      snapshots = 0;
+    const connection = new NativeRepositoryConnection(
+      undefined,
+      () => {
+        snapshots++;
+        throw new Error('fixture proxy unavailable');
+      },
+      true,
+      () => enabled,
+    );
+    t.after(() => connection.close());
+    assert.equal((await connection.execGit(f.repo, ['log', '-1'])).exitCode, 0);
+    assert.equal(snapshots, 0);
+    enabled = true;
+    await assert.rejects(connection.execGit(f.repo, ['log', '-1']), /fixture proxy unavailable/);
+    assert.equal(snapshots, 1);
+  },
+);
