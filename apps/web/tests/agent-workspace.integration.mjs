@@ -11,6 +11,7 @@ import { superviseUiAgent, AgentClient, frameTransport } from '@alune/agent-clie
 import { installWorkspaceAgent } from '../src/api/agent-workspace.ts';
 import { repositoryApi, connectionApi, gitApi } from '../src/api/index.ts';
 import { registerTerminalRemovalConfirmation } from '../src/stores/terminalRemoval.ts';
+import { repositoryFileStatus, repositoryHistoryChanged } from '../src/api/repository-errors.ts';
 import { workspaceTopics } from '../src/api/ui-agent.ts';
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 test('UI facade keeps mixed-host analytics, Git writes, Worktree aliases, terminal consent and host deletion consistent', async () => {
@@ -81,6 +82,22 @@ test('UI facade keeps mixed-host analytics, Git writes, Worktree aliases, termin
     assert.equal(git('show', ':example.txt'), 'edited\n');
     await gitApi.commit(localId, 'through-ui');
     assert.equal(git('log', '-1', '--format=%s').trim(), 'through-ui');
+    // A stale continuation needs a history reset. A missing image side on
+    // an added/deleted file is an ordinary absence rather than a load error.
+    const page = await repositoryApi.log(localId, { count: 1 });
+    git('branch', 'revision-drift');
+    await assert.rejects(
+      repositoryApi.log(localId, { skip: 1, count: 1, revision: page.revision }),
+      repositoryHistoryChanged,
+    );
+    await assert.rejects(
+      repositoryApi.file(localId, 'gone.txt'),
+      (e) => repositoryFileStatus(e) === 404,
+    );
+    await assert.rejects(
+      repositoryApi.diffImage(localId, { file: 'added.png', side: 'before' }),
+      (e) => repositoryFileStatus(e) === 404,
+    );
     const linked = await gitApi.createWorktree(localId, join(dir, 'linked'), 'ui-worktree');
     assert.equal((await repositoryApi.context(linked.id)).source, 'local');
     const removed = await gitApi.removeWorktree(localId, linked.path);

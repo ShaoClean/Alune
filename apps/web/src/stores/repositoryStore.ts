@@ -1,3 +1,4 @@
+import { repositoryHistoryChanged } from '../api/repository-errors';
 import type { PartialDiffPreview } from '@alune/domain';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -819,7 +820,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
             logError: errorMessage(err),
             logLoading: false,
             logLoadingMore: false,
-            logChanged: err.response?.data?.code === 'HISTORY_CHANGED',
+            logChanged: repositoryHistoryChanged(err),
           });
       }
     },

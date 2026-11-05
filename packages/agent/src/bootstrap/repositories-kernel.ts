@@ -82,7 +82,9 @@ export function repositoriesKernel(
           if (error instanceof Error && error.name === 'TimeoutError')
             throw new ProtocolError('timeout', 'Repository read timed out');
           if (error instanceof GitLogChangedError)
-            throw new ProtocolError('conflict', error.message);
+            throw new ProtocolError('conflict', error.message, 'not-started', {
+              code: 'HISTORY_CHANGED',
+            });
           if (error instanceof GitLogOptionsError)
             throw new ProtocolError('invalid-params', error.message);
           const status = (error as { statusCode?: number }).statusCode;

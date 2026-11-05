@@ -87,7 +87,7 @@ export function visibleDirectories(
   return result;
 }
 
-export const errorStatus = (error: any): number | undefined => error?.response?.status;
+export { repositoryFileStatus as errorStatus } from '../api/repository-errors';
 
 export const errorMessage = (error: any, fallback: string): string =>
   error?.response?.data?.message || error?.message || fallback;
