@@ -26,8 +26,8 @@ export function CreatePullRequestDialog({
 }) {
   const [preview, setPreview] = useState<PullRequestCreationPreview | null>(null);
   const [target, setTarget] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [title, setTitleValue] = useState('');
+  const [description, setDescriptionValue] = useState('');
   const [draft, setDraft] = useState(false);
   const [assignees, setAssignees] = useState<string[]>([]);
   const [reviewers, setReviewers] = useState<string[]>([]);
@@ -42,6 +42,17 @@ export function CreatePullRequestDialog({
   const controller = useRef<AbortController | null>(null);
   const mounted = useRef(true);
   const initialized = useRef(false);
+  // Preview defaults may arrive after typing starts (especially over SSH).
+  // A deliberately cleared field is still an edit, so track each separately.
+  const edited = useRef({ title: false, description: false });
+  const setTitle = (value: string) => {
+    edited.current.title = true;
+    setTitleValue(value);
+  };
+  const setDescription = (value: string) => {
+    edited.current.description = true;
+    setDescriptionValue(value);
+  };
   const submission = useRef<{ fingerprint: string; request: CreatePullRequest } | null>(null);
   const { settings, load } = useAiSettingsStore();
   const model = defaultCommitModel(settings);
@@ -72,12 +83,13 @@ export function CreatePullRequestDialog({
       setPreview(result);
       setTarget(result.targetBranch);
       if (!initialized.current) {
-        setTitle(
-          result.commits.length === 1
-            ? result.commits[0].message.split('\n')[0].slice(0, 200)
-            : result.sourceBranch,
-        );
-        setDescription(result.template);
+        if (!edited.current.title)
+          setTitleValue(
+            result.commits.length === 1
+              ? result.commits[0].message.split('\n')[0].slice(0, 200)
+              : result.sourceBranch,
+          );
+        if (!edited.current.description) setDescriptionValue(result.template);
         initialized.current = true;
       }
     } catch (failure) {

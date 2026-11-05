@@ -110,9 +110,13 @@ test('stdio collaboration keeps staged data and credentials scoped; an ambiguous
     ...detail,
     revision: actions.revision,
     body: 'hello',
+    position: undefined, // ordinary comment submitted by the real form
     action: 'comment',
     operationId: randomUUID(),
   };
+  assert.throws(() => call('reviews.mutate', { ...write, unexpectedField: undefined }), {
+    kind: 'invalid-params',
+  });
   await assert.rejects(call('reviews.mutate', write), { outcome: 'unknown' });
   await child.close();
   client = await start();

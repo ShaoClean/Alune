@@ -175,7 +175,19 @@ export class AgentClient {
     validateCollaboration(method, params);
     if ('resource' in params && this.identity && params.resource.agentId !== this.identity.agentId)
       return Promise.reject(new ProtocolError('not-found', 'Repository belongs to another Agent'));
-    return this.request(method, params as unknown as JsonValue, {
+    // Keep wire validation strict. Forms may explicitly leave a known optional
+    // field (e.g. the position of an ordinary comment) undefined. The typed
+    // facade omits it just as the original JSON/HTTP request did.
+    const wire =
+      'input' in params
+        ? {
+            ...params,
+            input: Object.fromEntries(
+              Object.entries(params.input).filter(([, v]) => v !== undefined),
+            ),
+          }
+        : params;
+    return this.request(method, wire as unknown as JsonValue, {
       timeoutMs: 90_000,
       ...options,
     }).then((value) => {
@@ -242,7 +254,11 @@ export class AgentClient {
     return this.decode(
       this.request(
         'settings.ai.saveProvider',
-        { ...(id === undefined ? {} : { id }), provider: payload, revision } as unknown as JsonValue,
+        {
+          ...(id === undefined ? {} : { id }),
+          provider: payload,
+          revision,
+        } as unknown as JsonValue,
         options,
       ),
       validateAiSettings,
