@@ -13,13 +13,15 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   const evidence = [];
   const { counts } = require('./candidate-ui-audit.cjs');
   let before = await counts(wc);
-  async function pass(ui, scenario) {
+  async function pass(ui, scenario, facts) {
     const current = await counts(wc);
     const executed = [...current].filter(([id, n]) => n > (before.get(id) ?? 0)).map(([id]) => id);
     before = current;
+    console.log('Verified workbench scenario:', scenario);
     evidence.push({
       ui,
       scenario,
+      ...(facts === undefined ? {} : { facts }),
       executed,
       sha: process.env.GITHUB_SHA ?? null,
       proof: process.env.GITHUB_RUN_ID
@@ -49,6 +51,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     ['UI-009', 'UI-039', 'UI-070'],
     'collection list/overview/collect/grid, one real repository',
   );
+  await require('./candidate-overview-actions.cjs')({ window, origin, repo, wait, pass });
   await window.loadURL(origin + '/repositories/' + id);
   await click(button('文件'));
   const treeItem = (name) =>
@@ -164,5 +167,5 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     await window.loadURL(origin + '/repositories/' + id);
     await wait(wc, button('取消暂存 candidate.txt'));
   }
-  console.log('Candidate native workbench:', JSON.stringify(evidence));
+  console.log('Candidate native workbench: ' + evidence.length + ' scenarios passed');
 };

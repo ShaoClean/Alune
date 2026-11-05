@@ -16,6 +16,7 @@ module.exports = function driver(wc, wait) {
     wait(
       wc,
       `(()=>{const e=(${expr});if(!e||e.disabled||e.readOnly)return false;e.focus();Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));return true})()`,
+      'editable UI control: ' + expr,
     );
   const select = async (label, value) => {
     await wait(

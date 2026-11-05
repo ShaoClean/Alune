@@ -96,7 +96,7 @@ module.exports = async ({
     const b = textButton(label);
     await wait(
       wc,
-      `(()=>{const notice=document.querySelector('.feedback-dialog[open]');if(notice){if(!/变基已暂停/.test(notice.innerText))throw Error(notice.innerText);notice.querySelector('[aria-label="关闭提示"]').click();return false;}const e=(${b});if(!e||e.disabled||e.classList.contains('ant-btn-loading'))return false;e.click();return true;})()`,
+      `(()=>{const notice=document.querySelector('.feedback-dialog[open]');if(notice){if(!/变基已暂停，请在冲突面板中继续处理。|Git 操作进行中/.test(notice.innerText))throw Error(notice.innerText);notice.querySelector('[aria-label="关闭提示"]').click();return false;}const e=(${b});if(!e||e.disabled||e.classList.contains('ant-btn-loading'))return false;e.click();return true;})()`,
     );
   }
   await control('跳过当前提交');

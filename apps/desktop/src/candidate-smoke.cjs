@@ -8,9 +8,18 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
     process.env.ALUNE_CANDIDATE_FIXTURE,
   );
   const phase = process.env.ALUNE_SMOKE_PHASE;
-  const wait = (contents, test) =>
-    contents.executeJavaScript(`new Promise((resolve,reject)=>{const until=Date.now()+20000;function poll(){if(${test})return resolve(true);
-      if(Date.now()>until)return reject(Error('Candidate UI timeout: '+${JSON.stringify(test)}+' | '+JSON.stringify([...document.querySelectorAll('.a-dlg-actions button')].filter(b=>b.getClientRects().length).map(b=>[b.textContent,b.disabled]))+' | '+document.body.innerText.slice(0,1500)));setTimeout(poll,40)}poll()})`);
+  const wait = (contents, test, label = test) =>
+    contents.executeJavaScript(`new Promise((resolve,reject)=>{
+      const until=Date.now()+20000;
+      function poll(){
+        try{
+          if(${test})return resolve(true);
+          if(Date.now()>until)return reject(Error('Candidate UI timeout: '+${JSON.stringify(label)}+' | '+JSON.stringify([...document.querySelectorAll('.a-dlg-actions button')].filter(b=>b.getClientRects().length).map(b=>[b.textContent,b.disabled]))+' | '+document.body.innerText.slice(0,1500)));
+          setTimeout(poll,40);
+        }catch(error){reject(error);}
+      }
+      poll();
+    })`);
   const wc=window.webContents;const {measure}=require('./candidate-ui-audit.cjs');
   await wait(wc, "document.querySelector('.app-shell')");
   assert.equal(await wc.executeJavaScript('typeof window.require'), 'undefined');
