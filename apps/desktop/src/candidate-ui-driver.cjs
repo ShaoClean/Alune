@@ -12,12 +12,20 @@ module.exports = function driver(wc, wait) {
       wc,
       `(()=>{const e=(${expr});if(!e||e.disabled||e.getAttribute('aria-disabled')==='true'||e.getAttribute('aria-busy')==='true'||e.classList.contains('ant-btn-loading'))return false;e.click();return true;})()`,
     );
-  const input = (expr, value) =>
-    wait(
+  const input = async (expr, value) => {
+    await wait(
       wc,
-      `(()=>{const e=(${expr});if(!e||e.disabled||e.readOnly)return false;e.focus();Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));return true})()`,
+      `(()=>{const e=(${expr});if(!e||e.disabled||e.readOnly)return false;e.focus();Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));if(e.type==='date')e.dispatchEvent(new Event('change',{bubbles:true}));return true})()`,
       'editable UI control: ' + expr,
     );
+    // The DOM property changes before React commits a controlled date draft.
+    // Wait for its rendered value before editing another field or paging.
+    await wait(
+      wc,
+      `(()=>{const e=(${expr});return !!e&&(e.type!=='date'||e.getAttribute('value')===${JSON.stringify(String(value))})})()`,
+    );
+    return true;
+  };
   const select = async (label, value) => {
     await wait(
       wc,

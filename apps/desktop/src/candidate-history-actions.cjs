@@ -11,7 +11,7 @@ module.exports = async ({ window, wc, work, wait: rawWait, fact, pass }) => {
         'History condition:',
         condition,
         await wc.executeJavaScript(
-          'JSON.stringify({url:location.href,pointer:window.__historyPointer,body:document.body.innerText.slice(-1600)})',
+          'JSON.stringify({url:location.href,pointer:window.__historyPointer,dates:[...document.querySelectorAll("input[type=date]")].map(e=>({label:e.getAttribute("aria-label"),value:e.value,rendered:e.getAttribute("value"),min:e.min,max:e.max})),busy:document.querySelector(".history-table")?.getAttribute("aria-busy"),body:document.body.innerText.slice(-1600)})',
         ),
       );
       throw error;
@@ -153,12 +153,18 @@ module.exports = async ({ window, wc, work, wait: rawWait, fact, pass }) => {
         '&&' +
         count +
         '<=' +
-        expected.length,
+        expected.length +
+        '&&(' +
+        grid +
+        ')?.getAttribute("aria-busy")==="false"',
     );
     for (let page = 0; page < 6 && (await ev(count)) < expected.length; page++) {
       const before = await ev(count);
       await scroll(100000);
-      await wait(wc, count + '>' + before);
+      await wait(
+        wc,
+        count + '>' + before + '&&(' + grid + ')?.getAttribute("aria-busy")==="false"',
+      );
     }
     assert.equal(await ev(count), expected.length);
     const seen = new Map(),

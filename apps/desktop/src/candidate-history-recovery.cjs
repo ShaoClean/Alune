@@ -109,6 +109,33 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
     ['UI-013', 'UI-021', 'UI-022'],
     'prime history through a real tag creation, scroll its cached graph and switch panels; returning preserves both scroll position and the selected commit',
   );
+  await ev(`(()=>{
+    const raf=window.requestAnimationFrame.bind(window),cancel=window.cancelAnimationFrame.bind(window),pending=new Map();
+    window.requestAnimationFrame=callback=>{const entry={callback,timer:null};const id=raf(time=>{entry.timer=setTimeout(()=>{pending.delete(id);callback(time)},80)});pending.set(id,entry);return id};
+    window.cancelAnimationFrame=id=>{cancel(id);const entry=pending.get(id);if(entry)clearTimeout(entry.timer);pending.delete(id)};
+    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;window.cancelAnimationFrame=cancel;for(const [id,entry] of pending){cancel(id);clearTimeout(entry.timer);pending.delete(id);entry.callback(performance.now())}delete window.__restoreHistoryFrames};
+  })()`);
+  try {
+    await click(button('文件'));
+    await click(button('提交历史'));
+    await wait(wc, "document.querySelector('.history-viewport')?.clientHeight>0");
+    // Model a delayed browser clamp delivered after the retained panel is
+    // visible, before its first restored renderer frame. No store is patched.
+    await ev(
+      "(()=>{const v=document.querySelector('.history-viewport');v.scrollTop=0;v.dispatchEvent(new Event('scroll',{bubbles:true}))})()",
+    );
+    await wait(
+      wc,
+      'Math.abs(document.querySelector(".history-viewport").scrollTop-' + scrollBefore + ')<2',
+    );
+    assert.equal(await ev('document.querySelector(".history-detail code[title]")?.title'), head);
+  } finally {
+    await ev('window.__restoreHistoryFrames?.()').catch(() => {});
+  }
+  await pass(
+    ['UI-021', 'UI-022', 'UI-042', 'UI-072'],
+    'a controlled delayed renderer frame and late visibility clamp cannot replace the retained history scroll position or selected commit',
+  );
   await click(button('关闭提交详情'));
   const treeObject = path.join(repo, '.git', 'objects', tree.slice(0, 2), tree.slice(2)),
     held = path.join(base, 'held-tree');
