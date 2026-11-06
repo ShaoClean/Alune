@@ -118,9 +118,20 @@ module.exports = async ({
     "document.querySelector('.history-detail .diff-shell')?.innerText.includes('Needle needle needlework')",
   );
   assert.equal(git('show', head + ':' + file).split(/\r?\n/)[1], 'Needle needle needlework');
+  await click(textButton('查看全部历史', '.blame-history-scope button'));
+  await wait(wc, "!document.querySelector('.blame-history-scope')");
+  await wait(
+    wc,
+    'document.querySelector(".history-detail code[title]")?.title===' + JSON.stringify(head),
+  );
+  await wait(
+    wc,
+    "document.querySelector('.history-detail .diff-shell')?.innerText.includes('Needle needle needlework')",
+  );
+
   await pass(
     ['UI-004', 'UI-022', 'UI-017', 'UI-072'],
-    'Blame follows a changed line to its actual parent commit, returns and opens the matching committed file in history',
+    'Blame follows a changed line to its actual parent commit, returns and opens its exact historical file; leaving the scoped history preserves that commit and Diff',
   );
 
   await click(button('全屏查看差异'));
