@@ -172,5 +172,6 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     await window.loadURL(origin + '/repositories/' + id);
     await wait(wc, button('取消暂存 candidate.txt'));
   }
+  await require('./candidate-branch-overview.cjs')({ window, origin, id, repo, wait, pass });
   console.log('Candidate native workbench: ' + evidence.length + ' scenarios passed');
 };
