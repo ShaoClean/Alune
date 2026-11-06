@@ -7,6 +7,36 @@ const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { until } = require('./terminal-scenario.cjs');
+test('UI IPC preserves escaped Unicode data across bounded repository chunks', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'alune-ui-frames-'));
+  const host = await launchUiAgent(
+    process.execPath,
+    join(__dirname, '../bin/alune-agent.cjs'),
+    join(dir, 'state'),
+  );
+  t.after(async () => {
+    await host.close();
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  });
+  const client = new AgentClient(frameTransport(await host.open('workspace')));
+  t.after(() => client.close());
+  await client.initialize();
+  const repo = join(dir, 'git');
+  mkdirSync(repo);
+  execFileSync('git', ['init', '-q', repo]);
+  const text = 'quotes " \\ tab\t 中文🚀\r\n'.repeat(6000);
+  writeFileSync(join(repo, 'Unicode 中🚀.txt'), text);
+  const { resource } = await client.registerRepository(repo);
+  const receipt = await client.request('repositories.read', {
+    resource,
+    kind: 'file',
+    params: { path: 'Unicode 中🚀.txt' },
+  });
+  assert(receipt.chunks > 1);
+  const file = await client.readRepository(resource, 'file', { path: 'Unicode 中🚀.txt' });
+  assert.equal(file.content, text);
+  assert.equal(file.encoding, 'utf-8');
+});
 test('two windows share committed state, not terminal ownership, request IDs or native authority', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'alune-ui-host-'));
   t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));

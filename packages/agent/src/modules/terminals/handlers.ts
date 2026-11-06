@@ -45,7 +45,14 @@ export function terminalHandlers(
             // Stream receipt and xterm parser ACK are independent. A slow parser holds
             // only its shell; state/removal and output from other shells can still flow.
             void c.events
-              .write(event, wire(payload), body.resource)
+              // Output packets contain only strings/numbers and EventQueue
+              // takes an owned copy synchronously. State events still need
+              // wire() to omit optional fields whose value is undefined.
+              .write(
+                event,
+                event === 'terminal:output' ? (payload as JsonValue) : wire(payload),
+                body.resource,
+              )
               .catch((error) => c.events.failStream(error));
           };
           return wire(

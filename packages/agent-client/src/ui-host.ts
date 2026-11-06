@@ -27,6 +27,9 @@ export async function launchUiAgent(
     {
       env,
       stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
+      // Frames are already encoded JSON strings. Structured IPC transports
+      // those strings without escaping and parsing the whole frame again.
+      serialization: 'advanced',
       windowsHide: true,
       shell: false,
     },

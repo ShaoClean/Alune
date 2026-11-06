@@ -9,7 +9,7 @@ import type {
   StashEntry,
 } from '@alune/domain';
 import { promisify } from 'util';
-import { CommandOutputLimitError } from '../../ports/process';
+import { CommandOutputLimitError, type CommandResult } from '../../ports/process';
 import { classifyChanges } from './change-entries';
 import { readLog } from './git-log';
 import { isWindowsPath } from './git-shell';
@@ -90,15 +90,35 @@ export class GitReads {
     ];
     let args = ['diff', ...flags];
     let untracked = false;
+    const executeDiff = (argv: string[], speculative = false) =>
+      runGit(this.connection, repoPath, ['-c', 'core.quotepath=false', ...argv], undefined, {
+        maxOutputBytes: DIFF_PREVIEW_MAX_BYTES,
+        strictUtf8: true,
+        ...(speculative ? { environment: { GIT_OPTIONAL_LOCKS: '0' } } : {}),
+      });
+    let trackedDiff: PromiseSettledResult<CommandResult> | undefined;
     if (options?.file && !options.commit) {
       const file = options.file;
-      const index = await runGit(this.connection, repoPath, [
+      const indexRead = runGit(this.connection, repoPath, [
         'ls-files',
         '--stage',
         '-z',
         '--',
         file,
       ]);
+      let index: CommandResult;
+      if (!options.staged) {
+        // Both commands only read. Drain both before validating or returning;
+        // a directory, changed index or failed validation must never expose the
+        // speculative diff. Untracked files still take the no-index path below.
+        const results = await Promise.allSettled([
+          indexRead,
+          executeDiff([...args, '--', file], true),
+        ]);
+        if (results[0].status === 'rejected') throw results[0].reason;
+        index = results[0].value;
+        trackedDiff = results[1];
+      } else index = await indexRead;
       if (index.exitCode !== 0) throw new Error(`无法读取暂存区：${index.stderr}`);
       const entries = index.stdout.split('\0').filter(Boolean);
       if (entries.some((entry) => entry.slice(entry.indexOf('\t') + 1) !== file))
@@ -144,13 +164,11 @@ export class GitReads {
     if (options?.file && !untracked) args.push('--', options.file);
 
     try {
-      const result = await runGit(
-        this.connection,
-        repoPath,
-        ['-c', 'core.quotepath=false', ...args],
-        undefined,
-        { maxOutputBytes: DIFF_PREVIEW_MAX_BYTES, strictUtf8: true },
-      );
+      if (!untracked && trackedDiff?.status === 'rejected') throw trackedDiff.reason;
+      const result =
+        !untracked && trackedDiff?.status === 'fulfilled'
+          ? trackedDiff.value
+          : await executeDiff(args);
       // --no-index reports a successful comparison with differences using exit code 1.
       if (
         result.exitCode !== 0 &&
