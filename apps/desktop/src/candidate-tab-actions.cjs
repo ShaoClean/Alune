@@ -77,7 +77,27 @@ module.exports = async ({
           wc,
           `(()=>{const e=(${wrap(id)});if(!e)return false;const rect=e.getBoundingClientRect();e.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:rect.left+8,clientY:rect.top+3}));return true})()`,
         );
+  await require('./smoke-window.cjs')(window);
   await check([original, scratch, linked], linked);
+  const detail = element('.repository-identity-details__path');
+  await ev('(' + handle(linked) + ').focus()');
+  await wait(wc, detail);
+  assert.equal(
+    (await ev('(' + detail + ').textContent')).replaceAll('\\', '/'),
+    fs.realpathSync.native(linkedPath).replaceAll('\\', '/'),
+  );
+  await keys(handle(linked), 'Escape');
+  await wait(wc, '!(' + detail + ')');
+  await ev('document.activeElement.blur()');
+  await ev('(' + handle(linked) + ').focus()');
+  await wait(wc, detail);
+  await click(handle(linked));
+  await wait(wc, '!(' + detail + ')');
+  await check([original, scratch, linked], linked);
+  await pass(
+    ['UI-038', 'UI-041'],
+    'repository identity tooltip shows the canonical linked-worktree path; Escape and selecting the tab dismiss it without changing order or ownership',
+  );
   // Two actions in one renderer task expose a router transition that has
   // not yet committed. A closing tab must not reopen on that obsolete URL.
   await wait(

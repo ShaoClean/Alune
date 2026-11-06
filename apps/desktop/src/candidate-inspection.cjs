@@ -22,7 +22,7 @@ module.exports = async ({
   assert.equal(git('branch', '--show-current'), 'main');
   assert.equal(git('status', '--porcelain'), '');
   git('switch', '-qc', 'ui-inspection');
-  const base = Array.from({ length: 30 }, (_, i) => 'context ' + (i + 1));
+  const base = Array.from({ length: 180 }, (_, i) => 'context ' + (i + 1));
   fs.writeFileSync(path.join(work, file), base.join('\n') + '\n');
   git('add', '--', file);
   git('commit', '-qm', 'inspection before edits');
@@ -40,6 +40,28 @@ module.exports = async ({
   await wait(
     wc,
     "document.querySelector('.files-code')?.textContent.includes('Needle needle needlework')",
+  );
+  await require('./smoke-window.cjs')(window);
+  await wc.executeJavaScript(
+    "new Promise(resolve=>{const e=document.querySelector('.files-code');if(e.scrollTop===200)return resolve();e.addEventListener('scroll',()=>resolve(),{once:true});e.scrollTo({top:200,behavior:'instant'});})",
+  );
+  await wait(wc, "document.querySelector('.files-code')?.scrollTop===200");
+  await click(
+    "[...document.querySelectorAll('.files-tree__item')].find(e=>e.getClientRects().length&&e.textContent.trim()==='scratch.txt')",
+  );
+  await wait(
+    wc,
+    "document.querySelector('.files-code__content')?.textContent.trimEnd()===" +
+      JSON.stringify(fs.readFileSync(path.join(work, 'scratch.txt'), 'utf8').trimEnd()),
+  );
+  await click(item);
+  await wait(
+    wc,
+    "document.querySelector('.files-code')?.textContent.includes('Needle needle needlework')&&document.querySelector('.files-code').scrollTop===200",
+  );
+  await pass(
+    ['UI-008', 'UI-017'],
+    'file reading position survives switching to a different real tracked file and back; restored content matches Git',
   );
   const key = async (expr, key, opts = {}) =>
     wait(
@@ -105,10 +127,74 @@ module.exports = async ({
       "document.querySelector('.blame-toolbar [title=" + JSON.stringify(parent) + "]')!==null",
     ),
   );
+  const pinnedParent =
+    '(' +
+    owner(2) +
+    ')?.getAttribute("aria-label").includes("inspection before edits")&&!!document.querySelector(' +
+    JSON.stringify('.blame-toolbar [title="' + parent + '"]') +
+    ')';
+  const whitespace = element('.blame-toolbar label:nth-child(1) input');
+  for (const checked of [true, false]) {
+    await click(whitespace);
+    await wait(wc, '(' + whitespace + ')?.checked===' + checked + '&&' + pinnedParent);
+  }
+  const ignoreFile = path.join(work, '.git-blame-ignore-revs');
+  fs.writeFileSync(ignoreFile, head + '\n');
+  const ignored = element('.blame-toolbar label:nth-child(2) input');
+  try {
+    await click(ignored);
+    await wait(wc, '(' + ignored + ')?.checked===false&&' + pinnedParent);
+    await click(ignored);
+    await wait(
+      wc,
+      "document.querySelector('.blame-toolbar')?.textContent.includes('忽略提交文件已生效')&&" +
+        pinnedParent,
+    );
+  } finally {
+    fs.rmSync(ignoreFile, { force: true });
+  }
+  await click(ignored);
+  await wait(wc, '(' + ignored + ')?.checked===false&&' + pinnedParent);
+  await click(ignored);
+  await wait(
+    wc,
+    '(' +
+      ignored +
+      ')?.checked===true&&' +
+      pinnedParent +
+      "&&!document.querySelector('.blame-toolbar')?.textContent.includes('忽略提交文件已生效')",
+  );
+  await click(textButton('返回工作区'));
+  await wait(
+    wc,
+    '(' + owner(2) + ')?.getAttribute("aria-label").includes("inspection after edits")',
+  );
+  await click(button('追溯第 2 行到上一版本'));
+  await wait(wc, pinnedParent);
+  await pass(
+    ['UI-004'],
+    'Blame whitespace and actual ignore-file options retain the pinned parent revision; return to the worktree resolves the original HEAD',
+  );
   await click(textButton('返回上一视图'));
   await wait(
     wc,
     '(' + owner(2) + ')?.getAttribute("aria-label").includes("inspection after edits")',
+  );
+  await wc.executeJavaScript('(' + owner(2) + ').focus()');
+  await wait(
+    wc,
+    "[...document.querySelectorAll('.blame-popover__meta code')].some(e=>e.getClientRects().length&&e.title===" +
+      JSON.stringify(head) +
+      ')',
+  );
+  await wc.executeJavaScript('document.activeElement.blur()');
+  await wait(
+    wc,
+    "![...document.querySelectorAll('.blame-popover')].some(e=>e.getClientRects().length)",
+  );
+  await pass(
+    ['UI-004'],
+    'Blame focus popover resolves the actual commit hash and dismisses without changing the selected file version',
   );
   await click(owner(2));
   await wait(wc, element('.history-detail'));

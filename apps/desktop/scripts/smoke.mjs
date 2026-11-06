@@ -27,6 +27,7 @@ try {
   if (env.ALUNE_CANDIDATE_FIXTURE) {
     env.GIT_CONFIG_GLOBAL = path.join(dataDir, 'empty.gitconfig');
     env.GIT_CONFIG_NOSYSTEM = '1';
+    if (process.platform !== 'win32') env.SHELL = '/bin/sh';
   }
   for (const phase of ['write', 'restore']) {
     const child = spawn(executable, [...args, '--smoke-test'], {
