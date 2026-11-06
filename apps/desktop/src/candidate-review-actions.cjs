@@ -4,7 +4,7 @@ const assert = require('node:assert/strict'),
 module.exports = async ({
   window,
   origin,
-  wait,
+  wait: rawWait,
   pass: record,
   element: sel,
   button: aria,
@@ -14,6 +14,20 @@ module.exports = async ({
   const repo = process.env.ALUNE_TEST_REVIEW_REPO,
     url = process.env.ALUNE_TEST_REVIEW_URL,
     w = window.webContents;
+  const wait = async (contents, condition) => {
+    try {
+      return await rawWait(contents, condition);
+    } catch (error) {
+      console.error(
+        'PR center condition',
+        condition,
+        await w.executeJavaScript(
+          'JSON.stringify({url:location.href,searches:[...document.querySelectorAll("input")].filter(e=>e.getAttribute("aria-label")==="搜索 PR/MR").map(e=>e.value)})',
+        ),
+      );
+      throw error;
+    }
+  };
   assert.equal(new URL(url).hostname, '127.0.0.1');
   assert.equal(
     execFileSync('git', ['-C', repo, 'remote', 'get-url', 'origin'], {
@@ -218,13 +232,42 @@ module.exports = async ({
     w.setZoomFactor(zoom * Math.max(1, width / 740));
     await wait(w, "matchMedia('(max-width: 900px)').matches");
     await showFilters();
+    await wait(
+      w,
+      `(()=>{const e=(${aria('筛选状态')})?.closest('.ant-select');if(!e)return false;e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));return true})()`,
+    );
+    await wait(w, btn('已关闭', '.ant-select-item-option'));
+    await ev(
+      `(()=>{const option=(${btn('已关闭', '.ant-select-item-option')}),clear=(${btn('清除筛选', '.pr-center-drawer button')});if(!option||!clear)throw Error('Expected active filter controls');clear.click();option.click()})()`,
+    );
+    await wait(
+      w,
+      "new URLSearchParams(location.search).get('state')==='closed'&&!new URLSearchParams(location.search).has('q')",
+    );
+    await hideFilters();
+    const rapidClosed = `[...document.querySelectorAll('${centerList}')].find(e=>e.textContent==='Archived fixture request')`;
+    await wait(w, rapidClosed);
+    assert.equal(await ev('Boolean(' + centerRow + ')'), false);
+    await record(
+      ['UI-069'],
+      'clear search and select closed in one renderer turn: the state patch merges with the reset query, rather than restoring the previous title search',
+    );
+    await showFilters();
     await select('筛选状态', '已关闭');
     await click(btn('清除筛选', '.pr-center-drawer button'));
+    await wait(
+      w,
+      "!new URLSearchParams(location.search).has('q')&&[...document.querySelectorAll('input[aria-label=\"搜索 PR/MR\"]')].every(e=>e.value==='')",
+    );
     await hideFilters();
     await wait(w, centerRow);
     await showFilters();
     await select('筛选状态', '已关闭');
     await hideFilters();
+    await wait(
+      w,
+      "new URLSearchParams(location.search).get('state')==='closed'&&!new URLSearchParams(location.search).has('q')",
+    );
     const closedRow = `[...document.querySelectorAll('${centerList}')].find(e=>e.textContent==='Archived fixture request')`;
     await wait(w, closedRow);
     assert.equal(await ev('Boolean(' + centerRow + ')'), false);

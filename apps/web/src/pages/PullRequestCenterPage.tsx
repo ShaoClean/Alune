@@ -365,6 +365,8 @@ export function PullRequestCenterPage() {
   const [drawer, setDrawer] = useState<'sources' | 'filters' | null>(null);
   const [configuration, setConfiguration] = useState<string | null>(null);
   const [search, setSearch] = useState(query.search);
+  const latestQuery = useRef(query);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const list = useRef<HTMLDivElement>(null);
   const remoteName = params.get('remote');
   const sources = entry?.page?.sources || entry?.discovery?.sources || [];
@@ -378,16 +380,28 @@ export function PullRequestCenterPage() {
     if (!cached?.page || (!detail && Date.now() - cached.updatedAt > 60_000)) void load(query);
     return () => stop();
   }, [key, detail, revision, load, stop, active]);
-  useEffect(() => {
+  useLayoutEffect(() => {
+    latestQuery.current = query;
+  }, [key]);
+  useLayoutEffect(() => {
+    clearTimeout(searchTimer.current);
     setSearch(query.search);
   }, [query.search]);
   const change = (patch: Partial<PullRequestCenterQuery>) => {
-    setScroll(key, 0);
-    setParams(centerParams({ ...query, ...patch }));
+    const previous = latestQuery.current;
+    const next = { ...previous, ...patch };
+    latestQuery.current = next;
+    if (patch.search !== undefined) {
+      clearTimeout(searchTimer.current);
+      setSearch(patch.search);
+    }
+    setScroll(centerQueryKey(previous), 0);
+    setParams(centerParams(next));
   };
   useEffect(() => {
     if (!active || search === query.search || detail) return;
     const timer = setTimeout(() => change({ search }), 350);
+    searchTimer.current = timer;
     return () => clearTimeout(timer);
   }, [search, query.search, key, detail, active]);
   useLayoutEffect(() => {
