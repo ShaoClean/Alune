@@ -246,3 +246,63 @@ for (const kind of ['status', 'context'])
       }
     },
   );
+
+test('live metadata invalidated before its result arrives refreshes once with the original host and arguments', async () => {
+  for (const [area, method, kind, args, params] of [
+    ...['worktrees', 'submodules', 'lfs', 'branches', 'stashes', 'remotes'].map((k) => [
+      'repository',
+      k,
+      k,
+      [],
+      {},
+    ]),
+    ['git', 'signingConfig', 'signing', [], {}],
+    ['git', 'tags', 'tags', [], {}],
+    ['git', 'remoteTags', 'tags', ['origin'], { remote: 'origin' }],
+  ]) {
+    const f = make('agent');
+    // Each member uses the same public facade shape as repositoryApi.
+    const old = {
+      [method]: async () => {
+        throw new Error('unexpected legacy metadata');
+      },
+    };
+    f.adapter.dispose();
+    const adapter = createAgentRepositoryQueries(
+      f.client,
+      (id) => (id === 'repo' ? resource : undefined),
+      area === 'repository' ? old : {},
+      area === 'git' ? old : {},
+      'agent',
+    );
+    const fresh = { generation: 'new', local: [], remote: [] };
+    const expected =
+      method === 'tags' ? fresh.local : method === 'remoteTags' ? fresh.remote : fresh;
+    const read = () => adapter[area][method]('repo', ...args);
+    try {
+      const seen = [];
+      f.client.readRepository = async (ref, method, params, { signal }) => {
+        seen.push([ref, method, params]);
+        if (seen.length === 1)
+          return new Promise((_ok, reject) =>
+            signal.addEventListener('abort', () => reject(new Error('Task cancelled')), {
+              once: true,
+            }),
+          );
+        return fresh;
+      };
+      const pending = read();
+      await new Promise((r) => setImmediate(r));
+      f.events.forEach((fn) => fn({ type: 'repositories.changed', resource }));
+      assert.deepEqual(await pending, expected);
+      assert.deepEqual(seen, Array(2).fill([resource, kind, params]));
+      f.client.readRepository = async () => {
+        throw new Error('actual metadata failure');
+      };
+      await assert.rejects(read(), /actual metadata failure/);
+    } finally {
+      adapter.dispose();
+      f.adapter.dispose();
+    }
+  }
+});

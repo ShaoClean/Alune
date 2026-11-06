@@ -21,6 +21,22 @@ type Query = (...args: any[]) => Invocation;
 const empty =
   (kind: RepositoryQueryKind): Query =>
   (_id, signal) => ({ kind, params: {}, signal });
+// These are live views, not caller-pinned file/diff snapshots. A result
+// cancelled by an observed change can be re-read before it reaches the view.
+const liveQueries = new Set<RepositoryQueryKind>([
+  'status',
+  'context',
+  'log',
+  'signatures',
+  'branches',
+  'stashes',
+  'remotes',
+  'worktrees',
+  'submodules',
+  'lfs',
+  'signing',
+  'tags',
+]);
 const repositoryQueries: Partial<Record<keyof RepositoryApi, Query>> = {
   status: (_id, signal, foreground = false) => ({ kind: 'status', params: { foreground }, signal }),
   context: empty('context'),
@@ -153,10 +169,7 @@ export function createAgentRepositoryQueries(
       // cancellation after a locally observed Git change. Only that case is
       // superseded; a timeout or real verification failure remains visible.
       if (
-        (invocation.kind === 'status' ||
-          invocation.kind === 'context' ||
-          invocation.kind === 'log' ||
-          invocation.kind === 'signatures') &&
+        liveQueries.has(invocation.kind) &&
         !disposed &&
         !invocation.signal?.aborted &&
         controller.signal.aborted &&
@@ -170,8 +183,8 @@ export function createAgentRepositoryQueries(
     }
   }
   async function query(resource: ResourceRef, invocation: Invocation) {
-    // A mutation can supersede an already-dispatched context, status, graph or
-    // signature read. Repeat only that read against the same owner. Other protocol
+    // A mutation can supersede an already-dispatched live metadata read.
+    // Repeat only that read against the same owner. Other protocol
     // errors (including an actually changed log page) are never retried.
     let delay = 120;
     for (;;) {
