@@ -11,7 +11,7 @@ module.exports = async ({ window, wc, work, bare, git, wait, fact, pass }) => {
     wait(
       wc,
       `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(n){
-      if(!/已创建标签|已推送标签|全部标签已推送|已从标签检出|标签已删除|Git 操作进行中/.test(n.innerText))throw Error(n.innerText);
+      const progress=n.dataset.tone==='info'&&/进行中$/.test(n.querySelector('#feedback-title')?.textContent??'')&&[...n.querySelectorAll('button')].some(b=>b.textContent.replace(/\\s/g,'')==='取消操作');if(!progress&&!/已创建标签|已推送标签|全部标签已推送|已从标签检出|标签已删除|Git 操作进行中/.test(n.innerText))throw Error(n.innerText);
       const close=n.querySelector('[aria-label="关闭提示"]');if(!close)throw Error('Expected closable tag result');close.click();return false;
     }const e=(${expr});if(!e||e.disabled||e.getAttribute('aria-busy')==='true'||e.classList.contains('ant-btn-loading'))return false;e.click();return true})()`,
     );
@@ -157,6 +157,19 @@ module.exports = async ({ window, wc, work, bare, git, wait, fact, pass }) => {
     ['UI-045'],
     'the selected remote becomes unavailable: local tag remains visible with unknown remote state; explicit retry after recovery reads the same remote object',
   );
+  // The real Git hook delays completion after refs move, exercising the
+  // labelled in-flight notice without changing the operation's result.
+  const checkoutHook = path.resolve(work, git('rev-parse', '--git-path', 'hooks/post-checkout'));
+  const checkoutEvents = path.resolve(work, git('rev-parse', '--git-path', 'tag-checkout-events'));
+  assert.equal(fs.existsSync(checkoutHook), false);
+  fs.writeFileSync(
+    checkoutHook,
+    `#!/bin/sh
+printf 'checkout\\n' >> "$(git rev-parse --git-path tag-checkout-events)"
+sleep 2
+`,
+    { mode: 0o755 },
+  );
   await click(action(tag, '检出'));
   await input(button('从标签创建的分支名称'), 'ui-tag-branch');
   await click(primary('取消'));
@@ -179,10 +192,15 @@ module.exports = async ({ window, wc, work, bare, git, wait, fact, pass }) => {
   await click(primary('确认进入游离 HEAD'));
   await fact(() => git('branch', '--show-current') === '', 'tag did not detach HEAD');
   assert.equal(git('rev-parse', 'HEAD'), head);
+  await wait(wc, '(' + action(tag, '检出') + ')?.disabled===false');
   await click(button('切换到 main'));
   await wait(wc, 'document.querySelector(".branch-pill__name")?.textContent.trim()==="main"');
   assert.equal(git('branch', '--show-current'), 'main');
   assert.equal(git('status', '--porcelain'), base[2]);
+  assert.equal(fs.readFileSync(checkoutEvents, 'utf8').trim().split(/\r?\n/).length, 3);
+  fs.unlinkSync(checkoutHook);
+  fs.unlinkSync(checkoutEvents);
+
   await pass(
     ['UI-045', 'UI-006'],
     'cancel tag checkout, create a branch at the tag, explicitly enter detached HEAD and switch back without changing the original branch or worktree',
