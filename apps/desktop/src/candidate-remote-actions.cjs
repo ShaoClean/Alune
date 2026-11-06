@@ -140,4 +140,42 @@ module.exports = async ({ window, wc, work, git, wait, fact, pass }) => {
     ['UI-034'],
     'refresh after externally removing only the test remote; its card disappears and all original remotes and Git content are preserved',
   );
+  const config = path.resolve(work, git('rev-parse', '--git-path', 'config')),
+    originalConfig = fs.readFileSync(config);
+  fs.appendFileSync(config, '\n[malformed-remote-config\n');
+  try {
+    await window.loadURL(wc.getURL());
+    await wc.executeJavaScript(`new Promise((resolve,reject)=>{let selected=false;const end=Date.now()+20000;const poll=()=>{try{
+      const n=document.querySelector('.feedback-dialog[open]');if(n){const title=n.querySelector('#feedback-title')?.textContent;
+        if(['远程读取失败','无法读取远程'].includes(title))return resolve(true);
+        if(!['无法读取仓库状态','无法读取仓库配置'].includes(title))throw Error(n.innerText);
+        n.querySelector('[aria-label="关闭提示"]').click();
+      }else if(!selected){const b=(${button('远程')});if(b&&!b.disabled){b.click();selected=true;}}
+      if(Date.now()>end)throw Error('Expected an actual remote-list failure');setTimeout(poll,40);
+    }catch(e){reject(e)}};poll()})`);
+  } finally {
+    fs.writeFileSync(config, originalConfig);
+  }
+  const closeFaults = `const n=document.querySelector('.feedback-dialog[open]');if(n){if(!['远程读取失败','无法读取远程','无法读取仓库状态','无法读取仓库配置'].includes(n.querySelector('#feedback-title')?.textContent))throw Error(n.innerText);n.querySelector('[aria-label="关闭提示"]').click();return false;}`;
+  await wait(
+    wc,
+    `(()=>{${closeFaults}const retry=(${textButton('重试', '.workspace-panel .text-button')});if(!retry)return false;retry.click();return true})()`,
+  );
+  await wait(
+    wc,
+    "[...document.querySelectorAll('.remote-card')].some(e=>e.getClientRects().length&&e.querySelector('strong')?.textContent==='origin')",
+  );
+  assert.equal(git('remote', '-v'), before);
+  assert.equal(git('rev-parse', 'HEAD'), head);
+  assert.equal(git('status', '--porcelain'), status);
+  await wait(wc, `(()=>{${closeFaults}return true})()`);
+  await click(button('刷新仓库'));
+  await wait(
+    wc,
+    "!document.querySelector('.feedback-list')?.textContent.includes('无法读取仓库配置')&&!document.querySelector('.feedback-list')?.textContent.includes('无法读取仓库状态')",
+  );
+  await pass(
+    ['UI-034', 'UI-072'],
+    'invalid local Git configuration fails the initial remote list; restore its exact bytes and explicitly retry to recover both original endpoints without altering Git content',
+  );
 };
