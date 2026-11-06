@@ -143,4 +143,40 @@ module.exports = async ({ window, wc, work, git, wait, fact, pass }) => {
   assert.equal(git('rev-parse', 'HEAD'), head);
   assert.equal(git('status', '--porcelain'), status);
   assert.equal(fs.existsSync(path.join(work, 'merge-branch-proof.txt')), false);
+  const packed = path.resolve(work, git('rev-parse', '--git-path', 'packed-refs'));
+  const originalPacked = fs.existsSync(packed) ? fs.readFileSync(packed) : null;
+  fs.writeFileSync(packed, 'malformed-packed-reference\n');
+  try {
+    await window.loadURL(start);
+    await wc.executeJavaScript(`new Promise((resolve,reject)=>{const end=Date.now()+20000;let selected=false;const step=()=>{try{
+      const n=document.querySelector('.feedback-dialog[open]');if(n){const title=n.querySelector('#feedback-title')?.textContent;
+        if(['无法读取分支','分支读取失败'].includes(title))return resolve(true);
+        if(['无法读取仓库状态','无法读取仓库配置'].includes(title)){n.querySelector('[aria-label="关闭提示"]').click();}
+        else throw Error(n.innerText);
+      }else if(!selected){const b=(${button('分支')});if(b&&!b.disabled){b.click();selected=true;}}
+      if(Date.now()>end)throw Error('Expected an actual cold branch-list failure: '+JSON.stringify({path:location.pathname,selected,body:document.body.innerText.slice(-2000)}));setTimeout(step,40);
+    }catch(e){reject(e)}};step()})`);
+  } finally {
+    if (originalPacked) fs.writeFileSync(packed, originalPacked);
+    else fs.unlinkSync(packed);
+  }
+  const dismissReadErrors = `const n=document.querySelector('.feedback-dialog[open]');if(n){if(!['无法读取分支','分支读取失败','无法读取仓库状态','无法读取仓库配置'].includes(n.querySelector('#feedback-title')?.textContent))throw Error(n.innerText);n.querySelector('[aria-label="关闭提示"]').click();return false;}`;
+  await wait(
+    wc,
+    `(()=>{${dismissReadErrors}const retry=(${textButton('重试', '.branch-list .text-button')});if(!retry)return false;retry.click();return true})()`,
+  );
+  await wait(wc, '!!(' + row('main') + ')&&!!(' + row(renamed) + ')');
+  assert.equal(git('rev-parse', 'main'), head);
+  assert.equal(git('rev-parse', renamed), sourceHead);
+  assert.equal(git('status', '--porcelain'), status);
+  await wait(wc, `(()=>{${dismissReadErrors}return true})()`);
+  await click(button('刷新仓库'));
+  await wait(
+    wc,
+    "!document.querySelector('.feedback-list')?.textContent.includes('无法读取仓库配置')&&!document.querySelector('.feedback-list')?.textContent.includes('无法读取仓库状态')",
+  );
+  await pass(
+    ['UI-006', 'UI-072'],
+    'malformed packed refs fail the initial branch list; restore the exact original bytes and explicitly retry, preserving main, the renamed branch and working content',
+  );
 };

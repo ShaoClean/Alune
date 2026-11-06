@@ -101,6 +101,7 @@ module.exports = async ({
     ['UI-044', 'UI-072'],
     'stash create, preview and pop restore original bytes without an extra stash entry',
   );
+  await require('./candidate-stash-actions.cjs')({ window, wc, work, git, wait, fact, pass });
   await click(element('button[aria-label^="改动"]'));
   await click(button('暂存 scratch.txt'));
   await wait(wc, button('取消暂存 scratch.txt'));
