@@ -768,7 +768,7 @@ export function FilePreviewPane({
     <div
       className="files-view__preview"
       aria-label="文件预览"
-      aria-busy={!file || file.phase === 'loading'}
+      aria-busy={entry.kind === 'file' && (!file || file.phase === 'loading')}
     >
       <div className="files-preview__header">
         <h3 className="files-preview__path" title={previewPath}>

@@ -400,6 +400,14 @@ test('切换文件时不把前一文件的内容或错误展示到新路径下',
   }
 });
 
+test('符号链接、子模块和特殊文件的静态提示不等待文件内容读取', () => {
+  for (const kind of ['symlink', 'submodule', 'other']) {
+    const html = renderPreview({ entry: entry('notice', kind), file: null });
+    assert.match(html, /aria-busy="false"/);
+    assert.doesNotMatch(html, /正在读取文件/);
+  }
+});
+
 test('超大文本关闭语法高亮并提示原因', () => {
   const text = 'x'.repeat(HIGHLIGHT_MAX_CHARS + 1);
   const html = renderToStaticMarkup(
