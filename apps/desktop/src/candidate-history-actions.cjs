@@ -2,7 +2,7 @@ const assert = require('node:assert/strict'),
   fs = require('node:fs'),
   path = require('node:path');
 const { execFileSync } = require('node:child_process');
-module.exports = async ({ window, wc, work, wait: rawWait, pass }) => {
+module.exports = async ({ window, wc, work, wait: rawWait, fact, pass }) => {
   const wait = async (contents, condition) => {
     try {
       return await rawWait(contents, condition);
@@ -11,12 +11,13 @@ module.exports = async ({ window, wc, work, wait: rawWait, pass }) => {
         'History condition:',
         condition,
         await wc.executeJavaScript(
-          'JSON.stringify({url:location.href,body:document.body.innerText.slice(-1600)})',
+          'JSON.stringify({url:location.href,pointer:window.__historyPointer,body:document.body.innerText.slice(-1600)})',
         ),
       );
       throw error;
     }
   };
+  let restoreHidden = false;
   const driver = require('./candidate-ui-driver.cjs')(wc, wait),
     { element, button, textButton, click, input } = driver;
   const ev = async (s) => {
@@ -74,7 +75,7 @@ module.exports = async ({ window, wc, work, wait: rawWait, pass }) => {
         (i < 60 ? 'before-name.txt' : 'after-name.txt') +
         '\n' +
         data('version ' + i + '\n');
-    if (i === 129) stream += 'M 100644 inline extra.txt\n' + data('separate head file\n');
+    stream += 'M 100644 inline extra.txt\n' + data('extra version ' + i + '\n');
     stream += '\n';
   }
   const sideDate = Math.floor(new Date(2025, 0, 7, 12).getTime() / 1000);
@@ -96,7 +97,8 @@ module.exports = async ({ window, wc, work, wait: rawWait, pass }) => {
   stream += 'done\n';
   execFileSync('git', ['-C', repo, 'fast-import', '--quiet'], { input: stream, encoding: 'utf8' });
   git('reset', '--hard', 'main');
-  const detail = git('rev-parse', 'HEAD');
+  const detail = git('rev-parse', 'HEAD~2'),
+    detailExtra = git('show', detail + ':extra.txt');
   execFileSync('git', ['clone', '--bare', '-q', repo, bare]);
   git('remote', 'add', 'origin', bare);
   const hashes = (...args) =>
@@ -203,7 +205,9 @@ module.exports = async ({ window, wc, work, wait: rawWait, pass }) => {
   await click(button('查看提交文件 extra.txt'));
   await wait(
     wc,
-    "document.querySelector('.history-detail')?.textContent.includes('separate head file')",
+    "document.querySelector('.history-detail')?.textContent.includes(" +
+      JSON.stringify(detailExtra) +
+      ')',
   );
   const apply = async (label, value) => {
     await input(button(label), value);
@@ -222,12 +226,101 @@ module.exports = async ({ window, wc, work, wait: rawWait, pass }) => {
   );
   await wait(
     wc,
-    "document.querySelector('.history-detail')?.textContent.includes('separate head file')",
+    "document.querySelector('.history-detail')?.textContent.includes(" +
+      JSON.stringify(detailExtra) +
+      ')',
   );
   await pass(
     ['UI-020', 'UI-021', 'UI-022'],
     'filter real commits by author; clearing the filter restores the selected commit and its exact file Diff',
   );
+  const selectedCode = () => ev('document.querySelector(".history-detail code[title]")?.title');
+  await click(button('在整个文件中查看差异'));
+  await wait(wc, '(' + button('在整个文件中查看差异') + ')?.getAttribute("aria-pressed")==="true"');
+  assert.equal(await selectedCode(), detail);
+  await wait(
+    wc,
+    "document.querySelector('.history-detail')?.textContent.includes(" +
+      JSON.stringify(detailExtra) +
+      ')',
+  );
+  await click(button('在整个文件中查看差异'));
+  const wasCollapsed = await ev(
+    "document.querySelector('.app-shell').classList.contains('app-shell--collapsed')",
+  );
+  await click(button('专注阅读差异'));
+  await wait(
+    wc,
+    "document.querySelector('.history-workspace--focus .history-workspace__graph')?.inert===true",
+  );
+  assert.equal(await selectedCode(), detail);
+  await click(button('返回提交图'));
+  await wait(wc, "!document.querySelector('.history-workspace--focus')");
+  assert.equal(await selectedCode(), detail);
+  if (
+    (await ev(
+      "document.querySelector('.app-shell').classList.contains('app-shell--collapsed')",
+    )) !== wasCollapsed
+  ) {
+    await ev("window.dispatchEvent(new KeyboardEvent('keydown',{key:'b',ctrlKey:true}))");
+    await wait(
+      wc,
+      "document.querySelector('.app-shell').classList.contains('app-shell--collapsed')===" +
+        JSON.stringify(wasCollapsed),
+    );
+  }
+  await pass(
+    ['UI-022', 'UI-015'],
+    'toggle the selected historical file between full-file and changes-only Diff, enter focused reading and return to the same commit and file',
+  );
+  const tagName = 'history-selected-commit';
+  await click(textButton('创建标签', '.history-detail__header button'));
+  await input(button('标签名称'), tagName);
+  await click(textButton('取消', '.a-dlg-actions button'));
+  assert.equal(git('tag', '--list', tagName), '');
+  assert.equal(await selectedCode(), detail);
+  await click(textButton('创建标签', '.history-detail__header button'));
+  await input(button('标签名称'), tagName);
+  await click(textButton('创建标签', '.a-dlg-actions button'));
+  await fact(() => git('tag', '--list', tagName) === tagName, 'history tag was not created');
+  assert.equal(git('rev-parse', tagName + '^{}'), detail);
+  assert.notEqual(detail, head);
+  assert.equal(git('rev-parse', 'HEAD'), head);
+  await wait(
+    wc,
+    `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(!n)return false;const title=n.querySelector('#feedback-title')?.textContent;if(title===${JSON.stringify('已创建标签 ' + tagName)})return true;if(n.dataset.tone==='info'&&/进行中$/.test(title??'')){n.querySelector('[aria-label="关闭提示"]').click();return false;}throw Error(n.innerText)})()`,
+  );
+  await click(element('.feedback-dialog[open] [aria-label="关闭提示"]'));
+  await wait(wc, "!document.querySelector('.feedback-dialog[open]')");
+  await wait(
+    wc,
+    'document.querySelector(".history-detail code[title]")?.title===' + JSON.stringify(detail),
+  );
+  await pass(
+    ['UI-022', 'UI-013'],
+    'cancel then create a tag from historical commit details; the ref points to the selected old commit rather than HEAD, and the working branch stays unchanged',
+  );
+  const originalSize = window.getSize();
+  try {
+    window.setSize(600, 760);
+    await wait(wc, "document.querySelector('.history-workspace--compact')");
+    assert.equal(await selectedCode(), detail);
+    await click(button('返回列表'));
+    await wait(wc, "!document.querySelector('.history-detail')");
+    await wait(wc, row(detail));
+    await click(row(detail));
+    await wait(
+      wc,
+      'document.querySelector(".history-detail code[title]")?.title===' + JSON.stringify(detail),
+    );
+    await pass(
+      ['UI-022', 'UI-021'],
+      'compact history returns from details to the grid, then reopens the same selected Git commit',
+    );
+  } finally {
+    window.setSize(...originalSize);
+  }
+  await wait(wc, "!document.querySelector('.history-workspace--compact')");
   await click(button('关闭提交详情'));
   await input(button('结束日期'), '2025-01-04');
   const early = hashes('--all', 'HEAD', '--until=2025-01-04T23:59:59');
@@ -281,6 +374,89 @@ module.exports = async ({ window, wc, work, wait: rawWait, pass }) => {
       ').getAttribute("aria-valuemin")',
   );
   assert.equal(await ev('document.querySelector(".history-detail code[title]")?.title'), old);
+  const geometry = () =>
+    ev(
+      '({graph:document.querySelector(".history-workspace__graph").getBoundingClientRect().height,detail:document.querySelector(".history-detail").getBoundingClientRect().height})',
+    );
+  const minimumGeometry = await geometry();
+  await key(resize, 'End');
+  await wait(
+    wc,
+    '(' +
+      resize +
+      ').getAttribute("aria-valuenow")===(' +
+      resize +
+      ').getAttribute("aria-valuemax")',
+  );
+  const maximumGeometry = await geometry();
+  assert.ok(maximumGeometry.graph > minimumGeometry.graph + 10);
+  assert.ok(maximumGeometry.detail < minimumGeometry.detail - 10);
+  await key(resize, 'Home');
+  await wait(
+    wc,
+    '(' +
+      resize +
+      ').getAttribute("aria-valuenow")===(' +
+      resize +
+      ').getAttribute("aria-valuemin")',
+  );
+  if (process.env.GITHUB_ACTIONS === 'true' || process.env.ALUNE_TEST_HISTORY_POINTER === '1') {
+    if (process.env.GITHUB_ACTIONS === 'true')
+      assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted');
+    const wasVisible = window.isVisible();
+    restoreHidden ||= !wasVisible;
+    await require('./smoke-window.cjs')(window);
+    const beforeRatio = await ev('Number((' + resize + ').getAttribute("aria-valuenow"))');
+    const before = await geometry(),
+      rect = await ev('(' + resize + ').getBoundingClientRect().toJSON()');
+    const x = Math.round(rect.x + rect.width / 2),
+      y = Math.round(rect.y + rect.height / 2);
+    await ev(
+      '(()=>{const e=(' +
+        resize +
+        ');const s=window.__historyPointer={id:null,lost:false,down:null};s.start=v=>{s.down={id:v.pointerId,target:v.target.getAttribute("aria-label"),html:v.target.outerHTML.slice(0,180),buttons:v.buttons,x:v.clientX,y:v.clientY}};s.got=v=>{s.id=v.pointerId};s.done=()=>{s.lost=true};document.addEventListener("pointerdown",s.start,true);e.addEventListener("gotpointercapture",s.got);e.addEventListener("lostpointercapture",s.done);return true})()',
+    );
+    try {
+      wc.sendInputEvent({ type: 'mouseMove', x, y });
+      wc.sendInputEvent({
+        type: 'mouseDown',
+        x,
+        y,
+        button: 'left',
+        clickCount: 1,
+        modifiers: ['leftbuttondown'],
+      });
+      await wait(wc, "window.__historyPointer.down?.target==='调整提交图与详情高度'");
+      wc.sendInputEvent({
+        type: 'mouseMove',
+        x,
+        y: y + 60,
+        button: 'left',
+        modifiers: ['leftbuttondown'],
+      });
+      await wait(wc, 'window.__historyPointer.id!==null');
+      await wait(wc, 'Number((' + resize + ').getAttribute("aria-valuenow"))>' + beforeRatio);
+      wc.sendInputEvent({ type: 'mouseUp', x, y: y + 60, button: 'left', clickCount: 1 });
+      await wait(wc, 'window.__historyPointer.lost');
+      const after = await geometry();
+      assert.ok(after.graph > before.graph + 10);
+      assert.ok(after.detail < before.detail - 10);
+      assert.equal(await selectedCode(), old);
+      await pass(
+        ['UI-022'],
+        'native pointer capture moves the real graph/detail boundary, releases cleanly and retains the selected commit and file',
+        { input: 'native Electron pointer', before, after, commit: old },
+      );
+    } finally {
+      wc.sendInputEvent({ type: 'mouseUp', x, y: y + 60, button: 'left', clickCount: 1 });
+      await ev(
+        '(()=>{const e=(' +
+          resize +
+          '),s=window.__historyPointer;document.removeEventListener("pointerdown",s.start,true);e?.removeEventListener("gotpointercapture",s.got);e?.removeEventListener("lostpointercapture",s.done);delete window.__historyPointer;return true})()',
+      );
+    }
+  }
+
   await click(textButton('查看全部'));
   await wait(wc, "!document.querySelector('.commit-file-row--selected')");
   await pass(
@@ -309,4 +485,5 @@ module.exports = async ({ window, wc, work, wait: rawWait, pass }) => {
   await wait(wc, '!(' + button('删除 history-proof') + ')');
   assert.equal(git('rev-parse', 'HEAD'), head);
   await window.loadURL(start);
+  if (restoreHidden) window.hide();
 };
