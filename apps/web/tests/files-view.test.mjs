@@ -24,10 +24,7 @@ import {
 import { FolderIcon } from '../src/components/ui.tsx';
 import { ImageDiffView, ImagePreview } from '../src/components/ImageDiffView.tsx';
 import { readLayoutPreferences } from '../src/stores/workspaceLayout.ts';
-import {
-  DIFF_IMAGE_MAX_BYTES,
-  REPOSITORY_TEXT_PREVIEW_MAX_BYTES,
-} from '@alune/domain';
+import { DIFF_IMAGE_MAX_BYTES, REPOSITORY_TEXT_PREVIEW_MAX_BYTES } from '@alune/domain';
 
 const entry = (path, kind = 'file', extra = {}) => ({
   name: path.slice(path.lastIndexOf('/') + 1),
@@ -386,6 +383,21 @@ test('首次读取显示加载状态，刷新时保留旧内容并标记忙碌',
   assert.doesNotMatch(refreshing, /正在读取文件/);
   assert.match(refreshing, /<code>old<\/code>/);
   assert.match(refreshing, /aria-busy="true"/);
+});
+
+test('切换文件时不把前一文件的内容或错误展示到新路径下', () => {
+  const preview = { kind: 'text', size: 18, encoding: 'utf-8', content: 'previous-file-data' };
+  for (const file of [
+    readyFile('previous.txt', preview),
+    { phase: 'loading', path: 'previous.txt', stale: preview },
+    { phase: 'error', path: 'previous.txt', status: 403, message: 'previous-file-error' },
+  ]) {
+    const html = renderPreview({ entry: entry('selected.txt'), file });
+    assert.match(html, /selected\.txt/);
+    assert.match(html, /正在读取文件/);
+    assert.match(html, /aria-busy="true"/);
+    assert.doesNotMatch(html, /previous-file-data|previous-file-error|files-code|UTF-8/);
+  }
 });
 
 test('超大文本关闭语法高亮并提示原因', () => {

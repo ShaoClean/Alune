@@ -17,15 +17,16 @@ const render = (content, props = {}) =>
       ...props,
     }),
   );
-const pane = (content, props = {}) =>
-  renderToStaticMarkup(
+const pane = (content, props = {}) => {
+  const path = props.entry?.path ?? 'README.MD';
+  return renderToStaticMarkup(
     createElement(FilePreviewPane, {
       entry: { name: 'README.MD', path: 'README.MD', kind: 'file' },
       file: {
         phase: 'ready',
-        path: 'README.MD',
+        path,
         preview: {
-          path: 'README.MD',
+          path,
           kind: 'text',
           size: content.length,
           encoding: 'utf-8',
@@ -36,6 +37,7 @@ const pane = (content, props = {}) =>
       ...props,
     }),
   );
+};
 
 test('Markdown renders GFM, Chinese headings and literal fenced/indented code', () => {
   const html = render(
