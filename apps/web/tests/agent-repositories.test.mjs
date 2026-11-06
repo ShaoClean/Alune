@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { ProtocolError } from '@alune/protocol';
 import { createAgentRepositoryQueries } from '../src/api/agent-repositories.ts';
 const resource = { agentId: 'agent', resourceId: 'resource' };
 const make = (executor = 'legacy') => {
@@ -152,9 +153,13 @@ test('history and signature reads repeat only after local invalidation, without 
         calls.push(k);
         if (calls.length === 1)
           return new Promise((_ok, reject) =>
-            signal.addEventListener('abort', () => reject(new Error('Task cancelled')), {
-              once: true,
-            }),
+            signal.addEventListener(
+              'abort',
+              () => reject(new ProtocolError('cancelled', 'Task cancelled', 'completed')),
+              {
+                once: true,
+              },
+            ),
           );
         return { fresh: true };
       };
@@ -178,7 +183,11 @@ test('aborting a superseded read does not dispatch another request', async () =>
   f.client.readRepository = async (_r, _k, _p, { signal }) => {
     calls++;
     return new Promise((_ok, reject) =>
-      signal.addEventListener('abort', () => reject(new Error('Task cancelled')), { once: true }),
+      signal.addEventListener(
+        'abort',
+        () => reject(new ProtocolError('cancelled', 'Task cancelled', 'completed')),
+        { once: true },
+      ),
     );
   };
   try {
@@ -209,9 +218,13 @@ for (const kind of ['status', 'context'])
           calls.push([ref, kind, params]);
           if (calls.length === 1)
             return new Promise((_ok, reject) =>
-              signal.addEventListener('abort', () => reject(new Error('Task cancelled')), {
-                once: true,
-              }),
+              signal.addEventListener(
+                'abort',
+                () => reject(new ProtocolError('cancelled', 'Task cancelled', 'completed')),
+                {
+                  once: true,
+                },
+              ),
             );
           return { currentBranch: 'after-mutation', files: [] };
         };
@@ -226,9 +239,13 @@ for (const kind of ['status', 'context'])
         f.client.readRepository = async (_ref, _kind, _params, { signal }) => {
           attempts++;
           return new Promise((_ok, reject) =>
-            signal.addEventListener('abort', () => reject(new Error('Task cancelled')), {
-              once: true,
-            }),
+            signal.addEventListener(
+              'abort',
+              () => reject(new ProtocolError('cancelled', 'Task cancelled', 'completed')),
+              {
+                once: true,
+              },
+            ),
           );
         };
         const user = new AbortController(),
@@ -285,9 +302,13 @@ test('live metadata invalidated before its result arrives refreshes once with th
         seen.push([ref, method, params]);
         if (seen.length === 1)
           return new Promise((_ok, reject) =>
-            signal.addEventListener('abort', () => reject(new Error('Task cancelled')), {
-              once: true,
-            }),
+            signal.addEventListener(
+              'abort',
+              () => reject(new ProtocolError('cancelled', 'Task cancelled', 'completed')),
+              {
+                once: true,
+              },
+            ),
           );
         return fresh;
       };
@@ -304,5 +325,60 @@ test('live metadata invalidated before its result arrives refreshes once with th
       adapter.dispose();
       f.adapter.dispose();
     }
+  }
+});
+
+test('a concurrent metadata invalidation cannot turn a genuine failure or unknown outcome into a retry', async () => {
+  for (const error of [
+    new Error('native configuration read failed'),
+    new ProtocolError('timeout', 'remote deadline reached', 'unknown'),
+    new ProtocolError('cancelled', 'remote cancellation outcome unknown', 'unknown'),
+  ]) {
+    const f = make('agent');
+    let rejectRead,
+      calls = 0;
+    f.client.readRepository = async () => {
+      calls++;
+      if (calls > 1) throw error;
+      return new Promise((_ok, reject) => {
+        rejectRead = reject;
+      });
+    };
+    try {
+      const pending = f.adapter.repository.context('repo');
+      f.events.forEach((fn) => fn({ type: 'repositories.changed', resource }));
+      rejectRead(error);
+      await assert.rejects(pending, (e) => e === error);
+      assert.equal(calls, 1, 'an actual backend failure was reissued');
+    } finally {
+      f.adapter.dispose();
+    }
+  }
+});
+
+test('a refreshed live read retains the original parameters even if the caller edits its object', async () => {
+  const f = make('agent'),
+    counts = [],
+    params = { count: 5 };
+  f.client.readRepository = async (_ref, _kind, p, { signal }) => {
+    counts.push(p.count);
+    if (counts.length === 1)
+      return new Promise((_ok, reject) =>
+        signal.addEventListener(
+          'abort',
+          () => reject(new ProtocolError('cancelled', 'Task cancelled', 'completed')),
+          { once: true },
+        ),
+      );
+    return { commits: [] };
+  };
+  try {
+    const read = f.adapter.repository.log('repo', params);
+    params.count = 50;
+    f.events.forEach((fn) => fn({ type: 'repositories.changed', resource }));
+    await read;
+    assert.deepEqual(counts, [5, 5]);
+  } finally {
+    f.adapter.dispose();
   }
 });

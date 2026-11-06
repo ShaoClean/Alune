@@ -173,7 +173,11 @@ export function createAgentRepositoryQueries(
         !disposed &&
         !invocation.signal?.aborted &&
         controller.signal.aborted &&
-        versions.get(id) !== version
+        versions.get(id) !== version &&
+        (error === controller.signal.reason ||
+          (error instanceof ProtocolError &&
+            error.kind === 'cancelled' &&
+            error.outcome !== 'unknown'))
       )
         throw superseded;
       throw error;
@@ -183,6 +187,8 @@ export function createAgentRepositoryQueries(
     }
   }
   async function query(resource: ResourceRef, invocation: Invocation) {
+    // A refresh belongs to this invocation, not a subsequently edited caller object.
+    invocation = { ...invocation, params: JSON.parse(JSON.stringify(invocation.params)) };
     // A mutation can supersede an already-dispatched live metadata read.
     // Repeat only that read against the same owner. Other protocol
     // errors (including an actually changed log page) are never retried.
