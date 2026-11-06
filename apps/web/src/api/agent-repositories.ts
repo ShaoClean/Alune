@@ -154,6 +154,7 @@ export function createAgentRepositoryQueries(
       // superseded; a timeout or real verification failure remains visible.
       if (
         (invocation.kind === 'status' ||
+          invocation.kind === 'context' ||
           invocation.kind === 'log' ||
           invocation.kind === 'signatures') &&
         !disposed &&
@@ -169,7 +170,7 @@ export function createAgentRepositoryQueries(
     }
   }
   async function query(resource: ResourceRef, invocation: Invocation) {
-    // A mutation can supersede an already-dispatched status, graph or
+    // A mutation can supersede an already-dispatched context, status, graph or
     // signature read. Repeat only that read against the same owner. Other protocol
     // errors (including an actually changed log page) are never retried.
     let delay = 120;
