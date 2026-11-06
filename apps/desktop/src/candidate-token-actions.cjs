@@ -28,7 +28,22 @@ module.exports = async ({ window, origin, id, wait, measure }) => {
     await wait(wc, element('.pull-request-row__open'));
     const end = Date.now() + 8000;
     while (count(kind) === before) {
-      if (Date.now() > end) throw Error('No fresh ' + kind + ' credential reached the test peer');
+      if (Date.now() > end) {
+        const state = await ev(
+          "JSON.stringify({access:document.querySelector('.pull-requests-auth summary')?.textContent,notice:document.querySelector('.feedback-dialog[open]')?.innerText,errors:[...document.querySelectorAll('[role=alert]')].filter(e=>e.getClientRects().length).map(e=>e.textContent)})",
+        );
+        throw Error(
+          'No fresh ' +
+            kind +
+            ' credential reached the test peer: ' +
+            JSON.stringify({
+              before,
+              initial: count('initial'),
+              replaced: count('replaced'),
+              state,
+            }),
+        );
+      }
       await new Promise((ok) => setTimeout(ok, 40));
     }
   }
@@ -106,7 +121,12 @@ module.exports = async ({ window, origin, id, wait, measure }) => {
       await click(textButton('更换令牌值'));
       await input(button('令牌值'), second);
       await click(footer('保存令牌'));
-      await wait(wc, '!(' + footer('保存令牌') + ')');
+      // A failed save can replace the footer with a feedback view. Require
+      // the editor itself to close, not merely the absence of its Save button.
+      await wait(
+        wc,
+        `(()=>{const n=[...document.querySelectorAll('.a-dlg-shell .feedback-description')].find(e=>e.getClientRects().length);if(n?.textContent.trim())throw Error('Token replacement failed: '+n.textContent);return !document.querySelector('.a-dlg-shell input[aria-label="令牌值"]')})()`,
+      );
       await observeAfterReload('replaced');
     },
   );

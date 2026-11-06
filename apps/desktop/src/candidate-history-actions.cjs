@@ -17,7 +17,6 @@ module.exports = async ({ window, wc, work, wait: rawWait, fact, pass }) => {
       throw error;
     }
   };
-  let restoreHidden = false;
   const driver = require('./candidate-ui-driver.cjs')(wc, wait),
     { element, button, textButton, click, input } = driver;
   const ev = async (s) => {
@@ -403,8 +402,8 @@ module.exports = async ({ window, wc, work, wait: rawWait, fact, pass }) => {
   if (process.env.GITHUB_ACTIONS === 'true' || process.env.ALUNE_TEST_HISTORY_POINTER === '1') {
     if (process.env.GITHUB_ACTIONS === 'true')
       assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted');
-    const wasVisible = window.isVisible();
-    restoreHidden ||= !wasVisible;
+    // Keep this test-owned window visible for later terminal/UI scenarios;
+    // hiding it would suspend Chromium rendering. The harness closes it.
     await require('./smoke-window.cjs')(window);
     const beforeRatio = await ev('Number((' + resize + ').getAttribute("aria-valuenow"))');
     const before = await geometry(),
@@ -485,5 +484,4 @@ module.exports = async ({ window, wc, work, wait: rawWait, fact, pass }) => {
   await wait(wc, '!(' + button('删除 history-proof') + ')');
   assert.equal(git('rev-parse', 'HEAD'), head);
   await window.loadURL(start);
-  if (restoreHidden) window.hide();
 };
