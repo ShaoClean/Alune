@@ -6,11 +6,14 @@ module.exports = async ({ window, origin, id, repo, wait, pass }) => {
     { button, element, click } = require('./candidate-ui-driver.cjs')(wc, wait);
   const git = (...args) =>
     execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', stdio: 'pipe' }).trim();
-  const originalGit = [
+  const gitState = () => [
     git('rev-parse', 'HEAD'),
+    git('show-ref'),
     git('ls-files', '--stage'),
+    git('diff', '--binary'),
     git('status', '--porcelain'),
   ];
+  const originalGit = gitState();
   const size = window.getSize(),
     minimum = window.getMinimumSize();
   const raw = JSON.parse(await ev('window.aluneWorkspace.load()')).state.layout;
@@ -123,13 +126,10 @@ module.exports = async ({ window, origin, id, repo, wait, pass }) => {
       assert.equal(layout.sidebarCollapsed, responsiveBaseline.sidebarCollapsed);
       assert.equal(layout.changesCollapsed, responsiveBaseline.changesCollapsed);
     }
-    assert.deepEqual(
-      [git('rev-parse', 'HEAD'), git('ls-files', '--stage'), git('status', '--porcelain')],
-      originalGit,
-    );
+    assert.deepEqual(gitState(), originalGit);
     await pass(
       ['UI-064', 'UI-065', 'UI-042', 'UI-025', 'UI-072'],
-      'native window resize traverses all four toolbar tiers, retains seven accessible view controls and stored panel preferences, and leaves Git refs, index and working bytes unchanged',
+      'native window resize traverses all four toolbar tiers, retains seven accessible view controls and stored panel preferences, and leaves Git refs, index and tracked working bytes unchanged',
     );
   } finally {
     window.setSize(...size);
