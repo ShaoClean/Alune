@@ -16,7 +16,9 @@ jobs:
   desktop-smoke:
     name: 桌面 write/restore (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # Includes dependency/native builds, legacy smoke, packaging and the expanded
+    # candidate write/restore replay. Per-action and process waits stay fixed.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
