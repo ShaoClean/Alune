@@ -174,6 +174,7 @@ module.exports = async ({
   );
   await require('./candidate-tag-actions.cjs')({ window, wc, work, bare, git, wait, fact, pass });
   await require('./candidate-branch-actions.cjs')({ window, wc, work, git, wait, fact, pass });
+  await require('./candidate-context-actions.cjs')({ window, wc, work, wait, fact, pass });
   await click(button('远程'));
   await click(textButton('添加远程'));
   await fill(element('#remote-name'), 'local-backup');
