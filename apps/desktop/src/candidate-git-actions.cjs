@@ -319,6 +319,16 @@ module.exports = async ({
     execFileSync('git', ['-C', linked, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     verifiedHead,
   );
+  await require('./candidate-worktree-actions.cjs')({
+    window,
+    wc,
+    scratchUrl,
+    linked,
+    git,
+    wait,
+    fact,
+    pass,
+  });
   await require('./candidate-sidebar-actions.cjs')({
     window,
     wc,

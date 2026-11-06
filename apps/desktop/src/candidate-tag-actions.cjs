@@ -94,6 +94,30 @@ module.exports = async ({ window, wc, work, bare, git, wait, fact, pass }) => {
     ['UI-013', 'UI-045'],
     'reject duplicate and invalid tag names, cancel without changing refs, create a real annotated tag and filter by its annotation and commit hash',
   );
+  const damagedRef = path.resolve(
+    work,
+    git('rev-parse', '--git-path', 'refs/tags/ui-missing-object'),
+  );
+  assert.equal(fs.existsSync(damagedRef), false);
+  fs.writeFileSync(damagedRef, '1'.repeat(40) + '\n');
+  try {
+    await click(textButton('刷新标签'));
+    await wait(wc, element('.tag-error[role="alert"]'));
+    assert.match(
+      await ev('(' + element('.tag-error[role="alert"]') + ').textContent'),
+      /missing object|1111111111/i,
+    );
+    assert.equal(git('rev-parse', tag + '^{}'), head);
+  } finally {
+    fs.unlinkSync(damagedRef);
+  }
+  await click(textButton('重试', '.tag-error[role="alert"] button'));
+  await wait(wc, '!(' + element('.tag-error[role="alert"]') + ')&&!!(' + row(tag) + ')');
+  assert.equal(git('rev-parse', 'HEAD'), head);
+  await pass(
+    ['UI-045'],
+    'a malformed local ref makes tag reading fail visibly; after repairing only that temporary ref, explicit retry restores the original list without changing HEAD or valid tag objects',
+  );
   await select('标签远程', 'tags-fixture');
   await wait(wc, '(' + row(tag) + ')?.innerText.includes("未推送")');
   await click(textButton('推送全部标签'));
