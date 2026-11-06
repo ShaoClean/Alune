@@ -196,6 +196,7 @@ module.exports = async ({
     'add a named local remote and verify its address in the actual Git config',
   );
 
+  await require('./candidate-remote-actions.cjs')({ window, wc, work, git, wait, fact, pass });
   // Build an actual conflict outside the UI, resolve one hunk in the workspace
   // and require both the selected bytes and two Git parents on completion.
   git('checkout', '-qb', 'incoming');
