@@ -353,6 +353,10 @@ module.exports = async ({ window, wc, work, wait: rawWait, fact, pass }) => {
   await wait(wc, button('查看提交文件 before-name.txt'));
   await click(button('查看提交文件 before-name.txt'));
   await wait(wc, "document.querySelector('.history-detail')?.textContent.includes('version 2')");
+  await pass(
+    ['UI-020', 'UI-021', 'UI-022'],
+    'follow a real rename into the old file path and select its exact original committed bytes',
+  );
   const resize = button('调整提交图与详情高度');
   await key(resize, 'End');
   await wait(
@@ -458,9 +462,15 @@ module.exports = async ({ window, wc, work, wait: rawWait, fact, pass }) => {
 
   await click(textButton('查看全部'));
   await wait(wc, "!document.querySelector('.commit-file-row--selected')");
+  await wait(
+    wc,
+    "document.querySelector('.history-detail')?.textContent.includes('extra version 2')",
+  );
+  assert.equal(await selectedCode(), old);
+
   await pass(
-    ['UI-020', 'UI-021', 'UI-022'],
-    'follow a real rename into the old file path, select its original committed bytes, resize graph/detail with keyboard limits and return to all changed files without changing the commit',
+    ['UI-022'],
+    'keyboard limits change graph/detail geometry and viewing all changed files preserves the historical commit',
   );
   await click(button('关闭提交详情'));
   await click(textButton('清除筛选'));
