@@ -34,7 +34,9 @@ try {
         console.error(`Desktop smoke ${phase} timed out`);
         child.kill('SIGKILL');
       },
-      env.ALUNE_DESKTOP_EXECUTOR === 'agent' ? 300000 : 150000,
+      // Candidate replay now includes real multi-page Git history and over 100
+      // asserted UI transitions. Keep the per-action waits unchanged.
+      env.ALUNE_DESKTOP_EXECUTOR === 'agent' ? 600000 : 150000,
     );
     const code = await new Promise((resolve, reject) => {
       child.once('error', reject);
