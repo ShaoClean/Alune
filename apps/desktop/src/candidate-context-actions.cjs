@@ -57,14 +57,14 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   await click(primary('打开工作区'));
   await wait(wc, "document.querySelector('.branch-pill__name')?.textContent.trim()==='main'");
   const repoURL = wc.getURL();
-  async function notice(title) {
+  async function notice(title, dismissErrors = []) {
     await wait(
       wc,
       `(()=>{const n=document.querySelector('.feedback-dialog[open]');
       if(n){const heading=n.querySelector('#feedback-title')?.textContent;
         if(heading===${JSON.stringify(title)})return true;
         const manual=['提交前需要设置作者','浅克隆仅显示已获取的历史','未配置远程'].includes(heading);
-        if(manual||(n.dataset.tone==='info'&&/进行中$/.test(heading??''))){n.querySelector('[aria-label="关闭提示"]').click();return false;}
+        if(manual||${JSON.stringify(dismissErrors)}.includes(heading)||(n.dataset.tone==='info'&&/进行中$/.test(heading??''))){n.querySelector('[aria-label="关闭提示"]').click();return false;}
         throw Error(n.innerText);
       }
       const inbox=document.querySelector('#feedback-inbox:popover-open');
@@ -103,6 +103,39 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   await pass(
     ['UI-035'],
     'cancel author settings without writing either key, then save both local keys and reopen; global Git configuration, HEAD, index and working bytes remain unchanged',
+  );
+  await notice('浅克隆仅显示已获取的历史');
+  await click(element('.feedback-dialog[open] [aria-label="关闭提示"]'));
+  const configPath = path.resolve(clone, git('rev-parse', '--git-path', 'config'));
+  const configBefore = fs.readFileSync(configPath);
+  fs.appendFileSync(configPath, '\n[malformed-test-section\n');
+  try {
+    await click(button('刷新仓库'));
+    await notice('无法读取仓库配置', ['无法读取仓库状态']);
+  } finally {
+    fs.writeFileSync(configPath, configBefore);
+  }
+  assert.deepEqual(fingerprint(), unchanged);
+  await click(textButton('重试', '.feedback-dialog button'));
+  await wait(
+    wc,
+    "!document.querySelector('.feedback-list')?.textContent.includes('无法读取仓库配置')",
+  );
+  if (
+    await ev("document.querySelector('.feedback-list')?.textContent.includes('无法读取仓库状态')")
+  ) {
+    await notice('无法读取仓库状态');
+    await click(textButton('重试状态', '.feedback-dialog button'));
+  }
+  await wait(
+    wc,
+    "!document.querySelector('.feedback-list')?.textContent.includes('无法读取仓库状态')",
+  );
+  assert.equal(git('config', '--local', 'user.name'), 'Saved author');
+  assert.deepEqual(fingerprint(), unchanged);
+  await pass(
+    ['UI-035', 'UI-072'],
+    'a malformed local Git config reports an actual context read error; restore its exact bytes and explicitly retry to recover the saved author without touching HEAD, index or working files',
   );
   const offline = upstream + '.offline';
   fs.renameSync(upstream, offline);
