@@ -260,11 +260,73 @@ test('coalesced status cancellation has separate owners; invalidation rejects st
   finish('ok');
   assert.equal(await second, 'ok');
   const stale = reads.status('repo', false, b.signal, run);
-  const rejected = assert.rejects(stale, (e) => e.kind === 'conflict');
+  const rejected = assert.rejects(stale, (e) => {
+    assert.equal(e.kind, 'conflict');
+    assert.deepEqual(e.details, { code: 'READ_INVALIDATED', resourceId: 'repo' });
+    assert.deepEqual(e.toRpcError().data.details, e.details);
+    return true;
+  });
   await new Promise((r) => setImmediate(r));
   reads.invalidate('repo');
   await rejected;
   await reads.close();
+});
+
+test('completed native reads invalidated before delivery identify the exact resource', async (t) => {
+  const f = await setup(t);
+  const head = f.git('rev-parse', 'HEAD');
+  const { openStateKernel } = require('../dist/bootstrap/state-kernel');
+  const { loadIdentity } = require('../dist/adapters/identity');
+  const { RepositoryReader } = require('../dist/modules/repositories/reads');
+  const dir = path.join(f.root, 'read-generation-state'),
+    agentId = await loadIdentity(dir);
+  const kernel = await openStateKernel(dir, agentId, undefined, { backend: 'file' });
+  const context = {
+    signal: new AbortController().signal,
+    sessionId: randomUUID(),
+    events: { notifyState() {} },
+  };
+  const original = RepositoryReader.prototype.query;
+  let release, entered, read;
+  const held = new Promise((resolve) => {
+      release = resolve;
+    }),
+    started = new Promise((resolve) => {
+      entered = resolve;
+    });
+  try {
+    const repo = await kernel.handlers['repositories.register'].run({ path: f.repo }, context);
+    RepositoryReader.prototype.query = async function (...args) {
+      const value = await original.apply(this, args);
+      if (args[1].kind === 'signatures') {
+        entered();
+        await held;
+      }
+      return value;
+    };
+    read = kernel.handlers['repositories.read'].run(
+      { resource: repo.resource, kind: 'signatures', params: { hashes: [f.first] } },
+      context,
+    );
+    await Promise.race([started, read]);
+    const rejected = assert.rejects(read, (e) => {
+      assert.equal(e.kind, 'conflict');
+      assert.deepEqual(e.details, {
+        code: 'READ_INVALIDATED',
+        resourceId: repo.resource.resourceId,
+      });
+      return true;
+    });
+    await kernel.handlers['repositories.invalidate'].run({ resource: repo.resource }, context);
+    release();
+    await rejected;
+    assert.equal(f.git('rev-parse', 'HEAD'), head);
+  } finally {
+    release();
+    RepositoryReader.prototype.query = original;
+    await read?.catch(() => {});
+    await kernel.close();
+  }
 });
 
 test(

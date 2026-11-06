@@ -4,6 +4,12 @@ import {
 } from '@alune/domain';
 import { ProtocolError } from '@alune/protocol';
 
+export function invalidatedRepositoryRead(resourceId: string) {
+  return new ProtocolError('conflict', 'Repository changed during read', 'not-started', {
+    code: 'READ_INVALIDATED',
+    resourceId,
+  });
+}
 interface Flight<T> {
   promise: Promise<T>;
   controller: AbortController;
@@ -22,7 +28,7 @@ export class RepositoryReads {
     this.generations.set(key, this.generation(key) + 1);
     const pending = this.active.get(key);
     this.active.delete(key);
-    pending?.controller.abort(new ProtocolError('conflict', 'Repository changed during read'));
+    pending?.controller.abort(invalidatedRepositoryRead(key));
     return this.generation(key);
   }
   async status<T>(

@@ -176,8 +176,15 @@ export function createAgentRepositoryQueries(
         versions.get(id) !== version &&
         (error === controller.signal.reason ||
           (error instanceof ProtocolError &&
-            error.kind === 'cancelled' &&
-            error.outcome !== 'unknown'))
+            error.outcome !== 'unknown' &&
+            (error.kind === 'cancelled' ||
+              (error.kind === 'conflict' &&
+                error.details &&
+                typeof error.details === 'object' &&
+                'code' in error.details &&
+                error.details.code === 'READ_INVALIDATED' &&
+                'resourceId' in error.details &&
+                error.details.resourceId === resource.resourceId))))
       )
         throw superseded;
       throw error;

@@ -22,7 +22,7 @@ import { RepositoryReader } from '../modules/repositories/reads';
 import type { Handler, HandlerContext } from '../ports/handler';
 import type { RepositoryTransport } from '../ports/repository-files';
 import type { SqlDatabase } from '../ports/sql';
-import { RepositoryReads } from '../runtime/reads';
+import { RepositoryReads, invalidatedRepositoryRead } from '../runtime/reads';
 
 type Snapshot = {
   buffer: Buffer;
@@ -265,8 +265,7 @@ export function repositoriesKernel(
             ? await reads.status(repo.id, !!query.params.foreground, c.signal, run)
             : await run(AbortSignal.any([c.signal, AbortSignal.timeout(120000)]));
         c.signal.throwIfAborted();
-        if (reads.generation(repo.id) !== generation)
-          throw new ProtocolError('conflict', 'Repository changed during read');
+        if (reads.generation(repo.id) !== generation) throw invalidatedRepositoryRead(repo.id);
         const buffer = Buffer.from(JSON.stringify(value));
         if (buffer.length > REPOSITORY_RESULT_MAX_BYTES)
           throw new ProtocolError(

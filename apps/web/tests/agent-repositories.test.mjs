@@ -382,3 +382,63 @@ test('a refreshed live read retains the original parameters even if the caller e
     f.adapter.dispose();
   }
 });
+
+test('only a marked invalidation for the observed resource refreshes a signature read; history conflicts and unknown outcomes stay visible', async () => {
+  for (const scenario of [
+    {
+      detail: { code: 'READ_INVALIDATED', resourceId: 'resource' },
+      observe: true,
+      outcome: 'not-started',
+      refresh: true,
+    },
+    { detail: { code: 'HISTORY_CHANGED' }, observe: true, outcome: 'not-started', refresh: false },
+    {
+      detail: { code: 'READ_INVALIDATED', resourceId: 'other' },
+      observe: true,
+      outcome: 'not-started',
+      refresh: false,
+    },
+    {
+      detail: { code: 'READ_INVALIDATED', resourceId: 'resource' },
+      observe: false,
+      outcome: 'not-started',
+      refresh: false,
+    },
+    {
+      detail: { code: 'READ_INVALIDATED', resourceId: 'resource' },
+      observe: true,
+      outcome: 'unknown',
+      refresh: false,
+    },
+  ]) {
+    const f = make('agent');
+    let rejectRead,
+      calls = 0;
+    const failure = new ProtocolError(
+      'conflict',
+      'Repository changed during read',
+      scenario.outcome,
+      scenario.detail,
+    );
+    f.client.readRepository = async () => {
+      calls++;
+      if (calls === 1)
+        return new Promise((_ok, reject) => {
+          rejectRead = reject;
+        });
+      if (!scenario.refresh) throw failure;
+      return { verified: true };
+    };
+    try {
+      const pending = f.adapter.git.signatures('repo', ['a'.repeat(40)]);
+      if (scenario.observe)
+        f.events.forEach((fn) => fn({ type: 'repositories.changed', resource }));
+      rejectRead(failure);
+      if (scenario.refresh) assert.deepEqual(await pending, { verified: true });
+      else await assert.rejects(pending, (e) => e === failure);
+      assert.equal(calls, scenario.refresh ? 2 : 1);
+    } finally {
+      f.adapter.dispose();
+    }
+  }
+});
