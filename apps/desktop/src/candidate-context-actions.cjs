@@ -57,12 +57,12 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   await click(primary('打开工作区'));
   await wait(wc, "document.querySelector('.branch-pill__name')?.textContent.trim()==='main'");
   const repoURL = wc.getURL();
-  async function notice(title, dismissErrors = []) {
+  async function notice(title, dismissErrors = [], action) {
     await wait(
       wc,
       `(()=>{const n=document.querySelector('.feedback-dialog[open]');
       if(n){const heading=n.querySelector('#feedback-title')?.textContent;
-        if(heading===${JSON.stringify(title)})return true;
+        if(heading===${JSON.stringify(title)}){const action=${JSON.stringify(action ?? null)};if(action){const b=[...n.querySelectorAll('button')].find(e=>e.textContent.trim()===action);if(!b||b.disabled)return false;b.click();}return true;}
         const manual=['提交前需要设置作者','浅克隆仅显示已获取的历史','未配置远程'].includes(heading);
         if(manual||${JSON.stringify(dismissErrors)}.includes(heading)||(n.dataset.tone==='info'&&/进行中$/.test(heading??''))){n.querySelector('[aria-label="关闭提示"]').click();return false;}
         throw Error(n.innerText);
@@ -116,7 +116,9 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
     fs.writeFileSync(configPath, configBefore);
   }
   assert.deepEqual(fingerprint(), unchanged);
-  await click(textButton('重试', '.feedback-dialog button'));
+  // The concurrent status failure may become the active notice after the
+  // context error arrived. Select the context notice again before its retry.
+  await notice('无法读取仓库配置', ['无法读取仓库状态'], '重试');
   await wait(
     wc,
     "!document.querySelector('.feedback-list')?.textContent.includes('无法读取仓库配置')",

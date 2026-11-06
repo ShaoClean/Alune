@@ -210,6 +210,9 @@ export function HistoryView({
   );
   const graphWidth = Math.max(72, graph.width * GRAPH_LANE_WIDTH + 24);
   const updateScrollTop = (value: number) => {
+    // Hiding a retained panel can emit a browser scroll-to-zero event. It does
+    // not represent a user scroll and must not replace the saved position.
+    if (!viewport.current?.getClientRects().length) return;
     scrollTopRef.current = value;
     setScrollTop(value);
   };

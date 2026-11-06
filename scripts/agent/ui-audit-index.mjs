@@ -40,6 +40,17 @@ for (const [file, ids] of files) {
 // name or line alone. These mappings do not constitute execution receipts.
 const successors = {};
 for (const [id, oldKey, newKey] of [
+  // Freeze both local and remote delete objects at the confirmation boundary.
+  [
+    'ui-handler:apps/web/src/components/TagsView.tsx:Button.onClick:267',
+    '11fc6ed4e37f31c057d0fe93',
+    'd4062902fa9815422681bb5b',
+  ],
+  [
+    'ui-handler:apps/web/src/components/TagsView.tsx:AluneModal.onOk:297',
+    '2309b2279f8b40be86c3560b',
+    '19e13af7f47cecc460bc7bb9',
+  ],
   // Restore trigger focus once the discard dialog has actually closed.
   [
     'ui-handler:apps/web/src/components/ChangesView.tsx:DiscardChangesDialog.onClose:742',

@@ -32,7 +32,9 @@ export function TagsView({
   const [remoteBusy, setRemoteBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [create, setCreate] = useState(false);
-  const [deleting, setDeleting] = useState<GitTag | null>(null);
+  const [deleting, setDeleting] = useState<
+    (GitTag & { remoteName: string; remoteTag?: RemoteTag }) | null
+  >(null);
   const [deleteRemote, setDeleteRemote] = useState(false);
   const [checkout, setCheckout] = useState<GitTag | null>(null);
   const [checkoutMode, setCheckoutMode] = useState('branch');
@@ -112,7 +114,8 @@ export function TagsView({
       setBusy(false);
     }
   };
-  const selectedRemoteTag = deleting && remoteTags?.find((tag) => tag.name === deleting.name);
+  // Background refreshes must not change the object the user confirmed deleting.
+  const selectedRemoteTag = deleting?.remoteTag;
   const filtered = tags.filter((tag) =>
     `${tag.name} ${tag.commitHash ?? tag.objectHash} ${tag.message}`
       .toLowerCase()
@@ -265,7 +268,11 @@ export function TagsView({
                 aria-label={`删除标签 ${tag.name}`}
                 disabled={busy || !!error}
                 onClick={() => {
-                  setDeleting(tag);
+                  setDeleting({
+                    ...tag,
+                    remoteName: remote,
+                    remoteTag: remoteTags?.find((item) => item.name === tag.name),
+                  });
                   setDeleteRemote(false);
                 }}
               />
@@ -303,7 +310,7 @@ export function TagsView({
                 objectHash: deleting.objectHash,
                 confirmed: true,
                 ...(deleteRemote && selectedRemoteTag
-                  ? { remote, remoteObjectHash: selectedRemoteTag.objectHash }
+                  ? { remote: deleting.remoteName, remoteObjectHash: selectedRemoteTag.objectHash }
                   : {}),
               }),
             '标签已删除',
@@ -319,7 +326,7 @@ export function TagsView({
               disabled={!selectedRemoteTag || busy}
               onChange={(event) => setDeleteRemote(event.target.checked)}
             />
-            同时删除 {remote} 上的同名标签
+            同时删除 {deleting?.remoteName} 上的同名标签
           </label>
         )}
         {remote && !remoteTags && (

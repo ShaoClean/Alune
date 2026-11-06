@@ -21,7 +21,13 @@ export function WorktreesMenu({ repoId }: { repoId: string }) {
       align={align}
       arrow={false}
       afterOpenChange={(value) => {
-        if (value) panel.current?.focus();
+        // A quick interaction may already have focused a child menu while the
+        // outer popover is animating. Its late callback must not steal focus.
+        if (
+          value &&
+          (document.activeElement === trigger.current || document.activeElement === document.body)
+        )
+          panel.current?.focus();
       }}
       open={open}
       onOpenChange={(value) => {

@@ -79,11 +79,10 @@ module.exports = async ({ window, wc, scratchUrl, linked, git, wait, fact, pass 
     wc,
     '(()=>{const menu=(' +
       element('[role=menu]') +
-      ');if(!menu)return false;menu.focus();return menu.contains(document.activeElement)})()',
+      ');return !!menu&&menu.contains(document.activeElement)})()',
   );
-  await ev(
-    "document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))",
-  );
+  wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
   await wait(
     wc,
     '(' +

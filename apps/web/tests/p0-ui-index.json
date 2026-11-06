@@ -3014,6 +3014,12 @@
     ]
   },
   "successors": {
+    "d4062902fa9815422681bb5b": [
+      "ui-handler:apps/web/src/components/TagsView.tsx:Button.onClick:267"
+    ],
+    "19e13af7f47cecc460bc7bb9": [
+      "ui-handler:apps/web/src/components/TagsView.tsx:AluneModal.onOk:297"
+    ],
     "6ff87960979673c07c7b1c7a": [
       "ui-handler:apps/web/src/components/ChangesView.tsx:DiscardChangesDialog.onClose:742"
     ],
