@@ -249,6 +249,11 @@ sleep 2
   );
   // Open while a real ls-remote is still waiting. Unknown remote state may
   // become selectable, but the user's checkbox must then freeze that object.
+  const refresh = textButton('刷新标签');
+  const ready = `(()=>{const e=(${refresh});return !!e&&!e.disabled&&e.getAttribute('aria-busy')!=='true'&&!e.classList.contains('ant-btn-loading')})()`;
+  await wait(wc, ready);
+  await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  await wait(wc, ready);
   const release = path.join(remote, 'release-tag-read'),
     started = path.join(remote, 'tag-read-started'),
     bridge = path.join(remote, 'controlled-git-transport.cjs');
@@ -283,7 +288,17 @@ const p=spawn('git',[writing?'receive-pack':'upload-pack',${JSON.stringify(remot
   git('config', 'ssh.variant', 'ssh');
   git('remote', 'set-url', 'tags-fixture', 'ssh://fixture.invalid/controlled-tags');
   try {
-    await click(textButton('刷新标签'));
+    // A refresh-token effect can start the gated read before the explicit
+    // button click. Do not wait for its spinner to finish while holding it.
+    const until = Date.now() + 15000;
+    let requested = false;
+    while (!fs.existsSync(started) && Date.now() < until) {
+      if (!requested)
+        requested = await ev(
+          `(()=>{if(!(${ready}))return false;(${refresh}).click();return true})()`,
+        );
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    }
     await fact(() => fs.existsSync(started), 'remote tag read did not reach its delivery barrier');
     await click(button('删除标签 ' + tag));
     const checkbox = element('.a-dlg-shell .tag-checkbox input');
