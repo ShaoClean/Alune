@@ -91,5 +91,13 @@
     "hosts.send",
     "network.testProxy",
     "workspace.remove"
+  ],
+  [
+    "files.grant",
+    "files.grants",
+    "files.list",
+    "files.read",
+    "files.revoke",
+    "files.write"
   ]
 ]

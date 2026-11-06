@@ -122,6 +122,46 @@ try {
   remote = await workspace.connect(policy);
   const owner = remote.initialized.agentId;
   assert.notEqual(owner, local.initialized.agentId);
+  const notes = path.join(root, 'outside repository notes');
+  fs.mkdirSync(notes);
+  fs.writeFileSync(path.join(notes, 'note.txt'), 'outside original\n');
+  const ro = await remote.request('files.grant', { path: notes, access: 'read', confirmed: true });
+  const grant = { id: ro.id, agentId: ro.agentId };
+  assert.equal(ro.agentId, owner);
+  assert.equal((await remote.request('files.list', { grant, path: '' }))[0].name, 'note.txt');
+  const note = await remote.request('files.read', { grant, path: 'note.txt' });
+  assert.equal(note.content, 'outside original\n');
+  await assert.rejects(
+    remote.request('files.write', {
+      grant,
+      path: 'note.txt',
+      content: 'denied',
+      version: note.version,
+    }),
+    (e) => e.kind === 'permission-denied',
+  );
+  await assert.rejects(
+    remote.request('files.read', { grant, path: '../project/file.txt' }),
+    (e) => e.kind === 'permission-denied',
+  );
+  const rw = await remote.request('files.grant', {
+    path: notes,
+    access: 'read-write',
+    confirmed: true,
+  });
+  const writeGrant = { id: rw.id, agentId: rw.agentId };
+  await remote.request('files.write', {
+    grant: writeGrant,
+    path: 'note.txt',
+    content: 'outside saved\n',
+    version: note.version,
+  });
+  assert.equal(fs.readFileSync(path.join(notes, 'note.txt'), 'utf8'), 'outside saved\n');
+  await remote.request('files.revoke', { grant: writeGrant });
+  await assert.rejects(
+    remote.request('files.read', { grant: writeGrant, path: 'note.txt' }),
+    (e) => e.kind === 'permission-denied',
+  );
   const source = await local.registerRepository(repo);
   const target = await remote.registerRepository(repo);
   assert.equal(workspace.owner(target.resource), remote);
@@ -172,6 +212,14 @@ try {
     hostKey: createHash('sha256').update(Buffer.from(secondPeer.publicKey, 'base64')).digest('hex'),
     install: false,
   });
+  await assert.rejects(
+    other.request('files.read', { grant, path: 'note.txt' }),
+    (e) => e.kind === 'permission-denied',
+  );
+  assert.deepEqual(await other.request('files.grants', {}), []);
+  console.log(
+    'Verified explicit outside-repository SSH grants: read-only, write, traversal, revocation and cross-host rejection.',
+  );
   const same = await other.registerRepository(repo);
   assert.equal(
     (await local.request('hosts.catalog')).hosts.find((h) => h.hostId === profile2.id).gitProxy,

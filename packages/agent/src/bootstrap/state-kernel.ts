@@ -17,6 +17,7 @@ import { StateFault } from '../ports/state';
 import { stateFailure } from '../server/errors';
 import { repositoriesKernel } from './repositories-kernel';
 import { settingsKernel } from './settings-kernel';
+import { fileAccessKernel } from '../modules/files/access';
 
 export async function openStateKernel(
   directory: string,
@@ -75,6 +76,7 @@ export async function openStateKernel(
       },
     );
   const repositories = repositoriesKernel(state.database, agentId, connect);
+  const files = fileAccessKernel(agentId);
   const network = new ProxyRuntime(settings.proxy);
   const hosts = remote
     ? undefined
@@ -111,6 +113,7 @@ export async function openStateKernel(
     ...(remote ? { 'repositories.hostRead': snapshotHandler(repositories.catalog, connect) } : {}),
     ...collaboration,
     ...repositories.handlers,
+    ...files.handlers,
     ...settings.handlers,
     ...diagnostics.handlers,
     'network.updaterBridge': {
@@ -231,6 +234,7 @@ export async function openStateKernel(
       },
     } satisfies Record<string, Handler>,
     disconnect(sessionId: string) {
+      files.disconnect(sessionId);
       repositories.terminals.disconnect(sessionId);
       hosts?.disconnect(sessionId);
     },
@@ -238,6 +242,7 @@ export async function openStateKernel(
     taskJournal: state.taskJournal(),
     close: async () => {
       try {
+        files.close();
         hosts?.close();
         await repositories.close();
         await network.close();

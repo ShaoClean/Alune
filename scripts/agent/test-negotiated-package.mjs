@@ -49,12 +49,12 @@ async function probe(major, minor, later = []) {
       assert.equal((await call('agent.health')).error?.code, -32000);
       return;
     }
-    const negotiated = Math.min(minor, 6);
+    const negotiated = Math.min(minor, 7);
     assert.deepEqual(init.result.protocol, { major: 1, minor: negotiated });
     const caps = [...init.result.capabilities].sort();
     assert.deepEqual([...(await call('agent.capabilities')).result.capabilities].sort(), caps);
     assert.equal((await call('agent.health')).result.agentId, init.result.agentId);
-    assert.deepEqual((await call('agent.version')).result.protocol, { major: 1, minor: 6 });
+    assert.deepEqual((await call('agent.version')).result.protocol, { major: 1, minor: 7 });
     assert.deepEqual(
       caps,
       contract
@@ -79,12 +79,12 @@ async function probe(major, minor, later = []) {
   }
 }
 try {
-  await probe(1, 6);
-  const latest = members.get(6);
-  for (let minor = 0; minor < 6; minor++) await probe(1, minor, latest);
+  await probe(1, 7);
+  const latest = members.get(7);
+  for (let minor = 0; minor < 7; minor++) await probe(1, minor, latest);
   await probe(1, 99);
   await probe(2, 0);
-  const levels = Array.from({ length: 7 }, (_, i) => {
+  const levels = Array.from({ length: 8 }, (_, i) => {
     const a = members.get(i),
       prev = members.get(i - 1) ?? [];
     assert.ok(prev.every((n) => a.includes(n)));
@@ -98,9 +98,9 @@ try {
   const proof = {
     source: manifest.sourceSha,
     target: manifest.target,
-    protocol: '1.6',
+    protocol: '1.7',
     mode: 'local stdio',
-    futureMinorNegotiates: 6,
+    futureMinorNegotiates: 7,
     incompatibleMajorRejected: true,
     levels,
   };

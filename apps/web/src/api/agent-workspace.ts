@@ -22,6 +22,8 @@ import { createAgentRepositoryQueries, createAgentFileWrite } from './agent-repo
 import { createAgentCollaboration } from './agent-collaboration';
 import { workspaceTopics } from './ui-agent';
 import { hostConsent } from '../features/connections/HostConsent';
+import { fileAccessApi } from './file-access';
+import type { DirectoryGrant } from '@alune/protocol';
 
 type Binding = { localId: string; resource: ResourceRef };
 type Host = {
@@ -431,15 +433,56 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
           (abs === normalized(r.path) || abs.startsWith(normalized(r.path) + '/')),
       )
       .sort((a, b) => b.path.length - a.path.length)[0];
-    if (!row) throw new Error('请在已登记仓库内选择文件。');
+    if (!row) return null;
     return {
       ...(await repositoryTarget(row.id)),
       relativePath: abs.slice(normalized(row.path).length + 1),
     };
   }
+  const grantRef = (g: DirectoryGrant) => ({ id: g.id, agentId: g.agentId });
+  Object.assign(fileAccessApi, {
+    available: true,
+    grants: async (id: string) =>
+      (await connect(id)).request('files.grants', {}) as unknown as Promise<DirectoryGrant[]>,
+    grant: async (id: string, path: string, access: DirectoryGrant['access']) =>
+      (await connect(id)).request('files.grant', {
+        path,
+        access,
+        confirmed: true,
+      }) as unknown as Promise<DirectoryGrant>,
+    revoke: async (id: string, g: DirectoryGrant) => {
+      await (await connect(id)).request('files.revoke', { grant: grantRef(g) });
+    },
+  } satisfies typeof fileAccessApi);
+  async function granted(id: string, path: string, write = false) {
+    const client = await connect(id);
+    const grants = (await client.request('files.grants', {})) as unknown as DirectoryGrant[];
+    const normalize = (p: string) => p.replaceAll('\\', '/').replace(/\/$/, '');
+    const abs = normalize(path),
+      windows = /^[a-z]:\//i.test(abs);
+    const key = (p: string) => (windows ? p.toLowerCase() : p);
+    const grant = grants
+      .filter(
+        (g) =>
+          (!write || g.access === 'read-write') &&
+          (key(abs) === key(normalize(g.path)) ||
+            key(abs).startsWith(key(normalize(g.path)) + '/')),
+      )
+      .sort((a, b) => b.path.length - a.path.length)[0];
+    if (!grant) throw new Error('请先在 SSH 连接的“目录授权”中授权此目录。');
+    return {
+      client,
+      grant: grantRef(grant),
+      path: abs.slice(normalize(grant.path).length).replace(/^\//, ''),
+    };
+  }
   Object.assign(fileApi, {
     list: async (id, path) => {
       const t = await locate(id, path);
+      if (!t) {
+        const { client, ...p } = await granted(id, path);
+        return client.request('files.list', p);
+      }
       const tree = await t.client.readRepository(t.resource, 'tree', { path: t.relativePath });
       return tree.entries.map((e) => ({
         name: e.name,
@@ -450,12 +493,29 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
     },
     read: async (id, path) => {
       const t = await locate(id, path);
+      if (!t) {
+        const { client, ...p } = await granted(id, path);
+        const r = (await client.request('files.read', p)) as unknown as { content: string };
+        return { content: r.content };
+      }
       const f = await t.client.readRepository(t.resource, 'file', { path: t.relativePath });
       if (f.kind !== 'text') throw new Error('文件不是可读取的文本。');
       return { content: f.content };
     },
     write: async (id, path, content) => {
       const t = await locate(id, path);
+      if (!t) {
+        const { client, ...p } = await granted(id, path, true);
+        let version: string;
+        try {
+          version = ((await client.request('files.read', p)) as unknown as { version: string })
+            .version;
+        } catch (e) {
+          if (!(e instanceof ProtocolError) || e.kind !== 'not-found') throw e;
+          version = 'missing';
+        }
+        return client.request('files.write', { ...p, content, version });
+      }
       return createAgentFileWrite(t.client, () => t, fail)(id, path, content);
     },
   } satisfies typeof fileApi);

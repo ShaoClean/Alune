@@ -1,7 +1,7 @@
 # @alune/protocol
 
 Agent 消息契约和运行时校验；不依赖 Node、Electron、SSH、数据库或服务商 SDK。
-当前协议为 **1.6**。消息采用 JSON-RPC 2.0 结构，stdio 按 UTF-8 换行分帧。不同 major 的握手直接拒绝；相同 major 协商双方支持的较低 minor。客户端以初始化响应中本次会话的 `capabilities` 为准：较低 minor 不公布、也不能直接调用较高 minor 的方法。普通桌面/Web 的默认入口与协议版本是两个独立选择。
+当前协议为 **1.7**。消息采用 JSON-RPC 2.0 结构，stdio 按 UTF-8 换行分帧。不同 major 的握手直接拒绝；相同 major 协商双方支持的较低 minor。客户端以初始化响应中本次会话的 `capabilities` 为准：较低 minor 不公布、也不能直接调用较高 minor 的方法。普通桌面/Web 的默认入口与协议版本是两个独立选择。
 
 | 协商版本 | 本机独立 Agent 新增能力（在前一行基础上） |
 | --- | --- |
@@ -12,6 +12,7 @@ Agent 消息契约和运行时校验；不依赖 Node、Electron、SSH、数据�
 | 1.4 | PTY 创建、列举、写入、调整大小、确认输出及关闭。 |
 | 1.5 | AI 请求、PR/MR 读取与协作，以及跨仓库审查和工作区分组。 |
 | 1.6 | SSH 主机目录、绑定和转发通道，跨主机工作区移除及代理连通性测试。 |
+| 1.7 | 显式目录授权、列出/读取/写入文本及撤销。授权绑定 Agent 与当前会话。 |
 
 [逐方法清单](../../scripts/agent/protocol-1-capabilities.json)对应普通 `serve` 的本机 stdio 会话。SSH 叶节点和桌面只读日志窗口另有限权，不得用版本号推断它们拥有同样权限。用 `node scripts/agent/test-negotiated-package.mjs PACKAGE_DIRECTORY` 可对安装包逐版本握手，并验证调用被隐藏的方法会在校验参数和执行前返回 `unknown-method`。
 

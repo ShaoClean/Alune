@@ -194,3 +194,11 @@ SSH EOF、超时或进程退出会结束该路由；目录快照保留并标为�
 
 
 协作默认由本机持有账户：用 `await workspace.collaborationResource(remoteRepo.resource)` 取得本机别名，再以该别名调用 **local** 的 `ai.generate` / `reviews.*`。别名绑定到主机和远端登记 ID，重新登记同一路径不会继承旧账户。SSH 侧的只读快照接口仅提供已登记仓库的远端、分支和暂存摘要/差异；生成返回前再次核对暂存摘要。PR/MR 写回执向执行平台调用的本机查询。中心默认使用本机账户；显式传 `{useRemoteAccounts:true}` 才使用目标机自身的协作配置。服务器禁止反向转发时，目录、文件和离线 Git 仍可用，依赖代理的 Git 网络操作会明确失败。
+
+## 仓库外文件与目录授权（协议 1.7）
+
+候选 SSH 连接页的“目录授权”允许用户填写绝对目录，明确选择读取或读写。`files.grant({path, access, confirmed:true})` 返回规范目录、Agent 身份与随机授权 ID；`files.grants({})` 只列本会话的授权，`files.revoke({grant})` 立即阻止后续操作。断线、页面通道关闭或 Agent 退出会清除授权，重连后需要再次明确授权。授权不写入迁移数据库，不跨主机、窗口或会话复用。读取不会自动提升为读写。
+
+`files.list/read/write` 使用 `{grant:{agentId,id}, path}`，path 为相对授权目录的路径；拒绝绝对路径、上级路径、符号链接/Windows junction 越界及 `.git`。写入额外要求 `content` 和最近读取的 SHA-256 `version`，新文件用 `missing`；并发写按规范路径串行校验版本，不触碰 Git 索引。UTF-8 文本读写上限 4 MiB，列举上限 10,000 条。已开始但未完成的写入报告 unknown，必须重新读取核对，不自动重放。
+
+原 fileApi 的登记仓库流程继续使用仓库资源；仓库外路径改用明确授权的目录。旧 HTTP 接口无需授权的行为属于已接受的权限策略调整，不声明无条件等价。协议 1.6 及以前不公开这些方法。
