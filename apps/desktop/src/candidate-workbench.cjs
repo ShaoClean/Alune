@@ -175,5 +175,6 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   await require('./candidate-branch-overview.cjs')({ window, origin, id, repo, wait, pass });
   await require('./candidate-submodule-actions.cjs')({ window, origin, repo, wait, pass });
   await require('./candidate-file-recovery.cjs')({ window, origin, repo, wait, pass });
+  await require('./candidate-layout-resize.cjs')({ window, origin, id, repo, wait, pass });
   console.log('Candidate native workbench: ' + evidence.length + ' scenarios passed');
 };

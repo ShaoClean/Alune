@@ -111,9 +111,9 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   );
   await ev(`(()=>{
     const raf=window.requestAnimationFrame.bind(window),cancel=window.cancelAnimationFrame.bind(window),pending=new Map();
-    window.requestAnimationFrame=callback=>{const entry={callback,timer:null};const id=raf(time=>{entry.timer=setTimeout(()=>{pending.delete(id);callback(time)},80)});pending.set(id,entry);return id};
-    window.cancelAnimationFrame=id=>{cancel(id);const entry=pending.get(id);if(entry)clearTimeout(entry.timer);pending.delete(id)};
-    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;window.cancelAnimationFrame=cancel;for(const [id,entry] of pending){cancel(id);clearTimeout(entry.timer);pending.delete(id);entry.callback(performance.now())}delete window.__restoreHistoryFrames};
+    window.requestAnimationFrame=callback=>{const entry={callback,time:null};const id=raf(time=>{entry.time=time});pending.set(id,entry);return id};
+    window.cancelAnimationFrame=id=>{cancel(id);pending.delete(id)};
+    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;window.cancelAnimationFrame=cancel;for(const [id,entry] of pending){cancel(id);pending.delete(id);entry.callback(entry.time??performance.now())}delete window.__restoreHistoryFrames};
   })()`);
   try {
     await click(button('文件'));
@@ -124,6 +124,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
     await ev(
       "(()=>{const v=document.querySelector('.history-viewport');v.scrollTop=0;v.dispatchEvent(new Event('scroll',{bubbles:true}))})()",
     );
+    await ev('window.__restoreHistoryFrames()');
     await wait(
       wc,
       'Math.abs(document.querySelector(".history-viewport").scrollTop-' + scrollBefore + ')<2',
