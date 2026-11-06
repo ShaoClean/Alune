@@ -154,3 +154,34 @@ test('failed acquisition clears its lease so the same document can try again', a
   for (const name of ['did-start-navigation', 'destroyed', 'render-process-gone'])
     assert.equal(contents.listenerCount(name), 0);
 });
+
+test('current Electron first-argument navigation details fence document changes', async () => {
+  const f = fixture(),
+    pending = f.open(),
+    old = f.channel();
+  f.contents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: true });
+  f.contents.emit('did-start-navigation', { isMainFrame: false, isSameDocument: false });
+  assert.equal(f.channels.size, 1);
+  f.waiting[0](old);
+  await pending;
+  f.contents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false });
+  assert.equal(old.closed, 1);
+  assert.equal(f.channels.size, 0);
+  const next = f.open(),
+    c = f.channel();
+  f.waiting[1](c);
+  await next;
+  assert.equal(c.closed, 0);
+  f.channels.get(f.contents).cleanup();
+});
+test('current Electron navigation also retires an uncompleted acquisition', async () => {
+  const f = fixture(),
+    pending = f.open(),
+    rejected = assert.rejects(pending, /window changed/);
+  f.contents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false });
+  const c = f.channel();
+  f.waiting[0](c);
+  await rejected;
+  assert.equal(c.closed, 1);
+  assert.equal(f.channels.size, 0);
+});

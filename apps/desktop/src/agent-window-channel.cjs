@@ -19,12 +19,17 @@ async function openWindowAgentChannel({ host, contents, frame, name, channels, i
     endpoint.channel = null;
     channel?.close();
   };
-  const navigate = (_event, details, inPlace, main) => {
-    if (
-      typeof details === 'object'
-        ? details.isMainFrame && !details.isSameDocument
-        : main && !inPlace
-    )
+  const navigate = (event, details, inPlace, main) => {
+    // Current Electron carries the details on its first Event argument.
+    // Keep the former object/positional forms for older shipped shells.
+    const navigation = [event, details].find(
+      (value) =>
+        value &&
+        typeof value === 'object' &&
+        typeof value.isMainFrame === 'boolean' &&
+        typeof value.isSameDocument === 'boolean',
+    );
+    if (navigation ? navigation.isMainFrame && !navigation.isSameDocument : main && !inPlace)
       cleanup();
   };
   endpoint.cleanup = cleanup;
