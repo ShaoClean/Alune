@@ -71,7 +71,12 @@ export function hostsKernel(
     )
   )
     throw new ProtocolError('state-corrupt', 'Invalid saved remote catalog');
-  const saved = new Map<string, Saved>(records.map((s) => [s.hostId, s]));
+  // Deleted profiles are no longer owners. Older candidates retained their
+  // catalog cache, which must not prevent explicitly trusting a new profile.
+  const profiles = new Set(settings.hosts.list().hosts.map((profile) => profile.id));
+  const saved = new Map<string, Saved>(
+    records.filter((s) => profiles.has(s.hostId)).map((s) => [s.hostId, s]),
+  );
   const live = new Map<string, Connection>();
   function save(record: Saved) {
     const next = new Map(saved);
@@ -540,6 +545,12 @@ export function hostsKernel(
           r.appliedProxy = undefined;
           stop(r);
         }
+    },
+    forget(hostId: string) {
+      const route = live.get(hostId);
+      if (route) stop(route);
+      live.delete(hostId);
+      if (saved.delete(hostId)) document.write([...saved.values()]);
     },
   };
 }

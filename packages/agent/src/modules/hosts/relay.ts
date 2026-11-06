@@ -39,7 +39,7 @@ export class HostRelay {
   get pendingWrites() {
     return [...this.pending]
       .filter(([, method]) =>
-        ['repositories.write', 'reviews.create', 'reviews.mutate'].includes(method),
+        ['repositories.write', 'files.write', 'reviews.create', 'reviews.mutate'].includes(method),
       )
       .map(([requestId, method]) => ({ requestId, method }));
   }

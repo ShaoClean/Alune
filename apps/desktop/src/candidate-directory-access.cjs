@@ -10,16 +10,19 @@ module.exports = async ({ window, origin, wait, pass }) => {
   const name = 'Explicit directory fixture',
     primary = (t) => textButton(t, '.a-dlg-actions button');
   await window.loadURL(origin + '/connections');
-  await click(textButton('添加连接'));
-  for (const [field, value] of [
-    ['name', name],
-    ['host', '127.0.0.1'],
-    ['port', String(port)],
-    ['username', 'fixture'],
-  ])
-    await input(element('#' + field), value);
-  await click(element('[role=radio][data-value=sshAgent]'));
-  await click(primary('保存连接'));
+  const addProfile = async () => {
+    await click(textButton('添加连接'));
+    for (const [field, value] of [
+      ['name', name],
+      ['host', '127.0.0.1'],
+      ['port', String(port)],
+      ['username', 'fixture'],
+    ])
+      await input(element('#' + field), value);
+    await click(element('[role=radio][data-value=sshAgent]'));
+    await click(primary('保存连接'));
+  };
+  await addProfile();
   const row =
     '[...document.querySelectorAll(".connection-card,.connection-table tbody tr")].find(e=>e.getClientRects().length&&e.querySelector(".connection-card__title .collection-text")?.textContent.trim()===' +
     JSON.stringify(name) +
@@ -97,4 +100,17 @@ module.exports = async ({ window, origin, wait, pass }) => {
   await click(button('删除 ' + name));
   await click(textButton('删除连接', '.ant-popconfirm-buttons button'));
   await wait(wc, '!(' + row + ')');
+  await addProfile();
+  await connect(true);
+  await click(action('目录授权'));
+  await wait(wc, '(' + list + ')?.getAttribute("aria-busy")==="false"');
+  assert.equal(await ev('(' + list + ').children.length'), 0);
+  await click(primary('取消'));
+  await click(button('删除 ' + name));
+  await click(textButton('删除连接', '.ant-popconfirm-buttons button'));
+  await wait(wc, '!(' + row + ')');
+  await pass(
+    ['UI-067'],
+    'remove the SSH profile and explicitly trust a newly created profile for that same persistent Agent; deleted cached ownership does not block reconnect or restore old directory grants',
+  );
 };

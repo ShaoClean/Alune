@@ -8,6 +8,7 @@ import http from 'node:http';
 import { once } from 'node:events';
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 
 import {
   HostWorkspace,
@@ -73,6 +74,32 @@ const proxy = await fixtures.httpProxy({
     port: host === 'p7-git.invalid' ? gitEndpoint.address().port : port,
   }),
 });
+// Emulate a cache left by an older candidate after deleting a profile. A new
+// explicitly pinned profile may reconnect to this same persistent Agent.
+const { loadIdentity } = await import(
+  pathToFileURL(path.join(pkg, 'node_modules/@alune/agent/dist/adapters/identity.js'))
+);
+const { AgentState } = await import(
+  pathToFileURL(path.join(pkg, 'node_modules/@alune/agent/dist/adapters/sqlite/state.js'))
+);
+const expectedRemoteOwner = await loadIdentity(remoteDir);
+const seeded = await AgentState.open(localDir, await loadIdentity(localDir));
+try {
+  const routes = seeded.document('ssh-routes');
+  routes.read();
+  routes.write([
+    {
+      hostId: randomUUID(),
+      hostKey: createHash('sha256').update(Buffer.from(ssh.publicKey, 'base64')).digest('hex'),
+      agentId: expectedRemoteOwner,
+      digest: '0'.repeat(64),
+      target: process.platform + '-' + process.arch,
+      repositories: [],
+    },
+  ]);
+} finally {
+  await seeded.close();
+}
 const localProc = spawnAgent(
   process.execPath,
   [
@@ -121,6 +148,12 @@ try {
   const workspace = new HostWorkspace(local);
   remote = await workspace.connect(policy);
   const owner = remote.initialized.agentId;
+  assert.equal(
+    owner,
+    expectedRemoteOwner,
+    'deleted-profile cache cannot reserve a live Agent identity',
+  );
+  console.log('Verified legacy deleted-profile cache does not reserve a live Agent identity.');
   assert.notEqual(owner, local.initialized.agentId);
   const notes = path.join(root, 'outside repository notes');
   fs.mkdirSync(notes);

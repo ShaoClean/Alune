@@ -159,7 +159,10 @@ export async function openStateKernel(
           const result = await original.run(params, ctx);
           const id = (params as { id?: string }).id;
           if (method === 'settings.proxy.save') hosts.proxyChanged();
-          else if (id) hosts.invalidate(id);
+          else if (id) {
+            if (method === 'accounts.hosts.delete') hosts.forget(id);
+            else hosts.invalidate(id);
+          }
           return result;
         },
       };

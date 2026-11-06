@@ -69,7 +69,7 @@ export function workspaceRemoval(
         throw new ProtocolError('busy', '服务器仍有写入任务，请等待结束。');
       if (host) {
         settings.hosts.delete(id, input.revision, input.repositories);
-        hosts.invalidate(id);
+        hosts.forget(id);
         c.events.notifyState('accounts.hosts.changed', { section: 'hosts' });
       } else {
         repos.terminals.registry.remove({ repositoryId: id }, input.sessions);

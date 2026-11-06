@@ -541,7 +541,7 @@ async function confirmTerminalShutdown() {
         type: 'warning',
         title: '仍有操作正在执行',
         message: '退出将中断 ' + tasks.length + ' 个操作。',
-        detail: '操作可能已在仓库或托管平台执行，重新打开后请核对结果。',
+        detail: '操作可能已在文件、仓库或托管平台生效，重新打开后请核对结果。',
         buttons: ['保持运行', '确认退出'],
         defaultId: 0,
         cancelId: 0,
