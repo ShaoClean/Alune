@@ -80,6 +80,9 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
       `Desktop AI API and connection test passed (OS-protected storage: ${config.secretStorage.available}).`,
     );
     const originalSize = window.getSize();
+    const originalViewport = await window.webContents.executeJavaScript(
+      "({width:innerWidth,compact:document.querySelector('.app-shell').classList.contains('app-shell--compact')})",
+    );
     const execute = (script) => window.webContents.executeJavaScript(script);
     const wait = (condition) =>
       execute(`new Promise((resolve, reject) => {
@@ -91,7 +94,9 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
       }; check();
     })`);
     try {
-      await execute(`window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))`);
+      await execute(
+        `window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))`,
+      );
       window.setSize(390, 844);
       await wait(
         `document.querySelector('.app-tabbar [aria-label="显示设置分类"]')?.getClientRects().length && document.querySelector('.provider-list__item')`,
@@ -115,7 +120,9 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
         `Array.from(document.querySelectorAll('.provider-mobile-back')).find(button => button.getClientRects().length).click()`,
       );
       await wait(`document.querySelector('.provider-list')?.getClientRects().length > 0`);
-      await execute(`Array.from(document.querySelectorAll('.settings-back')).find(button => button.getClientRects().length && !button.closest('[inert]')).click()`);
+      await execute(
+        `Array.from(document.querySelectorAll('.settings-back')).find(button => button.getClientRects().length && !button.closest('[inert]')).click()`,
+      );
       // The next smoke step opens settings again; wait for this return to finish.
       await wait(
         "!location.pathname.startsWith('/settings') && document.querySelector('.app-main > .app-content:not([hidden])')?.getClientRects().length > 0",
@@ -125,6 +132,11 @@ module.exports = async ({ backend, origin, token, window, restore = false }) => 
       );
     } finally {
       window.setSize(...originalSize);
+      // setSize acknowledges the native request before Chromium has restored
+      // the viewport and responsive settings navigation.
+      await wait(
+        `innerWidth===${originalViewport.width} && document.querySelector('.app-shell')?.classList.contains('app-shell--compact')===${originalViewport.compact}`,
+      );
     }
   } finally {
     mock.closeAllConnections();
