@@ -104,7 +104,10 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
     'document.body.innerText.includes(' + JSON.stringify(marker) + ')',
   );
   if (!fromRelease && phase === 'write')
-    await measure(target.webContents, ['UI-068'], 'log window: pause queues a host entry, resume delivers it once, search and level filters compose, clearing the view preserves history on reload',
+    await measure(wc, ['UI-066'], 'controlled renderer error and rejection events reach the independent log window with ERROR/web provenance; reporting the same error twice stores it once',
+      () => require('./candidate-client-errors.cjs')({contents:wc, logs:target.webContents, wait, marker:'candidate-renderer-report'}));
+  if (!fromRelease && phase === 'write')
+    await measure(target.webContents, ['UI-068'], 'log window: web source filtering and error context expansion, scroll/follow, pause/resume without duplication, keyword/level filters and clear/reload preserving file history',
       () => require('./candidate-log-actions.cjs')({contents:target.webContents, client:backend.client, wait, marker}));
   await updates.check();
   assert.equal(updates.getState().status, 'available');
