@@ -43,6 +43,8 @@ test('explicit session grants preserve outside-repository text access and isolat
     assert.equal((await call('list', { grant, path: '' }))[0].name, 'note.txt');
     const read = await call('read', { grant, path: 'note.txt' });
     assert.equal(read.content, 'original\n');
+    await fs.writeFile(path.join(root, 'bom.txt'), '\uFEFF中文\r\n');
+    assert.equal((await call('read', { grant, path: 'bom.txt' })).content, '\uFEFF中文\r\n');
     await denied(() =>
       call('write', { grant, path: 'note.txt', content: 'denied', version: read.version }),
     );

@@ -115,7 +115,25 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   const dismiss = async (allowed) =>
     wait(
       wc,
-      `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(!n)return true;const t=n.querySelector('#feedback-title')?.textContent;if(!${JSON.stringify(allowed)}.includes(t))throw Error(n.innerText);n.querySelector('[aria-label="关闭提示"]').click();return false})()`,
+      `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(!n)return true;const t=n.querySelector('#feedback-title')?.textContent;const treeSignature=t==='签名验证未完成'&&n.innerText.includes(${JSON.stringify(tree)});if(!${JSON.stringify(allowed)}.includes(t)&&!treeSignature)throw Error(n.innerText);n.querySelector('[aria-label="关闭提示"]').click();return false})()`,
+    );
+  // Git for Windows also consults the tree during signature-header reads.
+  // Select the file-read notice explicitly when that same injected missing
+  // tree produces several concurrent notices; reject unrelated failures.
+  const fileNotice = (action = false) =>
+    wait(
+      wc,
+      `(()=>{
+    const n=document.querySelector('.feedback-dialog[open]');
+    if(n){const t=n.querySelector('#feedback-title')?.textContent;
+      if(t==='提交文件读取失败'){if(${action}){const b=[...n.querySelectorAll('button')].find(e=>e.textContent.trim()==='重试');if(!b||b.disabled)return false;b.click();}return true;}
+      if(t==='无法加载差异'||(t==='签名验证未完成'&&n.innerText.includes(${JSON.stringify(tree)}))){n.querySelector('[aria-label="关闭提示"]').click();return false;}
+      throw Error(n.innerText);
+    }
+    const inbox=document.querySelector('#feedback-inbox:popover-open');
+    if(inbox){const item=[...inbox.querySelectorAll('.fb-item-open')].find(e=>e.querySelector('strong')?.textContent==='提交文件读取失败');if(item)item.click();return false;}
+    const trigger=[...document.querySelectorAll('.status-button--feedback')].find(e=>e.getClientRects().length&&!e.closest('[inert]'));if(trigger)trigger.click();return false;
+  })()`,
     );
   for (const mode of ['notice', 'inline']) {
     fs.renameSync(treeObject, held);
@@ -125,16 +143,12 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
         wc,
         "document.querySelector('.history-detail')?.innerText.includes('无法读取提交文件')",
       );
-      if (mode === 'notice')
-        await wait(
-          wc,
-          `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(!n)return false;const t=n.querySelector('#feedback-title')?.textContent;if(t==='提交文件读取失败')return true;if(t==='无法加载差异'){n.querySelector('[aria-label="关闭提示"]').click();return false;}throw Error(n.innerText)})()`,
-        );
+      if (mode === 'notice') await fileNotice();
       assert.equal(git('rev-parse', 'HEAD'), head);
     } finally {
       fs.renameSync(held, treeObject);
     }
-    if (mode === 'notice') await click(textButton('重试', '.feedback-dialog[open] button'));
+    if (mode === 'notice') await fileNotice(true);
     else {
       await dismiss(['提交文件读取失败', '无法加载差异']);
       await click(textButton('重试', '.history-detail .text-button'));
@@ -175,6 +189,10 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
     await apply('verification fixture');
     await wait(wc, row(signed));
     await wait(wc, title + "==='签名验证未完成'");
+    await wait(
+      wc,
+      "document.querySelector('.feedback-dialog[open]')?.innerText.includes('invalid-history-test-format')",
+    );
   } finally {
     fs.writeFileSync(config, savedConfig);
   }

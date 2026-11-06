@@ -10,7 +10,7 @@ const executable = process.env.ALUNE_TEST_EXECUTABLE || require('electron');
 const args = process.env.ALUNE_TEST_EXECUTABLE ? [] : ['dist/app'];
 const env = { ...process.env, ALUNE_SMOKE_DIR: dataDir };
 delete env.ELECTRON_RUN_AS_NODE;
-let peer;
+let peer, directories;
 try {
   if (env.ALUNE_DESKTOP_EXECUTOR === 'agent')
     env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
@@ -19,6 +19,10 @@ try {
   if (env.ALUNE_DESKTOP_EXECUTOR === 'agent') {
     peer = await (await import('./candidate-review-fixture.mjs')).reviewFixture(dataDir);
     Object.assign(env, peer.env);
+    directories = await (
+      await import('./directory-access-fixture.mjs')
+    ).directoryAccessFixture(dataDir);
+    Object.assign(env, directories.env);
   }
   if (env.ALUNE_CANDIDATE_FIXTURE) {
     env.GIT_CONFIG_GLOBAL = path.join(dataDir, 'empty.gitconfig');
@@ -45,16 +49,19 @@ try {
     process.exitCode = code;
     if (code !== 0) break;
     if (peer && phase === 'write') {
+      directories.verify();
       peer.verify();
       await (await import('./prepare-smoke-vault.mjs')).prepareSmokeVault(dataDir);
       env.ALUNE_TEST_FILE_VAULT = '1';
     } else if (peer) {
+      directories.verify();
       peer.verify();
       peer.verifyTokens();
       (await import('./prepare-smoke-vault.mjs')).checkTokenStorage(dataDir);
     }
   }
 } finally {
+  await directories?.close();
   await peer?.close();
   await rm(dataDir, { recursive: true, force: true, maxRetries: 15, retryDelay: 200 });
 }

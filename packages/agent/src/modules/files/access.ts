@@ -209,7 +209,7 @@ export function fileAccessKernel(agentId: string) {
         await verifyHandle(g, target, handle, c);
         const data = await bytes(handle);
         lookup(g, c);
-        const content = new TextDecoder('utf-8', { fatal: true }).decode(data);
+        const content = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(data);
         if (content.includes('\0'))
           throw new ProtocolError('invalid-params', '文件不是可读取的文本。');
         return { content, version: hash(data) };

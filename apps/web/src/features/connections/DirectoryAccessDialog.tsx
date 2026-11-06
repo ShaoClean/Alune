@@ -15,8 +15,14 @@ export function DirectoryAccessDialog({
   const [access, setAccess] = useState<DirectoryAccess>('read');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const load = async () => {
-    setGrants(await fileAccessApi.grants(connection.id));
+    setLoading(true);
+    try {
+      setGrants(await fileAccessApi.grants(connection.id));
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => {
     void load().catch((e) => setError(e.message));
@@ -38,7 +44,7 @@ export function DirectoryAccessDialog({
       open
       title={`${connection.name} 的目录授权`}
       okText="授权此目录"
-      okDisabled={!path.trim()}
+      okDisabled={loading || !path.trim()}
       confirmLoading={busy}
       onCancel={onClose}
       onOk={() =>
@@ -59,6 +65,7 @@ export function DirectoryAccessDialog({
         />
       </DialogField>
       <OptionCards
+        disabled={busy}
         label="目录权限"
         value={access}
         onChange={setAccess}
@@ -78,7 +85,7 @@ export function DirectoryAccessDialog({
         ]}
       />
       {error && <p role="alert">{error}</p>}
-      <ul aria-label="已授权目录">
+      <ul aria-label="已授权目录" aria-busy={loading}>
         {grants.map((g) => (
           <li key={g.id}>
             <code>{g.path}</code> · {g.access === 'read' ? '读取' : '读写'}{' '}

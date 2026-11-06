@@ -167,5 +167,10 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     await window.loadURL(origin + '/repositories/' + id);
     await wait(wc, button('取消暂存 candidate.txt'));
   }
+  if (process.env.ALUNE_TEST_DIRECTORY_ACCESS) {
+    await require('./candidate-directory-access.cjs')({ window, origin, wait, pass });
+    await window.loadURL(origin + '/repositories/' + id);
+    await wait(wc, button('取消暂存 candidate.txt'));
+  }
   console.log('Candidate native workbench: ' + evidence.length + ' scenarios passed');
 };
