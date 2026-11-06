@@ -40,6 +40,13 @@ for (const [file, ids] of files) {
 // name or line alone. These mappings do not constitute execution receipts.
 const successors = {};
 for (const [id, oldKey, newKey] of [
+  // A pending remote read can enable an explicit choice; selecting it freezes
+  // the loaded object instead of letting later refreshes replace the proof.
+  [
+    'ui-handler:apps/web/src/components/TagsView.tsx:input.onChange:320',
+    '13e0ebe40dbc86a4d3ef1e87',
+    '527b9bebaefeab62dcf56332',
+  ],
   // Freeze both local and remote delete objects at the confirmation boundary.
   [
     'ui-handler:apps/web/src/components/TagsView.tsx:Button.onClick:267',

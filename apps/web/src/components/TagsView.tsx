@@ -115,7 +115,11 @@ export function TagsView({
     }
   };
   // Background refreshes must not change the object the user confirmed deleting.
-  const selectedRemoteTag = deleting?.remoteTag;
+  const selectedRemoteTag =
+    deleting?.remoteTag ??
+    (!deleteRemote && deleting?.remoteName === remote
+      ? remoteTags?.find((tag) => tag.name === deleting.name)
+      : undefined);
   const filtered = tags.filter((tag) =>
     `${tag.name} ${tag.commitHash ?? tag.objectHash} ${tag.message}`
       .toLowerCase()
@@ -324,7 +328,12 @@ export function TagsView({
               type="checkbox"
               checked={deleteRemote}
               disabled={!selectedRemoteTag || busy}
-              onChange={(event) => setDeleteRemote(event.target.checked)}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                if (checked && deleting && selectedRemoteTag && !deleting.remoteTag)
+                  setDeleting({ ...deleting, remoteTag: selectedRemoteTag });
+                setDeleteRemote(checked);
+              }}
             />
             同时删除 {deleting?.remoteName} 上的同名标签
           </label>

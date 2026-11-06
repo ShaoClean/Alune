@@ -247,24 +247,77 @@ sleep 2
     ['UI-045'],
     'a remote tag changed after confirmation opened: the lease rejects deletion, both refs remain intact and refreshing reports the conflicting object',
   );
-  await click(button('删除标签 ' + tag));
-  await click(element('.a-dlg-shell .tag-checkbox input'));
-  await wait(
-    wc,
-    "[...document.querySelectorAll('.a-dlg-shell .tag-error')].some(e=>e.getClientRects().length&&e.innerText.includes('远程同名标签指向不同对象'))",
+  // Open while a real ls-remote is still waiting. Unknown remote state may
+  // become selectable, but the user's checkbox must then freeze that object.
+  const release = path.join(remote, 'release-tag-read'),
+    started = path.join(remote, 'tag-read-started'),
+    bridge = path.join(remote, 'controlled-git-transport.cjs');
+  const quote = (value) => "'" + value.replaceAll('\\', '/').replaceAll("'", "'\\''") + "'";
+  const saved = (key) => {
+    try {
+      return git('config', '--local', '--get', key);
+    } catch {
+      return null;
+    }
+  };
+  const sshCommand = saved('core.sshCommand'),
+    variant = saved('ssh.variant');
+  const { app } = require('electron');
+  const bundle = app.isPackaged
+    ? path.join(process.resourcesPath, 'agent-runtime')
+    : path.resolve(__dirname, '../agent-runtime');
+  const node = path.join(
+    bundle,
+    process.platform === 'win32' ? 'runtime/node.exe' : 'runtime/bin/node',
   );
-  await click(primary('删除本地与远程标签'));
-  await fact(
-    () => !git('tag', '--list', tag) && !tags().includes('refs/tags/' + tag + ':'),
-    'confirmed deletion left a tag ref',
+  // Git's SSH command bridge is local and fixed to this one disposable bare
+  // repository. It transports real Git protocol bytes without DNS or a user host.
+  fs.writeFileSync(
+    bridge,
+    `const fs=require('node:fs'),{spawn}=require('node:child_process');
+(async()=>{const writing=process.argv.slice(2).some(a=>a.includes('git-receive-pack'));
+if(!writing){fs.writeFileSync(${JSON.stringify(started)},'started');for(let n=0;n<600&&!fs.existsSync(${JSON.stringify(release)});n++)await new Promise(r=>setTimeout(r,50));if(!fs.existsSync(${JSON.stringify(release)}))throw Error('Unreleased fixture read');}
+const p=spawn('git',[writing?'receive-pack':'upload-pack',${JSON.stringify(remote)}],{stdio:'inherit',windowsHide:true});p.once('error',()=>process.exit(1));p.once('exit',c=>process.exit(c??1));})().catch(e=>{process.stderr.write(String(e));process.exit(1)});`,
   );
-  await wait(wc, '!(' + row(tag) + ')');
-  assert.equal(git('rev-parse', 'HEAD'), head);
-  assert.equal(originalRemote(), untouched);
-  await pass(
-    ['UI-045'],
-    're-read an externally restored tag then confirm local and remote deletion; both refs disappear while HEAD and the other remote remain intact',
-  );
+  git('config', 'core.sshCommand', quote(node) + ' ' + quote(bridge));
+  git('config', 'ssh.variant', 'ssh');
+  git('remote', 'set-url', 'tags-fixture', 'ssh://fixture.invalid/controlled-tags');
+  try {
+    await click(textButton('刷新标签'));
+    await fact(() => fs.existsSync(started), 'remote tag read did not reach its delivery barrier');
+    await click(button('删除标签 ' + tag));
+    const checkbox = element('.a-dlg-shell .tag-checkbox input');
+    await wait(wc, '(' + checkbox + ')?.disabled===true');
+    fs.writeFileSync(release, 'resume only this read\n');
+    await wait(wc, '(' + checkbox + ')?.disabled===false');
+    await click(checkbox);
+    await wait(
+      wc,
+      "[...document.querySelectorAll('.a-dlg-shell .tag-error')].some(e=>e.getClientRects().length&&e.innerText.includes('远程同名标签指向不同对象'))",
+    );
+    await click(primary('删除本地与远程标签'));
+    await fact(
+      () => !git('tag', '--list', tag) && !tags().includes('refs/tags/' + tag + ':'),
+      'confirmed deletion left a tag ref',
+    );
+    await wait(wc, '!(' + row(tag) + ')');
+    assert.equal(git('rev-parse', 'HEAD'), head);
+    assert.equal(originalRemote(), untouched);
+    await pass(
+      ['UI-045'],
+      'open deletion while its real Git remote read is pending behind a controlled local transport; after it completes explicitly select the loaded object and delete both refs, preserving HEAD and the other remote',
+    );
+  } finally {
+    fs.writeFileSync(release, 'release fixture on all exits\n');
+    for (const [key, value] of [
+      ['core.sshCommand', sshCommand],
+      ['ssh.variant', variant],
+    ]) {
+      if (value === null) git('config', '--unset-all', key);
+      else git('config', key, value);
+    }
+    git('remote', 'set-url', 'tags-fixture', remote);
+  }
   await select('标签远程', 'origin');
   await wait(wc, '(' + row('p8-ui-tag') + ')?.innerText.includes("远程已存在")');
   git('remote', 'remove', 'tags-fixture');
