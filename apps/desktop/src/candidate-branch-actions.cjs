@@ -8,10 +8,11 @@ module.exports = async ({ window, wc, work, git, wait, fact, pass }) => {
   const ev = (s) => wc.executeJavaScript(s),
     primary = (s) => textButton(s, '.a-dlg-actions button'),
     confirm = (s) => textButton(s, '.ant-popconfirm button');
+  const expectedNotice = `(n.dataset.tone==='info'&&/进行中$/.test(n.querySelector('#feedback-title')?.textContent??'')&&[...n.querySelectorAll('button')].some(b=>b.textContent.replace(/\\s/g,'')==='取消操作')) || (n.dataset.tone==='success'&&/已切换|已创建|已重命名|已合并|已推送标签|全部标签已推送|已从标签检出|标签已删除/.test(n.innerText))`;
   const click = (expr) =>
     wait(
       wc,
-      `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(n){const progress=n.dataset.tone==='info'&&/进行中$/.test(n.querySelector('#feedback-title')?.textContent??'')&&[...n.querySelectorAll('button')].some(b=>b.textContent.replace(/\\s/g,'')==='取消操作');if(!progress&&!/Git 操作进行中|已切换|已创建|已重命名|已合并|标签已删除/.test(n.innerText))throw Error(n.innerText);n.querySelector('[aria-label="关闭提示"]').click();return false;}const e=(${expr});if(!e||e.disabled||e.getAttribute('aria-busy')==='true'||e.classList.contains('ant-btn-loading'))return false;e.click();return true})()`,
+      `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(n){if(!(${expectedNotice}))throw Error(n.innerText);n.querySelector('[aria-label="关闭提示"]').click();return false;}const e=(${expr});if(!e||e.disabled||e.getAttribute('aria-busy')==='true'||e.classList.contains('ant-btn-loading'))return false;e.click();return true})()`,
     );
   const row = (n) =>
     '[...document.querySelectorAll(".branch-row")].find(e=>e.getClientRects().length&&e.querySelector(".branch-row__name")?.textContent===' +
@@ -90,7 +91,7 @@ module.exports = async ({ window, wc, work, git, wait, fact, pass }) => {
   await click(confirm('删除分支'));
   await wait(
     wc,
-    `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(!n)return false;if(n.innerText.includes('Git 操作进行中')){n.querySelector('[aria-label="关闭提示"]').click();return false;}if(!/not fully merged|未合并/i.test(n.innerText))throw Error(n.innerText);return true})()`,
+    `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(!n)return false;if(${expectedNotice}){n.querySelector('[aria-label="关闭提示"]').click();return false;}if(!/not fully merged|未合并/i.test(n.innerText))throw Error(n.innerText);return true})()`,
   );
   const failure = await ev('document.querySelector(".feedback-dialog[open]").innerText');
   assert.match(failure, /not fully merged|未合并/i);
