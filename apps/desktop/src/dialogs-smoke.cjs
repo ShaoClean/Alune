@@ -136,8 +136,12 @@ module.exports = async ({ window }) => {
     const entrance = (await motion()).filter((entry) => entry.startsWith('alune-dlg-rise'));
     if (motionEnabled) assert.deepEqual(entrance, ['alune-dlg-rise:360']);
     else assert.deepEqual(entrance, []);
-    await wait(
-      `!${shell}.querySelector('.a-dlg-actions .ant-btn-dangerous').getAttribute('aria-busy')`,
+    // The shell and Cancel focus precede the async Git preview. aria-busy
+    // describes submitting the destructive action, not loading that preview.
+    await wait(`${shell}?.querySelector('.dlg-check input:not(:disabled)')`);
+    assert.equal(
+      await execute(`${shell}.querySelector('.a-dlg-actions .ant-btn-dangerous').disabled`),
+      true,
     );
     await execute(`${shell}.querySelector('.dlg-check input').click()`);
     await wait(`!${shell}.querySelector('.a-dlg-actions .ant-btn-dangerous').disabled`);
