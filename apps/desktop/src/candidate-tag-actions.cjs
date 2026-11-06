@@ -103,10 +103,13 @@ module.exports = async ({ window, wc, work, bare, git, wait, fact, pass }) => {
   try {
     await click(textButton('刷新标签'));
     await wait(wc, element('.tag-error[role="alert"]'));
-    assert.match(
-      await ev('(' + element('.tag-error[role="alert"]') + ').textContent'),
-      /missing object|1111111111/i,
-    );
+    // Native Git versions report missing objects differently (one Linux
+    // version aborts in for-each-ref). The contract is a visible failed read,
+    // disabled mutation controls, unchanged valid refs and an explicit retry.
+    const diagnostic = await ev('(' + element('.tag-error[role="alert"]') + ').textContent');
+    assert.ok(diagnostic.trim().replace('重试', '').length > 0);
+    assert.equal(await ev('(' + button('删除标签 ' + tag) + ').disabled'), true);
+    console.log('Verified native Git tag read failure:', diagnostic.trim());
     assert.equal(git('rev-parse', tag + '^{}'), head);
   } finally {
     fs.unlinkSync(damagedRef);
