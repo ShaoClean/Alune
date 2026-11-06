@@ -117,51 +117,18 @@ async function startDesktopAgent({
         contents = e.sender,
         frame = e.senderFrame;
       if (stopping || !name || channels.has(contents)) throw new Error('Agent channel unavailable');
-      const channel = await host.open(name);
-      if (
-        !role(e) ||
-        contents.isDestroyed() ||
-        contents.mainFrame !== frame ||
-        channels.has(contents)
-      ) {
-        channel.close();
-        throw new Error('Agent window changed');
-      }
-      const cleanup = () => {
-        if (channels.get(contents)?.channel !== channel) return;
-        channels.delete(contents);
-        channel.close();
-        contents.off('did-start-navigation', navigate);
-        contents.off('destroyed', cleanup);
-        contents.off('render-process-gone', cleanup);
-      };
-      const navigate = (_e, details, inPlace, main) => {
-        if (
-          typeof details === 'object'
-            ? details.isMainFrame && !details.isSameDocument
-            : main && !inPlace
-        )
-          cleanup();
-      };
-      const generation = require('node:crypto').randomUUID();
-      channels.set(contents, { channel, cleanup, generation });
-      contents.on('did-start-navigation', navigate);
-      contents.once('destroyed', cleanup);
-      contents.once('render-process-gone', cleanup);
-      channel.onFrame((value) => {
-        if (!contents.isDestroyed() && contents.mainFrame === frame)
-          frame.send('agent:frame', generation, value);
+      return require('./agent-window-channel.cjs').openWindowAgentChannel({
+        host,
+        contents,
+        frame,
+        name,
+        channels,
+        isCurrent: () => !stopping && role(e) === name,
       });
-      channel.onEnd(() => {
-        if (!contents.isDestroyed() && contents.mainFrame === frame)
-          frame.send('agent:end', generation);
-        cleanup();
-      });
-      return generation;
     });
     ipcMain.handle('agent:frame', async (e, generation, value) => {
       const endpoint = role(e) && channels.get(e.sender);
-      if (stopping || !endpoint || endpoint.generation !== generation) return false;
+      if (stopping || !endpoint?.channel || endpoint.generation !== generation) return false;
       await endpoint.channel.send(value);
       return true;
     });
