@@ -24,6 +24,17 @@ for (const [file, ids] of files) {
       for (const k of [s.context, s.exact]) (anchors[k] ??= []).push(s.id);
   }
 }
+// The stash header and empty-state buttons share a callback body. Removing
+// the shared panel-error condition changed only the header's nearby tokens.
+// Keep its reviewed source anchor distinct from the unchanged empty-state button.
+{
+  const id = 'ui-handler:apps/web/src/components/StashesView.tsx:Button.onClick:270';
+  const oldAnchor = '8c0f0b98527476a195664e68';
+  const newAnchor = 'b028575f6c20c3b740dec0a8';
+  if (anchors[oldAnchor]?.length !== 1 || anchors[oldAnchor][0] !== id || anchors[newAnchor])
+    throw Error('Invalid reviewed stash anchor');
+  anchors[newAnchor] = [id];
+}
 // Changed callback bodies still implement the same UI actions. Pin both
 // token fingerprints; future edits must be compared again, never matched by
 // name or line alone. These mappings do not constitute execution receipts.

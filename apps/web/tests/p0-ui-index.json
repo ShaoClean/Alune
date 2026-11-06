@@ -3008,6 +3008,9 @@
     ],
     "ffc075f2fa37d33b56bc287c": [
       "ui-handler:apps/web/src/pages/RepositoriesPage.tsx:Button.onClick:331"
+    ],
+    "b028575f6c20c3b740dec0a8": [
+      "ui-handler:apps/web/src/components/StashesView.tsx:Button.onClick:270"
     ]
   },
   "successors": {

@@ -60,12 +60,10 @@ export function RemotesView({ repoId, onRefresh }: Props) {
     remotes,
     remotesLoading: loading,
     error,
-    errorPanel,
   } = useWorkspaceData(repoId, (workspace) => ({
     remotes: workspace.remotes,
     remotesLoading: workspace.remotesLoading,
-    error: workspace.error,
-    errorPanel: workspace.errorPanel,
+    error: workspace.panelErrors.remotes,
   }));
 
   useEffect(() => {
@@ -100,7 +98,7 @@ export function RemotesView({ repoId, onRefresh }: Props) {
           </>
         }
       />
-      {error && errorPanel === 'remotes' && !remotes.length ? (
+      {error && !remotes.length ? (
         <ErrorState
           title="无法读取远程"
           description={error}

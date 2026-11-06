@@ -164,10 +164,9 @@ interface Props {
 export function StashesView({ repoId, onRefresh }: Props) {
   const message = useFeedbackMessage();
   const fetchStashes = useRepositoryStore((state) => state.fetchStashes);
-  const { stashes, error, errorPanel } = useWorkspaceData(repoId, (workspace) => ({
+  const { stashes, error } = useWorkspaceData(repoId, (workspace) => ({
     stashes: workspace.stashes,
-    error: workspace.error,
-    errorPanel: workspace.errorPanel,
+    error: workspace.panelErrors.stashes,
   }));
   const repoName = useRepositoryStore(
     (state) => state.repositories.find((repo) => repo.id === repoId)?.name,
@@ -274,7 +273,7 @@ export function StashesView({ repoId, onRefresh }: Props) {
           </>
         }
       />
-      {error && errorPanel === 'stashes' && !stashes.length ? (
+      {error && !stashes.length ? (
         <ErrorState
           title="无法读取储藏"
           description={error}
@@ -358,6 +357,7 @@ export function StashesView({ repoId, onRefresh }: Props) {
                     danger
                     icon={<DeleteOutlined />}
                     aria-label={`删除储藏 ${stash.index}`}
+                    disabled={loading}
                   >
                     删除
                   </Button>

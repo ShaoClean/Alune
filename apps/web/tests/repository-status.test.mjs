@@ -49,7 +49,10 @@ test('first list failure is distinct from an empty successful registry and from 
   store.setState((state) => ({
     workspaces: {
       ...state.workspaces,
-      a: { ...state.workspaces.a, error: 'an unrelated Git error' },
+      a: {
+        ...state.workspaces.a,
+        panelErrors: { ...state.workspaces.a.panelErrors, branches: 'an unrelated Git error' },
+      },
     },
   }));
   repositoryApi.list = async () => {
@@ -59,7 +62,7 @@ test('first list failure is distinct from an empty successful registry and from 
   assert.equal(store.getState().listLoaded, false);
   assert.equal(store.getState().listLoading, false);
   assert.equal(store.getState().listError, 'registry offline');
-  assert.equal(ws('a').error, 'an unrelated Git error');
+  assert.equal(ws('a').panelErrors.branches, 'an unrelated Git error');
   repositoryApi.list = async () => [];
   await store.getState().fetchRepositories();
   assert.equal(store.getState().listLoaded, true);
@@ -290,11 +293,19 @@ test('a confirmed full registry removal prunes pending cache without accepting i
 test('deletion failure preserves the registered repository and workspace state', async () => {
   await store.getState().fetchRepositories();
   const failure = new Error('registry is read-only');
-  repositoryApi.delete = async () => { throw failure; };
+  repositoryApi.delete = async () => {
+    throw failure;
+  };
   store.getState().openRepository(repo('a'));
   await assert.rejects(store.getState().deleteRepository('a'), failure);
-  assert.deepEqual(store.getState().repositories.map((item) => item.id), ['a', 'b', 'c']);
-  assert.deepEqual(store.getState().openRepositories.map((item) => item.id), ['a']);
+  assert.deepEqual(
+    store.getState().repositories.map((item) => item.id),
+    ['a', 'b', 'c'],
+  );
+  assert.deepEqual(
+    store.getState().openRepositories.map((item) => item.id),
+    ['a'],
+  );
   assert.equal(store.getState().currentRepo.id, 'a');
   assert.deepEqual(workspace.getState().repositoryOrderByConnection['host-a'], ['a', 'b']);
 });
@@ -407,7 +418,9 @@ test('opening a running background read replaces its short request deadline', as
   repositoryApi.status = (id, signal, foreground) => {
     calls.push({ id, signal, foreground });
     if (foreground) return Promise.resolve(status('opened'));
-    return new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason)));
+    return new Promise((_, reject) =>
+      signal.addEventListener('abort', () => reject(signal.reason)),
+    );
   };
   const stop = store.getState().observeRepository('a');
   await flush();

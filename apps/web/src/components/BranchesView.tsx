@@ -114,10 +114,9 @@ export function BranchesView({ repoId, onRefresh, refreshToken }: Props) {
   const navigate = useNavigate();
   const message = useFeedbackMessage();
   const fetchBranches = useRepositoryStore((state) => state.fetchBranches);
-  const { branches, error, errorPanel } = useWorkspaceData(repoId, (workspace) => ({
+  const { branches, error } = useWorkspaceData(repoId, (workspace) => ({
     branches: workspace.branches,
-    error: workspace.error,
-    errorPanel: workspace.errorPanel,
+    error: workspace.panelErrors.branches,
   }));
   // P02 reads the working tree so the merge prompt states the real number of changes.
   const changedFiles = useRepositoryStore(
@@ -336,7 +335,7 @@ export function BranchesView({ repoId, onRefresh, refreshToken }: Props) {
         }
       />
       <div className="branch-list">
-        {error && errorPanel === 'branches' && !branches.length ? (
+        {error && !branches.length ? (
           <ErrorState
             title="无法读取分支"
             description={error}

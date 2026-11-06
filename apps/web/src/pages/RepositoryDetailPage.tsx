@@ -180,10 +180,7 @@ function RepositoryWorkspace({
     worktreeDiffRevision: workspace.worktreeDiffRevision,
     diffError: workspace.diffError,
   }));
-  const { error, errorPanel } = useWorkspaceData(id, (workspace) => ({
-    error: workspace.error,
-    errorPanel: workspace.errorPanel,
-  }));
+  const panelErrors = useWorkspaceData(id, (workspace) => workspace.panelErrors);
   const { entry: statusEntry, stale: statusStale } = useRepositoryStatus(id);
   const statusFailed = statusEntry?.phase === 'error';
   // Refresh cached status without inserting a notice that moves the Diff below it.
@@ -194,6 +191,10 @@ function RepositoryWorkspace({
   const [activePanel, setActivePanel] = useState<Panel>(() =>
     requestedPanel === 'pull-requests' ? 'pull-requests' : 'changes',
   );
+  const error =
+    activePanel === 'branches' || activePanel === 'stashes' || activePanel === 'remotes'
+      ? panelErrors[activePanel]
+      : null;
   const cached = () =>
     useRepositoryStore.getState().repositories.find((repo) => repo.id === id) ||
     useRepositoryStore.getState().openRepositories.find((repo) => repo.id === id);
@@ -767,7 +768,7 @@ function RepositoryWorkspace({
           />
           <FeedbackNotice
             source={`repository-panel:${activePanel}`}
-            title={error && errorPanel === activePanel ? `${activeLabel}读取失败` : null}
+            title={error ? `${activeLabel}读取失败` : null}
             description={error || undefined}
             actionLabel="重试"
             onAction={() => handleRefresh(false)}

@@ -124,8 +124,7 @@ export interface WorkspaceData extends DiffState {
   /** The `commit` slot; the fields above it hold the `worktree` slot. */
   commitDiff: DiffState;
   worktreeDiffRevision: number;
-  error: string | null;
-  errorPanel: 'branches' | 'stashes' | 'remotes' | null;
+  panelErrors: Record<'branches' | 'stashes' | 'remotes', string | null>;
 }
 
 export const emptyWorkspace = (): WorkspaceData => ({
@@ -152,8 +151,7 @@ export const emptyWorkspace = (): WorkspaceData => ({
   ...emptyDiff(),
   commitDiff: emptyDiff(),
   worktreeDiffRevision: 0,
-  error: null,
-  errorPanel: null,
+  panelErrors: { branches: null, stashes: null, remotes: null },
 });
 
 /** Read by tabs whose workspace has not been opened yet, or was just closed. */
@@ -268,6 +266,16 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       const next = typeof update === 'function' ? update(workspace) : update;
       return { workspaces: { ...state.workspaces, [id]: { ...workspace, ...next } } };
     });
+  const patchList = (
+    id: string,
+    panel: keyof WorkspaceData['panelErrors'],
+    update: Partial<WorkspaceData>,
+    error: string | null = null,
+  ) =>
+    patch(id, (workspace) => ({
+      ...update,
+      panelErrors: { ...workspace.panelErrors, [panel]: error },
+    }));
   const patchDiff = (
     id: string,
     slot: DiffSlot,
@@ -988,12 +996,12 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       const requestBook = book(id);
       const request = ++requestBook.branches;
       const current = () => requests.get(id) === requestBook && request === requestBook.branches;
-      patch(id, { error: null });
+      patchList(id, 'branches', {});
       try {
         const branches = await repositoryApi.branches(id);
-        if (current()) patch(id, { branches, error: null });
+        if (current()) patchList(id, 'branches', { branches });
       } catch (err: any) {
-        if (current()) patch(id, { error: err.message, errorPanel: 'branches' });
+        if (current()) patchList(id, 'branches', {}, errorMessage(err));
       }
     },
 
@@ -1002,12 +1010,12 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       const requestBook = book(id);
       const request = ++requestBook.stashes;
       const current = () => requests.get(id) === requestBook && request === requestBook.stashes;
-      patch(id, { error: null });
+      patchList(id, 'stashes', {});
       try {
         const stashes = await repositoryApi.stashes(id);
-        if (current()) patch(id, { stashes, error: null });
+        if (current()) patchList(id, 'stashes', { stashes });
       } catch (err: any) {
-        if (current()) patch(id, { error: err.message, errorPanel: 'stashes' });
+        if (current()) patchList(id, 'stashes', {}, errorMessage(err));
       }
     },
 
@@ -1016,13 +1024,12 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       const requestBook = book(id);
       const request = ++requestBook.remotes;
       const current = () => requests.get(id) === requestBook && request === requestBook.remotes;
-      patch(id, { remotesLoading: true, error: null });
+      patchList(id, 'remotes', { remotesLoading: true });
       try {
         const remotes = await repositoryApi.remotes(id);
-        if (current()) patch(id, { remotes, remotesLoading: false, error: null });
+        if (current()) patchList(id, 'remotes', { remotes, remotesLoading: false });
       } catch (err: any) {
-        if (current())
-          patch(id, { error: err.message, errorPanel: 'remotes', remotesLoading: false });
+        if (current()) patchList(id, 'remotes', { remotesLoading: false }, errorMessage(err));
       }
     },
   };
