@@ -263,6 +263,7 @@ module.exports = async ({
     pass,
   });
 
+  await require('./candidate-history-actions.cjs')({ window, wc, work, wait, pass });
   await require('./candidate-rebase-actions.cjs')({
     wc,
     window,
