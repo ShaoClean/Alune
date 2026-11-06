@@ -383,7 +383,7 @@ test('a refreshed live read retains the original parameters even if the caller e
   }
 });
 
-test('only a marked invalidation for the observed resource refreshes a signature read; history conflicts and unknown outcomes stay visible', async () => {
+test('an owning-resource invalidation refreshes even before its event; history conflicts and unknown outcomes stay visible', async () => {
   for (const scenario of [
     {
       detail: { code: 'READ_INVALIDATED', resourceId: 'resource' },
@@ -402,7 +402,7 @@ test('only a marked invalidation for the observed resource refreshes a signature
       detail: { code: 'READ_INVALIDATED', resourceId: 'resource' },
       observe: false,
       outcome: 'not-started',
-      refresh: false,
+      refresh: true,
     },
     {
       detail: { code: 'READ_INVALIDATED', resourceId: 'resource' },
@@ -440,5 +440,28 @@ test('only a marked invalidation for the observed resource refreshes a signature
     } finally {
       f.adapter.dispose();
     }
+  }
+});
+
+test('a pinned Diff never refreshes automatically even when the owning Agent marks its read invalidated', async () => {
+  const f = make('agent');
+  let calls = 0;
+  const error = new ProtocolError('conflict', 'Repository changed during read', 'not-started', {
+    code: 'READ_INVALIDATED',
+    resourceId: resource.resourceId,
+  });
+  f.client.readRepository = async () => {
+    calls++;
+    f.events.forEach((fn) => fn({ type: 'repositories.changed', resource }));
+    throw error;
+  };
+  try {
+    await assert.rejects(
+      f.adapter.repository.diff('repo', { file: 'tracked.txt' }),
+      (e) => e === error,
+    );
+    assert.equal(calls, 1);
+  } finally {
+    f.adapter.dispose();
   }
 });

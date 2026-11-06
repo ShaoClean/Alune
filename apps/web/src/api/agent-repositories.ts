@@ -165,26 +165,31 @@ export function createAgentRepositoryQueries(
         throw new Error('仓库读取结果已过期，请刷新后重试。');
       return invocation.select ? invocation.select(result) : result;
     } catch (error) {
-      // An in-flight query may reject with the wire's generic
-      // cancellation after a locally observed Git change. Only that case is
-      // superseded; a timeout or real verification failure remains visible.
-      if (
-        liveQueries.has(invocation.kind) &&
-        !disposed &&
-        !invocation.signal?.aborted &&
+      // The owning Agent can invalidate a read before its event has reached
+      // this listener (event callbacks may be asynchronous). Its exact resource
+      // marker is sufficient; generic cancellation still needs local evidence.
+      const knownInvalidation =
+        error instanceof ProtocolError &&
+        error.kind === 'conflict' &&
+        error.outcome !== 'unknown' &&
+        error.details &&
+        typeof error.details === 'object' &&
+        'code' in error.details &&
+        error.details.code === 'READ_INVALIDATED' &&
+        'resourceId' in error.details &&
+        error.details.resourceId === resource.resourceId;
+      const localCancellation =
         controller.signal.aborted &&
         versions.get(id) !== version &&
         (error === controller.signal.reason ||
           (error instanceof ProtocolError &&
-            error.outcome !== 'unknown' &&
-            (error.kind === 'cancelled' ||
-              (error.kind === 'conflict' &&
-                error.details &&
-                typeof error.details === 'object' &&
-                'code' in error.details &&
-                error.details.code === 'READ_INVALIDATED' &&
-                'resourceId' in error.details &&
-                error.details.resourceId === resource.resourceId))))
+            error.kind === 'cancelled' &&
+            error.outcome !== 'unknown'));
+      if (
+        liveQueries.has(invocation.kind) &&
+        !disposed &&
+        !invocation.signal?.aborted &&
+        (knownInvalidation || localCancellation)
       )
         throw superseded;
       throw error;
