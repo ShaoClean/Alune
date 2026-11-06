@@ -264,6 +264,7 @@ module.exports = async ({
   });
 
   await require('./candidate-history-actions.cjs')({ window, wc, work, wait, fact, pass });
+  await require('./candidate-history-recovery.cjs')({ window, wc, work, wait, fact, pass });
   await require('./candidate-rebase-actions.cjs')({
     wc,
     window,
