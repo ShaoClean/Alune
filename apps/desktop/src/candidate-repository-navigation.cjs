@@ -19,9 +19,32 @@ module.exports = async ({ window, origin, current, other, wait, pass }) => {
   const before = [facts(current.path), facts(other.path)];
   const unchanged = () => assert.deepEqual([facts(current.path), facts(other.path)], before);
   const key = async (expr, name) => {
-    await wait(wc, `(()=>{const e=(${expr});if(!e)return false;e.focus();return true})()`);
-    wc.sendInputEvent({ type: 'keyDown', keyCode: name });
-    wc.sendInputEvent({ type: 'keyUp', keyCode: name });
+    // A previous popup can restore focus on its last animation frame. Wait for
+    // those frames, then require the native event to reach the intended node.
+    await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+    await wait(
+      wc,
+      `(()=>{const e=(${expr});if(!e)return false;e.focus();return document.activeElement===e})()`,
+    );
+    const expected = { Up: 'ArrowUp', Down: 'ArrowDown', Return: 'Enter', Escape: 'Escape' }[name];
+    await ev(
+      `(()=>{const target=(${expr});window.__repositoryKeyReceipt=null;window.__repositoryKeyListener=event=>{if(event.key===${JSON.stringify(expected)})window.__repositoryKeyReceipt={matched:event.target===target,target:event.target?.outerHTML.slice(0,300)};};window.addEventListener('keydown',window.__repositoryKeyListener,true)})()`,
+    );
+    try {
+      wc.sendInputEvent({ type: 'keyDown', keyCode: name });
+      await wait(wc, '!!window.__repositoryKeyReceipt');
+      const receipt = await ev('window.__repositoryKeyReceipt');
+      assert.equal(
+        receipt.matched,
+        true,
+        'native repository key target: ' + JSON.stringify(receipt),
+      );
+    } finally {
+      wc.sendInputEvent({ type: 'keyUp', keyCode: name });
+      await ev(
+        "window.removeEventListener('keydown',window.__repositoryKeyListener,true);delete window.__repositoryKeyListener;delete window.__repositoryKeyReceipt",
+      );
+    }
   };
   const opened = async () => {
     await wait(wc, search);
