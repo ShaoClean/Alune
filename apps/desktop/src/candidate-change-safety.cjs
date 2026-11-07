@@ -73,16 +73,15 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   const untouched = working();
   await window.loadURL(origin + '/repositories');
   await wait(wc, button('打开本地仓库'));
-  const sessionBefore = await ev(
-    'JSON.parse(window.aluneWorkspace.load()).state.repositorySession',
-  );
+  const sessionBefore = JSON.parse(await ev('window.aluneWorkspace.load()')).state
+    .repositorySession;
   await click(button('打开本地仓库'));
   await input(element('#local-repo-path'), path.join(base, 'not-registered'));
   await click(textButton('取消', '.a-dlg-actions button'));
   await wait(wc, '!(' + element('#local-repo-path') + ')');
   unaffected();
   assert.deepEqual(
-    await ev('JSON.parse(window.aluneWorkspace.load()).state.repositorySession'),
+    JSON.parse(await ev('window.aluneWorkspace.load()')).state.repositorySession,
     sessionBefore,
   );
   assert.equal(fs.existsSync(path.join(base, 'not-registered')), false);
