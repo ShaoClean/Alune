@@ -116,6 +116,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     'create and switch branch with staged edits; registered tag retains the original commit',
   );
   await require('./candidate-branch-picker.cjs')({ window, repo, wait, pass });
+  await require('./candidate-change-safety.cjs')({ window, origin, repo, wait, pass });
   await click(element('button[aria-label^="改动"]'));
   await click(button('查看差异 candidate.txt（已暂存）'));
   await wait(wc, element('.diff-code-row--add'));

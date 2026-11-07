@@ -115,6 +115,47 @@ module.exports = async ({
   // The store may still be refreshing after Git has written HEAD. Await
   // the UI's own post-commit state, then amend the populated HEAD snapshot.
   await wait(wc, text('0 个文件已暂存'));
+  const beforeAmend = [
+    git('rev-parse', 'HEAD'),
+    git('ls-files', '--stage'),
+    git('status', '--porcelain'),
+  ];
+  const configFile = path.join(work, '.git', 'config'),
+    configBytes = fs.readFileSync(configFile);
+  fs.appendFileSync(configFile, '\n[invalid-amend-read-fixture\n');
+  try {
+    await click(textButton('修改上一次提交'));
+    await wait(wc, textButton('重新读取上一次提交'));
+    assert.equal(await wc.executeJavaScript('!!(' + textButton('确认修改提交') + ')'), false);
+    assert.equal(
+      await wc.executeJavaScript(
+        'document.querySelector("[aria-label=修改后的提交信息]").disabled',
+      ),
+      true,
+    );
+  } finally {
+    fs.writeFileSync(configFile, configBytes);
+  }
+  assert.deepEqual(
+    [git('rev-parse', 'HEAD'), git('ls-files', '--stage'), git('status', '--porcelain')],
+    beforeAmend,
+  );
+  await click(textButton('重新读取上一次提交'));
+  await wait(
+    wc,
+    "document.querySelector('[aria-label=修改后的提交信息]')?.value.includes('commit from actual UI')",
+  );
+  await fill(button('修改后的提交信息'), 'cancelled amend draft');
+  await click(primary('取消'));
+  await wait(wc, '!(' + button('修改后的提交信息') + ')');
+  assert.deepEqual(
+    [git('rev-parse', 'HEAD'), git('ls-files', '--stage'), git('status', '--porcelain')],
+    beforeAmend,
+  );
+  await pass(
+    ['UI-003', 'UI-007'],
+    'a malformed Git configuration disables amend submission and editing; restoring the exact config and explicitly retrying reloads HEAD, then cancelling a draft preserves HEAD, index and working state',
+  );
   await click(textButton('修改上一次提交'));
   await wait(
     wc,
