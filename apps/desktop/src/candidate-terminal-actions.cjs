@@ -16,10 +16,10 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     "document.querySelector('.terminal-output .xterm-accessibility')?.textContent.includes(" +
     JSON.stringify(t) +
     ')';
-  const key = (expr, key, code, n) =>
+  const key = (expr, key, code, n, modifiers = {}) =>
     wait(
       wc,
-      `(()=>{const e=(${expr});if(!e)return false;e.focus();e.dispatchEvent(new KeyboardEvent('keydown',${JSON.stringify({ key, code, keyCode: n, which: n, bubbles: true, cancelable: true })}));return true;})()`,
+      `(()=>{const e=(${expr});if(!e)return false;e.focus();e.dispatchEvent(new KeyboardEvent('keydown',${JSON.stringify({ key, code, keyCode: n, which: n, bubbles: true, cancelable: true, ...modifiers })}));return true;})()`,
     );
   async function send(line) {
     await wait(
@@ -33,7 +33,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   await running();
   assert.equal(await ev("document.querySelector('.terminal-identity > span').title"), '本机');
   assert.equal(
-    await ev("document.querySelector('.terminal-path code').textContent"),
+    fs.realpathSync.native(await ev("document.querySelector('.terminal-path code').textContent")),
     fs.realpathSync.native(work),
   );
   await send(process.platform === 'win32' ? 'type terminal-probe.txt' : 'cat terminal-probe.txt');
@@ -108,8 +108,27 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   }
   await wait(wc, output(marker));
   await pass(
-    ['UI-046'],
+    ['UI-046', 'UI-074', 'UI-042'],
     'terminal keyboard limits change actual PTY rows; native pointer drag restores the original height and retains output',
+  );
+  const { counts } = require('./candidate-ui-audit.cjs');
+  const inputCallback = 'ui-listener:apps/web/src/stores/terminalStore.ts:terminal.onData:162';
+  const inputCount = (await counts(wc)).get(inputCallback) ?? 0;
+  await key(element('.terminal-output .xterm-helper-textarea'), 'F6', 'F6', 117, {
+    ctrlKey: true,
+    shiftKey: true,
+  });
+  await wait(wc, 'document.activeElement?.matches("[data-terminal-new]")');
+  await key(element('.terminal-output .xterm-helper-textarea'), '`', 'Backquote', 192, {
+    ctrlKey: true,
+  });
+  await wait(wc, '!document.querySelector(".terminal-panel")');
+  await click(element('[data-terminal-toggle]'));
+  await wait(wc, output(marker));
+  assert.equal((await counts(wc)).get(inputCallback) ?? 0, inputCount);
+  await pass(
+    ['UI-074', 'UI-046', 'UI-025'],
+    'terminal Ctrl+Shift+F6 leaves shell input for its create control; Ctrl+Backquote toggles the panel, preserves its output and sends neither shortcut to the real PTY input callback',
   );
   const first = await ev(
     'document.querySelector(' + JSON.stringify(active) + ").getAttribute('aria-controls')",
@@ -122,7 +141,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   await click(element('[data-terminal-toggle]'));
   await wait(wc, output(marker));
   await pass(
-    ['UI-046'],
+    ['UI-046', 'UI-042'],
     'real terminal renders file bytes from its registered Git directory; maximize, restore and collapse retain the session output',
   );
   await click(button('新建终端'));

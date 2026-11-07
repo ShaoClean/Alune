@@ -171,7 +171,7 @@ module.exports = async ({
     `(${tabs})?.querySelector('[aria-selected=true]')?.textContent.includes('文件变动')`,
   );
   await record(
-    ['UI-030'],
+    ['UI-030', 'UI-031'],
     'review tab keyboard events select overview, discussions and files in order while retaining the same request title and file',
   );
   // File navigation and range selections must keep the reviewed path and side.
@@ -248,7 +248,7 @@ module.exports = async ({
     "[...document.querySelectorAll('.pull-request-thread')].some(e=>e.textContent.includes('Local range comment'))",
   );
   await record(
-    ['UI-030', 'UI-031'],
+    ['UI-030', 'UI-031', 'UI-032'],
     'post one code discussion on adjacent added lines and see the resulting thread on the selected file',
   );
   await click(btn('评论与讨论', '[aria-label="审阅内容"] [role="tab"]'));
@@ -262,7 +262,7 @@ module.exports = async ({
       '))',
   );
   await record(
-    ['UI-030', 'UI-031'],
+    ['UI-030', 'UI-031', 'UI-032'],
     'post a comment through the discussion composer and see the same text in the resulting thread',
   );
   await click(aria('返回列表'));
@@ -272,7 +272,7 @@ module.exports = async ({
   await click(btn('取消', '.a-dlg-actions button'));
   await wait(w, '!(' + aria('PR/MR 标题') + ')');
   await record(
-    ['UI-012', 'UI-031'],
+    ['UI-012', 'UI-031', 'UI-032'],
     'cancel creation while the controlled branch comparison is pending; the dialog closes without creating a request',
   );
   await click(btn('创建 PR/MR'));

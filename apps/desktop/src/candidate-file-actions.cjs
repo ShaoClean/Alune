@@ -93,7 +93,7 @@ module.exports = async ({
   assert.equal(fs.readFileSync(target, 'utf8'), 'concurrent edit survives\n');
   assert.equal(git('show', ':' + file), 'staged bytes');
   await pass(
-    ['UI-048'],
+    ['UI-048', 'UI-072'],
     'mouse file menu: invalid name cannot submit; stale rename preserves both versions; reread then rename moves only working bytes',
   );
 
@@ -176,7 +176,7 @@ module.exports = async ({
   assert.equal(blob(), first.trimEnd());
   assert.equal(git('show', 'HEAD:' + tracked), original.trimEnd());
   await pass(
-    ['UI-063', 'UI-007'],
+    ['UI-063', 'UI-007', 'UI-072'],
     'clear a line selection, stage only one of two adjacent additions, cancel then confirm discarding the other; verify HEAD, index and working bytes',
   );
   await click(button('取消暂存 ' + tracked));
@@ -184,6 +184,12 @@ module.exports = async ({
   assert.equal(fs.readFileSync(trackedPath, 'utf8'), first);
   git('restore', '--worktree', '--', tracked);
   await click(button('刷新仓库'));
+  assert.equal(blob(), original.trimEnd());
+  assert.equal(fs.readFileSync(trackedPath, 'utf8'), original);
+  await pass(
+    ['UI-007', 'UI-063', 'UI-042', 'UI-072'],
+    'unstaging a partially staged file restores its original index blob; restoring the test worktree and explicitly refreshing exposes that same clean Git state',
+  );
 
   const search = button('筛选分支'),
     pill = (name) => button('当前分支 ' + name + '，切换分支');

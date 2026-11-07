@@ -131,6 +131,7 @@ module.exports = async ({ window, origin, id, repo, wait, pass }) => {
       ['UI-064', 'UI-065', 'UI-042', 'UI-025', 'UI-072'],
       'native window resize traverses all four toolbar tiers, retains seven accessible view controls and stored panel preferences, and leaves Git refs, index and tracked working bytes unchanged',
     );
+    await require('./candidate-toolbar-scroll.cjs')({ window, repo, wait, pass });
   } finally {
     window.setSize(...size);
     window.setMinimumSize(...minimum);

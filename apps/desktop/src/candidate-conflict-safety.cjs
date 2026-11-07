@@ -113,7 +113,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   );
   assert.deepEqual(facts(), conflicted);
   await pass(
-    ['UI-010', 'UI-007'],
+    ['UI-010', 'UI-007', 'UI-011'],
     'expand omitted unchanged conflict context and verify the original first context line while the unmerged index, refs and marker bytes stay unchanged',
   );
   await click(textButton('标记为已解决', '.conflict-summary button'));
@@ -128,7 +128,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   assert.equal(git('rev-parse', 'HEAD'), main);
   assert.equal(git('rev-parse', 'MERGE_HEAD'), incoming);
   await pass(
-    ['UI-010', 'UI-007'],
+    ['UI-010', 'UI-007', 'UI-011', 'UI-072'],
     'cancel staging unresolved markers without changes, then explicitly confirm staging those exact marker bytes; the merge stays unfinished and no commit is created',
   );
   git('merge', '--abort');
@@ -212,7 +212,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   await click(element('button[aria-label^="查看差异 conflict.txt"]'));
   await wait(wc, element('.conflict-block'));
   await pass(
-    ['UI-010', 'UI-007', 'UI-072'],
+    ['UI-010', 'UI-007', 'UI-072', 'UI-011'],
     'focus and close the conflict view without changing Git; restore both panel preferences through settings and reopen the same conflicted file',
   );
   await click(textButton('整个文件采用传入', '.conflict-summary button'));
@@ -233,7 +233,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   assert.equal(git('status', '--porcelain'), '');
   assert.equal(bytes(), body('incoming'));
   await pass(
-    ['UI-010', 'UI-007'],
+    ['UI-010', 'UI-007', 'UI-011', 'UI-072'],
     'cancel whole-file incoming choice without changes; confirm it stages the exact incoming blob, then continue merge and verify both parents and clean working bytes',
   );
   await window.loadURL(origin + '/repositories');

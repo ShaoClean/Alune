@@ -8,9 +8,10 @@ const require = createRequire(import.meta.url);
 const requestedFocus = process.argv[2] === '--focus' ? process.argv[3] : undefined;
 if (
   process.argv.length > 2 &&
-  (process.argv.length !== 4 || !['conflicts', 'reviews'].includes(requestedFocus))
+  (process.argv.length !== 4 ||
+    !['conflicts', 'reviews', 'settings', 'terminals'].includes(requestedFocus))
 )
-  throw new Error('Usage: smoke.mjs [--focus conflicts|reviews]');
+  throw new Error('Usage: smoke.mjs [--focus conflicts|reviews|settings|terminals]');
 const dataDir = await mkdtemp(path.join(tmpdir(), 'alune-smoke-'));
 const executable = process.env.ALUNE_TEST_EXECUTABLE || require('electron');
 const args = process.env.ALUNE_TEST_EXECUTABLE ? [] : ['dist/app'];
@@ -26,7 +27,7 @@ try {
     env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
       (await import('./candidate-fixture.mjs')).legacyFixture(dataDir),
     );
-  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && requestedFocus !== 'conflicts') {
+  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && (!requestedFocus || requestedFocus === 'reviews')) {
     peer = await (await import('./candidate-review-fixture.mjs')).reviewFixture(dataDir);
     Object.assign(env, peer.env);
   }

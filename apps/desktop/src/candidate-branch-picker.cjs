@@ -85,7 +85,7 @@ module.exports = async ({ window, repo, wait, pass }) => {
   assert.equal(git('rev-parse', name), head);
   assert.deepEqual(snapshot(), before);
   await pass(
-    ['UI-005', 'UI-006'],
+    ['UI-005', 'UI-006', 'UI-042', 'UI-072'],
     'toolbar branch dialog resets cancelled drafts, blocks empty/duplicate names, then creates and checks out exactly the requested ref while retaining staged and unstaged bytes',
   );
 
@@ -99,7 +99,7 @@ module.exports = async ({ window, repo, wait, pass }) => {
   assert.equal(git('branch', '--show-current'), branch);
   assert.deepEqual(snapshot(), before);
   await pass(
-    ['UI-005'],
+    ['UI-005', 'UI-042', 'UI-072'],
     'native pointer chooses a filtered branch, switches real Git back and returns focus to its toolbar trigger without altering index or working bytes',
   );
 

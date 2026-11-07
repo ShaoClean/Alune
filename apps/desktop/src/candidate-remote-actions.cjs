@@ -70,7 +70,7 @@ module.exports = async ({ window, wc, work, git, wait, fact, pass }) => {
   await wait(wc, '(' + row + ')?.innerText.includes(' + JSON.stringify(pushURL) + ')');
   assert.equal(git('remote', 'get-url', '--push', name), pushURL);
   await pass(
-    ['UI-034'],
+    ['UI-034', 'UI-072'],
     'reject a duplicate remote without overwriting origin; save a trimmed name and local URL, then refresh an independently changed push URL',
   );
   const native = process.env.GITHUB_ACTIONS === 'true';

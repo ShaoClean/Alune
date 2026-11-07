@@ -193,4 +193,4 @@ Agent 候选桌面测试需要 Git 和 OpenSSL CLI。测试进程会在临时目
 
 下载同一作业的四个 `candidate-ui-*` 附件到独立子目录后，执行 `node scripts/agent/ui-receipts.mjs ARTIFACTS ledger.json ui-receipts.json`。仅将实际触发且属于对应断言范围的 P0 回调交给台账；其他运行记录和功能/平台门槛仍需另行归入同一阶段的回执。
 
-定位某组候选验收时，构建桌面并暂存 Agent 后，可运行 `node apps/desktop/scripts/smoke.mjs --focus conflicts` 或 `--focus reviews`。它们自动选择 Agent，在独立临时目录只执行指定工作区场景组；reviews 使用本机隔离 HTTPS 对端并核对实际请求内容。日志明确标为 focused，不执行完整 write/restore，不作为全量回归或四平台放行。修复后仍须用不带 `--focus` 的候选冒烟运行完整矩阵。
+定位某组候选验收时，构建桌面并暂存 Agent 后，可运行 `node apps/desktop/scripts/smoke.mjs --focus conflicts` ，其他分组可选 `reviews`、`settings` 和 `terminals`。它们自动选择 Agent，在独立临时目录只执行指定工作区场景组；reviews 使用本机隔离 HTTPS 对端并核对实际请求内容。日志明确标为 focused，不执行完整 write/restore，不作为全量回归或四平台放行。修复后仍须用不带 `--focus` 的候选冒烟运行完整矩阵。

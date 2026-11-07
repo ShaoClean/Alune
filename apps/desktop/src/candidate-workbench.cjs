@@ -43,9 +43,47 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     if (process.env.ALUNE_CANDIDATE_FOCUS === 'conflicts')
       await require('./candidate-conflict-safety.cjs')({ window, origin, repo, wait, pass });
     else if (process.env.ALUNE_CANDIDATE_FOCUS === 'reviews')
-      await require('./candidate-review-actions.cjs')({window, origin, wait, pass, element, button, textButton, click});
-    else throw Error('Unknown focused candidate group');
-    console.log('Candidate focused ' + process.env.ALUNE_CANDIDATE_FOCUS + ': ' + evidence.length + ' scenarios passed');
+      await require('./candidate-review-actions.cjs')({
+        window,
+        origin,
+        wait,
+        pass,
+        element,
+        button,
+        textButton,
+        click,
+      });
+    else if (process.env.ALUNE_CANDIDATE_FOCUS === 'settings') {
+      await require('./candidate-settings-safety.cjs')({ window, origin, repo, wait, pass });
+      await require('./candidate-toolbar-scroll.cjs')({ window, repo, wait, pass });
+    } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'terminals') {
+      await require('./smoke-window.cjs')(window);
+      const fact = async (check, label) => {
+        for (let i = 0; i < 300; i++) {
+          if (await check()) return;
+          await new Promise((r) => setTimeout(r, 40));
+        }
+        throw Error(label);
+      };
+      await require('./candidate-terminal-actions.cjs')({
+        wc,
+        work: repo,
+        wait,
+        fact,
+        element,
+        button,
+        click,
+        primary: (label) => textButton(label, '.a-dlg-actions button'),
+        pass,
+      });
+    } else throw Error('Unknown focused candidate group');
+    console.log(
+      'Candidate focused ' +
+        process.env.ALUNE_CANDIDATE_FOCUS +
+        ': ' +
+        evidence.length +
+        ' scenarios passed',
+    );
     return;
   }
   await window.loadURL(origin + '/repositories');
@@ -135,7 +173,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   await click(button('关闭差异'));
   await wait(wc, text('选择文件以查看差异'));
   await pass(
-    ['UI-007', 'UI-015'],
+    ['UI-007', 'UI-015', 'UI-072'],
     'selected staged file opens real diff, toggles full-file view and closes',
   );
   await require('./candidate-git-actions.cjs')({
@@ -165,6 +203,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     click,
     pass,
   });
+  await require('./candidate-settings-safety.cjs')({ window, origin, repo, wait, pass });
   if (process.env.ALUNE_TEST_REVIEW_REPO) {
     await require('./candidate-review-actions.cjs')({
       window,

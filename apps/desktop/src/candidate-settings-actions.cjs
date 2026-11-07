@@ -237,7 +237,7 @@ module.exports = async ({
     );
     await wait(wc, isValue(button('补充提示词'), prompt));
     await pass(
-      ['UI-057', 'UI-059'],
+      ['UI-057', 'UI-059', 'UI-061', 'UI-025'],
       'cancel model deletion then confirm and persist it; removing the default clears the selection without losing the saved prompt',
     );
 

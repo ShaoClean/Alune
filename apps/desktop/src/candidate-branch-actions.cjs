@@ -70,7 +70,7 @@ module.exports = async ({ window, wc, work, git, wait, fact, pass }) => {
     'origin/main',
   );
   await pass(
-    ['UI-006'],
+    ['UI-006', 'UI-072'],
     'reject duplicate branch names and cancel without refs; create and switch, cancel renaming, then rename the active branch while preserving its commit, upstream and worktree',
   );
   const fixture = fs.mkdtempSync(path.join(path.dirname(work), 'branch-source-'));

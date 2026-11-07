@@ -92,7 +92,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   );
   assert.equal(fs.existsSync(path.join(base, 'not-registered')), false);
   await pass(
-    ['UI-028'],
+    ['UI-028', 'UI-025'],
     'cancelling local repository opening retains the saved workspace session and does not create the typed nonexistent directory',
   );
   await click(button('打开本地仓库'));
@@ -119,7 +119,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   await wait(wc, button('暂存 tracked.txt'));
   const currentId = new URL(wc.getURL()).pathname.split('/').at(-1);
   await pass(
-    ['UI-028'],
+    ['UI-028', 'UI-025'],
     'reopen retains the cancelled path draft as in P0 but cannot open it; native Enter inspects a valid repository without registering it, and explicit Open selects that checked path without changing Git state',
   );
   const primary = (label) => textButton(label, '.a-dlg-actions button');
@@ -205,7 +205,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   assert.equal(fs.readFileSync(path.join(work, 'tracked.txt'), 'utf8'), 'staged bytes\n');
   assert.equal(fs.readFileSync(path.join(work, 'staged-new.txt'), 'utf8'), 'staged new bytes\n');
   await pass(
-    ['UI-007', 'UI-016'],
+    ['UI-007', 'UI-016', 'UI-042'],
     'expanding discard to untracked files clears prior consent; fresh confirmation deletes only the loose file, restores working bytes and retains staged-new blobs, ignored files, the nested repository and dirty linked worktree',
   );
 
