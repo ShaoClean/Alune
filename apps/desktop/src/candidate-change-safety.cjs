@@ -240,7 +240,13 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   await require('./candidate-repository-navigation.cjs')({
     window,
     origin,
-    current: { id: currentId, path: work },
+    current: {
+      id: currentId,
+      path:
+        process.platform === 'win32'
+          ? fs.realpathSync.native(work).replaceAll('\\', '/')
+          : fs.realpathSync.native(work),
+    },
     other: { id: new URL(original).pathname.split('/').at(-1), path: repo },
     wait,
     pass,
