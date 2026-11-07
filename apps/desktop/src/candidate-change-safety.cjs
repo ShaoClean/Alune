@@ -91,7 +91,16 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   );
   await click(button('打开本地仓库'));
   await wait(wc, element('#local-repo-path'));
-  assert.equal(await ev('(' + element('#local-repo-path') + ').value'), '');
+  // P0 keeps the cancelled path draft; reopening must not treat it as an
+  // inspected repository or enable opening until the user checks a valid path.
+  assert.equal(
+    await ev('(' + element('#local-repo-path') + ').value'),
+    path.join(base, 'not-registered'),
+  );
+  assert.equal(
+    await ev('(' + textButton('打开工作区', '.a-dlg-actions button') + ').disabled'),
+    true,
+  );
   await input(element('#local-repo-path'), work);
   await ev('(' + element('#local-repo-path') + ').focus()');
   wc.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
@@ -104,7 +113,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   const currentId = new URL(wc.getURL()).pathname.split('/').at(-1);
   await pass(
     ['UI-028'],
-    'native Enter inspects a real repository without registering it; explicit Open then selects the checked path and preserves its staged and unstaged state',
+    'reopen retains the cancelled path draft as in P0 but cannot open it; native Enter inspects a valid repository without registering it, and explicit Open selects that checked path without changing Git state',
   );
   const primary = (label) => textButton(label, '.a-dlg-actions button');
   const checks = '.a-dlg-shell[data-level="2"] .dlg-check input';
