@@ -68,6 +68,7 @@ module.exports = async ({ window, origin, current, other, wait, pass }) => {
   await opened();
   await click(button('管理远程连接'));
   await wait(wc, 'location.pathname==="/connections"');
+  await wait(wc, '!(' + panel + ')&&(' + trigger + ')?.getAttribute("aria-expanded")==="false"');
   assert.equal(await ev('!!(' + panel + ')'), false);
   unchanged();
   await pass(
