@@ -76,6 +76,10 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
         primary: (label) => textButton(label, '.a-dlg-actions button'),
         pass,
       });
+    } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'web') {
+      const count = await require('./candidate-web-actions.cjs')({ wait });
+      console.log('Candidate focused web: ' + count + ' separate browser scenario receipts passed');
+      return;
     } else throw Error('Unknown focused candidate group');
     console.log(
       'Candidate focused ' +
@@ -204,6 +208,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     pass,
   });
   await require('./candidate-settings-safety.cjs')({ window, origin, repo, wait, pass });
+  if (process.env.ALUNE_TEST_WEB_URL) await require('./candidate-web-actions.cjs')({ wait });
   if (process.env.ALUNE_TEST_REVIEW_REPO) {
     await require('./candidate-review-actions.cjs')({
       window,

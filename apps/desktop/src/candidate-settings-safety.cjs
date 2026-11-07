@@ -6,6 +6,7 @@ const fs = require('node:fs'),
 const { execFileSync } = require('node:child_process');
 const { dialog, BrowserWindow } = require('electron');
 const { AgentClient } = require('@alune/agent-client/node');
+const { ProtocolError } = require('@alune/protocol');
 module.exports = async ({ window, origin, repo, wait, pass }) => {
   await require('./smoke-window.cjs')(window);
   const wc = window.webContents;
@@ -174,6 +175,74 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
       ['UI-056'],
       'Python and JSON preview selectors render their actual samples; blurring a padded font name normalizes its displayed and persisted value',
     );
+    const selectedFile = path.join(path.dirname(repo), 'selected-acceptance-theme.json');
+    fs.writeFileSync(
+      selectedFile,
+      JSON.stringify({
+        name: 'Picker Theme',
+        type: 'dark',
+        colors: { 'editor.background': '#193847' },
+        tokenColors: [{ scope: 'keyword', settings: { foreground: '#abcdef' } }],
+      }),
+    );
+    const activeBeforePicker = await ev(
+      'document.querySelector(".code-appearance-preview .files-code").dataset.codeTheme',
+    );
+    wc.debugger.attach('1.3');
+    let chooser, selection;
+    const onChooser = (_event, method, params) => {
+      if (method === 'Page.fileChooserOpened') {
+        chooser = params;
+        selection = wc.debugger.sendCommand('DOM.setFileInputFiles', {
+          backendNodeId: params.backendNodeId,
+          files: [selectedFile],
+        });
+        void selection.catch(() => {});
+      }
+    };
+    wc.debugger.on('message', onChooser);
+    try {
+      await wc.debugger.sendCommand('Page.enable', { enableFileChooserOpenedEvent: true });
+      await wc.debugger.sendCommand('Page.setInterceptFileChooserDialog', { enabled: true });
+      const importControl = textButton('导入主题 JSON');
+      await ev('(' + importControl + ').scrollIntoView({block:"center"})');
+      await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+      const point = await ev(
+        '(()=>{const e=(' +
+          importControl +
+          '),r=e.getBoundingClientRect(),x=Math.round(r.x+r.width/2),y=Math.round(r.y+r.height/2);if(!e.contains(document.elementFromPoint(x,y)))throw Error("Import button is occluded");return {x,y}})()',
+      );
+      wc.sendInputEvent({ type: 'mouseMove', ...point });
+      wc.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...point });
+      wc.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...point });
+      await fact(() => !!chooser, 'the import control did not open its file chooser');
+      assert.equal(chooser.mode, 'selectSingle');
+      await selection;
+      await wait(wc, button('卸载 Picker Theme'));
+      const installed = (await persisted()).codeAppearance.customThemes.find(
+        (t) => t.name === 'Picker Theme',
+      );
+      assert.ok(installed);
+      assert.equal(installed.source, path.basename(selectedFile));
+      assert.equal(
+        await ev(
+          'document.querySelector(".code-appearance-preview .files-code").dataset.codeTheme',
+        ),
+        activeBeforePicker,
+      );
+      await click(button('卸载 Picker Theme'));
+      await wait(wc, '!(' + button('卸载 Picker Theme') + ')');
+      await pass(
+        ['UI-056'],
+        'the import button opens a single-file chooser; a controlled browser chooser selects an actual JSON file, persists its file name and theme without activating it, then uninstall removes it',
+      );
+    } finally {
+      wc.debugger.off('message', onChooser);
+      await wc.debugger
+        .sendCommand('Page.setInterceptFileChooserDialog', { enabled: false })
+        .catch(() => {});
+      wc.debugger.detach();
+    }
     async function importTheme(name, text) {
       await ev(
         `(()=>{const input=document.querySelector('input[aria-label="导入代码主题文件"]'),transfer=new DataTransfer();transfer.items.add(new File([${JSON.stringify(text)}],${JSON.stringify(name)},{type:'application/json'}));input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`,
@@ -245,6 +314,50 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
       'a deliberately missing stored code theme recovers to a built-in theme; the notification action dismisses that recovery notice without modifying Git',
     );
 
+    // Replace one completed read's IPC reply with a typed transport error. The
+    // real Agent, authorization and subsequent retry response remain unchanged.
+    const frame = wc.mainFrame,
+      sendFrame = frame.send;
+    let interrupted = 0,
+      settingsAtFailure;
+    frame.send = function (channel, ...args) {
+      if (channel === 'agent:frame' && interrupted === 0 && typeof args[1] === 'string') {
+        let packet;
+        try {
+          packet = JSON.parse(args[1]);
+        } catch {}
+        if (packet?.id !== undefined && typeof packet.result?.settings?.directory === 'string') {
+          interrupted++;
+          settingsAtFailure = packet.result.settings;
+          const error = new ProtocolError(
+            'unavailable',
+            'controlled logging read interruption',
+          ).toRpcError();
+          args[1] = JSON.stringify({ jsonrpc: '2.0', id: packet.id, error });
+        }
+      }
+      return sendFrame.call(this, channel, ...args);
+    };
+    try {
+      await ev(
+        'history.pushState({},"","/settings/logs");window.dispatchEvent(new PopStateEvent("popstate"))',
+      );
+      await wait(wc, textButton('重新加载'));
+      assert.equal(interrupted, 1);
+      await wait(wc, 'document.body.innerText.includes("controlled logging read interruption")');
+    } finally {
+      frame.send = sendFrame;
+    }
+    await click(textButton('重新加载'));
+    await wait(wc, element('#logging-directory'));
+    assert.equal(
+      await ev('document.querySelector(".logging-path").textContent'),
+      settingsAtFailure.directory,
+    );
+    await pass(
+      ['UI-058'],
+      'a single controlled settings-read IPC error exposes the logging retry control; explicit retry uses an unchanged live Agent and recovers its exact persisted directory',
+    );
     await open('logs');
     await wait(wc, element('#logging-directory'));
     const initial = {

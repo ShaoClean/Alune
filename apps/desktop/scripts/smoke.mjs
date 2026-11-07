@@ -9,9 +9,9 @@ const requestedFocus = process.argv[2] === '--focus' ? process.argv[3] : undefin
 if (
   process.argv.length > 2 &&
   (process.argv.length !== 4 ||
-    !['conflicts', 'reviews', 'settings', 'terminals'].includes(requestedFocus))
+    !['conflicts', 'reviews', 'settings', 'terminals', 'web'].includes(requestedFocus))
 )
-  throw new Error('Usage: smoke.mjs [--focus conflicts|reviews|settings|terminals]');
+  throw new Error('Usage: smoke.mjs [--focus conflicts|reviews|settings|terminals|web]');
 const dataDir = await mkdtemp(path.join(tmpdir(), 'alune-smoke-'));
 const executable = process.env.ALUNE_TEST_EXECUTABLE || require('electron');
 const args = process.env.ALUNE_TEST_EXECUTABLE ? [] : ['dist/app'];
@@ -21,7 +21,7 @@ if (requestedFocus) {
   env.ALUNE_CANDIDATE_FOCUS = requestedFocus;
 } else delete env.ALUNE_CANDIDATE_FOCUS;
 delete env.ELECTRON_RUN_AS_NODE;
-let peer, directories;
+let peer, directories, webFixture;
 try {
   if (env.ALUNE_DESKTOP_EXECUTOR === 'agent')
     env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
@@ -41,6 +41,10 @@ try {
     env.GIT_CONFIG_GLOBAL = path.join(dataDir, 'empty.gitconfig');
     env.GIT_CONFIG_NOSYSTEM = '1';
     if (process.platform !== 'win32') env.SHELL = '/bin/sh';
+  }
+  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && (!requestedFocus || requestedFocus === 'web')) {
+    webFixture = await (await import('./candidate-web-fixture.mjs')).candidateWebFixture(dataDir);
+    Object.assign(env, webFixture.env);
   }
   for (const phase of requestedFocus ? ['write'] : ['write', 'restore']) {
     const child = spawn(executable, [...args, '--smoke-test'], {
@@ -77,6 +81,7 @@ try {
     }
   }
 } finally {
+  await webFixture?.close();
   await directories?.close();
   await peer?.close();
   await rm(dataDir, { recursive: true, force: true, maxRetries: 15, retryDelay: 200 });
