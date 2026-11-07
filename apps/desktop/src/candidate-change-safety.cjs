@@ -28,6 +28,12 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   write('tracked.txt', 'committed bytes\n');
   git('add', '.');
   git('commit', '-qm', 'discard fixture');
+  // Give navigation the same ready-to-use context as the original fixture;
+  // missing-remote guidance is exercised separately by the context scenarios.
+  const remote = path.join(base, 'origin.git');
+  execFileSync('git', ['init', '--bare', '-q', remote]);
+  git('remote', 'add', 'origin', remote);
+  git('push', '-qu', 'origin', 'main');
   git('worktree', 'add', '-qb', 'other-worktree', linked);
   fs.writeFileSync(path.join(linked, 'tracked.txt'), 'other worktree bytes\n');
   const nested = path.join(work, 'nested');
