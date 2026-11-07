@@ -35,7 +35,13 @@ module.exports = async ({
     }).trim(),
     url,
   );
-  const ev = (x) => w.executeJavaScript(x);
+  const ev = async (x) => {
+    try {
+      return await w.executeJavaScript(x);
+    } catch (cause) {
+      throw new Error('Review renderer query failed: ' + x, { cause });
+    }
+  };
   const btn = (label, scope = 'button') =>
     scope === 'button'
       ? textButton(label)
@@ -50,7 +56,38 @@ module.exports = async ({
       w,
       `(()=>{const e=(${aria(label)})?.closest('.ant-select');if(!e)return false;e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));return true})()`,
     );
-    await click(btn(name, '.ant-select-item-option'));
+    await wait(w, '(' + aria(label) + ')?.getAttribute("aria-expanded")==="true"');
+    const popup =
+      'document.getElementById((' +
+      aria(label) +
+      ').getAttribute("aria-controls"))?.closest(".ant-select-dropdown")';
+    await click(
+      '(()=>{const root=(' +
+        popup +
+        ');return root&&[...root.querySelectorAll(".ant-select-item-option")].find(e=>e.getClientRects().length&&e.textContent.trim()===' +
+        JSON.stringify(name) +
+        ')})()',
+    );
+    if (
+      await ev(
+        '(' + aria(label) + ').closest(".ant-select").classList.contains("ant-select-multiple")',
+      )
+    ) {
+      await wait(
+        w,
+        '[...(' +
+          aria(label) +
+          ').closest(".ant-select").querySelectorAll(".ant-select-selection-item")].some(e=>e.title===' +
+          JSON.stringify(name) +
+          ')',
+      );
+      await ev(
+        '(()=>{const e=(' +
+          aria(label) +
+          ');e.focus();e.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",code:"Escape",keyCode:27,which:27,bubbles:true,cancelable:true}))})()',
+      );
+      await wait(w, '(' + aria(label) + ')?.getAttribute("aria-expanded")!=="true"');
+    }
   };
   await window.loadURL(origin + '/repositories');
   await click(aria('打开本地仓库'));
@@ -85,6 +122,21 @@ module.exports = async ({
     await click(sel('.feedback-dialog[open] [aria-label="关闭提示"]'));
   }
   await wait(w, row);
+  await click(btn('全部状态', '.pull-requests-filters label'));
+  await wait(
+    w,
+    "[...document.querySelectorAll('.pull-request-row__open')].some(e=>e.textContent.includes('Archived fixture request'))",
+  );
+  await click(btn('开放中', '.pull-requests-filters label'));
+  await wait(
+    w,
+    "![...document.querySelectorAll('.pull-request-row__open')].some(e=>e.textContent.includes('Archived fixture request'))",
+  );
+  await wait(w, row);
+  await record(
+    ['UI-032'],
+    'repository MR state filter includes the controlled closed request under all states and removes it when returning to open requests',
+  );
   const title = await ev('(' + row + ').textContent');
   await click(row);
   await wait(
@@ -103,6 +155,25 @@ module.exports = async ({
     ['UI-032', 'UI-031'],
     'select the self-hosted GitLab platform, apply a one-session token, open the selected MR and load its real file Diff',
   );
+  const tabs = sel('[aria-label="审阅内容"]');
+  const tabKey = async (key) =>
+    wait(
+      w,
+      `(()=>{const e=(${tabs});if(!e)return false;e.querySelector('[aria-selected=true]').focus();e.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(key)},bubbles:true,cancelable:true}));return true})()`,
+    );
+  await tabKey('End');
+  await wait(w, `(${tabs})?.querySelector('[aria-selected=true]')?.textContent==='概览'`);
+  await tabKey('ArrowLeft');
+  await wait(w, `(${tabs})?.querySelector('[aria-selected=true]')?.textContent==='评论与讨论'`);
+  await tabKey('Home');
+  await wait(
+    w,
+    `(${tabs})?.querySelector('[aria-selected=true]')?.textContent.includes('文件变动')`,
+  );
+  await record(
+    ['UI-030'],
+    'review tab keyboard events select overview, discussions and files in order while retaining the same request title and file',
+  );
   // File navigation and range selections must keep the reviewed path and side.
   const pickFile = (name) => sel('.pull-request-files__list button[title="' + name + '"]');
   await click(pickFile('renamed.txt'));
@@ -114,10 +185,24 @@ module.exports = async ({
   await click(btn('收起详情'));
   await click(btn('合并', '.pull-request-actions__buttons button'));
   await wait(w, sel('.a-dlg-actions button'));
+  await click(btn('压缩并合并提交', '.a-dlg-shell label'));
+  await wait(
+    w,
+    "document.querySelector('.a-dlg-shell .ant-segmented-item-selected')?.textContent==='压缩并合并提交'",
+  );
   await click(btn('取消', '.a-dlg-actions button'));
   await click(aria('更多审阅操作'));
   await click(btn('关闭 PR/MR', '[role=menuitem]'));
   await wait(w, "document.querySelector('.a-dlg-shell')?.textContent.includes('确认关闭 PR/MR')");
+  const closeAck = sel('.a-dlg-shell .dlg-check input');
+  await wait(w, closeAck);
+  const closeSubmit = btn('确认关闭', '.a-dlg-actions button');
+  await wait(w, '(' + closeSubmit + ')');
+  assert.equal(await ev('(' + closeSubmit + ').disabled'), true);
+  await click(closeAck);
+  await wait(w, '(' + closeSubmit + ').disabled===false');
+  await click(closeAck);
+  await wait(w, '(' + closeSubmit + ').disabled===true');
   await click(btn('取消', '.a-dlg-actions button'));
   await wait(
     w,
@@ -126,9 +211,30 @@ module.exports = async ({
   );
   await record(
     ['UI-030', 'UI-031'],
-    'select a renamed file and return, inspect and collapse request details, cancel both merge and close without changing platform state',
+    'select a renamed file, inspect details, choose squash then cancel merge, toggle close acknowledgement on and off then cancel without any platform write',
   );
   const line = (n) => sel('button[aria-label^="新行 ' + n + '，点击评论"]');
+  await click(line(2));
+  await fill(aria('代码评论内容'), 'unposted inline draft');
+  await click(btn('取消选区，保留正文'));
+  await click(btn('评论与讨论', '[aria-label="审阅内容"] [role=tab]'));
+  await wait(w, '(' + aria('普通评论内容') + ')?.value==="unposted inline draft"');
+  await fill(aria('普通评论内容'), '');
+  assert.equal(await ev('(' + btn('发表评论') + ').disabled'), true);
+  await click(btn('文件变动 (2)', '[aria-label="审阅内容"] [role=tab]'));
+  await wait(w, aria('Diff file.txt'));
+  await click(line(2));
+  await fill(aria('代码评论内容'), 'switch to ordinary draft');
+  await click(btn('评论与讨论', '[aria-label="审阅内容"] [role=tab]'));
+  await click(btn('改为 普通评论'));
+  await wait(w, '(' + aria('普通评论内容') + ')?.value==="switch to ordinary draft"');
+  await fill(aria('普通评论内容'), '');
+  await click(btn('文件变动 (2)', '[aria-label="审阅内容"] [role=tab]'));
+  await wait(w, aria('Diff file.txt'));
+  await record(
+    ['UI-030', 'UI-031'],
+    'cancel an inline range and convert another code draft to an ordinary comment while preserving each body; clearing either draft disables posting and issues no write',
+  );
   await click(line(2));
   await wait(
     w,
@@ -162,10 +268,54 @@ module.exports = async ({
   await click(aria('返回列表'));
   await click(btn('创建 PR/MR'));
   await wait(w, aria('PR/MR 标题'));
+  await fill(aria('PR/MR 标题'), 'cancelled pending preview');
+  await click(btn('取消', '.a-dlg-actions button'));
+  await wait(w, '!(' + aria('PR/MR 标题') + ')');
+  await record(
+    ['UI-012', 'UI-031'],
+    'cancel creation while the controlled branch comparison is pending; the dialog closes without creating a request',
+  );
+  await click(btn('创建 PR/MR'));
+  await wait(w, aria('PR/MR 标题'));
   const newTitle = 'Controlled draft from UI';
   await fill(aria('PR/MR 标题'), newTitle);
   await fill(aria('PR/MR 描述'), 'Only sent to the disposable HTTPS peer.');
   fs.writeFileSync(process.env.ALUNE_TEST_REVIEW_MARKER, 'true');
+  await wait(
+    w,
+    "document.querySelector('.pr-create__preview')?.textContent.includes('automatic suggestion')",
+  );
+  assert.equal(await ev('(' + aria('PR/MR 标题') + ').value'), newTitle);
+  assert.equal(
+    await ev('(' + aria('PR/MR 描述') + ').value'),
+    'Only sent to the disposable HTTPS peer.',
+  );
+  await fill(aria('目标分支'), 'feature/review');
+  await click(btn('预览改动', '.pr-create button'));
+  await wait(
+    w,
+    "document.querySelector('.pr-create__notice')?.textContent.includes('源分支与目标分支相同')",
+  );
+  assert.equal(await ev('(' + btn('创建 PR/MR', '.a-dlg-actions button') + ').disabled'), true);
+  await fill(aria('目标分支'), 'main');
+  await click(btn('预览改动', '.pr-create button'));
+  await wait(
+    w,
+    "document.querySelector('.pr-create__preview')?.textContent.includes('automatic suggestion')",
+  );
+  assert.equal(await ev('(' + aria('PR/MR 标题') + ').value'), newTitle);
+  assert.equal(
+    await ev('(' + aria('PR/MR 描述') + ').value'),
+    'Only sent to the disposable HTTPS peer.',
+  );
+  await record(
+    ['UI-012'],
+    'late branch previews retain typed title and body; selecting the source as target blocks creation, and explicit refresh to main preserves both fields',
+  );
+  await click(btn('指派人、审阅者和标签（可选）', '.pr-create summary'));
+  await select('指派人', 'Fixture Member (@fixture-member)');
+  await select('审阅者', 'Fixture Member (@fixture-member)');
+  await select('标签', 'fixture-label');
   const draft =
     "[...document.querySelectorAll('.a-dlg-shell label')].find(e=>e.textContent.includes('创建为草稿'))?.querySelector('input')";
   await wait(w, draft);
@@ -179,7 +329,22 @@ module.exports = async ({
   );
   await record(
     ['UI-012', 'UI-031', 'UI-032'],
-    'create a draft MR for the previewed source branch and open the returned request',
+    'create one draft MR with the selected assignee, reviewer and label for the previewed source branch and open the returned request; the controlled peer verifies exact IDs, fields and one POST',
+  );
+  await click(aria('返回列表'));
+  await click(btn('创建 PR/MR'));
+  await wait(w, btn('打开 Draft: ' + newTitle));
+  assert.equal(await ev('(' + btn('创建 PR/MR', '.a-dlg-actions button') + ').disabled'), true);
+  await click(btn('打开 Draft: ' + newTitle));
+  await wait(
+    w,
+    "document.querySelector('.pull-request-detail__heading h2')?.textContent.includes(" +
+      JSON.stringify(newTitle) +
+      ')',
+  );
+  await record(
+    ['UI-012', 'UI-031', 'UI-032'],
+    'an existing request for the same branch disables duplicate creation; opening it selects the original returned request without another POST',
   );
   await window.loadURL(origin + '/pull-requests');
   const centerList = '.pr-center-list .pull-request-row__open',

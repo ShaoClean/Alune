@@ -80,6 +80,10 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
   } else {
     if (phase === 'write') {
       await require('./candidate-workbench.cjs')({ window, origin, id, repo, wait });
+      if (process.env.ALUNE_CANDIDATE_FOCUS) {
+        console.log('Candidate focused acceptance passed; full write/restore was not executed.');
+        return;
+      }
       await measure(wc,['UI-002','UI-007','UI-016'],'discard dialog: cancel focus, key trapping, destructive acknowledgement and no write on escape',()=>require('./dialogs-smoke.cjs')({window}));
       await measure(wc,['UI-025','UI-026','UI-040','UI-050','UI-057','UI-059','UI-060','UI-061'],'settings shell: retained DOM, draft, scroll and focus, keyboard, proxy navigation guards',()=>require('./settings-shell-smoke.cjs')({
         window,

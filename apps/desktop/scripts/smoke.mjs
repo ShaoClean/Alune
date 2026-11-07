@@ -5,10 +5,20 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
+const requestedFocus = process.argv[2] === '--focus' ? process.argv[3] : undefined;
+if (
+  process.argv.length > 2 &&
+  (process.argv.length !== 4 || !['conflicts', 'reviews'].includes(requestedFocus))
+)
+  throw new Error('Usage: smoke.mjs [--focus conflicts|reviews]');
 const dataDir = await mkdtemp(path.join(tmpdir(), 'alune-smoke-'));
 const executable = process.env.ALUNE_TEST_EXECUTABLE || require('electron');
 const args = process.env.ALUNE_TEST_EXECUTABLE ? [] : ['dist/app'];
 const env = { ...process.env, ALUNE_SMOKE_DIR: dataDir };
+if (requestedFocus) {
+  env.ALUNE_DESKTOP_EXECUTOR = 'agent';
+  env.ALUNE_CANDIDATE_FOCUS = requestedFocus;
+} else delete env.ALUNE_CANDIDATE_FOCUS;
 delete env.ELECTRON_RUN_AS_NODE;
 let peer, directories;
 try {
@@ -16,9 +26,11 @@ try {
     env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
       (await import('./candidate-fixture.mjs')).legacyFixture(dataDir),
     );
-  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent') {
+  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && requestedFocus !== 'conflicts') {
     peer = await (await import('./candidate-review-fixture.mjs')).reviewFixture(dataDir);
     Object.assign(env, peer.env);
+  }
+  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && !requestedFocus) {
     directories = await (
       await import('./directory-access-fixture.mjs')
     ).directoryAccessFixture(dataDir);
@@ -29,7 +41,7 @@ try {
     env.GIT_CONFIG_NOSYSTEM = '1';
     if (process.platform !== 'win32') env.SHELL = '/bin/sh';
   }
-  for (const phase of ['write', 'restore']) {
+  for (const phase of requestedFocus ? ['write'] : ['write', 'restore']) {
     const child = spawn(executable, [...args, '--smoke-test'], {
       stdio: 'inherit',
       env: { ...env, ALUNE_SMOKE_PHASE: phase },
@@ -50,10 +62,12 @@ try {
     process.exitCode = code;
     if (code !== 0) break;
     if (peer && phase === 'write') {
-      directories.verify();
+      directories?.verify();
       peer.verify();
-      await (await import('./prepare-smoke-vault.mjs')).prepareSmokeVault(dataDir);
-      env.ALUNE_TEST_FILE_VAULT = '1';
+      if (!requestedFocus) {
+        await (await import('./prepare-smoke-vault.mjs')).prepareSmokeVault(dataDir);
+        env.ALUNE_TEST_FILE_VAULT = '1';
+      }
     } else if (peer) {
       directories.verify();
       peer.verify();

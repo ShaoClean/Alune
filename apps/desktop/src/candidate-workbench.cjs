@@ -39,6 +39,15 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
         JSON.stringify(evidence, null, 2),
       );
   }
+  if (process.env.ALUNE_CANDIDATE_FOCUS) {
+    if (process.env.ALUNE_CANDIDATE_FOCUS === 'conflicts')
+      await require('./candidate-conflict-safety.cjs')({ window, origin, repo, wait, pass });
+    else if (process.env.ALUNE_CANDIDATE_FOCUS === 'reviews')
+      await require('./candidate-review-actions.cjs')({window, origin, wait, pass, element, button, textButton, click});
+    else throw Error('Unknown focused candidate group');
+    console.log('Candidate focused ' + process.env.ALUNE_CANDIDATE_FOCUS + ': ' + evidence.length + ' scenarios passed');
+    return;
+  }
   await window.loadURL(origin + '/repositories');
   await click(button('列表视图'));
   await wait(wc, element('table[aria-label="仓库列表"]'));
@@ -117,6 +126,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   );
   await require('./candidate-branch-picker.cjs')({ window, repo, wait, pass });
   await require('./candidate-change-safety.cjs')({ window, origin, repo, wait, pass });
+  await require('./candidate-conflict-safety.cjs')({ window, origin, repo, wait, pass });
   await click(element('button[aria-label^="改动"]'));
   await click(button('查看差异 candidate.txt（已暂存）'));
   await wait(wc, element('.diff-code-row--add'));

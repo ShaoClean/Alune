@@ -195,7 +195,9 @@ export async function reviewFixture(dir) {
             encoding: 'base64',
             content: Buffer.from('Automatic description').toString('base64'),
           });
-        if (route.endsWith('/members/all') || route === '/labels') return json([]);
+        if (route.endsWith('/members/all'))
+          return json([{ id: 11, name: 'Fixture Member', username: 'fixture-member' }]);
+        if (route === '/labels') return json([{ name: 'fixture-label' }]);
         return json({}, 404);
       } catch (e) {
         if (!res.destroyed) json({ message: e.message }, 500);
@@ -244,6 +246,9 @@ export async function reviewFixture(dir) {
       assert.equal(created.draft, true);
       assert.equal(created.source_branch, 'feature/review');
       assert.equal(created.target_branch, 'main');
+      assert.deepEqual(writes[2].body.assignee_ids, [11]);
+      assert.deepEqual(writes[2].body.reviewer_ids, [11]);
+      assert.equal(writes[2].body.labels, 'fixture-label');
       assert.equal(git('status', '--porcelain'), state);
     },
     verifyTokens() {
