@@ -107,6 +107,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
     await ev('(' + textButton('打开工作区', '.a-dlg-actions button') + ').disabled'),
     true,
   );
+  await require('./smoke-window.cjs')(window);
   await input(element('#local-repo-path'), work);
   await ev('(' + element('#local-repo-path') + ').focus()');
   wc.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });

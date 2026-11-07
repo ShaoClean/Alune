@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 module.exports = async ({ window, origin, current, other, wait, pass }) => {
+  await require('./smoke-window.cjs')(window);
   const wc = window.webContents,
     ev = (s) => wc.executeJavaScript(s);
   const { element, button, click, input } = require('./candidate-ui-driver.cjs')(wc, wait);
