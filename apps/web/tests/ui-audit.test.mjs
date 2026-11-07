@@ -108,3 +108,39 @@ test('one callback shared by two listeners credits only the dispatched registrat
   b.dispatchEvent(new Event('change'));
   assert.equal(seen.length, 3);
 });
+
+test('Agent Web audit requires its explicit build mode and invitation, records actual events only and preserves cleanup', () => {
+  const source =
+    "function subscribe(){const listen=()=>seen.push('event');window.addEventListener('test',listen);return ()=>window.removeEventListener('test',listen)}";
+  for (const [web, token, expected] of [
+    [false, 'a'.repeat(64), 0],
+    [true, null, 0],
+    [true, 'invalid', 0],
+    [true, 'a'.repeat(64), 1],
+  ]) {
+    const index = makeIndex(source),
+      window = new EventTarget(),
+      seen = [];
+    const compiled = auditUi(process.cwd(), index, web).transform(
+      source,
+      join(process.cwd(), file),
+    ).code;
+    const stop = runInNewContext(compiled + '\nsubscribe()', {
+      window,
+      seen,
+      sessionStorage: {
+        getItem(key) {
+          return key === 'alune.dev.session' ? token : null;
+        },
+      },
+      addEventListener() {},
+    });
+    assert.equal(window.__aluneAudit?.counts.size ?? 0, 0);
+    window.dispatchEvent(new Event('test'));
+    assert.deepEqual(seen, ['event']);
+    assert.equal(window.__aluneAudit?.counts.size ?? 0, expected);
+    stop();
+    window.dispatchEvent(new Event('test'));
+    assert.equal(seen.length, 1);
+  }
+});

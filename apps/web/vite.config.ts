@@ -15,6 +15,8 @@ export default defineConfig(
         ? [
             (await import('./tests/ui-audit')).auditUi(
               fileURLToPath(new URL('../..', import.meta.url)),
+              undefined,
+              mode === 'agent',
             ),
           ]
         : []),

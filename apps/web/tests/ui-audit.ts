@@ -21,7 +21,13 @@ function __aluneAuditBind(key,fn){
   if(!wrappers.has(key))wrappers.set(key,function(...args){state.hits.add(key);state.counts.set(key,(state.counts.get(key)||0)+1);return Reflect.apply(fn,this,args);});
   return wrappers.get(key);
 }`;
-export function auditUi(root: string, catalog: AuditIndex = index): Plugin {
+export function auditUi(root: string, catalog: AuditIndex = index, webAgentMode = false): Plugin {
+  const auditRuntime = webAgentMode
+    ? runtime.replace(
+        '!window.aluneAgent',
+        "(!window.aluneAgent && !/^[a-f0-9]{64}$/.test(sessionStorage.getItem('alune.dev.session')||''))",
+      )
+    : runtime;
   return {
     name: 'p0-ui-execution-audit',
     enforce: 'pre',
@@ -40,7 +46,7 @@ export function auditUi(root: string, catalog: AuditIndex = index): Plugin {
       if (!edits.length) return;
       for (const edit of edits.sort((a, b) => b.at - a.at))
         code = code.slice(0, edit.at) + edit.str + code.slice(edit.at);
-      return { code: runtime + '\n' + code, map: null };
+      return { code: auditRuntime + '\n' + code, map: null };
     },
   };
 }

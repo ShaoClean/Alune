@@ -70,6 +70,7 @@ module.exports = async ({ wait }) => {
       throw Error(error.message.replaceAll(new URL(address).hash, '#<redacted>'));
     });
     await wait(wc, element('.app-shell'));
+    await wait(wc,'location.pathname==="/repositories"&&document.body.innerText.includes("暂无仓库")');
     assert.equal(await ev('typeof window.aluneWorkspace'), 'undefined');
     assert.equal(await ev('typeof window.aluneLogs'), 'undefined');
     assert.equal(await ev('typeof window.require'), 'undefined');
