@@ -6,6 +6,7 @@ import { CommandOutputLimitError } from '../../ports/process';
 import type { RepositoryFileSystem as SFTPWrapper } from '../../ports/repository-files';
 import type { ProxySnapshot } from '../network/proxy-transport';
 import { withLocalGitProxy } from './local-git-proxy';
+import { join } from 'node:path';
 
 // Adapt the small, callback-based filesystem surface used by the shared file
 // readers. Canonical Windows paths use '/' just like Windows OpenSSH.
@@ -199,6 +200,31 @@ export class NativeRepositoryConnection implements RepositoryTransport {
       }),
     );
     return present.some(Boolean);
+  }
+
+  gitDirectory(repositoryPath: string): Promise<string | undefined> {
+    return this.own(
+      (async () => {
+        this.signal.throwIfAborted();
+        try {
+          const candidate = join(repositoryPath, '.git');
+          const info = await fs.promises.lstat(candidate);
+          // Linked worktrees, submodules and symlinked Git directories retain
+          // Git's own resolution. Never cache a path across repository reads.
+          if (!info.isDirectory() || info.isSymbolicLink()) return undefined;
+          const canonical = await new Promise<string>((resolve, reject) =>
+            fs.realpath.native(candidate, (error, result) =>
+              error ? reject(error) : resolve(result),
+            ),
+          );
+          this.signal.throwIfAborted();
+          return process.platform === 'win32' ? canonical.replaceAll('\\', '/') : canonical;
+        } catch {
+          this.signal.throwIfAborted();
+          return undefined;
+        }
+      })(),
+    );
   }
 
   execGit(

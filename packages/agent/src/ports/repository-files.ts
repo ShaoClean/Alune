@@ -56,6 +56,9 @@ export interface RepositoryTransport {
   signal?: AbortSignal;
   withSftp<T>(operation: (files: RepositoryFileSystem) => Promise<T>): Promise<T>;
   hasAnyPath?: (paths: string[]) => Promise<boolean>;
+  // A native adapter may resolve an ordinary .git directory without a child
+  // process. Return undefined for gitfiles or other layouts so Git resolves them.
+  gitDirectory?: (repositoryPath: string) => Promise<string | undefined>;
   execGit?: GitProcessPort['execGit'];
   // Legacy SSH shell adapter only. The native adapter rejects this operation.
   execCommand(

@@ -75,7 +75,9 @@ export class RepositoryReader {
     // Both projections refer to the same worktree-specific Git directory.
     // Common repositories have no commondir file; linked and unusual layouts
     // still use Git's canonical comparison, including paths containing newlines.
-    const gitDirectory = this.text(path, ['rev-parse', '--absolute-git-dir']);
+    const gitDirectory = (async () =>
+      (await this.connection.gitDirectory?.(path)) ??
+      this.text(path, ['rev-parse', '--absolute-git-dir']))();
     const settled = await Promise.allSettled([
       this.git.status(path, this.connection.signal, false),
       gitDirectory.then(async (dir) => {
