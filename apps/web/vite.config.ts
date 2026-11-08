@@ -8,7 +8,7 @@ const { version } = JSON.parse(
 );
 
 export default defineConfig(
-  async ({ mode }): Promise<UserConfig> => ({
+  async (): Promise<UserConfig> => ({
     plugins: [
       react(),
       ...(process.env.ALUNE_UI_AUDIT === '1'
@@ -16,11 +16,11 @@ export default defineConfig(
             (await import('./tests/ui-audit')).auditUi(
               fileURLToPath(new URL('../..', import.meta.url)),
               undefined,
-              mode === 'agent',
+              true,
             ),
           ]
         : []),
-      ...(mode === 'agent' ? [(await import('./agent-dev')).agentDev()] : []),
+      (await import('./agent-dev')).agentDev(),
     ],
     define: { __APP_VERSION__: JSON.stringify(version) },
     resolve: {
@@ -39,23 +39,9 @@ export default defineConfig(
       },
     },
     server: {
-      ...(mode === 'agent' ? { host: '127.0.0.1', cors: false } : {}),
+      host: '127.0.0.1',
+      cors: false,
       port: 5173,
-      proxy:
-        mode === 'agent'
-          ? {}
-          : {
-              '/api': {
-                target: 'http://localhost:3000',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api/, ''),
-              },
-              '/socket.io': {
-                target: 'http://localhost:3000',
-                changeOrigin: true,
-                ws: true,
-              },
-            },
     },
   }),
 );

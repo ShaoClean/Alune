@@ -2,7 +2,6 @@ import { workspaceRemoval } from './workspace-removal';
 import { proxyTest } from './proxy-test';
 import { snapshotHandler } from '../modules/hosts/snapshot';
 import { hostsKernel } from './hosts';
-import type { LegacyRepositoryReads } from '../ports/legacy-repository-reads';
 import { collaborationKernel } from './collaboration';
 import type { DatabaseBackupReceipt } from '@alune/protocol';
 import { validateEmpty, ProtocolError } from '@alune/protocol';
@@ -24,7 +23,6 @@ export async function openStateKernel(
   agentId: string,
   signal?: AbortSignal,
   secretOptions: Pick<ProtectedSecretOptions, 'backend' | 'keychain'> = {},
-  legacyReads?: LegacyRepositoryReads,
   remote?: { gitProxyPort?: number | 'blocked' },
 ) {
   const state = await AgentState.open(directory, agentId, signal);
@@ -102,7 +100,7 @@ export async function openStateKernel(
       );
       return response;
     },
-    legacyReads ?? hosts?.reads,
+    hosts?.reads,
   );
   const handlers: Record<string, Handler> = {
     ...hosts?.handlers,

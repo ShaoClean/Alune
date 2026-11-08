@@ -229,7 +229,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
   const routed =
     (group: 'repository' | 'git') =>
     async (key: string, id: string, ...args: any[]) => {
-      const { client, resource } = await repositoryTarget(id);
+      const { client, resource } = await targetFor(id);
       const invoke = adapter(client)[group] as Record<string, (...args: any[]) => Promise<any>>;
       const value = await invoke[key](resource.resourceId, ...args);
       // Each Agent sees the repository as local. The UI must describe the host
@@ -435,7 +435,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
       .sort((a, b) => b.path.length - a.path.length)[0];
     if (!row) return null;
     return {
-      ...(await repositoryTarget(row.id)),
+      ...(await targetFor(row.id)),
       relativePath: abs.slice(normalized(row.path).length + 1),
     };
   }
@@ -516,7 +516,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         }
         return client.request('files.write', { ...p, content, version });
       }
-      return createAgentFileWrite(t.client, () => t, fail)(id, path, content);
+      return createAgentFileWrite(t.client, () => t)(id, path, content);
     },
   } satisfies typeof fileApi);
 }

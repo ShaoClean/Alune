@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,17 +11,33 @@ if (process.env.CI !== 'true')
 const require = createRequire(import.meta.url);
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const data = await mkdtemp(path.join(tmpdir(), 'alune-native-migration-'));
+const runtime = path.join(root, 'apps/desktop/dist/agent-runtime');
+const harness = path.join(data, 'harness');
 const env = {
   ...process.env,
   ALUNE_MIGRATION_FIXTURE: data,
-  ALUNE_MIGRATION_NODE: process.execPath,
-  ALUNE_MIGRATION_AGENT: path.join(root, 'packages/agent/bin/alune-agent.cjs'),
+  ALUNE_MIGRATION_NODE: path.join(runtime, process.platform === 'win32' ? 'runtime/node.exe' : 'runtime/bin/node'),
+  ALUNE_MIGRATION_AGENT: path.join(runtime, 'node_modules/@alune/agent/bin/alune-agent.cjs'),
 };
 delete env.ELECTRON_RUN_AS_NODE;
 try {
+  await mkdir(harness);
+  await writeFile(path.join(harness, 'package.json'), JSON.stringify({
+    name: 'alune-native-migration-fixture', private: true,
+    dependencies: { '@alune/agent': '*', 'better-sqlite3': '*' },
+  }));
+  await cp(path.join(runtime, 'node_modules'), path.join(harness, 'node_modules'), { recursive: true });
+  for (const name of ['agent-migration-smoke.cjs', 'ai-secret-storage.cjs', 'legacy-agent-secrets.cjs'])
+    await cp(path.join(root, 'apps/desktop/src', name), path.join(harness, name));
+  const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+  execFileSync(process.execPath, [
+    path.join(root, 'node_modules/@electron/rebuild/lib/cli.js'),
+    '--force', '--only', 'better-sqlite3', '--types', 'prod',
+    '--version', manifest.devDependencies.electron, '--module-dir', harness,
+  ], { stdio: 'inherit' });
   const child = spawn(
     require('electron'),
-    [fileURLToPath(new URL('../dist/app/agent-migration-smoke.cjs', import.meta.url))],
+    [path.join(harness, 'agent-migration-smoke.cjs')],
     { env, stdio: 'inherit', detached: process.platform !== 'win32' },
   );
   const timer = setTimeout(() => {

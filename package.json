@@ -12,7 +12,7 @@
     "release:notes": "node scripts/release-notes.mjs",
     "release:notes:github": "node scripts/generate-release-notes.mjs",
     "release:issue": "node scripts/update-release-issue.mjs",
-    "dev": "turbo dev",
+    "dev": "npm run web:agent",
     "build": "npm run icons:check && turbo build",
     "icons:generate": "node scripts/generate-icons.mjs",
     "icons:check": "node scripts/generate-icons.mjs --check",
@@ -32,7 +32,8 @@
     "website:check": "npm run check -w website && npm run build -w website && npm test -w website",
     "ui:check": "npm run check -w @alune/ui && npm test -w @alune/ui && node apps/website/scripts/ui-api.mjs --check && node apps/website/scripts/ui-coverage.mjs",
     "web:agent": "turbo build --filter=@alune/agent --filter=@alune/ui && npm run dev:agent -w web",
-    "desktop:candidate:build": "npm run icons:check && turbo build --filter=web --filter=@alune/agent && npm run build:candidate -w desktop"
+    "desktop:candidate:build": "npm run icons:check && turbo build --filter=web --filter=@alune/agent && npm run build:candidate -w desktop",
+    "test:retirement": "node --test scripts/agent/retirement.test.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.2",

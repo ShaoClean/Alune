@@ -81,8 +81,7 @@ console.log(
   `Workspace dependency graph is acyclic (${done.size} packages); domain/protocol have no I/O imports or globals.`,
 );
 
-// Read business code is transport-neutral; the compatibility dependency points
-// from ssh-client into Agent, never back to the retired runtime.
+// Business code is transport-neutral and cannot depend on retired runtimes.
 for (const directory of [
   'modules/git',
   'modules/repositories',

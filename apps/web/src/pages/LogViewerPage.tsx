@@ -1,6 +1,14 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,useSyncExternalStore } from 'react';
-import {currentUiAgent,observeUiAgent} from '../api/ui-agent';
-import { io } from 'socket.io-client';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import { currentUiAgent, observeUiAgent } from '../api/ui-agent';
 import { AluneUIProvider, Button, Input, Select, Tooltip } from '@alune/ui';
 import {
   ArrowDownOutlined,
@@ -14,6 +22,7 @@ import {
 import { LOG_LEVELS, LOGGING_LIMITS, type LogEntry, type LogLevel } from '@alune/protocol';
 import { logBridge, loggingApi, loggingError } from '../api/logging';
 import '../logs.css';
+import { LogHistoryCursor } from './log-history';
 
 /** Display cap; older lines drop off the top. Files keep everything. */
 export const MAX_VISIBLE_ENTRIES = 5000;
@@ -24,7 +33,6 @@ type Connection = 'connecting' | 'live' | 'offline';
 
 let nextId = 1;
 const withId = (entry: LogEntry): Row => ({ ...entry, id: nextId++ });
-const keyOf = (entry: LogEntry) => `${entry.time}\u0000${entry.source}\u0000${entry.message}`;
 
 function cap(rows: Row[]) {
   return rows.length > MAX_VISIBLE_ENTRIES ? rows.slice(rows.length - MAX_VISIBLE_ENTRIES) : rows;
@@ -107,7 +115,7 @@ const LogLine = memo(function LogLine({
 });
 
 export function LogViewerPage() {
-  const uiAgent=useSyncExternalStore(observeUiAgent,currentUiAgent);
+  const uiAgent = useSyncExternalStore(observeUiAgent, currentUiAgent);
   const [rows, setRows] = useState<Row[]>([]);
   const [levels, setLevels] = useState<LogLevel[]>([...LOG_LEVELS]);
   const [source, setSource] = useState<string | null>(null);
@@ -125,6 +133,7 @@ export function LogViewerPage() {
   const pausedRef = useRef(false);
   const queue = useRef<Row[]>([]);
   const followingRef = useRef(true);
+  const history = useRef(new LogHistoryCursor());
 
   const append = useCallback((incoming: Row[]) => {
     if (!incoming.length) return;
@@ -141,8 +150,7 @@ export function LogViewerPage() {
     let disposed = false;
     if (uiAgent) {
       let running = false,
-        dirty = false,
-        previous: LogEntry[] = [];
+        dirty = false;
       const refresh = async () => {
         dirty = true;
         if (running) return;
@@ -152,13 +160,8 @@ export function LogViewerPage() {
             dirty = false;
             const next = await loggingApi.recent(LOGGING_LIMITS.history);
             if (disposed) return;
-            // Match the ordered overlap, retaining repeated identical log lines.
-            const keys = next.map(keyOf),
-              old = previous.map(keyOf);
-            let overlap = Math.min(old.length, keys.length);
-            while (overlap && !old.slice(-overlap).every((key, i) => key === keys[i])) overlap--;
-            append(next.slice(overlap).map(withId));
-            previous = next;
+            // Keep the cursor across reconnects; cleanup rejects stale generations above.
+            append(history.current.take(uiAgent.initialized!.agentId, next).map(withId));
             setLoadError(null);
             setConnection('live');
           }
@@ -179,43 +182,9 @@ export function LogViewerPage() {
         close();
       };
     }
-    // Stream entries that arrive before history is loaded are held, then merged
-    // without duplicating lines already present in the history response.
-    let pending: Row[] | null = [];
-    const socket = io({ transports: ['websocket'] });
-    const subscribe = () => {
-      setConnection('live');
-      socket.emit('logs:subscribe');
-    };
-    socket.on('connect', subscribe);
-    socket.on('disconnect', () => setConnection('offline'));
-    socket.on('connect_error', () => setConnection('offline'));
-    socket.on('log:entries', (entries: LogEntry[]) => {
-      const mapped = entries.map(withId);
-      if (pending) pending.push(...mapped);
-      else append(mapped);
-    });
-    loggingApi
-      .recent(LOGGING_LIMITS.history)
-      .then((history) => {
-        if (disposed) return;
-        const seen = new Set(history.slice(-500).map(keyOf));
-        const live = (pending || []).filter((entry) => !seen.has(keyOf(entry)));
-        pending = null;
-        setRows(cap([...history.map(withId), ...live]));
-      })
-      .catch((error) => {
-        if (disposed) return;
-        setLoadError(loggingError(error, '无法读取历史日志，仅显示新产生的日志。'));
-        const live = pending || [];
-        pending = null;
-        setRows(cap(live));
-      });
-    return () => {
-      disposed = true;
-      socket.disconnect();
-    };
-  }, [append,uiAgent]);
+    setConnection('offline');
+    setLoadError('Agent 尚未连接，无法读取日志。');
+  }, [append, uiAgent]);
 
   const sources = useMemo(
     () => [...new Set(rows.map((row) => row.source))].sort((a, b) => a.localeCompare(b)),

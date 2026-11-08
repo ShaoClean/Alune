@@ -8,7 +8,6 @@ function createLogWindow({
   getOrigin,
   iconPath,
   openExternal,
-  candidate = false,
   show = true,
 }) {
   let logWindow = null;
@@ -37,7 +36,7 @@ function createLogWindow({
       webPreferences: {
         preload: path.join(__dirname, 'preload.cjs'),
         partition: 'alune-desktop',
-        additionalArguments: candidate ? ['--alune-agent-ui'] : [],
+        additionalArguments: ['--alune-agent-ui'],
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,

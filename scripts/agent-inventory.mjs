@@ -7,16 +7,17 @@ import { execFileSync } from 'node:child_process';
 import ts from 'typescript';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
+const tracked = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' })
   .split('\0')
-  .filter(Boolean)
+  .filter((file) => file && fs.existsSync(path.join(root, file)))
   .sort();
 const roots = [
-  'apps/server/src/',
   'apps/web/src/',
   'apps/desktop/src/',
-  'packages/ssh-client/src/',
-  'packages/shared/src/',
+  'packages/agent/src/',
+  'packages/agent-client/src/',
+  'packages/domain/src/',
+  'packages/protocol/src/',
 ];
 const tests = tracked.filter((file) =>
   /(?:\.spec\.ts|\.test\.[cm]?js|\.integration\.cjs|smoke\.cjs)$/.test(file),

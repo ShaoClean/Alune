@@ -16,7 +16,7 @@ jobs:
   desktop-smoke:
     name: 桌面 write/restore (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    # Includes dependency/native builds, legacy smoke, packaging and the expanded
+    # Includes dependency/native builds, default Agent smoke, packaging and the expanded
     # candidate write/restore replay. Per-action and process waits stay fixed.
     timeout-minutes: 30
     strategy:
@@ -53,13 +53,11 @@ jobs:
         if: runner.os != 'Linux'
         run: node apps/desktop/scripts/test-packaged.mjs
         env:
-          ALUNE_DESKTOP_EXECUTOR: agent
           ALUNE_CANDIDATE_EVIDENCE: ${{ runner.temp }}/candidate-ui
       - name: 安装目录运行、升级旧数据与再次启动 (Xvfb)
         if: runner.os == 'Linux'
         run: xvfb-run -a node apps/desktop/scripts/test-packaged.mjs
         env:
-          ALUNE_DESKTOP_EXECUTOR: agent
           ALUNE_CANDIDATE_EVIDENCE: ${{ runner.temp }}/candidate-ui
       - uses: actions/upload-artifact@v4
         with:
@@ -98,7 +96,7 @@ jobs:
           cache: npm
       - run: node scripts/agent/check-clean-checkout.mjs before-install desktop-candidate
       # Root supplies Electron packaging tools; stage.mjs installs the candidate's
-      # own runtime manifest. Do not select the regular desktop's legacy build deps.
+      # own runtime manifest; the regular desktop uses the same Agent-only runtime.
       - run: npm ci --workspace=@alune/agent --workspace=@alune/agent-client --workspace=@alune/domain --workspace=@alune/protocol --workspace=@alune/ui --workspace=web --include-workspace-root=true
       - run: node scripts/agent/check-clean-checkout.mjs after-install desktop-candidate
       - name: Prepare a private RC version below the published stable update

@@ -1,5 +1,4 @@
 import { ProtocolError } from '@alune/protocol';
-import axios from 'axios';
 import type {
   NetworkProxyConfig,
   ProxyConnectionStatus,
@@ -7,33 +6,29 @@ import type {
   SaveNetworkProxy,
 } from '@alune/protocol';
 
-const api = axios.create({ baseURL: '/api/network-proxy', timeout: 45_000 });
 export const proxyApi = {
-  settings: (): Promise<NetworkProxyConfig> => api.get('').then((response) => response.data),
-  save: (input: SaveNetworkProxy): Promise<NetworkProxyConfig> =>
-    api.put('', input).then((response) => response.data),
+  settings: (): Promise<NetworkProxyConfig> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 proxyApi.settings。')),
+  save: (_input: SaveNetworkProxy): Promise<NetworkProxyConfig> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 proxyApi.save。')),
   connections: (): Promise<ProxyConnectionStatus[]> =>
-    api.get('/connections').then((response) => response.data),
-  reconnect: (id: string, revision: string): Promise<ProxyConnectionStatus[]> =>
-    api
-      .post(`/connections/${encodeURIComponent(id)}/reconnect`, { revision })
-      .then((response) => response.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 proxyApi.connections。')),
+  reconnect: (_id: string, _revision: string): Promise<ProxyConnectionStatus[]> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 proxyApi.reconnect。')),
   test: (
-    input: {
+    _input: {
       kind: 'http' | 'ssh' | 'git';
       revision: string;
       url: string;
       connectionId: string;
       repositoryId: string;
     },
-    signal: AbortSignal,
+    _signal: AbortSignal,
   ): Promise<ProxyTestResult> =>
-    api.post('/test', input, { signal }).then((response) => response.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 proxyApi.test。')),
 };
 
 export function proxyError(error: unknown) {
-  if(error instanceof ProtocolError)return error.message;
-  if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string')
-    return error.response.data.message as string;
+  if (error instanceof ProtocolError) return error.message;
   return '无法完成代理操作，请检查本地服务或网络后重试。';
 }

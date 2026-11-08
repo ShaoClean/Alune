@@ -75,7 +75,7 @@ node packages/agent/bin/alune-agent.cjs legacy-import --source /path/to/legacy-d
 
 导入保留主机/仓库/令牌 ID 和布局引用，重新加密 SSH 密码/口令、AI Key、代理认证和命名令牌；旧密钥文件不创建、不修复权限、不覆盖。重复导入同一来源快照返回原回执，来源变化或目标已有业务配置则拒绝覆盖。损坏来源、失败快照、旧数据库目录均保留，Git 工作区不被修改。
 
-独立 Node 来源使用原来的 `ai-master-key`。Electron `safe-storage:` 来源必须由旧宿主通过专用导入子进程的继承 Node IPC 解密：`apps/desktop/src/legacy-agent-secrets.cjs` 只接受宿主提供的精确密文白名单，每项一次，结束后释放。它不注册 renderer IPC 或 TCP 接口；直接运行 CLI 无法自行解密 Electron 来源。正常启动不会自动迁移真实用户数据，默认入口切换由后续阶段控制。
+独立 Node 来源使用原来的 `ai-master-key`。Electron `safe-storage:` 来源必须由旧宿主通过专用导入子进程的继承 Node IPC 解密：`apps/desktop/src/legacy-agent-secrets.cjs` 只接受宿主提供的精确密文白名单，每项一次，结束后释放。它不注册 renderer IPC 或 TCP 接口；直接运行 CLI 无法自行解密 Electron 来源。普通桌面和 Web 默认通过专用只读导入流程迁移到独立 Agent 目录；直接运行 `serve` 不会自行导入旧数据。
 
 ## 身份、状态和库内凭据恢复
 
@@ -98,7 +98,7 @@ node scripts/agent/test-packaged.mjs /tmp/alune-agent-package
 node scripts/agent/test-ssh-isolated.mjs /tmp/alune-agent-package
 ```
 
-隔离 SSH 验收会把独立包和所需测试对端放进新的临时目录，以包内 Node 与 SDK 验证 SSH 部署、代理、SQLite/PTY、取消和重连。该目录没有 apps/server、旧 shared/ssh-client 或工作区 node_modules，缺失的包不能由开发检出补足；结束后删除临时副本。 四个原生目标的 Agent CI 使用稀疏检出，保留 Agent/SDK/domain/protocol/UI、Web、脚本以及两个用于迁移测试的桌面凭据桥文件；只安装这些工作区。编译前拒绝旧工作区、已有 dist 或可解析的 Electron/Nest 依赖。普通桌面及旧版回归仍在各自的完整检出中运行。
+隔离 SSH 验收会把独立包和所需测试对端放进新的临时目录，以包内 Node 与 SDK 验证 SSH 部署、代理、SQLite/PTY、取消和重连。该目录没有 apps/server、旧 shared/ssh-client 或工作区 node_modules，缺失的包不能由开发检出补足；结束后删除临时副本。 四个原生目标的 Agent CI 使用稀疏检出，保留 Agent/SDK/domain/protocol/UI、Web、脚本以及两个用于迁移测试的桌面凭据桥文件；只安装这些工作区。编译前拒绝旧工作区、已有 dist 或可解析的 Electron/Nest 依赖。普通桌面同样不再依赖旧工作区；历史旧版对照只在冻结检出中运行。
 
 输出目录必须是仓库外的新目录，防止误用仓库依赖验证“独立”运行。包使用官方 Node 22.22.0（核对官方 SHA-256）、对应平台已安装并通过 doctor 的 Node ABI 原生依赖、运行代码、许可证和文件校验清单，不包含 Electron。Windows 提供 `alune-agent.cmd`，POSIX 提供 `alune-agent`；只支持 Windows x64、macOS arm64/x64、Linux x64 的本机打包，不做伪交叉编译。
 构建机已有该版官方发行包时，仅在 Node 可执行文件与配套 LICENSE 均逐字节匹配发布指纹时复用。否则从 nodejs.org 下载当前目标的官方归档，验证归档及解包后两份文件的 SHA-256。切换固定版本时，在独立目录核验上游签名的 SHASUMS256.txt 和四份原始归档，再用 `python3 scripts/agent/pin-runtime.py VERSION DIRECTORY` 生成 `scripts/agent/runtime-pins.json`。最终安装包内仍自带完整 Node，不依赖用户系统的 Node。
@@ -166,7 +166,7 @@ Web 的显式适配器支持选择测试资源；未选择资源继续走原入�
 - 设置和账户沿用 `settings.ai.*`、`accounts.tokens.*`。`ai.test/models/generate/generatePullRequest` 提供连通性测试、模型获取、提交和 PR 草稿。提交生成只读取已登记仓库的暂存区，最多 96 KiB，生成后再次核对索引和配置版本。结果不会提交或推送。
 - `reviews.remotes/list/detail/files/discussions/actions/applyToken/preview/mutate/create` 保留旧平台行为。调用带 `resource: {agentId, resourceId}`，其余业务参数放在 `input`。写入沿用确认时的 `revision` 和稳定的 `operationId`。丢失响应后先用 `tasks.get({taskId: operationId})` 查询回执，再核对平台事实；不可改 ID、自动重试或改走 HTTP。
 - `catalog.reviews.sources/context/list` 沿用发现和列表各自的快照游标，用完整资源引用区分来源，依项目与请求编号跨页去重。来源未能发现时标记 offline，已发现的来源读取失败时标记 stale；错误和成功来源可同时出现。`workspace.groups` 仅返回连接分组与登记资源。布局、草稿、生成票据和编辑/撤销仍由客户端管理。
-- 单机 stdio 默认不访问旧 SSH 连接。可信的本机宿主可在打开独立状态目录时为 `openStateKernel` 注入 `legacyCollaborationReads`：它核对旧登记的连接与路径，仅提供远端列表、分支 SHA 和暂存快照。旧 HTTP 宿主也复用 Agent 的业务模块；没有可用通道时显式报告离线。
+- 多主机协作只通过本机主机路由读取远端 Agent 的受控快照，平台凭据留在本机；旧 HTTP 宿主注入接口已移除。没有可用远端通道时显式报告离线。
 - Web 接入点为 `createAgentCollaboration`，必须显式选择持有凭据的 Agent。浏览器验收可运行 `node scripts/agent/browser-reads-fixture.mjs --collaboration`，在打印的隔离页面加载 `/tests/agent-browser.ts` 的 `connectFixture()`。桌面及 Web 的默认入口不变。
 
 ## SSH 远程 Agent（协议 1.6，显式选择）

@@ -45,7 +45,7 @@ if ('method' in message && message.method === 'initialize') {
 `ProtocolError` 将稳定错误种类转为结构化错误，outcome 区分未开始、已完成与未知。未知执行结果不构成自动重试授权。
 队列/流块常量只定义协议上限，具体排队、ack、背压与重同步由 Agent 和 Client 实现，不能仅凭常量存在宣称已经处理背压。
 
-`legacy-events` 保留旧 Socket.IO 类型，供 shared 兼容导出；新消息使用 `AgentEvent`。
+事件统一使用带 Agent/session 身份的 `AgentEvent`；旧 Socket.IO 事件契约已退役。
 运行 `npm test -w @alune/protocol` 验证协议边界。
 
 协议 1.2 增加按能力协商的 `repositories.*` 读取入口。仓库查询携带

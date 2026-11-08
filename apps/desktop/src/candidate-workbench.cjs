@@ -61,6 +61,10 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'files') {
       await require('./candidate-git-actions.cjs')({ wc, window, origin, repo, id, wait,
         element, button, textButton, click, text, pass });
+    } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'repositories') {
+      await require('./candidate-overview-actions.cjs')({ window, origin, repo, wait, pass });
+    } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'file-retries') {
+      await require('./candidate-file-retries.cjs')({ window, origin, id, repo, wait, pass });
     } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'terminals') {
       await require('./smoke-window.cjs')(window);
       const fact = async (check, label) => {
@@ -236,6 +240,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   await require('./candidate-branch-overview.cjs')({ window, origin, id, repo, wait, pass });
   await require('./candidate-submodule-actions.cjs')({ window, origin, repo, wait, pass });
   await require('./candidate-file-recovery.cjs')({ window, origin, repo, wait, pass });
+  await require('./candidate-file-retries.cjs')({ window, origin, id, repo, wait, pass });
   await require('./candidate-layout-resize.cjs')({ window, origin, id, repo, wait, pass });
   console.log('Candidate native workbench: ' + evidence.length + ' scenarios passed');
 };

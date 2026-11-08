@@ -7,7 +7,7 @@ const { execFileSync } = require('node:child_process');
 module.exports = async ({ window, origin, repo, wait, pass }) => {
   const wc = window.webContents,
     ev = (code) => wc.executeJavaScript(code);
-  const { element, button, textButton, click, input } = require('./candidate-ui-driver.cjs')(
+  const { element, button, textButton, click, input, pressKey } = require('./candidate-ui-driver.cjs')(
     wc,
     wait,
   );
@@ -109,9 +109,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   );
   await require('./smoke-window.cjs')(window);
   await input(element('#local-repo-path'), work);
-  await ev('(' + element('#local-repo-path') + ').focus()');
-  wc.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
-  wc.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+  await pressKey(element('#local-repo-path'), 'Return');
   await wait(wc, '(' + textButton('打开工作区', '.a-dlg-actions button') + ')?.disabled===false');
   assert.equal(await ev('location.pathname'), '/repositories');
   unaffected();

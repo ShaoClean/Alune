@@ -29,7 +29,13 @@ async function fixture(t) {
   });
   initializeHostProfiles(state.database);
   const hosts = new HostProfilesStore(state.database, cipher);
-  const create = (input) => hosts.save(null, input, hosts.list().revision).hosts.at(-1);
+  const create = (input) => {
+    const before = hosts.list();
+    const ids = new Set(before.hosts.map((host) => host.id));
+    const added = hosts.save(null, input, before.revision).hosts.filter((host) => !ids.has(host.id));
+    assert.equal(added.length, 1);
+    return added[0];
+  };
   return { root, state, cipher, hosts, create };
 }
 test(

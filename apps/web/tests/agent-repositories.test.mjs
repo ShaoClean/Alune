@@ -1,9 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ProtocolError } from '@alune/protocol';
-import { createAgentRepositoryQueries } from '../src/api/agent-repositories.ts';
+import {
+  createAgentFileWrite,
+  createAgentRepositoryQueries,
+} from '../src/api/agent-repositories.ts';
 const resource = { agentId: 'agent', resourceId: 'resource' };
-const make = (executor = 'legacy') => {
+const make = () => {
   const calls = [],
     events = [];
   const client = {
@@ -51,7 +54,6 @@ const make = (executor = 'legacy') => {
       (id) => (id === 'repo' ? resource : undefined),
       old,
       git,
-      executor,
     ),
   };
 };
@@ -69,10 +71,10 @@ test('query seam preserves plain/full/partial diff shapes and only routes select
     { diff: 'editable', revision: 'hash' },
   );
   assert.equal(f.calls[1].kind, 'editableDiff');
-  assert.equal(await f.adapter.repository.status('other'), 'legacy status');
+  await assert.rejects(f.adapter.repository.status('other'), /尚未绑定 Agent/);
   f.adapter.dispose();
 });
-test('legacy writes invalidate before and after once, including unknown failures; stale queries never apply', async () => {
+test('Agent writes invalidate pending reads and never call a previous writer', async () => {
   const f = make();
   let finish;
   f.client.readRepository = () =>
@@ -81,24 +83,30 @@ test('legacy writes invalidate before and after once, including unknown failures
     });
   const read = f.adapter.repository.diff('repo', { file: 'a' });
   const rejected = assert.rejects(read, /变化/);
+  f.client.prepareRepositoryWrite = async () => 'revision';
+  f.client.writeRepository = async () => {
+    f.calls.push('agent stage');
+    return { success: true };
+  };
   const result = await f.adapter.git.stage('repo', ['a']);
   assert.deepEqual(result, { success: true });
-  assert.deepEqual(f.calls, ['invalidate', 'stage', 'invalidate']);
+  assert.deepEqual(f.calls, ['agent stage']);
   finish('stale');
   await rejected;
   f.adapter.dispose();
 });
-test('failed post-write invalidation never replays or falsifies a completed write and blocks next read until refreshed', async () => {
+test('failed explicit invalidation blocks reads until refreshed, with no alternate executor', async () => {
   const f = make();
   let count = 0;
   f.client.invalidateRepository = async () => {
     count++;
-    if (count === 2) throw new Error('disconnected');
+    if (count < 3) throw new Error('disconnected');
   };
-  assert.deepEqual(await f.adapter.git.stage('repo', ['a']), { success: true });
+  await assert.rejects(f.adapter.invalidate(resource), /disconnected/);
+  await assert.rejects(f.adapter.repository.diff('repo', {}), /disconnected/);
   assert.equal(await f.adapter.repository.diff('repo', {}), 'patch');
   assert.equal(count, 3);
-  assert.equal(f.calls.filter((c) => c === 'stage').length, 1);
+  assert.equal(f.calls.filter((c) => c === 'stage').length, 0);
   f.adapter.dispose();
 });
 test('resource change/resync rejects pending reads and disposal detaches listeners', async () => {
@@ -117,7 +125,7 @@ test('resource change/resync rejects pending reads and disposal detaches listene
   assert.equal(f.events.length, 0);
 });
 test('selected P4 write sends the approved revision once, then queries its exact operation on unknown outcome', async () => {
-  const f = make('agent');
+  const f = make();
   let dispatched;
   f.client.prepareRepositoryWrite = async (intent) => {
     assert.deepEqual(intent, { resource, kind: 'stage', args: [['a']] });
@@ -135,14 +143,14 @@ test('selected P4 write sends the approved revision once, then queries its exact
   await assert.rejects(f.adapter.git.stage('repo', ['a']), /请勿重复执行/);
   assert.equal(dispatched.revision, 'revision');
   assert.deepEqual(f.calls, []);
-  await f.adapter.git.stage('unmapped', ['a']);
-  assert.deepEqual(f.calls, ['stage']);
+  await assert.rejects(f.adapter.git.stage('unmapped', ['a']), /尚未绑定 Agent/);
+  assert.deepEqual(f.calls, []);
   f.adapter.dispose();
 });
 
 test('history and signature reads repeat only after local invalidation, without accepting stale results', async () => {
   for (const kind of ['log', 'signatures']) {
-    const f = make('agent'),
+    const f = make(),
       calls = [];
     const read = (signal) =>
       kind === 'log'
@@ -177,7 +185,7 @@ test('history and signature reads repeat only after local invalidation, without 
   }
 });
 test('aborting a superseded read does not dispatch another request', async () => {
-  const f = make('agent'),
+  const f = make(),
     user = new AbortController();
   let calls = 0;
   f.client.readRepository = async (_r, _k, _p, { signal }) => {
@@ -207,7 +215,7 @@ for (const kind of ['status', 'context'])
     kind +
       ' cancelled by an observed repository change refreshes the same owner and parameters, but caller cancellation and backend errors remain visible',
     async () => {
-      const f = make('agent');
+      const f = make();
       const read = (signal) =>
         kind === 'status'
           ? f.adapter.repository.status('repo', signal, true)
@@ -277,7 +285,7 @@ test('live metadata invalidated before its result arrives refreshes once with th
     ['git', 'tags', 'tags', [], {}],
     ['git', 'remoteTags', 'tags', ['origin'], { remote: 'origin' }],
   ]) {
-    const f = make('agent');
+    const f = make();
     // Each member uses the same public facade shape as repositoryApi.
     const old = {
       [method]: async () => {
@@ -290,7 +298,6 @@ test('live metadata invalidated before its result arrives refreshes once with th
       (id) => (id === 'repo' ? resource : undefined),
       area === 'repository' ? old : {},
       area === 'git' ? old : {},
-      'agent',
     );
     const fresh = { generation: 'new', local: [], remote: [] };
     const expected =
@@ -334,7 +341,7 @@ test('a concurrent metadata invalidation cannot turn a genuine failure or unknow
     new ProtocolError('timeout', 'remote deadline reached', 'unknown'),
     new ProtocolError('cancelled', 'remote cancellation outcome unknown', 'unknown'),
   ]) {
-    const f = make('agent');
+    const f = make();
     let rejectRead,
       calls = 0;
     f.client.readRepository = async () => {
@@ -357,7 +364,7 @@ test('a concurrent metadata invalidation cannot turn a genuine failure or unknow
 });
 
 test('a refreshed live read retains the original parameters even if the caller edits its object', async () => {
-  const f = make('agent'),
+  const f = make(),
     counts = [],
     params = { count: 5 };
   f.client.readRepository = async (_ref, _kind, p, { signal }) => {
@@ -411,7 +418,7 @@ test('an owning-resource invalidation refreshes even before its event; history c
       refresh: false,
     },
   ]) {
-    const f = make('agent');
+    const f = make();
     let rejectRead,
       calls = 0;
     const failure = new ProtocolError(
@@ -444,7 +451,7 @@ test('an owning-resource invalidation refreshes even before its event; history c
 });
 
 test('a pinned Diff never refreshes automatically even when the owning Agent marks its read invalidated', async () => {
-  const f = make('agent');
+  const f = make();
   let calls = 0;
   const error = new ProtocolError('conflict', 'Repository changed during read', 'not-started', {
     code: 'READ_INVALIDATED',
@@ -464,4 +471,23 @@ test('a pinned Diff never refreshes automatically even when the owning Agent mar
   } finally {
     f.adapter.dispose();
   }
+});
+
+test('unmapped file writes fail closed without executing any client method', async () => {
+  const client = new Proxy(
+    {},
+    {
+      get() {
+        throw new Error('unexpected dispatch');
+      },
+    },
+  );
+  const write = createAgentFileWrite(client, () => undefined);
+  await assert.rejects(write('ssh-host', '/outside/file', 'data'), /尚未绑定 Agent/);
+});
+test('unmapped analytics fail closed rather than mixing executors', async () => {
+  const f = make();
+  await assert.rejects(f.adapter.repository.analytics(['repo', 'other']), /尚未绑定 Agent/);
+  assert.deepEqual(f.calls, []);
+  f.adapter.dispose();
 });

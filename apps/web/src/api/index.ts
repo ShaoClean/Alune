@@ -1,10 +1,4 @@
 import type { LfsStatus, SubmoduleInfo } from '@alune/domain';
-import axios from 'axios';
-import { confirmTerminalRemoval } from '../stores/terminalRemoval';
-import {
-  REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
-  REPOSITORY_FOREGROUND_STATUS_TIMEOUT_MS,
-} from '@alune/domain';
 import type {
   PullRequestAccount,
   PullRequestCenterQuery,
@@ -73,416 +67,315 @@ import type {
   ConflictStepResult,
 } from '@alune/domain';
 
-const api = axios.create({
-  baseURL: '/api',
-  timeout: 30000,
-});
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const impact = error.response?.data;
-    if (
-      error.config?.method === 'delete' &&
-      impact?.code === 'TERMINAL_CONFIRM_REQUIRED' &&
-      Array.isArray(impact.sessions) &&
-      (await confirmTerminalRemoval(impact.sessions))
-    ) {
-      return api.request({
-        ...error.config,
-        data: { terminalSessionIds: impact.sessions.map((item: { id: string }) => item.id) },
-      });
-    }
-    const detail = error.response?.data?.message;
-    if (detail) error.message = Array.isArray(detail) ? detail.join('；') : String(detail);
-    return Promise.reject(error);
-  },
-);
-const gitTimeout = { timeout: 310_000 };
-
+// Public API signatures are installed by installWorkspaceAgent before mounting.
+// Uninstalled calls reject; there is no alternate transport or executor.
 export const accessTokenApi = {
-  list: (): Promise<AccessTokenSettings> => api.get('/access-tokens').then((r) => r.data),
-  save: (id: string | null, body: SaveAccessToken): Promise<AccessTokenSettings> =>
-    (id
-      ? api.put(`/access-tokens/${encodeURIComponent(id)}`, body)
-      : api.post('/access-tokens', body)
-    ).then((r) => r.data),
-  delete: (id: string, revision: string): Promise<AccessTokenSettings> =>
-    api
-      .delete(`/access-tokens/${encodeURIComponent(id)}`, { data: { revision } })
-      .then((r) => r.data),
+  list: (): Promise<AccessTokenSettings> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 accessTokenApi.list。')),
+  save: (_id: string | null, _body: SaveAccessToken): Promise<AccessTokenSettings> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 accessTokenApi.save。')),
+  delete: (_id: string, _revision: string): Promise<AccessTokenSettings> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 accessTokenApi.delete。')),
 };
 
 // Connection APIs
 export const connectionApi = {
-  list: () => api.get('/connections').then((r) => r.data),
-  get: (id: string) => api.get(`/connections/${id}`).then((r) => r.data),
-  create: (data: any) => api.post('/connections', data).then((r) => r.data),
-  delete: (id: string) => api.delete(`/connections/${id}`).then((r) => r.data),
-  test: (id: string): Promise<ConnectionTestResult> =>
-    api.post(`/connections/${id}/test`).then((r) => r.data),
+  list: (): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 connectionApi.list。')),
+  get: (_id: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 connectionApi.get。')),
+  create: (_data: any): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 connectionApi.create。')),
+  delete: (_id: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 connectionApi.delete。')),
+  test: (_id: string): Promise<ConnectionTestResult> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 connectionApi.test。')),
 };
 
 // Repository APIs
 export const repositoryApi = {
   analytics: (
-    ids: string[],
-    collect = false,
-    refresh = false,
-    signal?: AbortSignal,
+    _ids: string[],
+    _collect = false,
+    _refresh = false,
+    _signal?: AbortSignal,
   ): Promise<RepositoryAnalyticsEntry[]> =>
-    api
-      .post(
-        '/repositories/analytics/summary',
-        { ids, collect, refresh },
-        { signal, timeout: 220000 },
-      )
-      .then((r) => r.data),
-  applyAccessToken: (id: string, body: ApplyAccessToken): Promise<AccessTokenSettings> =>
-    api.post(`/repositories/${id}/pull-requests/token`, body).then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.analytics。')),
+  applyAccessToken: (_id: string, _body: ApplyAccessToken): Promise<AccessTokenSettings> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.applyAccessToken。')),
   previewPullRequest: (
-    id: string,
-    query: PullRequestCreationQuery,
-    signal?: AbortSignal,
+    _id: string,
+    _query: PullRequestCreationQuery,
+    _signal?: AbortSignal,
   ): Promise<PullRequestCreationPreview> =>
-    api.post(`/repositories/${id}/pull-requests/preview`, query, { signal }).then((r) => r.data),
-  createPullRequest: (id: string, query: CreatePullRequest): Promise<CreatedPullRequest> =>
-    api
-      .post(`/repositories/${id}/pull-requests/create`, query, { timeout: 65_000 })
-      .then((r) => r.data),
-  pullRequestRemotes: (id: string, signal?: AbortSignal): Promise<PullRequestRemote[]> =>
-    api.get(`/repositories/${id}/pull-requests/remotes`, { signal }).then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.previewPullRequest。')),
+  createPullRequest: (_id: string, _query: CreatePullRequest): Promise<CreatedPullRequest> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.createPullRequest。')),
+  pullRequestRemotes: (_id: string, _signal?: AbortSignal): Promise<PullRequestRemote[]> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.pullRequestRemotes。')),
   pullRequests: (
-    id: string,
-    query: PullRequestQuery,
-    signal?: AbortSignal,
+    _id: string,
+    _query: PullRequestQuery,
+    _signal?: AbortSignal,
   ): Promise<PullRequestPage> =>
-    api.post(`/repositories/${id}/pull-requests/list`, query, { signal }).then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.pullRequests。')),
   pullRequestDetail: (
-    id: string,
-    query: PullRequestDetailQuery,
-    signal?: AbortSignal,
+    _id: string,
+    _query: PullRequestDetailQuery,
+    _signal?: AbortSignal,
   ): Promise<PullRequestDetail> =>
-    api.post(`/repositories/${id}/pull-requests/detail`, query, { signal }).then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.pullRequestDetail。')),
   pullRequestFiles: (
-    id: string,
-    query: PullRequestResourceQuery,
-    signal?: AbortSignal,
+    _id: string,
+    _query: PullRequestResourceQuery,
+    _signal?: AbortSignal,
   ): Promise<PullRequestResourcePage<PullRequestFile>> =>
-    api.post(`/repositories/${id}/pull-requests/files`, query, { signal }).then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.pullRequestFiles。')),
   pullRequestDiscussions: (
-    id: string,
-    query: PullRequestDiscussionQuery,
-    signal?: AbortSignal,
+    _id: string,
+    _query: PullRequestDiscussionQuery,
+    _signal?: AbortSignal,
   ): Promise<PullRequestResourcePage<PullRequestDiscussion>> =>
-    api
-      .post(`/repositories/${id}/pull-requests/discussions`, query, { signal })
-      .then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.pullRequestDiscussions。')),
   pullRequestActions: (
-    id: string,
-    query: PullRequestDetailQuery,
-    signal?: AbortSignal,
+    _id: string,
+    _query: PullRequestDetailQuery,
+    _signal?: AbortSignal,
   ): Promise<PullRequestActions> =>
-    api.post(`/repositories/${id}/pull-requests/actions`, query, { signal }).then((r) => r.data),
-  mutatePullRequest: (id: string, query: PullRequestMutation): Promise<PullRequestMutationResult> =>
-    api
-      .post(`/repositories/${id}/pull-requests/mutate`, query, { timeout: 90_000 })
-      .then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.pullRequestActions。')),
+  mutatePullRequest: (
+    _id: string,
+    _query: PullRequestMutation,
+  ): Promise<PullRequestMutationResult> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.mutatePullRequest。')),
   inspectLocal: (
-    path: string,
+    _path: string,
   ): Promise<RepositoryContext & { name: string; status: RepositoryStatus }> =>
-    api.post('/repositories/local/inspect', { path }).then((r) => r.data),
-  addLocal: (path: string): Promise<Repository> =>
-    api.post('/repositories', { source: 'local', path }).then((r) => r.data),
-  context: (id: string, signal?: AbortSignal): Promise<RepositoryContext> =>
-    api.get(`/repositories/${id}/context`, { signal }).then((r) => r.data),
-  submodules: (id: string, signal?: AbortSignal): Promise<SubmoduleInfo[]> =>
-    api.get(`/repositories/${id}/submodules`, { signal }).then((r) => r.data),
-  lfs: (id: string, signal?: AbortSignal): Promise<LfsStatus> =>
-    api.get(`/repositories/${id}/lfs`, { signal }).then((r) => r.data),
-  openSubmodule: (id: string, path: string): Promise<Repository> =>
-    api.post(`/repositories/${id}/submodules/open`, { path }).then((r) => r.data),
-  worktrees: (id: string, signal?: AbortSignal): Promise<WorktreeInfo[]> =>
-    api
-      .get('/repositories/' + id + '/worktrees', {
-        signal,
-        timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
-      })
-      .then((r) => r.data),
-  openWorktree: (id: string, path: string): Promise<Repository> =>
-    api
-      .post(
-        '/repositories/' + id + '/worktrees/open',
-        { path },
-        {
-          timeout: REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
-        },
-      )
-      .then((r) => r.data),
-  scan: (connectionId: string, path: string) =>
-    api.get('/repositories/scan', { params: { connectionId, path } }).then((r) => r.data),
-  add: (connectionId: string, path: string) =>
-    api.post('/repositories', { connectionId, path }).then((r) => r.data),
-  list: (connectionId?: string) =>
-    api.get('/repositories', { params: connectionId ? { connectionId } : {} }).then((r) => r.data),
-  get: (id: string) => api.get(`/repositories/${id}`).then((r) => r.data),
-  delete: (id: string) => api.delete(`/repositories/${id}`).then((r) => r.data),
-  pin: (id: string, pinned: boolean) =>
-    api.post(`/repositories/${id}/pin`, { pinned }).then((r) => r.data),
-  status: (id: string, signal?: AbortSignal, foreground = false) =>
-    api
-      .get(`/repositories/${id}/status`, {
-        signal,
-        params: { foreground },
-        timeout: foreground
-          ? REPOSITORY_FOREGROUND_STATUS_TIMEOUT_MS + 2000
-          : REPOSITORY_STATUS_REQUEST_TIMEOUT_MS,
-      })
-      .then((r) => r.data),
-  log: (id: string, params?: LogOptions, signal?: AbortSignal): Promise<LogPage> =>
-    api.get(`/repositories/${id}/log`, { params, signal }).then((r) => r.data),
-  commitFiles: (id: string, commit: string, parentCommit?: string) =>
-    api
-      .get(`/repositories/${id}/commit-files`, { params: { commit, parentCommit } })
-      .then((r) => r.data),
-  diff: (id: string, params?: any, signal?: AbortSignal) =>
-    api.get(`/repositories/${id}/diff`, { params, signal }).then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.inspectLocal。')),
+  addLocal: (_path: string): Promise<Repository> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.addLocal。')),
+  context: (_id: string, _signal?: AbortSignal): Promise<RepositoryContext> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.context。')),
+  submodules: (_id: string, _signal?: AbortSignal): Promise<SubmoduleInfo[]> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.submodules。')),
+  lfs: (_id: string, _signal?: AbortSignal): Promise<LfsStatus> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.lfs。')),
+  openSubmodule: (_id: string, _path: string): Promise<Repository> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.openSubmodule。')),
+  worktrees: (_id: string, _signal?: AbortSignal): Promise<WorktreeInfo[]> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.worktrees。')),
+  openWorktree: (_id: string, _path: string): Promise<Repository> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.openWorktree。')),
+  scan: (_connectionId: string, _path: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.scan。')),
+  add: (_connectionId: string, _path: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.add。')),
+  list: (_connectionId?: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.list。')),
+  get: (_id: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.get。')),
+  delete: (_id: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.delete。')),
+  pin: (_id: string, _pinned: boolean): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.pin。')),
+  status: (_id: string, _signal?: AbortSignal, _foreground = false): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.status。')),
+  log: (_id: string, _params?: LogOptions, _signal?: AbortSignal): Promise<LogPage> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.log。')),
+  commitFiles: (_id: string, _commit: string, _parentCommit?: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.commitFiles。')),
+  diff: (_id: string, _params?: any, _signal?: AbortSignal): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.diff。')),
   diffImage: (
-    id: string,
-    params: DiffImageOptions,
-    signal?: AbortSignal,
+    _id: string,
+    _params: DiffImageOptions,
+    _signal?: AbortSignal,
   ): Promise<DiffImageContent> =>
-    api
-      .get(`/repositories/${id}/diff-image`, { params, signal, timeout: 60000 })
-      .then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.diffImage。')),
   // Read-only worktree browsing; '' is the repository root.
-  tree: (id: string, path: string, signal?: AbortSignal): Promise<RepositoryTreeListing> =>
-    api.get(`/repositories/${id}/tree`, { params: { path }, signal }).then((r) => r.data),
-  file: (id: string, path: string, signal?: AbortSignal): Promise<RepositoryFilePreview> =>
-    api
-      .get(`/repositories/${id}/file`, { params: { path }, signal, timeout: 60000 })
-      .then((r) => r.data),
-  blame: (id: string, params: BlameOptions, signal?: AbortSignal): Promise<BlameResult> =>
-    api.get(`/repositories/${id}/blame`, { params, signal, timeout: 20000 }).then((r) => r.data),
-  blameCommit: (id: string, commit: string, signal?: AbortSignal): Promise<BlameCommitDetail> =>
-    api
-      .get(`/repositories/${id}/blame-commit`, { params: { commit }, signal, timeout: 20000 })
-      .then((r) => r.data),
-  branches: (id: string) => api.get(`/repositories/${id}/branches`).then((r) => r.data),
-  stashes: (id: string) => api.get(`/repositories/${id}/stashes`).then((r) => r.data),
-  remotes: (id: string) => api.get(`/repositories/${id}/remotes`).then((r) => r.data),
+  tree: (_id: string, _path: string, _signal?: AbortSignal): Promise<RepositoryTreeListing> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.tree。')),
+  file: (_id: string, _path: string, _signal?: AbortSignal): Promise<RepositoryFilePreview> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.file。')),
+  blame: (_id: string, _params: BlameOptions, _signal?: AbortSignal): Promise<BlameResult> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.blame。')),
+  blameCommit: (_id: string, _commit: string, _signal?: AbortSignal): Promise<BlameCommitDetail> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.blameCommit。')),
+  branches: (_id: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.branches。')),
+  stashes: (_id: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.stashes。')),
+  remotes: (_id: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 repositoryApi.remotes。')),
 };
 
 // Git Operation APIs
 export const gitApi = {
-  signingConfig: (id: string, signal?: AbortSignal): Promise<SigningConfig> =>
-    api.get(`/repositories/${id}/signing`, { signal }).then((r) => r.data),
-  saveSigningConfig: (id: string, config: SigningConfig): Promise<SigningConfig> =>
-    api.post(`/repositories/${id}/signing`, config, gitTimeout).then((r) => r.data),
-  signatures: (id: string, hashes: string[], signal?: AbortSignal): Promise<CommitSignature[]> =>
-    api
-      .post(`/repositories/${id}/signatures`, { hashes }, { signal, timeout: 40_000 })
-      .then((r) => r.data),
-  tags: (id: string): Promise<GitTag[]> => api.get(`/repositories/${id}/tags`).then((r) => r.data),
-  remoteTags: (id: string, remote: string): Promise<RemoteTag[]> =>
-    api
-      .get(`/repositories/${id}/tags/remote`, { params: { remote }, timeout: 35_000 })
-      .then((r) => r.data),
-  createTag: (id: string, options: CreateTagOptions) =>
-    api.post(`/repositories/${id}/tags`, options, gitTimeout).then((r) => r.data),
-  deleteTag: (id: string, options: DeleteTagOptions) =>
-    api.post(`/repositories/${id}/tags/delete`, options, gitTimeout).then((r) => r.data),
-  pushTag: (id: string, options: PushTagOptions) =>
-    api.post(`/repositories/${id}/tags/push`, options, gitTimeout).then((r) => r.data),
-  checkoutTag: (id: string, options: CheckoutTagOptions) =>
-    api.post(`/repositories/${id}/tags/checkout`, options, gitTimeout).then((r) => r.data),
-  previewRebase: (id: string, base: string): Promise<RebasePreview> =>
-    api
-      .post(`/repositories/${id}/interactive-rebase/preview`, { base }, { timeout: 65_000 })
-      .then((r) => r.data),
-  rebaseState: (id: string): Promise<RebaseState> =>
-    api.get(`/repositories/${id}/interactive-rebase`).then((r) => r.data),
-  startRebase: (id: string, request: RebaseRequest): Promise<RebaseResult> =>
-    api.post(`/repositories/${id}/interactive-rebase`, request, gitTimeout).then((r) => r.data),
-  controlRebase: (id: string, action: 'continue' | 'skip' | 'abort'): Promise<RebaseResult> =>
-    api
-      .post(`/repositories/${id}/interactive-rebase/control`, { action }, gitTimeout)
-      .then((r) => r.data),
-  rebaseConflict: (id: string, path: string): Promise<RebaseConflict> =>
-    api
-      .post(`/repositories/${id}/interactive-rebase/conflict`, { path }, { timeout: 65_000 })
-      .then((r) => r.data),
-  resolveRebaseConflict: (id: string, request: RebaseResolution): Promise<RebaseState> =>
-    api
-      .post(`/repositories/${id}/interactive-rebase/resolve`, request, gitTimeout)
-      .then((r) => r.data),
-  ignoreDirectory: (id: string, path: string) =>
-    api.post(`/repositories/${id}/ignore-directory`, { path }, gitTimeout).then((r) => r.data),
-  submodules: (id: string, action: 'update' | 'sync') =>
-    api.post(`/repositories/${id}/submodules`, { action }, gitTimeout).then((r) => r.data),
-  operation: (id: string) => api.get(`/repositories/${id}/operation`).then((r) => r.data),
-  cancel: (id: string, _operationId?: string) =>
-    api.post(`/repositories/${id}/operation/cancel`).then((r) => r.data),
-  deepen: (id: string, remote?: string) =>
-    api.post(`/repositories/${id}/history/deepen`, { remote }, gitTimeout).then((r) => r.data),
-  renameBranch: (id: string, name: string, newName: string) =>
-    api
-      .post(`/repositories/${id}/branch/rename`, { name, newName }, gitTimeout)
-      .then((r) => r.data),
-  stashShow: (id: string, index: number): Promise<{ diff: string }> =>
-    api.post(`/repositories/${id}/stash/show`, { index }).then((r) => r.data),
-  addRemote: (id: string, name: string, url: string) =>
-    api.post(`/repositories/${id}/remotes`, { name, url }).then((r) => r.data),
-  saveAuthor: (id: string, name: string, email: string) =>
-    api.post(`/repositories/${id}/author`, { name, email }).then((r) => r.data),
-  createWorktree: (id: string, path: string, branch: string): Promise<Repository> =>
-    api
-      .post(`/repositories/${id}/worktrees/create`, { path, branch }, gitTimeout)
-      .then((r) => r.data),
-  removeWorktree: (id: string, path: string): Promise<{ removedIds: string[] }> =>
-    api
-      .post(`/repositories/${id}/worktrees/remove`, { path, confirmed: true }, gitTimeout)
-      .then((r) => r.data),
-  previewWorkspaceFile: (id: string, path: string): Promise<WorkspaceFilePreview> =>
-    api.post(`/repositories/${id}/workspace-file/preview`, { path }).then((res) => res.data),
+  signingConfig: (_id: string, _signal?: AbortSignal): Promise<SigningConfig> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.signingConfig。')),
+  saveSigningConfig: (_id: string, _config: SigningConfig): Promise<SigningConfig> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.saveSigningConfig。')),
+  signatures: (_id: string, _hashes: string[], _signal?: AbortSignal): Promise<CommitSignature[]> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.signatures。')),
+  tags: (_id: string): Promise<GitTag[]> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.tags。')),
+  remoteTags: (_id: string, _remote: string): Promise<RemoteTag[]> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.remoteTags。')),
+  createTag: (_id: string, _options: CreateTagOptions): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.createTag。')),
+  deleteTag: (_id: string, _options: DeleteTagOptions): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.deleteTag。')),
+  pushTag: (_id: string, _options: PushTagOptions): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.pushTag。')),
+  checkoutTag: (_id: string, _options: CheckoutTagOptions): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.checkoutTag。')),
+  previewRebase: (_id: string, _base: string): Promise<RebasePreview> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.previewRebase。')),
+  rebaseState: (_id: string): Promise<RebaseState> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.rebaseState。')),
+  startRebase: (_id: string, _request: RebaseRequest): Promise<RebaseResult> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.startRebase。')),
+  controlRebase: (_id: string, _action: 'continue' | 'skip' | 'abort'): Promise<RebaseResult> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.controlRebase。')),
+  rebaseConflict: (_id: string, _path: string): Promise<RebaseConflict> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.rebaseConflict。')),
+  resolveRebaseConflict: (_id: string, _request: RebaseResolution): Promise<RebaseState> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.resolveRebaseConflict。')),
+  ignoreDirectory: (_id: string, _path: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.ignoreDirectory。')),
+  submodules: (_id: string, _action: 'update' | 'sync'): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.submodules。')),
+  operation: (_id: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.operation。')),
+  cancel: (_id: string, _operationId?: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.cancel。')),
+  deepen: (_id: string, _remote?: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.deepen。')),
+  renameBranch: (_id: string, _name: string, _newName: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.renameBranch。')),
+  stashShow: (_id: string, _index: number): Promise<{ diff: string }> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.stashShow。')),
+  addRemote: (_id: string, _name: string, _url: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.addRemote。')),
+  saveAuthor: (_id: string, _name: string, _email: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.saveAuthor。')),
+  createWorktree: (_id: string, _path: string, _branch: string): Promise<Repository> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.createWorktree。')),
+  removeWorktree: (_id: string, _path: string): Promise<{ removedIds: string[] }> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.removeWorktree。')),
+  previewWorkspaceFile: (_id: string, _path: string): Promise<WorkspaceFilePreview> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.previewWorkspaceFile。')),
   mutateWorkspaceFile: (
-    id: string,
-    path: string,
-    token: string,
-    action: 'delete' | 'rename',
-    name?: string,
+    _id: string,
+    _path: string,
+    _token: string,
+    _action: 'delete' | 'rename',
+    _name?: string,
   ): Promise<{ success: true; newPath?: string }> =>
-    api
-      .post(`/repositories/${id}/workspace-file`, { path, token, action, name })
-      .then((res) => res.data),
-  previewNewFileDeletion: (id: string, path: string): Promise<NewFileDeletionPreview> =>
-    api
-      .post(`/repositories/${id}/delete-new-file/preview`, { path }, { timeout: 60000 })
-      .then((r) => r.data),
-  deleteNewFile: (id: string, path: string, token: string) =>
-    api
-      .post(`/repositories/${id}/delete-new-file`, { path, token }, { timeout: 60000 })
-      .then((r) => r.data),
-  partialDiff: (id: string, request: PartialDiffRequest) =>
-    api.post(`/repositories/${id}/partial-diff`, request).then((r) => r.data),
-  stage: (id: string, files: string[]) =>
-    api.post(`/repositories/${id}/stage`, { files }, gitTimeout).then((r) => r.data),
-  unstage: (id: string, files: string[]) =>
-    api.post(`/repositories/${id}/unstage`, { files }, gitTimeout).then((r) => r.data),
-  commit: (id: string, message: string, description?: string, amend?: string) =>
-    api
-      .post(`/repositories/${id}/commit`, { message, description, amend }, gitTimeout)
-      .then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.mutateWorkspaceFile。')),
+  previewNewFileDeletion: (_id: string, _path: string): Promise<NewFileDeletionPreview> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.previewNewFileDeletion。')),
+  deleteNewFile: (_id: string, _path: string, _token: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.deleteNewFile。')),
+  partialDiff: (_id: string, _request: PartialDiffRequest): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.partialDiff。')),
+  stage: (_id: string, _files: string[]): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.stage。')),
+  unstage: (_id: string, _files: string[]): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.unstage。')),
+  commit: (_id: string, _message: string, _description?: string, _amend?: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.commit。')),
   push: (
-    id: string,
-    remote?: string,
-    branch?: string,
-    force?: boolean,
-    setUpstream?: boolean,
-    tags?: boolean,
-  ) =>
-    api
-      .post(`/repositories/${id}/push`, { remote, branch, force, setUpstream, tags }, gitTimeout)
-      .then((r) => r.data),
-  pull: (id: string, remote?: string, branch?: string) =>
-    api.post(`/repositories/${id}/pull`, { remote, branch }, gitTimeout).then((r) => r.data),
-  fetch: (id: string, remote?: string) =>
-    api.post(`/repositories/${id}/fetch`, { remote }, gitTimeout).then((r) => r.data),
-  createBranch: (id: string, name: string, checkout?: boolean) =>
-    api.post(`/repositories/${id}/branch`, { name, checkout }, gitTimeout).then((r) => r.data),
+    _id: string,
+    _remote?: string,
+    _branch?: string,
+    _force?: boolean,
+    _setUpstream?: boolean,
+    _tags?: boolean,
+  ): Promise<any> => Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.push。')),
+  pull: (_id: string, _remote?: string, _branch?: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.pull。')),
+  fetch: (_id: string, _remote?: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.fetch。')),
+  createBranch: (_id: string, _name: string, _checkout?: boolean): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.createBranch。')),
   switchBranch: (
-    id: string,
-    name: string,
-    localName?: string,
-    isRemote?: boolean,
+    _id: string,
+    _name: string,
+    _localName?: string,
+    _isRemote?: boolean,
   ): Promise<SwitchBranchResult> =>
-    api
-      .post(`/repositories/${id}/switch`, { name, localName, isRemote }, gitTimeout)
-      .then((r) => r.data),
-  deleteBranch: (id: string, name: string, force?: boolean) =>
-    api.post(`/repositories/${id}/branch/delete`, { name, force }, gitTimeout).then((r) => r.data),
-  merge: (id: string, branch: string) =>
-    api.post(`/repositories/${id}/merge`, { branch }, gitTimeout).then((r) => r.data),
-  rebase: (id: string, branch: string) =>
-    api.post(`/repositories/${id}/rebase`, { branch }, gitTimeout).then((r) => r.data),
-  stash: (id: string, message?: string, includeUntracked?: boolean) =>
-    api
-      .post(`/repositories/${id}/stash`, { message, includeUntracked }, gitTimeout)
-      .then((r) => r.data),
-  stashPop: (id: string, index?: number) =>
-    api.post(`/repositories/${id}/stash/pop`, { index }, gitTimeout).then((r) => r.data),
-  stashApply: (id: string, index?: number) =>
-    api.post(`/repositories/${id}/stash/apply`, { index }, gitTimeout).then((r) => r.data),
-  stashDrop: (id: string, index?: number) =>
-    api.post(`/repositories/${id}/stash/drop`, { index }, gitTimeout).then((r) => r.data),
-  checkout: (id: string, files: string[]) =>
-    api.post(`/repositories/${id}/checkout`, { files }, gitTimeout).then((r) => r.data),
-  previewDiscardChanges: (id: string): Promise<DiscardChangesPreview> =>
-    api
-      .post(`/repositories/${id}/discard-changes/preview`, {}, { timeout: 65_000 })
-      .then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.switchBranch。')),
+  deleteBranch: (_id: string, _name: string, _force?: boolean): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.deleteBranch。')),
+  merge: (_id: string, _branch: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.merge。')),
+  rebase: (_id: string, _branch: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.rebase。')),
+  stash: (_id: string, _message?: string, _includeUntracked?: boolean): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.stash。')),
+  stashPop: (_id: string, _index?: number): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.stashPop。')),
+  stashApply: (_id: string, _index?: number): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.stashApply。')),
+  stashDrop: (_id: string, _index?: number): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.stashDrop。')),
+  checkout: (_id: string, _files: string[]): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.checkout。')),
+  previewDiscardChanges: (_id: string): Promise<DiscardChangesPreview> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.previewDiscardChanges。')),
   discardChanges: (
-    id: string,
-    token: string,
-    scope: DiscardChangesScope,
+    _id: string,
+    _token: string,
+    _scope: DiscardChangesScope,
   ): Promise<DiscardChangesResult> =>
-    api
-      .post(`/repositories/${id}/discard-changes`, { token, scope }, gitTimeout)
-      .then((r) => r.data),
-  reset: (id: string, mode: string, commit?: string) =>
-    api.post(`/repositories/${id}/reset`, { mode, commit }, gitTimeout).then((r) => r.data),
-  cherryPick: (id: string, commits: string[]) =>
-    api.post(`/repositories/${id}/cherry-pick`, { commits }, gitTimeout).then((r) => r.data),
-  revert: (id: string, commit: string) =>
-    api.post(`/repositories/${id}/revert`, { commit }, gitTimeout).then((r) => r.data),
-  continueOperation: (id: string): Promise<ConflictStepResult> =>
-    api.post(`/repositories/${id}/conflicts/continue`, {}, gitTimeout).then((r) => r.data),
-  skipOperation: (id: string): Promise<ConflictStepResult> =>
-    api.post(`/repositories/${id}/conflicts/skip`, {}, gitTimeout).then((r) => r.data),
-  abortOperation: (id: string) =>
-    api.post(`/repositories/${id}/conflicts/abort`, {}, gitTimeout).then((r) => r.data),
-  resolveConflictFile: (id: string, file: string, side: ConflictSide) =>
-    api
-      .post(`/repositories/${id}/conflicts/resolve-file`, { file, side }, gitTimeout)
-      .then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.discardChanges。')),
+  reset: (_id: string, _mode: string, _commit?: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.reset。')),
+  cherryPick: (_id: string, _commits: string[]): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.cherryPick。')),
+  revert: (_id: string, _commit: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.revert。')),
+  continueOperation: (_id: string): Promise<ConflictStepResult> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.continueOperation。')),
+  skipOperation: (_id: string): Promise<ConflictStepResult> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.skipOperation。')),
+  abortOperation: (_id: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.abortOperation。')),
+  resolveConflictFile: (_id: string, _file: string, _side: ConflictSide): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.resolveConflictFile。')),
   resolveConflictBlock: (
-    id: string,
-    file: string,
-    index: number,
-    choice: ConflictBlockChoice,
-    expected: string,
-  ) =>
-    api
-      .post(
-        `/repositories/${id}/conflicts/resolve-block`,
-        { file, index, choice, expected },
-        gitTimeout,
-      )
-      .then((r) => r.data),
+    _id: string,
+    _file: string,
+    _index: number,
+    _choice: ConflictBlockChoice,
+    _expected: string,
+  ): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.resolveConflictBlock。')),
 };
 
 // File APIs
 export const fileApi = {
-  list: (connectionId: string, path: string) =>
-    api.get('/files/list', { params: { connectionId, path } }).then((r) => r.data),
-  read: (connectionId: string, path: string) =>
-    api.get('/files/read', { params: { connectionId, path } }).then((r) => r.data),
-  write: (connectionId: string, path: string, content: string) =>
-    api.post('/files/write', { connectionId, path, content }).then((r) => r.data),
+  list: (_connectionId: string, _path: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 fileApi.list。')),
+  read: (_connectionId: string, _path: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 fileApi.read。')),
+  write: (_connectionId: string, _path: string, _content: string): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 fileApi.write。')),
 };
 
 export const pullRequestCenterApi = {
   context: async (
-    repositoryId: string,
-    query: PullRequestQuery,
-    signal?: AbortSignal,
+    _repositoryId: string,
+    _query: PullRequestQuery,
+    _signal?: AbortSignal,
   ): Promise<{ account: PullRequestAccount | null; identityNotice?: string }> =>
-    (await api.post('/pull-request-center/context', { repositoryId, query }, { signal })).data,
-  sources: async (cursor?: string, signal?: AbortSignal): Promise<PullRequestSources> =>
-    (await api.post('/pull-request-center/sources', { cursor }, { signal })).data,
+    Promise.reject(new Error('Agent 尚未连接，无法执行 pullRequestCenterApi.context。')),
+  sources: async (_cursor?: string, _signal?: AbortSignal): Promise<PullRequestSources> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 pullRequestCenterApi.sources。')),
   list: async (
-    input: { discoveryId?: string; query?: PullRequestCenterQuery; cursor?: string },
-    signal?: AbortSignal,
+    _input: { discoveryId?: string; query?: PullRequestCenterQuery; cursor?: string },
+    _signal?: AbortSignal,
   ): Promise<PullRequestCenterPage> =>
-    (await api.post('/pull-request-center/list', input, { signal })).data,
+    Promise.reject(new Error('Agent 尚未连接，无法执行 pullRequestCenterApi.list。')),
 };

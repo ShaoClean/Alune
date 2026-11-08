@@ -1,5 +1,5 @@
 import { sshTerminalEnvironment } from '@alune/domain';
-import type { LegacyRepositoryReads } from '../ports/legacy-repository-reads';
+import type { HostRepositoryReads } from '../ports/host-repository-reads';
 import type { SnapshotRequest } from '../modules/hosts/snapshot';
 import { randomUUID } from 'node:crypto';
 import {
@@ -215,7 +215,7 @@ export function hostsKernel(
         signal,
       );
   }
-  const reads: LegacyRepositoryReads = {
+  const reads: HostRepositoryReads = {
     async remotes(repo, signal) {
       const result = await pinned(repo)('remotes', signal);
       if (

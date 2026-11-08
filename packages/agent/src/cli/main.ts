@@ -181,7 +181,6 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         agentId,
         controller.signal,
         {},
-        undefined,
         command === 'serve-remote'
           ? {
               gitProxyPort:

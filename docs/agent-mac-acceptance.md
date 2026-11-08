@@ -28,3 +28,5 @@ node scripts/agent/check-release-evidence.mjs P0_LEDGER RECEIPTS REPORT scripts/
 
 全量 P0、数据保护及两轮回归要求保持；未接线的历史条目单独审查，不以删台账消除缺口。
 当前仍处于删旧前验收；本范围变更本身不代表验收通过或已经切换。
+
+2026-11-08 的[删旧前最终检查](agent-retirement-final-check.md)记录本轮工程验证与性能复用依据；同日[分支焦点修复与完整原生回归](branch-picker-focus-regression.md)已完成非 focused 的 write/restore。完整 P0 逐项断言审查、真实 Mac 安装更新回退及实际备份演练仍未放行，未删除旧入口。

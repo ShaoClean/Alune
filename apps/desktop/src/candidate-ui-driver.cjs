@@ -33,6 +33,24 @@ module.exports = function driver(wc, wait) {
     );
     await click(textButton(value, '.ant-select-item-option'));
   };
+  // A visible modal can precede its portal's global Escape subscription. Give
+  // React effects a rendered frame, activate the actual window, and send a real
+  // key pair rather than dispatching an event into an animating/stale modal.
+  const pressKey = async (expr, keyCode) => {
+    const eventKey = keyCode === 'Return' ? 'Enter' : keyCode;
+    const window = require('electron').BrowserWindow.fromWebContents(wc);
+    await require('./smoke-window.cjs')(window);
+    await wait(wc, `(()=>{const e=(${expr});if(!e)return false;e.focus();return document.activeElement===e;})()`);
+    await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+    await wc.executeJavaScript(`(()=>{window.__candidateNativeKey=false;window.__candidateNativeKeyListener=e=>{if(e.key===${JSON.stringify(eventKey)})window.__candidateNativeKey=true};window.addEventListener('keydown',window.__candidateNativeKeyListener,true)})()`);
+    try {
+      wc.sendInputEvent({ type: 'keyDown', keyCode });
+      await wait(wc, 'window.__candidateNativeKey===true');
+    } finally {
+      wc.sendInputEvent({ type: 'keyUp', keyCode });
+      await wc.executeJavaScript("window.removeEventListener('keydown',window.__candidateNativeKeyListener,true);delete window.__candidateNativeKeyListener;delete window.__candidateNativeKey");
+    }
+  };
   const text = (label) => 'document.body.innerText.includes(' + JSON.stringify(label) + ')';
-  return { visible, element, button, textButton, click, input, select, text };
+  return { visible, element, button, textButton, click, input, select, pressKey, text };
 };

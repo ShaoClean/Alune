@@ -1,4 +1,5 @@
-// Measures the current production HTTP/Socket.IO path in disposable repositories.
+// Historical HTTP/Socket.IO comparison requires an explicitly frozen old checkout.
+// The current default runtime is the Agent (ALUNE_BASELINE_UI=1).
 // Cold means a fresh application process, NOT a flushed operating-system cache.
 const fs = require('node:fs');
 const os = require('node:os');
@@ -48,6 +49,8 @@ function readHttp(url, headers = {}) {
 }
 
 async function worker() {
+  if (sourceRoot === root || !fs.existsSync(path.join(sourceRoot, 'apps/server/dist/bootstrap.js')))
+    throw new Error('Historical baseline requires ALUNE_BASELINE_SOURCE_ROOT pointing to a built frozen checkout');
   const [repo, count, data] = process.argv.slice(3);
   process.env.ALUNE_DATA_DIR = data;
   process.env.SHELL = '/bin/sh';
@@ -56,7 +59,7 @@ async function worker() {
   const { RepositoryService } = require(
     path.join(sourceRoot, 'apps/server/dist/repository/repository.service'),
   );
-  const { io } = require('socket.io-client');
+  const { io } = require('node:module').createRequire(path.join(sourceRoot, 'package.json'))('socket.io-client');
   const token = randomUUID();
   const app = await startServer({
     port: 0,

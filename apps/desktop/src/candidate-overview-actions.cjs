@@ -10,8 +10,9 @@ module.exports = async ({ window, origin, repo, wait, pass: record }) => {
     fs.realpathSync.native(p.dirname(repo)),
     fs.realpathSync.native(process.env.ALUNE_SMOKE_DIR),
   );
-  const trend = p.join(p.dirname(repo), 'Trend fixture');
-  fs.mkdirSync(trend);
+  // Different parent paths make name and path order observably different.
+  const trend = p.join(p.dirname(repo), 'a-sort-fixture', 'Trend fixture');
+  fs.mkdirSync(trend, { recursive: true });
   const git = (dir, args, env = {}) =>
     execFileSync('git', ['-C', dir, ...args], {
       encoding: 'utf8',
@@ -74,6 +75,8 @@ module.exports = async ({ window, origin, repo, wait, pass: record }) => {
   await click(textButton('打开工作区', '.a-dlg-actions button'));
   await wait(w, button('当前分支 main，切换分支'));
   const trendURL = w.getURL();
+  await require('./candidate-repository-filters.cjs')({ window, origin, repo,
+    other: { path: trend, url: trendURL }, wait, pass: record });
   await window.loadURL(origin + '/repositories');
   await click(button('卡片视图'));
   await click(button('刷新仓库'));

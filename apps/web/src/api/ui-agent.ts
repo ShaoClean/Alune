@@ -69,7 +69,6 @@ async function webChannel(): Promise<FrameChannel> {
 }
 async function openClient(expected?: string) {
   const desktop = window.aluneAgent;
-  if (!desktop && import.meta.env.MODE !== 'agent') return;
   if (desktop) await desktop.open();
   const client = new AgentClient(frameTransport(desktop ?? (await webChannel())));
   try {
@@ -88,7 +87,6 @@ async function openClient(expected?: string) {
 
 export async function connectUiAgent(install: (client: AgentClient) => Promise<void>) {
   const initial = await openClient();
-  if (!initial) return;
   const owner = initial.initialized!.agentId;
   let unloading = false,
     connecting = false;

@@ -1,4 +1,4 @@
-import type { LegacyRepositoryReads } from '../ports/legacy-repository-reads';
+import type { HostRepositoryReads } from '../ports/host-repository-reads';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   MAX_FRAME_BYTES,
@@ -37,14 +37,14 @@ export function collaborationKernel(
   connect: (signal: AbortSignal) => Promise<RepositoryTransport>,
   aiFetch: typeof fetch,
   trace: TraceHttp,
-  legacy?: LegacyRepositoryReads,
+  hosts?: HostRepositoryReads,
 ) {
   const current = new AsyncLocalStorage<AbortSignal>();
   const ref = (id: string) => ({ agentId: catalog.agentId, resourceId: id });
   function route(id: string) {
     const repo = catalog.get(ref(id), false);
-    if (repo.source === 'ssh' && !legacy)
-      throw new ProtocolError('unavailable', 'SSH 来源未连接，请使用受控旧通道。');
+    if (repo.source === 'ssh' && !hosts)
+      throw new ProtocolError('unavailable', '远端 Agent 未连接，请重新连接对应主机。');
     return repo;
   }
   async function read<T>(
@@ -65,13 +65,13 @@ export function collaborationKernel(
     getRemotes: (id, signal) => {
       const repo = route(id);
       return repo.source === 'ssh'
-        ? legacy!.remotes(repo, signal)
+        ? hosts!.remotes(repo, signal)
         : read(id, signal, (conn, path) => new GitReads(conn).remoteList(path, signal));
     },
     pullRequestBranch: (id, branch, signal = AbortSignal.timeout(20000)) => {
       const repo = route(id);
       return repo.source === 'ssh'
-        ? legacy!.branch(repo, branch, signal)
+        ? hosts!.branch(repo, branch, signal)
         : read(id, signal, (conn, path) => pullRequestBranch(conn, path, branch, signal));
     },
   };
@@ -84,7 +84,7 @@ export function collaborationKernel(
     settings.ai,
     async (id, signal) => {
       const repo = route(id);
-      if (repo.source === 'ssh') return legacy!.openStaged(repo, signal);
+      if (repo.source === 'ssh') return hosts!.openStaged(repo, signal);
       const transport = await connect(signal);
       return {
         staged: new StagedChanges(transport, repo.path),

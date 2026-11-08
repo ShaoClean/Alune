@@ -11,7 +11,7 @@ module.exports = async ({ window, repo, wait: rawWait, pass }) => {
   const wait = async (contents, condition) => {
     try { return await rawWait(contents, condition); }
     catch (error) {
-      console.error('Branch pointer diagnostic', await ev(`JSON.stringify({active:document.activeElement?.outerHTML,focused:document.hasFocus(),trace:window.__branchPointerTrace})`));
+      console.error('Branch pointer diagnostic', await ev(`JSON.stringify({active:document.activeElement?.tagName,activeLabel:document.activeElement?.getAttribute('aria-label'),focused:document.hasFocus(),trigger:document.querySelector('.branch-pill')?.outerHTML,feedback:document.querySelector('.feedback-dialog[open]')?.innerText,trace:window.__branchPointerTrace})`));
       throw error;
     }
   };
@@ -43,13 +43,15 @@ module.exports = async ({ window, repo, wait: rawWait, pass }) => {
   const field = element('input[placeholder="feature/my-change"]');
   const primary = textButton('创建并切换', '.a-dlg-actions button');
   const open = async () => {
-    await click(pill());
+    // Exercise a real toolbar pointer click before asserting focus transfer;
+    // HTMLElement.click() skips the trigger's native focus/default behavior.
+    await pointer(pill());
     await wait(wc, search);
     await wait(wc, 'document.activeElement===(' + search + ')');
     await wait(wc, '!(' + element('.branch-picker [role=status]') + ')');
   };
   const pointer = async (expr) => {
-    await ev(`(()=>{window.__branchPointerTrace=[];for(const type of ['mousedown','mouseup','click','focusin'])document.addEventListener(type,e=>{window.__branchPointerTrace.push({type,prevented:e.defaultPrevented,target:e.target?.getAttribute('aria-label'),active:document.activeElement?.getAttribute('aria-label')})},{once:true})})()`);
+    await ev(`(()=>{window.__branchPointerCleanup?.();window.__branchPointerTrace=[];const trace=window.__branchPointerTrace,push=(entry)=>{if(trace.length<100)trace.push({time:performance.now(),...entry})};const listener=e=>push({type:e.type,prevented:e.defaultPrevented,target:e.target?.getAttribute('aria-label'),active:document.activeElement?.getAttribute('aria-label'),feedback:document.querySelector('.feedback-dialog[open]')?.innerText});const types=['mousedown','mouseup','click','focusin','focusout'];for(const type of types)document.addEventListener(type,listener);let previous;const observer=new MutationObserver(()=>{const dialog=document.querySelector('.feedback-dialog'),state=JSON.stringify({open:dialog?.open,text:dialog?.innerText});if(state!==previous){previous=state;push({type:'feedback',state:JSON.parse(state)})}});observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open']});window.__branchPointerCleanup=()=>{for(const type of types)document.removeEventListener(type,listener);observer.disconnect()}})()`);
     const point = await ev(
       'new Promise((resolve,reject)=>{let previous,stable=0;const end=Date.now()+5000;function frame(){const node=(' +
         expr +
@@ -110,6 +112,7 @@ module.exports = async ({ window, repo, wait: rawWait, pass }) => {
   await pass(
     ['UI-005', 'UI-042', 'UI-072'],
     'native pointer chooses a filtered branch, switches real Git back and returns focus to its toolbar trigger without altering index or working bytes',
+    { focusTrace: await ev('window.__branchPointerTrace') },
   );
 
   await open();

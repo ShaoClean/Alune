@@ -1,5 +1,5 @@
 // Exercise two real PTYs through the mounted terminal. No OS clipboard,
-// external command target, or Electron window focus change is needed.
+// external command target is used. Escape activates the isolated smoke window.
 const fs = require('node:fs'),
   path = require('node:path'),
   assert = require('node:assert/strict');
@@ -8,6 +8,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   const marker = 'PTY_CONTENT_' + require('node:crypto').randomUUID();
   fs.writeFileSync(file, marker + '\n');
   const ev = (s) => wc.executeJavaScript(s);
+  const { pressKey } = require('./candidate-ui-driver.cjs')(wc, wait);
   const tab = '.terminal-tab [role=tab]',
     active = '.terminal-tab.is-active [role=tab]';
   const running = () =>
@@ -173,7 +174,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   );
   await click(button('全部终端会话'));
   await wait(wc, "document.querySelectorAll('.terminal-all-sessions li').length===2");
-  await key(element('.terminal-all-sessions button'), 'Escape', 'Escape', 27);
+  await pressKey(element('.terminal-all-sessions button'), 'Escape');
   await wait(
     wc,
     "![...document.querySelectorAll('.terminal-all-sessions')].some(e=>e.getClientRects().length)",
@@ -197,7 +198,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
       primary('关闭会话') +
       ')',
   );
-  await key(element('.terminal-all-sessions button'), 'Escape', 'Escape', 27);
+  await pressKey(element('.terminal-all-sessions button'), 'Escape');
   await wait(
     wc,
     "![...document.querySelectorAll('.terminal-all-sessions')].some(e=>e.getClientRects().length)",
@@ -233,7 +234,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
       `document.querySelectorAll('.terminal-all-sessions li').length===${count - 1}&&!(${primary('关闭会话')})`,
     );
   }
-  await key(element('.a-dlg-shell'), 'Escape', 'Escape', 27);
+  await pressKey(element('.a-dlg-shell [aria-label="关闭"]'), 'Escape');
   await wait(
     wc,
     "![...document.querySelectorAll('.terminal-all-sessions')].some(e=>e.getClientRects().length)",

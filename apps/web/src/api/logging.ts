@@ -1,23 +1,19 @@
 import { ProtocolError } from '@alune/protocol';
-import axios from 'axios';
 import type { LogEntry, LogLevel, LoggingSettings, SaveLoggingSettings } from '@alune/protocol';
 
-const api = axios.create({ baseURL: '/api/logs', timeout: 15_000 });
-
 export const loggingApi = {
-  settings: (): Promise<LoggingSettings> => api.get('/settings').then((response) => response.data),
-  save: (input: SaveLoggingSettings): Promise<LoggingSettings> =>
-    api.put('/settings', input).then((response) => response.data),
-  recent: (limit: number): Promise<LogEntry[]> =>
-    api.get('/recent', { params: { limit } }).then((response) => response.data),
-  report: (level: LogLevel, message: string, context?: Record<string, unknown>) =>
-    api.post('/client', { level, message, context }).then(() => undefined),
+  settings: (): Promise<LoggingSettings> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 loggingApi.settings。')),
+  save: (_input: SaveLoggingSettings): Promise<LoggingSettings> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 loggingApi.save。')),
+  recent: (_limit: number): Promise<LogEntry[]> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 loggingApi.recent。')),
+  report: (_level: LogLevel, _message: string, _context?: Record<string, unknown>): Promise<any> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 loggingApi.report。')),
 };
 
 export function loggingError(error: unknown, fallback: string) {
-  if(error instanceof ProtocolError)return error.message;
-  if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string')
-    return error.response.data.message as string;
+  if (error instanceof ProtocolError) return error.message;
   return fallback;
 }
 

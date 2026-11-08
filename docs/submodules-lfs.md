@@ -18,6 +18,6 @@ LFS 检测、缓存与安装状态均对应**仓库所在主机**。文件预览
 
 ## 开发测试
 
-`packages/ssh-client/tests/submodules-lfs.test.cjs` 使用临时 Git 仓库及回环 SSH/SFTP 服务，覆盖两种来源的嵌套子模块初始化、同步、打开路径、脏工作区保护，以及缺失 git-lfs、损坏缓存、历史图片和普通文件操作。
+`packages/agent/tests/git-submodules-lfs.test.cjs` 使用临时 Git 仓库及回环 SSH/SFTP 服务，覆盖两种来源的嵌套子模块初始化、同步、打开路径、脏工作区保护，以及缺失 git-lfs、损坏缓存、历史图片和普通文件操作。
 
 当 PATH 中有 `git-lfs` 时，另运行真实 LFS 提交、推送到临时裸仓库、克隆、拉取与图片读取测试；没有安装时仅跳过这些明确标记的测试。测试不使用用户的远程仓库或凭据。

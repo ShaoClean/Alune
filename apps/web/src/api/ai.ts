@@ -1,5 +1,4 @@
 import { ProtocolError } from '@alune/protocol';
-import axios from 'axios';
 import type {
   AiSettings,
   PullRequestCreationQuery,
@@ -9,46 +8,32 @@ import type {
   TestAiProvider,
 } from '@alune/protocol';
 
-const api = axios.create({ baseURL: '/api/ai', timeout: 65_000 });
 export const aiApi = {
-  settings: (): Promise<AiSettings> => api.get('/settings').then((r) => r.data),
+  settings: (): Promise<AiSettings> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 aiApi.settings。')),
   saveProvider: (
-    id: string | undefined,
-    provider: SaveAiProvider,
-    revision: string,
+    _id: string | undefined,
+    _provider: SaveAiProvider,
+    _revision: string,
   ): Promise<AiSettings> =>
-    (id
-      ? api.put(`/providers/${encodeURIComponent(id)}`, { provider, revision })
-      : api.post('/providers', { provider, revision })
-    ).then((r) => r.data),
-  saveCommit: (commit: CommitGenerationPreferences, revision: string): Promise<AiSettings> =>
-    api.put('/commit-settings', { commit, revision }).then((r) => r.data),
-  models: (id: string, revision: string, signal: AbortSignal): Promise<AiSettings> =>
-    api
-      .post(`/providers/${encodeURIComponent(id)}/models`, { revision }, { signal })
-      .then((r) => r.data),
-  test: (id: string, input: TestAiProvider, signal: AbortSignal): Promise<{ message: string }> =>
-    api.post(`/providers/${encodeURIComponent(id)}/test`, input, { signal }).then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 aiApi.saveProvider。')),
+  saveCommit: (_commit: CommitGenerationPreferences, _revision: string): Promise<AiSettings> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 aiApi.saveCommit。')),
+  models: (_id: string, _revision: string, _signal: AbortSignal): Promise<AiSettings> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 aiApi.models。')),
+  test: (_id: string, _input: TestAiProvider, _signal: AbortSignal): Promise<{ message: string }> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 aiApi.test。')),
   generatePullRequest: (
-    repoId: string,
-    query: PullRequestCreationQuery & { configRevision: string; revision: string },
-    signal: AbortSignal,
+    _repoId: string,
+    _query: PullRequestCreationQuery & { configRevision: string; revision: string },
+    _signal: AbortSignal,
   ): Promise<{ title: string; description: string; truncated: boolean }> =>
-    api
-      .post(`/repositories/${encodeURIComponent(repoId)}/pull-request`, query, { signal })
-      .then((r) => r.data),
-  generate: (repoId: string, revision: string, signal: AbortSignal): Promise<GeneratedCommit> =>
-    api
-      .post(`/repositories/${encodeURIComponent(repoId)}/generate`, { revision }, { signal })
-      .then((r) => r.data),
+    Promise.reject(new Error('Agent 尚未连接，无法执行 aiApi.generatePullRequest。')),
+  generate: (_repoId: string, _revision: string, _signal: AbortSignal): Promise<GeneratedCommit> =>
+    Promise.reject(new Error('Agent 尚未连接，无法执行 aiApi.generate。')),
 };
 
 export function aiError(error: unknown): string {
   if (error instanceof ProtocolError) return error.message;
-  if (axios.isAxiosError(error)) {
-    if (error.code === 'ECONNABORTED') return 'AI 请求超时，草稿已保留，请重试。';
-    const message = error.response?.data?.message;
-    if (typeof message === 'string') return message;
-  }
   return '无法完成 AI 操作，请检查本地服务或网络后重试。';
 }

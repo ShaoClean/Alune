@@ -22,7 +22,6 @@ test('Web development requires a local invitation and rejects other origins; a r
   };
   const server = await createServer({
     root,
-    mode: 'agent',
     customLogger: {
       info: log,
       warn: log,
@@ -34,10 +33,14 @@ test('Web development requires a local invitation and rejects other origins; a r
         return false;
       },
     },
-    server: { host: '127.0.0.1', port: 0 },
+    server: { port: 0 },
   });
   const clients = [];
   try {
+    assert.equal(server.config.mode, 'development');
+    assert.equal(server.config.server.host, '127.0.0.1');
+    assert.equal(server.config.server.cors, false);
+    assert.equal(server.config.server.proxy, undefined);
     await server.listen();
     const port = server.httpServer.address().port,
       origin = 'http://127.0.0.1:' + port;
@@ -90,6 +93,7 @@ test('Web development requires a local invitation and rejects other origins; a r
       (await b.readRepository(r.resource, 'status', {})).files.some((f) => f.path === 'proof.txt'),
     );
     const logs = await open('logs');
+    assert.ok(Array.isArray(await logs.recentLogs(10)));
     await assert.rejects(logs.registerRepository(repo), (e) => e.kind === 'unknown-method');
   } finally {
     for (const c of clients) c.close();

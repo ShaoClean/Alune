@@ -10,29 +10,28 @@ const requestedFocus = process.argv[2] === '--focus' ? process.argv[3] : undefin
 if (
   process.argv.length > 2 &&
   (process.argv.length !== 4 ||
-    !['conflicts', 'reviews', 'settings', 'terminals', 'web', 'files', 'branches'].includes(requestedFocus))
+    !['conflicts', 'reviews', 'settings', 'terminals', 'web', 'files', 'branches', 'file-retries', 'updates', 'repositories'].includes(requestedFocus))
 )
-  throw new Error('Usage: smoke.mjs [--focus conflicts|reviews|settings|terminals|web|files]');
+  throw new Error('Usage: smoke.mjs [--focus conflicts|reviews|settings|terminals|web|files|branches|file-retries|updates|repositories]');
 const dataDir = await mkdtemp(path.join(tmpdir(), 'alune-smoke-'));
 const executable = process.env.ALUNE_TEST_EXECUTABLE || require('electron');
 const args = process.env.ALUNE_TEST_EXECUTABLE ? [] : ['dist/app'];
 const env = { ...process.env, ALUNE_SMOKE_DIR: dataDir };
+delete env.ALUNE_DESKTOP_EXECUTOR;
 if (requestedFocus) {
-  env.ALUNE_DESKTOP_EXECUTOR = 'agent';
   env.ALUNE_CANDIDATE_FOCUS = requestedFocus;
 } else delete env.ALUNE_CANDIDATE_FOCUS;
 delete env.ELECTRON_RUN_AS_NODE;
 let peer, directories, webFixture;
 try {
-  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent')
-    env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
-      (await import('./candidate-fixture.mjs')).legacyFixture(dataDir),
-    );
-  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && (!requestedFocus || requestedFocus === 'reviews')) {
+  env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
+    (await import('./candidate-fixture.mjs')).legacyFixture(dataDir),
+  );
+  if (!requestedFocus || requestedFocus === 'reviews') {
     peer = await (await import('./candidate-review-fixture.mjs')).reviewFixture(dataDir);
     Object.assign(env, peer.env);
   }
-  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && !requestedFocus) {
+  if (!requestedFocus) {
     directories = await (
       await import('./directory-access-fixture.mjs')
     ).directoryAccessFixture(dataDir);
@@ -43,7 +42,7 @@ try {
     env.GIT_CONFIG_NOSYSTEM = '1';
     if (process.platform !== 'win32') env.SHELL = '/bin/sh';
   }
-  if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && (!requestedFocus || requestedFocus === 'web')) {
+  if (!requestedFocus || requestedFocus === 'web') {
     webFixture = await (await import('./candidate-web-fixture.mjs')).candidateWebFixture(dataDir);
     Object.assign(env, webFixture.env);
   }
@@ -59,7 +58,7 @@ try {
       },
       // Candidate replay now includes real multi-page Git history and over 100
       // asserted UI transitions. Keep the per-action waits unchanged.
-      env.ALUNE_DESKTOP_EXECUTOR === 'agent' ? 600000 : 150000,
+      600000,
     );
     const code = await new Promise((resolve, reject) => {
       child.once('error', reject);
@@ -67,7 +66,7 @@ try {
     }).finally(() => clearTimeout(timeout));
     process.exitCode = code;
     if (code !== 0) break;
-    if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && env.ALUNE_CANDIDATE_EVIDENCE) {
+    if (env.ALUNE_CANDIDATE_EVIDENCE) {
       const complete = JSON.parse(readFileSync(path.join(env.ALUNE_CANDIDATE_EVIDENCE,
         'complete-' + phase + '.json'), 'utf8'));
       if (complete.result !== 'passed' || complete.phase !== phase ||

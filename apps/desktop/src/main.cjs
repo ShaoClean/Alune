@@ -12,10 +12,9 @@ const {
 const { randomBytes } = require('node:crypto');
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const path = require('node:path');
-const candidate = process.env.ALUNE_DESKTOP_EXECUTOR === 'agent';
 let registry;
 const preferencesFile = () =>
-  path.join(app.getPath('userData'), ...(candidate ? ['agent'] : []), 'workspace.json');
+  path.join(app.getPath('userData'), 'agent', 'workspace.json');
 const {
   createWorkspacePreferences,
   isTrustedWorkspaceSender,
@@ -32,7 +31,7 @@ if (smokeTest) {
     throw new Error('Smoke tests require an isolated data directory');
   if (process.env.CI === 'true') app.disableHardwareAcceleration();
   app.setPath('userData', process.env.ALUNE_SMOKE_DIR);
-} else if (candidate && process.env.ALUNE_CANDIDATE_DATA_DIR) {
+} else if (process.env.ALUNE_CANDIDATE_DATA_DIR) {
   const dir = process.env.ALUNE_CANDIDATE_DATA_DIR;
   if (!path.isAbsolute(dir)) throw new Error('候选工作区必须指定绝对数据目录。');
   mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -47,12 +46,11 @@ if (smokeTest) {
 } else {
   app.setPath('userData', path.join(app.getPath('appData'), 'Alune'));
 }
-// The embedded server and this process share one log store rooted here.
+// The independent Agent owns application state and logging.
 process.env.ALUNE_DATA_DIR = app.getPath('userData');
 
 // Loaded lazily: the second instance quits before writing anything.
 function appLog() {
-  if (!candidate) return require('./legacy-backend.cjs').appLog();
   const logger = Object.fromEntries(
     ['debug', 'info', 'warn', 'error'].map((level) => [
       level,
@@ -94,11 +92,8 @@ const iconPath = path.join(
 const logWindow = createLogWindow({
   BrowserWindow,
   getOrigin: () => origin,
-  candidate,
   iconPath,
-  openExternal: smokeTest
-    ? (url) => (candidate ? async () => {} : require('./smoke.cjs').openExternal)(url)
-    : (url) => shell.openExternal(url),
+  openExternal: smokeTest ? async () => {} : (url) => shell.openExternal(url),
   show: !smokeTest,
 });
 
@@ -124,7 +119,7 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       partition: 'alune-desktop',
-      additionalArguments: candidate ? ['--alune-agent-ui'] : [],
+      additionalArguments: ['--alune-agent-ui'],
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -136,11 +131,7 @@ function createWindow() {
   });
   window.webContents.setWindowOpenHandler(
     createExternalLinkHandler(
-      smokeTest
-        ? candidate
-          ? async () => {}
-          : require('./smoke.cjs').openExternal
-        : (url) => shell.openExternal(url),
+      smokeTest ? async () => {} : (url) => shell.openExternal(url),
     ),
   );
   const guardNavigation = (event, url) => {
@@ -155,7 +146,7 @@ function createWindow() {
   });
   let closeApproved = false;
   window.on('close', (event) => {
-    if (!quitting && !closeApproved && (candidate || registry?.impact({}).length)) {
+    if (!quitting && !closeApproved) {
       event.preventDefault();
       if (!terminalClosePending) {
         terminalClosePending = true;
@@ -203,11 +194,8 @@ async function start() {
     windowContents: () => window?.webContents,
     logContents: () => logWindow.contents(),
   };
-  if (!candidate) require('./legacy-backend.cjs').registerSecret(token);
-  const service = candidate
-    ? await require('./desktop-agent.cjs').startDesktopAgent(options)
-    : await require('./legacy-backend.cjs').startLegacyBackend(options);
-  backend = service.backend ?? service;
+  const service = await require('./desktop-agent.cjs').startDesktopAgent(options);
+  backend = service;
   origin = service.origin;
   registry = service.registry;
   const networkProxy = service.networkProxy;
@@ -448,7 +436,7 @@ async function start() {
     timer.unref();
     app.once('before-quit', () => clearTimeout(timer));
   }
-  if (smokeTest && candidate) {
+  if (smokeTest) {
     await require('./candidate-smoke.cjs')({ window, origin, logWindow, backend, updates });
     if (process.env.ALUNE_CANDIDATE_EVIDENCE) {
       mkdirSync(process.env.ALUNE_CANDIDATE_EVIDENCE, { recursive: true });
@@ -460,11 +448,6 @@ async function start() {
           result: 'passed',
         }) + '\n');
     }
-    app.quit();
-  } else if (smokeTest) {
-    await require(
-      process.env.ALUNE_TERMINAL_SMOKE === '1' ? './terminal-smoke.cjs' : './smoke.cjs',
-    )({ window, origin, token, updates, closeBackend, backend, version: app.getVersion() });
     app.quit();
   }
 }
@@ -533,10 +516,8 @@ function closeBackend(confirmed = false) {
 }
 
 async function openLogDirectory() {
-  const { logStore, logger } = appLog();
-  const directory = candidate
-    ? (await backend.client.getLoggingSettings()).settings.directory
-    : logStore().settings().directory;
+  const { logger } = appLog();
+  const directory = (await backend.client.getLoggingSettings()).settings.directory;
   if (smokeTest) return directory;
   const error = await shell.openPath(directory);
   if (error) {
@@ -547,7 +528,7 @@ async function openLogDirectory() {
 }
 
 async function confirmTerminalShutdown() {
-  if (candidate && backend?.client) {
+  if (backend?.client) {
     const tasks = await backend.client.request('desktop.tasks.impact', {});
     if (tasks.length) {
       const result = await dialog.showMessageBox({

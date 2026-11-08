@@ -16,6 +16,7 @@ import { useBranchSwitch } from '../hooks/useBranchSwitch';
 import { ToolbarButton } from '@alune/ui';
 import { NewBranchDialog } from './BranchesView';
 import { moveActiveIndex } from './branch-picker-navigation';
+import { restoreBranchTriggerFocus } from './branch-picker-focus';
 
 const LISTBOX_ID = 'branch-picker-listbox';
 const optionId = (index: number) => `branch-picker-option-${index}`;
@@ -61,16 +62,13 @@ export function BranchPicker({
   const search = useRef<InputRef>(null);
   const mounted = useRef(true);
 
-  // The status refresh may temporarily disable the trigger. Restore focus after
-  // React commits its enabled state and the closing popover releases the input.
+  // The status refresh can disable the trigger, and a native progress dialog
+  // can keep it inert after the popover closes. Finish only after focus lands.
   useLayoutEffect(() => {
-    if (!restoreTrigger.current || open || disabled) return;
-    const frame = requestAnimationFrame(() => {
-      if (!trigger.current || trigger.current.disabled) return;
+    if (!restoreTrigger.current || open || disabled || !trigger.current) return;
+    return restoreBranchTriggerFocus(trigger.current, () => {
       restoreTrigger.current = false;
-      trigger.current.focus({ preventScroll: true });
     });
-    return () => cancelAnimationFrame(frame);
   }, [open, disabled, branch]);
 
   useEffect(() => {

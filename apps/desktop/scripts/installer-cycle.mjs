@@ -76,7 +76,6 @@ async function boot(exe, phase, fixture) {
       ...process.env,
       ALUNE_SMOKE_DIR: data,
       ALUNE_SMOKE_PHASE: phase,
-      ALUNE_DESKTOP_EXECUTOR: fixture ? 'agent' : 'legacy',
       ...(fixture ? { ALUNE_CANDIDATE_FIXTURE: JSON.stringify(fixture) } : {}),
     },
   });

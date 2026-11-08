@@ -79,6 +79,11 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
     }
   } else {
     if (phase === 'write') {
+      if (process.env.ALUNE_CANDIDATE_FOCUS === 'updates') {
+        await require('./candidate-update-actions.cjs')({ window, origin, updates, wait, measure });
+        console.log('Candidate focused update UI passed with smoke adapter; no native installation tested.');
+        return;
+      }
       await require('./candidate-workbench.cjs')({ window, origin, id, repo, wait });
       if (process.env.ALUNE_CANDIDATE_FOCUS) {
         console.log('Candidate focused acceptance passed; full write/restore was not executed.');
@@ -142,6 +147,8 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
       ),
     );
   }
+  if (!fromRelease && phase === 'write')
+    await require('./candidate-update-actions.cjs')({ window, origin, updates, wait, measure });
   console.log(
     'Candidate ' +
       phase +
