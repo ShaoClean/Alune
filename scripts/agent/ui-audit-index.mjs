@@ -40,6 +40,13 @@ for (const [file, ids] of files) {
 // name or line alone. These mappings do not constitute execution receipts.
 const successors = {};
 for (const [id, oldKey, newKey] of [
+  // Layout-generated scrolls during restoration do not replace the saved
+  // reading position. User scrolling keeps the original cache update action.
+  [
+    'ui-handler:apps/web/src/components/CodeView.tsx:div.onScroll:100',
+    'ad7323a1a364789a6e29c08e',
+    'a75e811c0ebf5cd2e01d206b',
+  ],
   // A pending remote read can enable an explicit choice; selecting it freezes
   // the loaded object instead of letting later refreshes replace the proof.
   [

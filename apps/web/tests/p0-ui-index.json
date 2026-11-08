@@ -3014,6 +3014,9 @@
     ]
   },
   "successors": {
+    "a75e811c0ebf5cd2e01d206b": [
+      "ui-handler:apps/web/src/components/CodeView.tsx:div.onScroll:100"
+    ],
     "527b9bebaefeab62dcf56332": [
       "ui-handler:apps/web/src/components/TagsView.tsx:input.onChange:320"
     ],
