@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "id": "mac-arm64-local-2026-11-08",
+  "requiredTargets": ["darwin-arm64"],
+  "localProofs": true,
+  "decision": "User authorized macOS local acceptance on 2026-11-08; other platforms are deferred and are not claimed as passed. Functional, migration, performance and both retirement stages remain required."
+}

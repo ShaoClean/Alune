@@ -23,7 +23,7 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
       scenario,
       ...(facts === undefined ? {} : { facts }),
       executed,
-      sha: process.env.GITHUB_SHA ?? null,
+      sha: process.env.ALUNE_ACCEPTANCE_SHA ?? process.env.GITHUB_SHA ?? null,
       proof: process.env.GITHUB_RUN_ID
         ? 'https://github.com/' +
           process.env.GITHUB_REPOSITORY +

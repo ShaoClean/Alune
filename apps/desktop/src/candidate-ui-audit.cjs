@@ -26,7 +26,7 @@ async function measure(contents, ui, scenario, run) {
     fs.appendFileSync(
       file,
       JSON.stringify({
-        sha: process.env.GITHUB_SHA ?? null,
+        sha: process.env.ALUNE_ACCEPTANCE_SHA ?? process.env.GITHUB_SHA ?? null,
         proof: process.env.GITHUB_RUN_ID
           ? 'https://github.com/' +
             process.env.GITHUB_REPOSITORY +

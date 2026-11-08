@@ -365,6 +365,16 @@ module.exports = async ({
     if (await ev('Boolean(' + close + ')')) await click(close);
   }
   await showFilters();
+  // Keep the account restriction in the URL and verify the exact controlled MR
+  // survives both selecting and clearing the fixture identity.
+  const accountLabel = new URL(url).host + ' / @fixture';
+  await select('筛选账号', accountLabel);
+  await wait(w, "Boolean(new URLSearchParams(location.search).get('account'))");
+  await wait(w, centerRow);
+  await select('筛选账号', '全部账号');
+  await wait(w, "!new URLSearchParams(location.search).has('account')");
+  await wait(w, centerRow);
+  await record(['UI-069'], 'center account filter selects the controlled identity, retains its exact MR, and clears the URL restriction without losing the MR');
   await select('筛选平台', 'GitHub');
   await wait(
     w,

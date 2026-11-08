@@ -4,9 +4,11 @@
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-const [ledgerFile, evidenceFile, out] = process.argv.slice(2);
+import { readPolicy, supportedTargets, validProof } from './acceptance-policy.mjs';
+const [ledgerFile, evidenceFile, out, policyFile] = process.argv.slice(2);
+const policy = readPolicy(policyFile);
 if (!ledgerFile || !evidenceFile)
-  throw Error('Usage: check-release-evidence.mjs P0_LEDGER RECEIPTS [REPORT]');
+  throw Error('Usage: check-release-evidence.mjs P0_LEDGER RECEIPTS [REPORT] [POLICY]');
 const ledger = JSON.parse(fs.readFileSync(ledgerFile, 'utf8')),
   evidence = JSON.parse(fs.readFileSync(evidenceFile, 'utf8'));
 if (
@@ -17,6 +19,8 @@ if (
   evidence.baseline !== ledger.sha
 )
   throw Error('Invalid evidence header or P0 baseline');
+if (policyFile && evidence.policy !== policy.id)
+  throw Error('Evidence must declare the selected acceptance policy');
 const ids = new Map(ledger.entries.map((row) => [row.id, row]));
 if (ids.size !== ledger.entries.length) throw Error('Duplicate P0 identity');
 // A shortened export of the ledger must not be able to produce a green gate.
@@ -33,7 +37,8 @@ const covered = new Set(),
   gates = new Set(),
   platformGates = new Set(),
   nonPassing = [];
-const supported = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'win32-x64'];
+const supported = supportedTargets;
+const requiredTargets = policy.requiredTargets;
 const required = [
   'protocol-compat',
   'local-remote-parity',
@@ -51,7 +56,7 @@ for (const receipt of evidence.runs) {
     typeof receipt.assertion !== 'string' ||
     !receipt.assertion.trim() ||
     !Array.isArray(receipt.entries) ||
-    !/^https:\/\/(?:github\.com|raw\.githubusercontent\.com)\//.test(receipt.proof)
+    !validProof(receipt.proof, evidenceFile, policy)
   )
     throw Error('Incomplete execution receipt: ' + receipt.scenario);
   for (const id of receipt.entries) if (!ids.has(id)) throw Error('Unknown P0 ID: ' + id);
@@ -67,14 +72,17 @@ for (const receipt of evidence.runs) {
 }
 const missing = ledger.entries.filter((row) => !covered.has(row.id));
 const report = {
+  policy: policy.id,
+  requiredTargets,
+  deferredTargets: supported.filter((target) => !requiredTargets.includes(target)),
   stage: evidence.stage,
   sha: evidence.sha,
   total: ids.size,
   passed: covered.size,
-  missingPlatforms: supported.filter((p) => !platforms.has(p)),
+  missingPlatforms: requiredTargets.filter((p) => !platforms.has(p)),
   missingGates: [
     ...required.filter((g) => !gates.has(g)),
-    ...supported.flatMap((p) =>
+    ...requiredTargets.flatMap((p) =>
       perPlatform.filter((g) => !platformGates.has(p + ':' + g)).map((g) => p + ':' + g),
     ),
   ],
