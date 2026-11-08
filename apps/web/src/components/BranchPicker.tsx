@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useFeedbackMessage, ToolbarCount } from '@alune/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InputRef } from 'antd';
 import { Input, MoonLoader, Popover } from '@alune/ui';
 import {
@@ -46,11 +46,12 @@ export function BranchPicker({
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [creatingBranch, setCreatingBranch] = useState<string | null>(null);
+  const restoreTrigger = useRef(false);
   const { switching: switchingBranch, switchBranch: switchTo } = useBranchSwitch(repoId, () => {
     if (!mounted.current) return;
     setOpen(false);
     setQuery('');
-    trigger.current?.focus();
+    restoreTrigger.current = true;
     onSwitched();
   });
   const switching = switchingBranch ?? creatingBranch;
@@ -59,6 +60,18 @@ export function BranchPicker({
   const trigger = useRef<HTMLButtonElement>(null);
   const search = useRef<InputRef>(null);
   const mounted = useRef(true);
+
+  // The status refresh may temporarily disable the trigger. Restore focus after
+  // React commits its enabled state and the closing popover releases the input.
+  useLayoutEffect(() => {
+    if (!restoreTrigger.current || open || disabled) return;
+    const frame = requestAnimationFrame(() => {
+      if (!trigger.current || trigger.current.disabled) return;
+      restoreTrigger.current = false;
+      trigger.current.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open, disabled, branch]);
 
   useEffect(() => {
     mounted.current = true;
