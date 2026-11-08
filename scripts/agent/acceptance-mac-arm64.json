@@ -3,5 +3,5 @@
   "id": "mac-arm64-local-2026-11-08",
   "requiredTargets": ["darwin-arm64"],
   "localProofs": true,
-  "decision": "User authorized macOS local acceptance on 2026-11-08; other platforms are deferred and are not claimed as passed. Functional, migration, performance and both retirement stages remain required."
+  "decision": "User reconfirmed that only acceptance on the current local macOS arm64 machine is required. GitHub Actions and all other platforms are outside this acceptance scope and must not block it; no other platform is claimed as passed. Functional, migration, recovery, performance and both retirement stages remain required on this Mac."
 }

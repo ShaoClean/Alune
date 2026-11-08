@@ -1,8 +1,8 @@
 # Mac 本地验收与旧架构退役
 
-2026-11-08 用户确认本轮仅要求当前 Mac（macOS arm64）验收通过。
-Windows x64、Linux x64、macOS x64 的验证延期，不标为通过；保留平台实现和构建配置。
-GitHub Actions 不再是本轮前置条件。本决定替代 Wiki 中原先“四平台齐全才切换”的本轮要求。
+用户再次确认：后续仅以当前本地 Mac（macOS arm64）验收通过作为平台放行条件。
+Windows x64、Linux x64、macOS x64 不在本次验收范围内，不要求补测、不作为阻塞，也不标为通过；保留既有平台实现和构建配置。
+GitHub Actions 当前不可正常运行，不再等待其恢复或以其结果作为本次放行条件。本决定覆盖此前“四平台齐全”及“其他平台延期后仍需补齐”的本次要求。
 
 ## 放行范围
 
@@ -12,7 +12,7 @@ GitHub Actions 不再是本轮前置条件。本决定替代 Wiki 中原先“�
 node scripts/agent/check-release-evidence.mjs P0_LEDGER RECEIPTS REPORT scripts/agent/acceptance-mac-arm64.json
 ```
 
-回执顶层必须声明 `policy: "mac-arm64-local-2026-11-08"`。原有未指定策略的调用仍要求四平台。
+后续验收必须显式指定上述本地策略；回执顶层声明 `policy: "mac-arm64-local-2026-11-08"`。未指定策略的通用工具仍保留原四平台默认值，但不用于本次放行。
 本地证据使用 `{ "path": "relative/run.log", "sha256": "文件的 SHA256" }`，文件须在回执目录内；
 门槛核对真实文件字节，拒绝缺失、篡改及指向目录外的链接。
 日志只记录测试夹具和断言，不归档用户凭据。保留实际源码 SHA，不把旧执行改标为新执行。
@@ -27,6 +27,8 @@ node scripts/agent/check-release-evidence.mjs P0_LEDGER RECEIPTS REPORT scripts/
 6. 从干净源码重建，执行删旧后的第二轮完整 Mac 回归并独立归档，再更新交付状态。
 
 全量 P0、数据保护及两轮回归要求保持；未接线的历史条目单独审查，不以删台账消除缺口。
-当前仍处于删旧前验收；本范围变更本身不代表验收通过或已经切换。
+当前源码已完成默认切换和旧实现退役；删旧后 Mac 干净构建、184 个工作区场景及 write/restore 的实际证据保留在 `c81cbdf`，不因本次范围说明更新而重标源码。
 
-2026-11-08 的[删旧前最终检查](agent-retirement-final-check.md)记录本轮工程验证与性能复用依据；同日[分支焦点修复与完整原生回归](branch-picker-focus-regression.md)已完成非 focused 的 write/restore。完整 P0 逐项断言审查、真实 Mac 安装更新回退及实际备份演练仍未放行，未删除旧入口。
+剩余 Mac 功能逐项对账、完整安装升级/凭据迁移恢复、更新回退和性能验收继续在本地完成，不要求 CI 回执或其它平台结果。现有 hosted-only 脚本不能伪造环境直接运行；需要本地入口时先建立隔离应用、数据和测试凭据的安全演练，不使用日常数据。范围变更不等于这些项目已经通过。
+
+最新执行状态见 [Wiki 删旧后 Mac 验收](https://github.com/ShaoClean/Alune/wiki/Issue-258-Post-Retirement-Mac)。此前[删旧前检查](agent-retirement-final-check.md)及[焦点修复记录](branch-picker-focus-regression.md)保留其历史时间、源码和范围，不作为当前仍未删旧的状态。
