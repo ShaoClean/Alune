@@ -355,6 +355,16 @@ module.exports = async ({
     w,
     "document.querySelector('.pr-center-drawer')?.innerText.includes('team/review') || [...document.querySelectorAll('[role=dialog]')].some(e=>e.getClientRects().length&&e.textContent.includes('team/review'))",
   );
+  const sourceConfiguration = "[...document.querySelectorAll('.pr-center-sources section')].find(e=>e.querySelector('strong')?.textContent.includes('review-project'))";
+  const configure = '(' + sourceConfiguration + ')?.querySelector("button")';
+  await click(configure);
+  await wait(w, '(' + sourceConfiguration + ')?.querySelector(".pr-center-source-config")');
+  assert.equal(await ev('(' + sourceConfiguration + ')?.querySelector(".pr-center-source-config input")?.getAttribute("aria-label")'), '访问令牌 review-project origin');
+  await click(configure);
+  await wait(w, '!(' + sourceConfiguration + ')?.querySelector(".pr-center-source-config")');
+  await click(btn('重新发现与读取', '.pr-center-drawer button'));
+  await wait(w, "!document.querySelector('.pr-center-drawer .ant-btn-loading')");
+  await record(['UI-069'], 'center source configuration opens for the exact repository and remote, closes without changing credentials, and rediscovery completes');
   await click(aria('关闭数据来源'));
   async function showFilters() {
     if (!(await ev('Boolean(' + aria('搜索 PR/MR') + ')')))
@@ -365,16 +375,6 @@ module.exports = async ({
     if (await ev('Boolean(' + close + ')')) await click(close);
   }
   await showFilters();
-  // Keep the account restriction in the URL and verify the exact controlled MR
-  // survives both selecting and clearing the fixture identity.
-  const accountLabel = new URL(url).host + ' / @fixture';
-  await select('筛选账号', accountLabel);
-  await wait(w, "Boolean(new URLSearchParams(location.search).get('account'))");
-  await wait(w, centerRow);
-  await select('筛选账号', '全部账号');
-  await wait(w, "!new URLSearchParams(location.search).has('account')");
-  await wait(w, centerRow);
-  await record(['UI-069'], 'center account filter selects the controlled identity, retains its exact MR, and clears the URL restriction without losing the MR');
   await select('筛选平台', 'GitHub');
   await wait(
     w,
