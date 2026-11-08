@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 module.exports = async ({ window, repo, wait, pass }) => {
+  await require('./smoke-window.cjs')(window);
   const wc = window.webContents,
     ev = (code) => wc.executeJavaScript(code);
   const { element, button, textButton, click, input } = require('./candidate-ui-driver.cjs')(
