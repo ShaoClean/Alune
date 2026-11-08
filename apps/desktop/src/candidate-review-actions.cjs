@@ -359,7 +359,7 @@ module.exports = async ({
   const configure = '(' + sourceConfiguration + ')?.querySelector("button")';
   await click(configure);
   await wait(w, '(' + sourceConfiguration + ')?.querySelector(".pr-center-source-config")');
-  assert.equal(await ev('(' + sourceConfiguration + ')?.querySelector(".pr-center-source-config input")?.getAttribute("aria-label")'), '访问令牌 review-project origin');
+  assert.equal(await ev(`Boolean((${sourceConfiguration})?.querySelector('.pr-center-source-config input[aria-label="访问令牌 review-project origin"]'))`), true);
   await click(configure);
   await wait(w, '!(' + sourceConfiguration + ')?.querySelector(".pr-center-source-config")');
   await click(btn('重新发现与读取', '.pr-center-drawer button'));
