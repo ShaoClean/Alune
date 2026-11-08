@@ -56,6 +56,9 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     else if (process.env.ALUNE_CANDIDATE_FOCUS === 'settings') {
       await require('./candidate-settings-safety.cjs')({ window, origin, repo, wait, pass });
       await require('./candidate-toolbar-scroll.cjs')({ window, repo, wait, pass });
+    } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'files') {
+      await require('./candidate-git-actions.cjs')({ wc, window, origin, repo, id, wait,
+        element, button, textButton, click, text, pass });
     } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'terminals') {
       await require('./smoke-window.cjs')(window);
       const fact = async (check, label) => {
