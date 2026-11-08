@@ -4,10 +4,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-module.exports = async ({ window, repo, wait, pass }) => {
+module.exports = async ({ window, repo, wait: rawWait, pass }) => {
   await require('./smoke-window.cjs')(window);
   const wc = window.webContents,
     ev = (code) => wc.executeJavaScript(code);
+  const wait = async (contents, condition) => {
+    try { return await rawWait(contents, condition); }
+    catch (error) {
+      console.error('Branch pointer diagnostic', await ev(`JSON.stringify({active:document.activeElement?.outerHTML,focused:document.hasFocus(),trace:window.__branchPointerTrace})`));
+      throw error;
+    }
+  };
   const { element, button, textButton, click, input } = require('./candidate-ui-driver.cjs')(
     wc,
     wait,
@@ -42,6 +49,7 @@ module.exports = async ({ window, repo, wait, pass }) => {
     await wait(wc, '!(' + element('.branch-picker [role=status]') + ')');
   };
   const pointer = async (expr) => {
+    await ev(`(()=>{window.__branchPointerTrace=[];for(const type of ['mousedown','mouseup','click','focusin'])document.addEventListener(type,e=>{window.__branchPointerTrace.push({type,prevented:e.defaultPrevented,target:e.target?.getAttribute('aria-label'),active:document.activeElement?.getAttribute('aria-label')})},{once:true})})()`);
     const point = await ev(
       'new Promise((resolve,reject)=>{let previous,stable=0;const end=Date.now()+5000;function frame(){const node=(' +
         expr +

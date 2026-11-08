@@ -10,7 +10,7 @@ const requestedFocus = process.argv[2] === '--focus' ? process.argv[3] : undefin
 if (
   process.argv.length > 2 &&
   (process.argv.length !== 4 ||
-    !['conflicts', 'reviews', 'settings', 'terminals', 'web', 'files'].includes(requestedFocus))
+    !['conflicts', 'reviews', 'settings', 'terminals', 'web', 'files', 'branches'].includes(requestedFocus))
 )
   throw new Error('Usage: smoke.mjs [--focus conflicts|reviews|settings|terminals|web|files]');
 const dataDir = await mkdtemp(path.join(tmpdir(), 'alune-smoke-'));
