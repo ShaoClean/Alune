@@ -129,6 +129,9 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       webSecurity: true,
+      // Native acceptance deliberately keeps its window hidden. Its polling
+      // timers and layout frames must keep running while Codex is in front.
+      backgroundThrottling: !smokeTest,
     },
   });
   window.webContents.setWindowOpenHandler(
