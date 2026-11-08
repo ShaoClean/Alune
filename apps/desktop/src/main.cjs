@@ -450,6 +450,16 @@ async function start() {
   }
   if (smokeTest && candidate) {
     await require('./candidate-smoke.cjs')({ window, origin, logWindow, backend, updates });
+    if (process.env.ALUNE_CANDIDATE_EVIDENCE) {
+      mkdirSync(process.env.ALUNE_CANDIDATE_EVIDENCE, { recursive: true });
+      writeFileSync(path.join(process.env.ALUNE_CANDIDATE_EVIDENCE,
+        'complete-' + process.env.ALUNE_SMOKE_PHASE + '.json'), JSON.stringify({
+          sha: process.env.ALUNE_ACCEPTANCE_SHA ?? process.env.GITHUB_SHA ?? null,
+          focus: process.env.ALUNE_CANDIDATE_FOCUS ?? null,
+          phase: process.env.ALUNE_SMOKE_PHASE,
+          result: 'passed',
+        }) + '\n');
+    }
     app.quit();
   } else if (smokeTest) {
     await require(

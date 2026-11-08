@@ -52,6 +52,14 @@ for (const name of ['workbench.json', 'scenarios-write.jsonl', 'scenarios-restor
   }
 }
 if (!runs.length) throw Error('No asserted scenarios found');
+for (const phase of ['write', 'restore']) {
+  const file = 'complete-' + phase + '.json';
+  const bytes = fs.readFileSync(path.join(input, file));
+  const complete = JSON.parse(bytes);
+  if (complete.result !== 'passed' || complete.sha !== sha || complete.phase !== phase || complete.focus !== null)
+    throw Error('Incomplete native write/restore acceptance: ' + phase);
+  fs.writeFileSync(path.join(root, 'raw', file), bytes);
+}
 const evidence = { stage: 'before-retirement', policy: policy.id, sha, baseline: ledger.sha, runs };
 fs.writeFileSync(path.join(root, 'receipts.json'), JSON.stringify(evidence, null, 2) + '\n');
 const covered = new Set(runs.flatMap((run) => run.entries));

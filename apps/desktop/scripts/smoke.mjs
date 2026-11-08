@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const requestedFocus = process.argv[2] === '--focus' ? process.argv[3] : undefined;
@@ -66,6 +67,14 @@ try {
     }).finally(() => clearTimeout(timeout));
     process.exitCode = code;
     if (code !== 0) break;
+    if (env.ALUNE_DESKTOP_EXECUTOR === 'agent' && env.ALUNE_CANDIDATE_EVIDENCE) {
+      const complete = JSON.parse(readFileSync(path.join(env.ALUNE_CANDIDATE_EVIDENCE,
+        'complete-' + phase + '.json'), 'utf8'));
+      if (complete.result !== 'passed' || complete.phase !== phase ||
+          complete.focus !== (requestedFocus ?? null) ||
+          complete.sha !== (env.ALUNE_ACCEPTANCE_SHA ?? env.GITHUB_SHA ?? null))
+        throw Error('Native acceptance completion marker does not match the run');
+    }
     if (peer && phase === 'write') {
       directories?.verify();
       peer.verify();
