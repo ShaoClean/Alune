@@ -18,7 +18,9 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     "document.querySelector('.terminal-output .xterm-accessibility-tree')?.textContent.includes(" +
     JSON.stringify(t) +
     ')';
-  const settledOutput = (token) => wait(wc, `(()=>{const tree=document.querySelector('.terminal-output .xterm-accessibility-tree');if(!tree)return false;const text=tree.textContent.trim();return text.includes(${JSON.stringify(token)})&&text.endsWith(${JSON.stringify(process.platform === 'win32' ? '>' : '$')})})()`);
+  // The live region confirms parser delivery even when the minimum viewport
+  // fits only the prompt. Retention checks below still use rendered rows only.
+  const settledOutput = (token) => wait(wc, `(()=>{const tree=document.querySelector('.terminal-output .xterm-accessibility-tree');if(!tree)return false;const text=tree.textContent.trim();return document.querySelector('.terminal-output .xterm-accessibility')?.textContent.includes(${JSON.stringify(token)})&&text.endsWith(${JSON.stringify(process.platform === 'win32' ? '>' : '$')})})()`);
   async function retainedOutput() {
     // The accessibility tree represents the viewport, not the scrollback.
     // Long packaged runtime paths can scroll the probe off screen. Reveal the
