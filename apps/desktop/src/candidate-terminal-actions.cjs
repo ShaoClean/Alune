@@ -31,7 +31,9 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
       const point = await ev("(()=>{const e=document.querySelector('.terminal-output .xterm-screen');if(!e)return null;const r=e.getBoundingClientRect();return r.width&&r.height?{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}:null})()");
       if (point) {
         wc.sendInputEvent({ type: 'mouseMove', ...point });
-        wc.sendInputEvent({ type: 'mouseWheel', ...point, deltaY: -10000, deltaX: 0 });
+        // Electron's native wheel sign is opposite to DOM WheelEvent.deltaY.
+        // Positive here scrolls toward retained history (see toolbar wheel test).
+        wc.sendInputEvent({ type: 'mouseWheel', ...point, deltaY: 10000, deltaX: 0, canScroll: true });
       }
       await new Promise(resolve => setTimeout(resolve, 100));
     }
