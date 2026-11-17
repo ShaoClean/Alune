@@ -316,6 +316,9 @@ const p=spawn('git',[writing?'receive-pack':'upload-pack',${JSON.stringify(remot
       'confirmed deletion left a tag ref',
     );
     await wait(wc, '!(' + row(tag) + ')');
+    // Ref deletion can finish before the pending modal result is rehomed to
+    // the global notice. Consume that result before opening another dropdown.
+    await wait(wc, `(()=>{const n=document.querySelector('.feedback-dialog[open]');if(!n)return false;const title=n.querySelector('#feedback-title')?.textContent;if(title==='标签已删除'){n.querySelector('[aria-label="关闭提示"]').click();return true;}if(n.dataset.tone==='info'&&/进行中$/.test(title??'')){n.querySelector('[aria-label="关闭提示"]').click();return false;}throw Error(n.innerText)})()`);
     assert.equal(git('rev-parse', 'HEAD'), head);
     assert.equal(originalRemote(), untouched);
     await pass(

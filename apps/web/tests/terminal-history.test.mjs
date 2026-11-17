@@ -74,3 +74,17 @@ test('a PTY becoming ready receives dimensions already fitted before it connecte
     assert.deepEqual(hostSizes, [{ cols: 52, rows: 18 }, { cols: 60, rows: 20 }]);
   } finally { terminal.dispose(); }
 });
+
+test('terminal navigation keys suppress PTY key encoding but preserve ordinary keys and IME', async () => {
+  const { handleTerminalNavigationKey } = await import('../src/stores/terminalOptions.ts');
+  let focused = 0, prevented = 0;
+  const key = { type: 'keydown', key: 'F6', code: 'F6', ctrlKey: true, shiftKey: true,
+    isComposing: false, preventDefault: () => prevented++ };
+  assert.equal(handleTerminalNavigationKey(key, () => focused++), false);
+  assert.equal(focused, 1);
+  assert.equal(prevented, 1);
+  assert.equal(handleTerminalNavigationKey({ ...key, key: '`', code: 'Backquote', shiftKey: false }, () => focused++), false);
+  assert.equal(handleTerminalNavigationKey({ ...key, isComposing: true }, () => focused++), true);
+  assert.equal(handleTerminalNavigationKey({ ...key, ctrlKey: false }, () => focused++), true);
+  assert.equal(focused, 1);
+});

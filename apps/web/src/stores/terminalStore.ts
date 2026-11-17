@@ -12,7 +12,7 @@ import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/domain';
 import type { Repository, TerminalOutput, TerminalSession } from '@alune/domain';
 import { useWorkspaceStore } from './workspaceStore';
 import { retainedTerminalLines } from './terminalHistory';
-import { applyTerminalHostOptions, synchronizeTerminalSize } from './terminalOptions';
+import { applyTerminalHostOptions, synchronizeTerminalSize, handleTerminalNavigationKey } from './terminalOptions';
 
 type Runtime = {
   terminal: Terminal;
@@ -255,16 +255,9 @@ function ensureRuntime(id: string): Runtime {
   // Tab belongs to the shell. Ctrl+Shift+F6 is the documented escape hatch.
   terminal.attachCustomKeyEventHandler((event) => {
     if (event.isComposing) return true;
-    if (event.type === 'keydown' && event.ctrlKey && event.shiftKey && event.key === 'F6') {
-      event.preventDefault();
-      document
-        .querySelector<HTMLButtonElement>(
-          '[data-terminal-new]:not(:disabled), .terminal-heading button[aria-label="全部终端会话"]',
-        )
-        ?.focus();
-      return false;
-    }
-    if (event.ctrlKey && event.code === 'Backquote') return false;
+    if (!handleTerminalNavigationKey(event, () => document
+      .querySelector<HTMLButtonElement>('[data-terminal-new]:not(:disabled), .terminal-heading button[aria-label="全部终端会话"]')
+      ?.focus())) return false;
     if (event.type === 'keydown' && (event.metaKey || (event.ctrlKey && event.shiftKey))) {
       if (event.key.toLowerCase() === 'c') {
         event.preventDefault();

@@ -23,3 +23,15 @@ export function synchronizeTerminalSize(
   // A changed fit already dispatches through xterm's onResize listener.
   if (terminal.cols === cols && terminal.rows === rows) resize(cols, rows);
 }
+
+export function handleTerminalNavigationKey(event: KeyboardEvent, focusCreate: () => void): boolean {
+  if (event.isComposing) return true;
+  if (event.type === 'keydown' && event.ctrlKey && event.shiftKey && event.key === 'F6') {
+    event.preventDefault();
+    focusCreate();
+    return false;
+  }
+  // Leave the event available to the workspace toggle, but not to the PTY.
+  if (event.ctrlKey && event.code === 'Backquote') return false;
+  return true;
+}
