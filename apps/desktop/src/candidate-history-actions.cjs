@@ -182,7 +182,9 @@ module.exports = async ({ window, wc, work, wait: rawWait, fact, pass }) => {
       y += Math.max(1, Math.floor(geometry.height / 2))
     ) {
       const actual = await scroll(y),
-        needed = Math.min(expected.length + 1, Math.floor(actual / geometry.row) + 2);
+        // The old virtual slice may already contain the new top row while
+        // React has not rendered the newly exposed bottom rows yet.
+        needed = Math.min(expected.length + 1, Math.ceil((actual + geometry.height) / geometry.row) + 1);
       await wait(wc, element('.history-table .history-row[aria-rowindex="' + needed + '"]'));
       const rows = await ev(
         '[...(' +
