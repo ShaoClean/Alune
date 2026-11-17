@@ -8,7 +8,8 @@ export function handleDialogEscape(
 ) {
   if (!options.enabled || event.key !== 'Escape' || event.defaultPrevented ||
       event.nativeEvent.isComposing || Date.now() - options.compositionEndedAt < 200 ||
-      !event.currentTarget.contains(event.target as Node)) return false;
+      !event.currentTarget.contains(event.target as Node) ||
+      (event.target as HTMLElement | null)?.closest?.('[role=combobox][aria-expanded=true], [aria-haspopup][aria-expanded=true]')) return false;
   event.preventDefault();
   event.stopPropagation();
   if (!options.busy) options.cancel();

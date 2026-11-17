@@ -22,7 +22,8 @@ test('busy dialog consumes Escape without cancelling; keyboard-disabled dialog d
 });
 test('nested popup consumption, portalled targets and IME composition cannot cancel the dialog', () => {
   for (const event of [{ key: 'Enter' }, { defaultPrevented: true },
-    { nativeEvent: { isComposing: true } }, { currentTarget: { contains: () => false } }]) {
+    { nativeEvent: { isComposing: true } }, { currentTarget: { contains: () => false } },
+    { target: { closest: () => ({}) }, currentTarget: { contains: () => true } }]) {
     assert.deepEqual(fixture(event), { handled: false, cancelled: 0, stopped: 0, prevented: 0 });
   }
   assert.equal(fixture({}, { compositionEndedAt: Date.now() }).handled, false);

@@ -84,7 +84,7 @@ module.exports = async ({
       await ev(
         '(()=>{const e=(' +
           aria(label) +
-          ');e.focus();e.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",code:"Escape",keyCode:27,which:27,bubbles:true,cancelable:true}))})()',
+          ');if(e.getAttribute("aria-expanded")!=="true")return;e.focus();e.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",code:"Escape",keyCode:27,which:27,bubbles:true,cancelable:true}))})()',
       );
       await wait(w, '(' + aria(label) + ')?.getAttribute("aria-expanded")!=="true"');
     }
