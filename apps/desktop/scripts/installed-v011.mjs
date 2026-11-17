@@ -39,12 +39,21 @@ export async function withInstalledWindow(exe, work, env = process.env) {
     while (!port) await wait();
     let page;
     while (!page) {
-      const list = await (
-        await fetch('http://127.0.0.1:' + port + '/json/list', {
+      try {
+        const response = await fetch('http://127.0.0.1:' + port + '/json/list', {
           signal: AbortSignal.timeout(5000),
-        })
-      ).json();
-      page = list.find((t) => t.type === 'page' && t.url.startsWith('http://127.0.0.1:'));
+        });
+        if (!response.ok) throw Error('Installed renderer discovery returned HTTP ' + response.status);
+        const list = await response.json();
+        page = list.find((t) => t.type === 'page' && t.url.startsWith('http://127.0.0.1:'));
+      } catch (error) {
+        // Chromium can announce its port before it serves the target list.
+        // Retry only transient startup transport failures within the same
+        // overall deadline; malformed responses remain failures.
+        if (error.name !== 'TimeoutError' &&
+            !['ECONNREFUSED', 'ECONNRESET', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT'].includes(error.cause?.code))
+          throw error;
+      }
       if (!page) await wait();
     }
     ws = new WebSocket(page.webSocketDebuggerUrl);

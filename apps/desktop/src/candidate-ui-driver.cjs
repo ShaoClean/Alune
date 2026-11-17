@@ -27,11 +27,12 @@ module.exports = function driver(wc, wait) {
     return true;
   };
   const select = async (label, value) => {
-    await wait(
-      wc,
-      `(()=>{const e=(${button(label)})?.closest('.ant-select');if(!e||e.classList.contains('ant-select-disabled'))return false;e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));return true})()`,
-    );
+    const control = `(${button(label)})?.closest('.ant-select')?.querySelector('[role=combobox]')`;
+    // Enter opens (rather than toggles) a closed combobox. Wait for its actual
+    // expanded state and for selection to close it before another interaction.
+    await wait(wc, `(()=>{const e=(${control});if(!e||e.disabled)return false;if(e.getAttribute('aria-expanded')==='true')return true;e.focus();e.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));return false})()`);
     await click(textButton(value, '.ant-select-item-option'));
+    await wait(wc, `(${control})?.getAttribute('aria-expanded')==='false'`);
   };
   // A visible modal can precede its portal's global Escape subscription. Give
   // React effects a rendered frame, activate the actual window, and send a real
@@ -42,16 +43,20 @@ module.exports = function driver(wc, wait) {
     await require('./smoke-window.cjs')(window);
     await wait(wc, `(()=>{const e=(${expr});if(!e)return false;e.focus();return document.activeElement===e;})()`);
     await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+    // Closing portals remain on rc-dialog's global Escape stack until their
+    // exit motion finishes. Wait for finite dialog motions, including the
+    // previous dialog, so Escape is delivered to the visible modal's owner.
+    await wait(wc, "![...document.querySelectorAll('.a-dlg')].some(root=>root.getAnimations({subtree:true}).some(a=>a.playState==='running'&&a.effect?.getTiming().iterations!==Infinity))");
     // Portal initial-focus/motion callbacks can run during those frames. Rebind
     // and focus the actual current control, then verify the native key's target.
-    await wait(wc, `(()=>{const e=(${expr});if(!e)return false;e.focus();if(document.activeElement!==e)return false;window.__candidateNativeKeyTarget=e;return true})()`);
-    await wc.executeJavaScript(`(()=>{window.__candidateNativeKey=false;window.__candidateNativeKeyListener=e=>{if(e.key===${JSON.stringify(eventKey)}&&e.target===window.__candidateNativeKeyTarget)window.__candidateNativeKey=true};window.addEventListener('keydown',window.__candidateNativeKeyListener,true)})()`);
+    await wait(wc, `(()=>{const e=(${expr});if(!e)return false;e.focus();if(document.activeElement!==e)return false;window.__candidateNativeKeyTarget=e;window.__candidateNativeKeyScope=e.closest('[role=dialog],[role=alertdialog],dialog,[role=menu]');return true})()`);
+    await wc.executeJavaScript(`(()=>{window.__candidateNativeKey=false;window.__candidateNativeKeyListener=e=>{if(e.key===${JSON.stringify(eventKey)}&&(e.target===window.__candidateNativeKeyTarget||window.__candidateNativeKeyScope?.contains(e.target)))window.__candidateNativeKey=true};window.addEventListener('keydown',window.__candidateNativeKeyListener,true)})()`);
     try {
       wc.sendInputEvent({ type: 'keyDown', keyCode });
       await wait(wc, 'window.__candidateNativeKey===true');
     } finally {
       wc.sendInputEvent({ type: 'keyUp', keyCode });
-      await wc.executeJavaScript("window.removeEventListener('keydown',window.__candidateNativeKeyListener,true);delete window.__candidateNativeKeyListener;delete window.__candidateNativeKey;delete window.__candidateNativeKeyTarget");
+      await wc.executeJavaScript("window.removeEventListener('keydown',window.__candidateNativeKeyListener,true);delete window.__candidateNativeKeyListener;delete window.__candidateNativeKey;delete window.__candidateNativeKeyTarget;delete window.__candidateNativeKeyScope");
     }
   };
   const text = (label) => 'document.body.innerText.includes(' + JSON.stringify(label) + ')';

@@ -59,6 +59,9 @@ async function terminalScenario(client, resource, repo, whileRunning) {
       'two real shells running',
     );
     assert.equal(states.get(id).initialPath, path.normalize(repo));
+    assert.deepEqual(states.get(id).windowsPty, process.platform === 'win32'
+      ? { backend: 'conpty', buildNumber: Number(require('node:os').release().split('.')[2]) }
+      : undefined);
     if (whileRunning) await whileRunning([id, second]);
     await assert.rejects(
       run('close', { sessionId: id, confirmed: false }),

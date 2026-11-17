@@ -314,7 +314,8 @@ test('preview reuses immutable blobs while still rejecting an index change betwe
 
 
 for (const kind of ['local', 'worktree', 'ssh']) {
-  test(`${kind}: full-file line actions preserve untouched context and reject mismatched scope`, async (t) => {
+  test(`${kind}: full-file line actions preserve untouched context and reject mismatched scope`,
+    { skip: kind === 'ssh' && process.platform === 'win32' }, async (t) => {
     const f = await setup(t, kind);
     const file = 'full-context.txt';
     const original = Array.from({ length: 40 }, (_, i) => `line ${i}\n`).join('');

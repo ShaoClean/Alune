@@ -57,3 +57,15 @@ function createRepository({ initial = true } = {}) {
   };
 }
 module.exports = { createRepository };
+
+// Inject races at the argv boundary while retaining real shell/Git execution.
+function interceptGit(connection, after) {
+  const { gitFileCommand } = require('../../dist/modules/git/git-shell');
+  const execute = connection.execCommand.bind(connection);
+  connection.execGit = async (root, args, signal, options) => {
+    const result = await execute(gitFileCommand(root, args, options?.environment), undefined, signal, options);
+    await after(args, result);
+    return result;
+  };
+}
+module.exports.interceptGit = interceptGit;

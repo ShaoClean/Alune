@@ -180,7 +180,10 @@ module.exports = async ({
     wc,
     '(' + owner(2) + ')?.getAttribute("aria-label").includes("inspection after edits")',
   );
-  await wc.executeJavaScript('(' + owner(2) + ').focus()');
+  await require('./smoke-window.cjs')(require('electron').BrowserWindow.fromWebContents(wc));
+  wc.sendInputEvent({ type: 'mouseMove', x: 1, y: 1 });
+  await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  await wait(wc, '(()=>{const e=(' + owner(2) + ');if(!e)return false;e.focus();return document.activeElement===e})()');
   await wait(
     wc,
     "[...document.querySelectorAll('.blame-popover__meta code')].some(e=>e.getClientRects().length&&e.title===" +

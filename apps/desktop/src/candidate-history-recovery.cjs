@@ -74,6 +74,9 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   const row = (h) => element('.history-row[data-hash="' + h + '"]'),
     title = "document.querySelector('.feedback-dialog[open] #feedback-title')?.textContent";
   await wait(wc, row(recovery));
+  // The first cached graph can predate the tag. Wait for the post-mutation
+  // graph, otherwise its legitimate generation reset races the scroll probe.
+  await wait(wc, '(' + row(head) + ')?.textContent.includes("warm-history-snapshot")');
   await click(row(head));
   await wait(
     wc,
@@ -93,6 +96,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
       separator +
       ').getAttribute("aria-valuemin")',
   );
+  await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   await ev(
     "(()=>{const v=document.querySelector('.history-viewport');v.scrollTop=80;v.dispatchEvent(new Event('scroll',{bubbles:true}))})()",
   );
@@ -112,22 +116,26 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   );
   await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   await ev(`(()=>{
-    const raf=window.requestAnimationFrame.bind(window),cancel=window.cancelAnimationFrame.bind(window),pending=new Map();
-    window.requestAnimationFrame=callback=>{const entry={callback,time:null};const id=raf(time=>{entry.time=time});pending.set(id,entry);return id};
-    window.cancelAnimationFrame=id=>{cancel(id);pending.delete(id)};
-    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;window.cancelAnimationFrame=cancel;for(const [id,entry] of pending){cancel(id);pending.delete(id);entry.callback(entry.time??performance.now())}delete window.__restoreHistoryFrames};
+    const raf=window.requestAnimationFrame.bind(window);
+    window.__historyClampArmed=false;window.__historyClampApplied=false;
+    window.requestAnimationFrame=callback=>raf(time=>{
+      const v=document.querySelector('.history-viewport');
+      if(window.__historyClampArmed&&v?.clientHeight){
+        window.__historyClampArmed=false;window.__historyClampApplied=true;
+        v.scrollTop=0;v.dispatchEvent(new Event('scroll',{bubbles:true}));
+      }
+      callback(time);
+    });
+    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;delete window.__historyClampArmed;delete window.__historyClampApplied;delete window.__restoreHistoryFrames};
   })()`);
   try {
     await click(button('文件'));
     await wait(wc, "document.querySelector('.history-viewport')?.clientHeight===0");
+    await ev('window.__historyClampArmed=true');
     await click(button('提交历史'));
-    await wait(wc, "document.querySelector('.history-viewport')?.clientHeight>0");
-    // Model a delayed browser clamp delivered after the retained panel is
-    // visible, before its first restored renderer frame. No store is patched.
-    await ev(
-      "(()=>{const v=document.querySelector('.history-viewport');v.scrollTop=0;v.dispatchEvent(new Event('scroll',{bubbles:true}))})()",
-    );
-    await ev('window.__restoreHistoryFrames()');
+    // Inject the clamp immediately before the first real visible frame, without
+    // freezing unrelated page animations or replaying stale layout callbacks.
+    await wait(wc, 'window.__historyClampApplied===true');
     await wait(
       wc,
       'Math.abs(document.querySelector(".history-viewport").scrollTop-' + scrollBefore + ')<2',
@@ -138,7 +146,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   }
   await pass(
     ['UI-021', 'UI-022', 'UI-042', 'UI-072'],
-    'a controlled delayed renderer frame and late visibility clamp cannot replace the retained history scroll position or selected commit',
+    'a late visibility clamp immediately before the real restoration frame cannot replace the retained history scroll position or selected commit',
   );
   await click(button('关闭提交详情'));
   const treeObject = path.join(repo, '.git', 'objects', tree.slice(0, 2), tree.slice(2)),

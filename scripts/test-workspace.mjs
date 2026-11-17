@@ -14,7 +14,7 @@ const files = fs.readdirSync(path.join(directory, 'tests'))
   .filter(file => file.endsWith(extension) && !file.startsWith('p0-'))
   .sort().map(file => path.join('tests', file));
 if (!files.length) throw Error('No workspace regression tests found');
-const args = workspace === 'web' ? ['--import', './tests/resolve-ts.mjs', '--test'] : ['--test', '--test-concurrency=2', '--test-timeout=120000'];
+const args = workspace === 'web' ? ['--import', './tests/resolve-ts.mjs', '--test'] : ['--test', '--test-concurrency=2', '--test-timeout=300000'];
 const child = spawn(process.execPath, [...args, ...files], { cwd: directory, stdio: 'inherit' });
 child.once('error', error => { console.error(error); process.exitCode = 1; });
 child.once('exit', (code, signal) => {

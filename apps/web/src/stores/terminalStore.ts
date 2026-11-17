@@ -12,6 +12,7 @@ import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/domain';
 import type { Repository, TerminalOutput, TerminalSession } from '@alune/domain';
 import { useWorkspaceStore } from './workspaceStore';
 import { retainedTerminalLines } from './terminalHistory';
+import { applyTerminalHostOptions, synchronizeTerminalSize, handleTerminalNavigationKey } from './terminalOptions';
 
 type Runtime = {
   terminal: Terminal;
@@ -78,8 +79,12 @@ const stateEvent = (info: TerminalSession) => {
   if (!useTerminalStore.getState().sessions.some((item) => item.id === info.id)) return;
   patch(info.id, info);
   const runtime = ensureRuntime(info.id);
+  applyTerminalHostOptions(runtime.terminal, info);
   runtime.terminal.options.disableStdin = info.state !== 'running';
-  if (info.state === 'running') fitTerminal(info.id);
+  if (info.state === 'running')
+    synchronizeTerminalSize(runtime.terminal, () => fitTerminal(info.id), (cols, rows) => {
+      void request('terminal:resize', { sessionId: info.id, cols, rows }).catch(report);
+    });
 };
 const outputEvent = (packet: TerminalOutput) => {
   const runtime = runtimes.get(packet.sessionId);
@@ -250,16 +255,9 @@ function ensureRuntime(id: string): Runtime {
   // Tab belongs to the shell. Ctrl+Shift+F6 is the documented escape hatch.
   terminal.attachCustomKeyEventHandler((event) => {
     if (event.isComposing) return true;
-    if (event.type === 'keydown' && event.ctrlKey && event.shiftKey && event.key === 'F6') {
-      event.preventDefault();
-      document
-        .querySelector<HTMLButtonElement>(
-          '[data-terminal-new]:not(:disabled), .terminal-heading button[aria-label="全部终端会话"]',
-        )
-        ?.focus();
-      return false;
-    }
-    if (event.ctrlKey && event.code === 'Backquote') return false;
+    if (!handleTerminalNavigationKey(event, () => document
+      .querySelector<HTMLButtonElement>('[data-terminal-new]:not(:disabled), .terminal-heading button[aria-label="全部终端会话"]')
+      ?.focus())) return false;
     if (event.type === 'keydown' && (event.metaKey || (event.ctrlKey && event.shiftKey))) {
       if (event.key.toLowerCase() === 'c') {
         event.preventDefault();

@@ -5,7 +5,7 @@ import type { RepositoryFileSystem as SFTPWrapper } from '../../ports/repository
 import type { WorkspaceFilePreview } from '@alune/domain';
 import type { RepositoryTransport } from './repository-transport';
 import { runGit } from './repository-transport';
-import { joinRepositoryPath } from './repository-path';
+import { joinRepositoryPath, normalizeRepositoryPath, sameRepositoryPath } from './repository-path';
 import { RepositoryFileError, validateRepositoryPath } from './repository-files';
 import { isWindowsPath } from './git-shell';
 import { readSftpChunks } from './sftp-file';
@@ -64,7 +64,7 @@ export class WorkspaceFileActions {
       if (unsafeMetadataName(repo, part)) throw fail('不能访问 Git 元数据。');
       if (isWindowsPath(repo)) validateWorkspaceName(repo, part);
     }
-    const root = await promisify(sftp.realpath.bind(sftp))(repo);
+    const root = normalizeRepositoryPath(await promisify(sftp.realpath.bind(sftp))(repo));
     let parent = root;
     for (const part of path.split('/').slice(0, -1)) {
       parent = joinRepositoryPath(parent, part);
@@ -83,9 +83,7 @@ export class WorkspaceFileActions {
       if (nested) throw fail('目标位于嵌套仓库或 Worktree 内，请打开对应仓库后操作。');
     }
     const actual = await promisify(sftp.realpath.bind(sftp))(parent);
-    const same = isWindowsPath(root)
-      ? actual.toLowerCase() === parent.toLowerCase()
-      : actual === parent;
+    const same = sameRepositoryPath(actual, parent);
     if (!same) throw fail('父目录发生变化或包含符号链接，无法安全操作。');
     return { root, target: joinRepositoryPath(root, path) };
   }
