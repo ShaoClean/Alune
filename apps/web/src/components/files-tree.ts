@@ -1,4 +1,4 @@
-import type { RepositoryTreeEntry, RepositoryTreeListing } from '@alune/shared';
+import type { RepositoryTreeEntry, RepositoryTreeListing } from '@alune/domain';
 
 // State of one lazily loaded directory. A reload keeps the previous listing so the
 // tree does not jump while it refreshes or after a failed retry.
@@ -87,7 +87,7 @@ export function visibleDirectories(
   return result;
 }
 
-export const errorStatus = (error: any): number | undefined => error?.response?.status;
+export { repositoryFileStatus as errorStatus } from '../api/repository-errors';
 
 export const errorMessage = (error: any, fallback: string): string =>
   error?.response?.data?.message || error?.message || fallback;

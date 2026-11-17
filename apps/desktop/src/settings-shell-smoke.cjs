@@ -1,12 +1,14 @@
 const assert = require('node:assert/strict');
 
 // Exercise the shared shell in the real renderer, with a real local repository.
-module.exports = async ({ window, origin, repositoryId }) => {
+module.exports = async ({ window, origin, repositoryId, candidate = false }) => {
   const execute = async (script) => {
     try {
       return await window.webContents.executeJavaScript(script);
     } catch (error) {
-      const page = await window.webContents.executeJavaScript('document.body.innerText + "\\nFocus: " + JSON.stringify({active: document.activeElement?.tagName, label: document.activeElement?.getAttribute("aria-label"), documentFocused: document.hasFocus()})');
+      const page = await window.webContents.executeJavaScript(
+        'document.body.innerText + "\\nFocus: " + JSON.stringify({active: document.activeElement?.tagName, label: document.activeElement?.getAttribute("aria-label"), documentFocused: document.hasFocus()})',
+      );
       throw new Error(`Settings shell failed: ${script}\n${page}`, { cause: error });
     }
   };
@@ -18,10 +20,15 @@ module.exports = async ({ window, origin, repositoryId }) => {
       setTimeout(poll, 20);
     }; poll();
   })`);
-  const shortcut = (key, shiftKey = false) =>
-    execute(
+  const shortcut = async (key, shiftKey = false) => {
+    // Synthetic DOM keyboard events do not activate a background native window.
+    // Focus capture is part of the behavior under test, so establish the same
+    // precondition as a real keyboard user without focusing the expected control.
+    await require('./smoke-window.cjs')(window);
+    return execute(
       `window.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, ctrlKey: true, shiftKey: ${shiftKey} }))`,
     );
+  };
   const click = (selector) =>
     execute(
       `Array.from(document.querySelectorAll(${JSON.stringify(selector)})).find(node => node.getClientRects().length && !node.closest('[inert]')).click()`,
@@ -56,7 +63,9 @@ module.exports = async ({ window, origin, repositoryId }) => {
     // The switcher restores trigger focus on the next animation frame. Let
     // its close motion finish before a later navigation restores workspace focus.
     await wait("!document.querySelector('.repository-switcher-panel')?.getClientRects().length");
-    await execute('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+    await execute(
+      'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
+    );
   };
   const dimensions = () =>
     execute(`['.app-sidebar', '.app-tabbar', '.status-bar'].map(selector => {
@@ -71,6 +80,7 @@ module.exports = async ({ window, origin, repositoryId }) => {
     window.setContentSize(1440, 900);
     await window.loadURL(`${origin}/repositories/${repositoryId}`);
     await wait('document.querySelector(\'[aria-label="提交摘要"]\') !== null');
+    await require('./smoke-window.cjs')(window);
     await execute(`document.querySelector('.app-tabbar [aria-label="显示左侧工作区"]')?.click()`);
     await fill('[aria-label="提交摘要"]', 'settings draft retained');
     await fill('[aria-label="查找仓库"]', 'local');
@@ -84,10 +94,12 @@ module.exports = async ({ window, origin, repositoryId }) => {
     );
     const before = await dimensions();
     await shortcut(',');
-    await wait("document.querySelector('.settings-main [aria-label=\"API 地址\"]')");
+    await wait('document.querySelector(\'.settings-main [aria-label="API 地址"]\')');
     const { createAiSecretStorage } = require('./ai-secret-storage.cjs');
-    if (!createAiSecretStorage(require('electron').safeStorage).available) {
-      await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('系统密钥存储不可用')");
+    if (!candidate && !createAiSecretStorage(require('electron').safeStorage).available) {
+      await wait(
+        "document.querySelector('.feedback-dialog[open]')?.textContent.includes('系统密钥存储不可用')",
+      );
       await click('.feedback-dialog [aria-label="关闭提示"]');
       await wait("!document.querySelector('.feedback-dialog[open]')");
     }
@@ -115,7 +127,9 @@ module.exports = async ({ window, origin, repositoryId }) => {
     await wait(
       "Array.from(document.querySelectorAll('.settings-main .settings-field-hint')).some(node => node.getClientRects().length && node.textContent.includes('仅已暂存改动'))",
     );
-    await execute('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+    await execute(
+      'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
+    );
     assert.equal(
       await execute("document.querySelector('.feedback-dialog[open]') === null"),
       true,
@@ -249,8 +263,10 @@ module.exports = async ({ window, origin, repositoryId }) => {
     await wait("innerWidth === 1440 && !document.querySelector('.app-shell--mobile-open')");
     await category('网络代理');
     await wait('document.querySelector(\'[aria-label="代理服务器地址"]\') !== null');
-    if (!createAiSecretStorage(require('electron').safeStorage).available) {
-      await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('设备安全存储不可用')");
+    if (!candidate && !createAiSecretStorage(require('electron').safeStorage).available) {
+      await wait(
+        "document.querySelector('.feedback-dialog[open]')?.textContent.includes('设备安全存储不可用')",
+      );
       await click('.feedback-dialog [aria-label="关闭提示"]');
       await wait("!document.querySelector('.feedback-dialog[open]')");
     }
@@ -259,7 +275,9 @@ module.exports = async ({ window, origin, repositoryId }) => {
       await execute("document.querySelector('.status-bar').getBoundingClientRect().top"),
     );
     await fill('[aria-label="代理服务器地址"]', 'draft.example.invalid');
-    await wait("document.querySelector('.feedback-dialog[open]')?.textContent.includes('有未保存修改')");
+    await wait(
+      "document.querySelector('.feedback-dialog[open]')?.textContent.includes('有未保存修改')",
+    );
     await click('.feedback-dialog [aria-label="关闭提示"]');
     await wait("!document.querySelector('.feedback-dialog[open]')");
     await menu('浏览全部仓库');

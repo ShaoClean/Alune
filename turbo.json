@@ -6,6 +6,11 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
+    "web#build": {
+      "dependsOn": ["^build"],
+      "env": ["ALUNE_UI_AUDIT"],
+      "outputs": ["dist/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

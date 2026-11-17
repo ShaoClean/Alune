@@ -1,5 +1,7 @@
 import { usePullRequestCenter } from '../stores/pullRequestCenter';
 import { useConnectionStore } from '../stores/connectionStore';
+import { useRepositoryStore } from '../stores/repositoryStore';
+import { uiAgent } from '../api/ui-agent';
 import { useSocket } from './useSocket';
 import { useAccessTokensStore } from '../stores/accessTokensStore';
 
@@ -10,6 +12,9 @@ export function useConnectionStatusSync() {
   const fetchConnections = useConnectionStore((state) => state.fetchConnections);
 
   useSocket({
+    'repository:changed': () => {
+      void useRepositoryStore.getState().fetchRepositories();
+    },
     'connection:status': (event) => {
       if (event?.connectionId && event.status) applyConnectionStatus(event);
     },
@@ -19,6 +24,10 @@ export function useConnectionStatusSync() {
       usePullRequestCenter.getState().invalidate();
     },
     connect: () => {
+      if (uiAgent) {
+        const store = useRepositoryStore.getState();
+        void store.fetchRepositories().then(() => store.refreshRepositoryStatuses());
+      }
       void fetchConnections();
       void useAccessTokensStore.getState().load();
     },

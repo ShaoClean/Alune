@@ -1,0 +1,62 @@
+const { test } = require('node:test'),
+  assert = require('node:assert/strict');
+const fs = require('node:fs'),
+  path = require('node:path'),
+  os = require('node:os'),
+  { createHash } = require('node:crypto');
+const { readBundle } = require('../dist/adapters/ssh/bundles');
+const { version } = require('../dist/version.json'),
+  { PROTOCOL_VERSION } = require('@alune/protocol');
+test('desktop pins gate SSH downloads: no download on reconnect, redirect allowlist, checksum before upload', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-release-pins-')),
+    file = path.join(dir, 'catalog.json'),
+    previous = process.env.ALUNE_AGENT_RELEASE_CATALOG;
+  const bytes = Buffer.from('isolated archive'),
+    sum = createHash('sha256').update(bytes).digest('hex');
+  try {
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        schemaVersion: 1,
+        version,
+        targets: {
+          'linux-x64': { protocol: PROTOCOL_VERSION, sha256: sum, manifestSha256: '0'.repeat(64) },
+        },
+      }),
+    );
+    process.env.ALUNE_AGENT_RELEASE_CATALOG = file;
+    const calls = [];
+    const bundle = await readBundle(dir, 'linux-x64', async (url, options) => {
+      calls.push(url);
+      assert.equal(options.redirect, 'manual');
+      return calls.length === 1
+        ? new Response(null, {
+            status: 302,
+            headers: { location: 'https://release-assets.githubusercontent.com/fixture' },
+          })
+        : new Response(bytes);
+    });
+    assert.equal(bundle.sha256, sum);
+    assert.equal(calls.length, 0);
+    assert.deepEqual(await bundle.bytes(), bytes);
+    assert.equal(calls.length, 2);
+    const bad = await readBundle(
+      dir,
+      'linux-x64',
+      async () => new Response(Buffer.from('tampered')),
+    );
+    await assert.rejects(bad.bytes(), /checksum mismatch/);
+    const redirect = await readBundle(
+      dir,
+      'linux-x64',
+      async () =>
+        new Response(null, { status: 302, headers: { location: 'http://127.0.0.1/private' } }),
+    );
+    await assert.rejects(redirect.bytes(), /redirect/);
+    await assert.rejects(readBundle(dir, 'win32-x64'), /catalog/);
+  } finally {
+    if (previous === undefined) delete process.env.ALUNE_AGENT_RELEASE_CATALOG;
+    else process.env.ALUNE_AGENT_RELEASE_CATALOG = previous;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

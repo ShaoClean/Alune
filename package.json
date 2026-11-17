@@ -12,7 +12,7 @@
     "release:notes": "node scripts/release-notes.mjs",
     "release:notes:github": "node scripts/generate-release-notes.mjs",
     "release:issue": "node scripts/update-release-issue.mjs",
-    "dev": "turbo dev",
+    "dev": "npm run web:agent",
     "build": "npm run icons:check && turbo build",
     "icons:generate": "node scripts/generate-icons.mjs",
     "icons:check": "node scripts/generate-icons.mjs --check",
@@ -30,7 +30,11 @@
     "website:build": "npm run build -w website",
     "website:preview": "npm run preview -w website",
     "website:check": "npm run check -w website && npm run build -w website && npm test -w website",
-    "ui:check": "npm run check -w @alune/ui && npm test -w @alune/ui && node apps/website/scripts/ui-api.mjs --check && node apps/website/scripts/ui-coverage.mjs"
+    "ui:check": "npm run check -w @alune/ui && npm test -w @alune/ui && node apps/website/scripts/ui-api.mjs --check && node apps/website/scripts/ui-coverage.mjs",
+    "web:agent": "turbo build --filter=@alune/agent --filter=@alune/ui && npm run dev:agent -w web",
+    "desktop:candidate:build": "npm run icons:check && turbo build --filter=web --filter=@alune/agent && npm run build:candidate -w desktop",
+    "test:retirement": "node --test scripts/agent/retirement.test.mjs",
+    "test:acceptance": "node --test scripts/agent/acceptance-policy.test.mjs scripts/agent/reconcile-ui-evidence.test.mjs scripts/agent/p0-test-receipts.test.mjs scripts/agent/check-p0-models.test.mjs scripts/agent/p0-paired-receipts.test.mjs scripts/agent/p0-followup-archive.test.mjs scripts/agent/p0-history-pointer-review.test.mjs scripts/agent/p0-client-runner.test.mjs scripts/agent/p0-git-bindings.test.mjs scripts/agent/p0-service-delegations.test.mjs scripts/agent/p0-native-current.test.mjs scripts/agent/p0-native-components.test.mjs scripts/agent/p0-client-export-receipts.test.mjs apps/desktop/test/signature-failure-fixture.test.cjs scripts/agent/p0-terminal-account-plan.test.mjs scripts/agent/p0-ai-web-plan.test.mjs scripts/agent/p0-layout-browser-receipts.test.mjs scripts/agent/local-performance-evidence.test.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.2",

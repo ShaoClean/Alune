@@ -1,0 +1,19 @@
+{
+  "result": "passed",
+  "inputHashes": {
+    "mac-installer.cjs": "c5ccacff4e6026cc1051fe5db9418a94c33d554e2ce0ab525dfb9fd062a58601",
+    "../scripts/critical-native-rollback.mjs": "8dfe653079fd3ac87813d86c0b80340bab77c747ce7758db0bccfffcb4d0f751"
+  },
+  "stagedAsarSha256": "dba5cf33b42cf90f49180a0ed2e76aba9a16e85b6ebb3ae367680f1471e143f6",
+  "original": {
+    "plist": "e95fec337606f9935d89c418c6ffe265616ce549d30f50774514655f99ec2df6",
+    "binary": "7b880411c25cb58dcc2839502d1a8abb0d17d59325824fe92a9aedf551f0be6b"
+  },
+  "statusMessage": "新版本未能启动，已恢复原版本。请重新检查更新后重试。",
+  "actualReleasedPayload": "0.11.0",
+  "deliberateFirstLaunchRefusal": true,
+  "restoredBinaryByteIdentical": true,
+  "retainedSettingsUnchanged": true,
+  "restoredOriginalActuallyStartedViaOpen": true,
+  "limitations": "Original is a native fixture, not an installed old Alune application. New release launch deliberately refused before execution; this does not certify successful updated-Alune startup, native-update or normal installed-upgrade-rollback gates."
+}

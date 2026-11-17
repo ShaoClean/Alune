@@ -22,6 +22,8 @@ import { AlunePopconfirm } from '@alune/ui';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { DialogIcon } from '@alune/ui';
 import { DialogNote, OptionCards } from '@alune/ui';
+import { fileAccessApi } from '../api/file-access';
+import { DirectoryAccessDialog } from '../features/connections/DirectoryAccessDialog';
 
 type AuthType = 'password' | 'privateKey' | 'sshAgent';
 
@@ -97,6 +99,10 @@ export function ConnectionsPage() {
     testConnection,
   } = useConnectionStore();
   const [modalVisible, setModalVisible] = useState(false);
+  const [directoryConnection, setDirectoryConnection] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [testLoading, setTestLoading] = useState<string | null>(null);
   const [form] = Form.useForm<ConnectionFormValues>();
   const watchedName = Form.useWatch('name', form);
@@ -183,11 +189,22 @@ export function ConnectionsPage() {
           aria-label={`删除 ${connection.name}`}
         />
       </DeleteConnectionConfirm>
+      {fileAccessApi.available && (
+        <Button size="small" onClick={() => setDirectoryConnection(connection)}>
+          目录授权
+        </Button>
+      )}
     </div>
   );
 
   return (
     <div>
+      {directoryConnection && (
+        <DirectoryAccessDialog
+          connection={directoryConnection}
+          onClose={() => setDirectoryConnection(null)}
+        />
+      )}
       <div className="page-heading">
         <div>
           <h2>SSH 连接</h2>

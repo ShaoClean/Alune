@@ -1,32 +1,15 @@
-import { useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useEffect, useSyncExternalStore } from 'react';
+
+import { currentUiAgent, observeUiAgent } from '../api/ui-agent';
+import { subscribeWorkspaceEvents } from '../api/workspace-events';
 
 export function useSocket(events: Record<string, (...args: any[]) => void>) {
-  const socketRef = useRef<Socket | null>(null);
+  const uiAgent = useSyncExternalStore(observeUiAgent, currentUiAgent);
 
   useEffect(() => {
-    const socket = io({ transports: ['websocket'] });
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      console.log('Socket connected');
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Socket disconnected');
-    });
-
-    Object.entries(events).forEach(([event, handler]) => {
-      socket.on(event, handler);
-    });
-
-    return () => {
-      Object.entries(events).forEach(([event, handler]) => {
-        socket.off(event, handler);
-      });
-      socket.disconnect();
-    };
-  }, []);
-
-  return socketRef;
+    if (uiAgent) {
+      return subscribeWorkspaceEvents(uiAgent, events);
+    }
+    events.disconnect?.();
+  }, [uiAgent]);
 }

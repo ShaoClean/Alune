@@ -2,7 +2,7 @@ import { useCommitSignatures } from '../hooks/useCommitSignatures';
 import { CommitSignatureBadge } from './CommitSignatureBadge';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import type { GraphCommit, CommitReference } from '@alune/shared';
+import type { GraphCommit, CommitReference } from '@alune/domain';
 import { FeedbackNotice, Button, Dropdown } from '@alune/ui';
 import { InteractiveRebaseDialog } from './InteractiveRebaseDialog';
 import {
@@ -147,6 +147,9 @@ export function HistoryView({
   const linear = linearHistory(logFilter);
   const viewport = useRef<HTMLDivElement>(null);
   const scrollTopRef = useRef(0);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  const retainedScroll = useRef<number | null>(null);
   const graphCache = useRef<{ generation: number; graph: GraphLayout }>({
     generation: -1,
     graph: emptyGraph(),
@@ -182,13 +185,29 @@ export function HistoryView({
   useEffect(() => {
     if (viewport.current) viewport.current.scrollTop = 0;
     scrollTopRef.current = 0;
+    if (retainedScroll.current !== null) retainedScroll.current = 0;
     setScrollTop(0);
     setFocused(0);
   }, [logGeneration]);
   useLayoutEffect(() => {
-    if (!visible || !viewport.current || viewport.current.scrollTop === scrollTopRef.current)
+    if (!visible) {
+      retainedScroll.current ??= scrollTopRef.current;
       return;
-    viewport.current.scrollTop = scrollTopRef.current;
+    }
+    const element = viewport.current;
+    if (!element?.clientHeight) return;
+    element.scrollTop = retainedScroll.current ?? scrollTopRef.current;
+    if (retainedScroll.current === null) return;
+    // The browser may deliver its hidden-panel clamp after the panel is shown.
+    // Keep the saved position until the visible layout has reached a frame.
+    const frame = requestAnimationFrame(() => {
+      if (!visibleRef.current || !element.clientHeight) return;
+      element.scrollTop = retainedScroll.current ?? scrollTopRef.current;
+      scrollTopRef.current = element.scrollTop;
+      retainedScroll.current = null;
+      setScrollTop(element.scrollTop);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [visible, height, logGeneration]);
   // Runs after the generation reset above, so a restored selection wins.
   useEffect(() => {
@@ -198,7 +217,7 @@ export function HistoryView({
     setFocused(index);
     const top = Math.max(0, (index + 1) * GRAPH_ROW_HEIGHT - element.clientHeight / 2);
     element.scrollTop = top;
-    updateScrollTop(top);
+    updateScrollTop(top, true);
   }, [revealHash, logGeneration, log.length > 0]);
 
   const start = Math.max(0, Math.floor((scrollTop - GRAPH_ROW_HEIGHT) / GRAPH_ROW_HEIGHT) - 12);
@@ -209,8 +228,16 @@ export function HistoryView({
     logGeneration,
   );
   const graphWidth = Math.max(72, graph.width * GRAPH_LANE_WIDTH + 24);
-  const updateScrollTop = (value: number) => {
+  const updateScrollTop = (value: number, explicit = false) => {
+    // Hiding a retained panel can emit a browser scroll-to-zero event. It does
+    // not represent a user scroll and must not replace the saved position.
+    if (
+      !explicit &&
+      (!visibleRef.current || retainedScroll.current !== null || !viewport.current?.clientHeight)
+    )
+      return;
     scrollTopRef.current = value;
+    if (explicit && retainedScroll.current !== null) retainedScroll.current = value;
     setScrollTop(value);
   };
   useEffect(() => {
@@ -256,6 +283,7 @@ export function HistoryView({
     if (top < element.scrollTop) element.scrollTop = top;
     else if (top + GRAPH_ROW_HEIGHT * 2 > element.scrollTop + element.clientHeight)
       element.scrollTop = top + GRAPH_ROW_HEIGHT * 2 - element.clientHeight;
+    updateScrollTop(element.scrollTop, true);
   };
 
   return (
@@ -351,6 +379,7 @@ export function HistoryView({
             className="history-table"
             role="grid"
             aria-label="提交图"
+            aria-busy={logLoading || logLoadingMore}
             aria-rowcount={log.length + 1}
             aria-colcount={6}
             tabIndex={0}

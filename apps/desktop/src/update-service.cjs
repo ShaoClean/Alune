@@ -14,10 +14,11 @@ function errorMessage(error) {
 }
 
 class UpdateService extends EventEmitter {
-  constructor({ version, platform, supported = true, adapter, closeBackend, cleanupTimeout = 5000 }) {
+  constructor({ version, platform, supported = true, adapter, closeBackend, confirmClose, cleanupTimeout = 5000 }) {
     super();
     this.adapter = adapter;
     this.closeBackend = closeBackend;
+    this.confirmClose = confirmClose;
     this.cleanupTimeout = cleanupTimeout;
     this.active = null;
     this.downloaded = null;
@@ -99,6 +100,10 @@ class UpdateService extends EventEmitter {
       try {
         // Validate permissions and stage the macOS app while the backend is still usable.
         prepared = await this.adapter.prepareInstall?.(this.downloaded);
+        if (this.confirmClose && !(await this.confirmClose())) {
+          this.setState({ status: 'downloaded', error: null });
+          return;
+        }
         await Promise.race([
           Promise.resolve().then(() => this.closeBackend()),
           new Promise((_, reject) => {

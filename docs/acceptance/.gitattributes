@@ -1,0 +1,2 @@
+# Preserve original command output, including Git's blank hint-line spaces.
+*.log -whitespace

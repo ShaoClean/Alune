@@ -4,7 +4,14 @@ const assert = require('node:assert/strict');
 // the L2 「放弃所有更改」 dialog: default focus, ↵ stays disabled, Esc closes and
 // returns focus, the spring/fade motion, and the bottom sheet on narrow windows.
 module.exports = async ({ window }) => {
-  const execute = (script) => window.webContents.executeJavaScript(script);
+  const execute = async (script) => {
+    try {
+      return await window.webContents.executeJavaScript(script);
+    } catch (error) {
+      const focus = await window.webContents.executeJavaScript('JSON.stringify({focused: document.hasFocus(), active: document.activeElement?.outerHTML.slice(0, 500)})');
+      throw new Error(`Dialogs smoke script failed: ${script}\nFocus: ${focus}`, { cause: error });
+    }
+  };
   const wait = (condition) =>
     execute(`new Promise((resolve, reject) => {
     const started = Date.now(); const poll = () => {
@@ -81,6 +88,9 @@ module.exports = async ({ window }) => {
   const motion = () =>
     execute('new Promise((resolve) => setTimeout(() => resolve(window.__dialogMotion), 1600))');
   const open = async () => {
+    // A scripted click cannot activate a background native window. Establish
+    // the keyboard user's precondition on every reopen, not just the first.
+    await require('./smoke-window.cjs')(window);
     await execute(
       `(() => { const trigger = document.querySelector(${JSON.stringify(trigger)}); trigger.focus(); trigger.click(); })()`,
     );
@@ -111,7 +121,6 @@ module.exports = async ({ window }) => {
       `(${JSON.stringify(originalMotion)} === null) ? delete document.documentElement.dataset.reducedMotion : (document.documentElement.dataset.reducedMotion = ${JSON.stringify(originalMotion)})`,
     );
   try {
-    await require('./smoke-window.cjs')(window);
     await wait(
       `document.querySelector(${JSON.stringify(trigger)}) && !document.querySelector(${JSON.stringify(trigger)}).disabled`,
     );
@@ -127,8 +136,12 @@ module.exports = async ({ window }) => {
     const entrance = (await motion()).filter((entry) => entry.startsWith('alune-dlg-rise'));
     if (motionEnabled) assert.deepEqual(entrance, ['alune-dlg-rise:360']);
     else assert.deepEqual(entrance, []);
-    await wait(
-      `!${shell}.querySelector('.a-dlg-actions .ant-btn-dangerous').getAttribute('aria-busy')`,
+    // The shell and Cancel focus precede the async Git preview. aria-busy
+    // describes submitting the destructive action, not loading that preview.
+    await wait(`${shell}?.querySelector('.dlg-check input:not(:disabled)')`);
+    assert.equal(
+      await execute(`${shell}.querySelector('.a-dlg-actions .ant-btn-dangerous').disabled`),
+      true,
     );
     await execute(`${shell}.querySelector('.dlg-check input').click()`);
     await wait(`!${shell}.querySelector('.a-dlg-actions .ant-btn-dangerous').disabled`);

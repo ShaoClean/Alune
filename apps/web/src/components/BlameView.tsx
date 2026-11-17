@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { BlameLine, BlameOptions, BlameResult } from '@alune/shared';
+import type { BlameLine, BlameOptions, BlameResult } from '@alune/domain';
 import { Button, ErrorState, FeedbackNotice, Popover, Spin, EmptyState } from '@alune/ui';
 import { CodeView } from './CodeView';
 import { fileLanguage } from './file-language';

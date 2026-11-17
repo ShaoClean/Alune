@@ -166,8 +166,8 @@ test('showing another tab keeps every hidden tab’s loaded panels and preview',
     throw new Error('b offline');
   };
   await store.getState().fetchBranches('b');
-  assert.equal(ws('b').error, 'b offline');
-  assert.equal(ws('a').error, null, 'one tab’s failure is not shown in another');
+  assert.equal(ws('b').panelErrors.branches, 'b offline');
+  assert.equal(ws('a').panelErrors.branches, null, 'one tab’s failure is not shown in another');
 });
 
 test('closing a tab drops its workspace and aborts its reads; late replies cannot restore it', async () => {

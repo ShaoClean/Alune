@@ -21,16 +21,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - workspace: agent-client
+            command: npm test -w @alune/agent-client
+          - workspace: agent
+            command: npm test -w @alune/agent
+          - workspace: domain
+            command: npm test -w @alune/domain
+          - workspace: protocol
+            command: npm test -w @alune/protocol
           - workspace: desktop
             command: npm run desktop:test:unit
           - workspace: ui
             command: npm run ui:check
           - workspace: web
             command: npm test -w web
-          - workspace: server
-            command: npm test -w server -- --ci --runInBand
-          - workspace: ssh-client
-            command: npm test -w @alune/ssh-client
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,24 +42,21 @@ jobs:
           node-version: '22.22.0'
           cache: npm
       - run: npm ci
-      - name: 构建共享依赖
-        if: matrix.workspace != 'desktop'
-        run: npm run build -w @alune/shared
-      - name: 构建服务端的 SSH 依赖
-        if: matrix.workspace == 'server'
-        run: npm run build -w @alune/ssh-client
+      - name: 构建 Agent、SDK 与领域契约
+        run: npx turbo build --filter=@alune/agent
+      - run: npm run test:retirement
       - name: 运行单元测试
         run: ${{ matrix.command }}
 
   local-git:
-    name: 本地 Git (${{ matrix.os }})
+    name: 本地 Git 与代理 (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14, windows-latest]
+        os: [ubuntu-22.04, macos-15, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -63,39 +64,6 @@ jobs:
           node-version: '22.22.0'
           cache: npm
       - run: npm ci
-      - run: npm run build -w @alune/shared
-      - run: npm run build -w @alune/ssh-client
-        id: build-local-git
-      - run: node --test packages/ssh-client/tests/local-connection.test.cjs packages/ssh-client/tests/discard-changes.test.cjs packages/ssh-client/tests/change-entries.test.cjs packages/ssh-client/tests/repository-analytics.test.cjs packages/ssh-client/tests/signing.test.cjs
-      - run: npm test -w server -- --ci --runInBand local-git.spec.ts workspace-file.spec.ts
-        if: ${{ !cancelled() && steps.build-local-git.outcome == 'success' }}
-      - name: 验证本地与 SSH 签名 HTTP 接口
-        if: runner.os != 'Windows'
-        run: |
-          npm run build -w server
-          node --test apps/web/tests/signing.integration.cjs
-
-  network-proxy:
-    name: 网络代理 (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-14, windows-latest]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.22.0'
-          cache: npm
-      - run: npm ci
-      - run: npm run build -w @alune/shared
-      - run: npm run build -w @alune/ssh-client
-      - run: npm run build -w server
-      - run: node --test packages/ssh-client/tests/proxy-transport.test.cjs packages/ssh-client/tests/local-git-proxy.test.cjs packages/ssh-client/tests/local-git-partial-proxy.test.cjs apps/server/test/proxy.integration.cjs
-      - name: 验证 Electron 更新网络栈
-        if: runner.os != 'Linux'
-        run: npm run test:proxy -w desktop
-      - name: 验证 Electron 更新网络栈 (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a npm run test:proxy -w desktop
+      - run: npx turbo build --filter=@alune/agent
+      - name: Agent Git、文件、SSH 与代理行为
+        run: node --test --test-concurrency=2 packages/agent/tests/git-*.test.cjs

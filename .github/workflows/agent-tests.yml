@@ -1,0 +1,133 @@
+name: 独立 Agent
+
+on:
+  workflow_call:
+  pull_request:
+  push:
+    branches: [development]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  standalone:
+    name: Agent / Node / SQLite / PTY (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux-x64
+          - os: windows-latest
+            target: win32-x64
+          - os: macos-15
+            target: darwin-arm64
+          - os: macos-15-intel
+            target: darwin-x64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /.githooks/
+            /.github/
+            /scripts/
+            /apps/web/
+            /packages/agent/
+            /packages/agent-client/
+            /packages/domain/
+            /packages/protocol/
+            /packages/ui/
+            /apps/desktop/src/ai-secret-storage.cjs
+            /apps/desktop/src/legacy-agent-secrets.cjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - name: 核对原生目标架构
+        run: node -e "if (process.platform + '-' + process.arch !== '${{ matrix.target }}') throw new Error('Runner architecture mismatch')"
+      - name: 用目标平台 shell 验证二进制部署引导
+        run: node --experimental-strip-types scripts/agent/test-bootstrap.mjs
+      - run: node scripts/agent/check-clean-checkout.mjs before-install
+      - run: npm ci --workspace=@alune/agent --workspace=@alune/agent-client --workspace=@alune/domain --workspace=@alune/protocol --workspace=@alune/ui --workspace=web --include-workspace-root=false
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: node scripts/agent/check-clean-checkout.mjs after-install
+      - run: node --test scripts/agent/download-runtime.test.mjs
+      - run: npm test -w @alune/protocol
+      - run: npm test -w @alune/agent-client
+      - run: npm test -w @alune/agent
+      - run: npm run build -w web
+      - run: npm test -w web
+      - if: runner.os == 'Linux'
+        run: bash scripts/agent/test-web-gateway-linux.sh
+      - if: runner.os != 'Linux'
+        run: npm run test:agent-dev -w web
+      - run: node scripts/agent/check-browser.mjs
+      - run: node scripts/agent/check-boundaries.mjs
+      - name: 记录构建后的工作区差异
+        run: |
+          git status --short
+          git diff --summary
+          git diff --numstat
+      - name: 打包含官方 Node 的独立 Agent
+        shell: bash
+        run: node scripts/agent/package.mjs --output "$RUNNER_TEMP/alune-agent-${{ matrix.target }}"
+      - name: 验证包内协议与生命周期
+        shell: bash
+        run: node scripts/agent/test-packaged.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}" --require-clean
+      - name: Verify packaged protocol 1.0–1.7 negotiation and refused capabilities
+        shell: bash
+        run: node scripts/agent/test-negotiated-package.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}" "$RUNNER_TEMP/protocol-${{ matrix.target }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: negotiated-protocol-${{ matrix.target }}
+          path: ${{ runner.temp }}/protocol-${{ matrix.target }}.json
+          if-no-files-found: error
+      - name: 在无旧工作区的临时目录验证包内 SDK、SSH、代理与 PTY
+        shell: bash
+        run: node scripts/agent/test-ssh-isolated.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}"
+      - name: 保存可执行权限并生成归档
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: tar -czf "alune-agent-${{ matrix.target }}.tar.gz" "alune-agent-${{ matrix.target }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alune-agent-${{ matrix.target }}
+          path: ${{ runner.temp }}/alune-agent-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+      - name: 生成已验证平台对应的 SSH 部署归档和指纹
+        shell: bash
+        run: node scripts/agent/ssh-bundle.mjs "$RUNNER_TEMP/alune-agent-${{ matrix.target }}" "$RUNNER_TEMP/ssh-deploy"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ssh-deploy-${{ matrix.target }}
+          path: ${{ runner.temp }}/ssh-deploy/ssh-bundles/${{ matrix.target }}
+          if-no-files-found: error
+
+  release-catalog:
+    needs: standalone
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ssh-deploy-*
+          path: ${{ runner.temp }}/agent-builds
+      - name: Verify complete candidate release catalog without publishing
+        run: node scripts/agent/release-assets.mjs catalog "$RUNNER_TEMP/agent-builds" "$RUNNER_TEMP/agent-catalog"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-agent-catalog
+          path: ${{ runner.temp }}/agent-catalog/agent-catalog.json

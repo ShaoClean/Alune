@@ -165,7 +165,7 @@ test('commit-file failures belong only to the selected commit and cannot duplica
   };
   await store.getState().fetchCommitFiles('a', 'commit-a');
   assert.equal(ws().commitFilesError, 'commit files unavailable');
-  assert.equal(ws().error, null);
+  assert.deepEqual(ws().panelErrors, { branches: null, stashes: null, remotes: null });
 });
 
 test('blame jumps start at an older commit and pagination retains that revision scope', async () => {

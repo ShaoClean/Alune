@@ -10,9 +10,33 @@ const {
   autoUpdater: nativeUpdater,
 } = require('electron');
 const { randomBytes } = require('node:crypto');
-const { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } = require('node:fs');
+const { mkdirSync, readFileSync, writeFileSync, writeSync } = require('node:fs');
 const path = require('node:path');
-const os = require('node:os');
+let backend;
+// Install before asynchronous startup. A fatal monitor cannot wait for Agent RPC.
+function reportProcessError(message, error) {
+  let detail = '[无法读取错误原因]';
+  try {
+    detail = error?.stack || String(error);
+  } catch {}
+  try {
+    writeSync(2, `${message}\n${detail}\n`);
+  } catch {}
+  try {
+    const { logger, errorContext } = appLog();
+    logger.error('process', message, errorContext(error));
+  } catch {}
+}
+process.on('uncaughtExceptionMonitor', (error, source) =>
+  reportProcessError(`未捕获异常（${source}）`, error),
+);
+// Keep the desktop's existing nonfatal rejection policy, including before ready.
+process.on('unhandledRejection', (reason) =>
+  reportProcessError('未处理的 Promise 拒绝', reason),
+);
+let registry;
+const preferencesFile = () =>
+  path.join(app.getPath('userData'), 'agent', 'workspace.json');
 const {
   createWorkspacePreferences,
   isTrustedWorkspaceSender,
@@ -29,32 +53,68 @@ if (smokeTest) {
     throw new Error('Smoke tests require an isolated data directory');
   if (process.env.CI === 'true') app.disableHardwareAcceleration();
   app.setPath('userData', process.env.ALUNE_SMOKE_DIR);
+} else if (process.env.ALUNE_CANDIDATE_DATA_DIR) {
+  const dir = process.env.ALUNE_CANDIDATE_DATA_DIR;
+  if (!path.isAbsolute(dir)) throw new Error('候选工作区必须指定绝对数据目录。');
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const info = require('node:fs').lstatSync(dir);
+  if (
+    !info.isDirectory() ||
+    info.isSymbolicLink() ||
+    (process.getuid && info.uid !== process.getuid())
+  )
+    throw new Error('隔离工作区必须是当前用户的目录。');
+  app.setPath('userData', dir);
 } else {
   app.setPath('userData', path.join(app.getPath('appData'), 'Alune'));
 }
-// The embedded server and this process share one log store rooted here.
+// The independent Agent owns application state and logging.
 process.env.ALUNE_DATA_DIR = app.getPath('userData');
 
 // Loaded lazily: the second instance quits before writing anything.
 function appLog() {
-  return require('./server/logging/logger.js');
+  const logger = Object.fromEntries(
+    ['debug', 'info', 'warn', 'error'].map((level) => [
+      level,
+      (source, message, context) => {
+        if (backend?.client?.state === 'ready')
+          void backend.client
+            .request('desktop.log', {
+              level: level.toUpperCase(),
+              source,
+              message,
+              ...(context ? { context } : {}),
+            })
+            .catch(() => {});
+      },
+    ]),
+  );
+  return {
+    logger,
+    errorContext: (e) => ({ error: e instanceof Error ? e.message : String(e) }),
+    logStore: () => ({ flush() {} }),
+  };
 }
 
-let backend;
 let window;
 let origin;
 let quitting = false;
+let quitRequested = false;
 let updates;
 let closingBackend;
 let terminalClosePending = false;
 const token = randomBytes(32).toString('hex');
 const windowStatePath = path.join(app.getPath('userData'), 'window.json');
-const iconPath = path.join(__dirname, 'assets', process.platform === 'darwin' ? 'icon-mac.png' : 'icon.png');
+const iconPath = path.join(
+  __dirname,
+  'assets',
+  process.platform === 'darwin' ? 'icon-mac.png' : 'icon.png',
+);
 const logWindow = createLogWindow({
   BrowserWindow,
   getOrigin: () => origin,
   iconPath,
-  openExternal: smokeTest ? (url) => require('./smoke.cjs').openExternal(url) : (url) => shell.openExternal(url),
+  openExternal: smokeTest ? async () => {} : (url) => shell.openExternal(url),
   show: !smokeTest,
 });
 
@@ -65,9 +125,7 @@ function createWindow() {
   } catch {}
   let savedPreferences = null;
   try {
-    savedPreferences = createWorkspacePreferences(
-      path.join(app.getPath('userData'), 'workspace.json'),
-    ).load();
+    savedPreferences = createWorkspacePreferences(preferencesFile()).load();
   } catch {}
   window = new BrowserWindow({
     title: 'Alune',
@@ -82,15 +140,19 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       partition: 'alune-desktop',
+      additionalArguments: ['--alune-agent-ui'],
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
       webSecurity: true,
+      // Native acceptance deliberately keeps its window hidden. Its polling
+      // timers and layout frames must keep running while Codex is in front.
+      backgroundThrottling: !smokeTest,
     },
   });
   window.webContents.setWindowOpenHandler(
     createExternalLinkHandler(
-      smokeTest ? require('./smoke.cjs').openExternal : (url) => shell.openExternal(url),
+      smokeTest ? async () => {} : (url) => shell.openExternal(url),
     ),
   );
   const guardNavigation = (event, url) => {
@@ -103,15 +165,20 @@ function createWindow() {
     if (state.maximized) window.maximize();
     if (!smokeTest) window.show();
   });
+  let closeApproved = false;
   window.on('close', (event) => {
-    if (!quitting && terminalRegistry()?.impact({}).length) {
+    if (!quitting && !closeApproved) {
       event.preventDefault();
       if (!terminalClosePending) {
         terminalClosePending = true;
         void confirmTerminalShutdown()
           .then((confirmed) => {
-            if (confirmed) window?.close();
+            if (confirmed) {
+              closeApproved = true;
+              window?.close();
+            }
           })
+          .catch(fail)
           .finally(() => {
             terminalClosePending = false;
           });
@@ -139,8 +206,21 @@ async function start() {
   const dataDir = app.getPath('userData');
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   process.env.ALUNE_DATA_DIR = dataDir;
+  const options = {
+    app,
+    dataDir,
+    smokeTest,
+    token,
+    ipcMain,
+    windowContents: () => window?.webContents,
+    logContents: () => logWindow.contents(),
+  };
+  const service = await require('./desktop-agent.cjs').startDesktopAgent(options);
+  backend = service;
+  origin = service.origin;
+  registry = service.registry;
+  const networkProxy = service.networkProxy;
   const { logger, errorContext } = appLog();
-  require('./server/logging/redact.js').registerSecret(token);
   logger.info('app', 'Alune 启动', {
     version: app.getVersion(),
     platform: process.platform,
@@ -148,64 +228,10 @@ async function start() {
     electron: process.versions.electron,
     packaged: app.isPackaged,
   });
-  process.on('uncaughtExceptionMonitor', (error, source) =>
-    logger.error('process', `未捕获异常（${source}）`, errorContext(error)),
-  );
-  process.on('unhandledRejection', (reason) =>
-    logger.error('process', '未处理的 Promise 拒绝', errorContext(reason)),
-  );
-  const standaloneDatabase = path.join(os.homedir(), '.alune', 'alune.db');
-  const databasePath = path.join(dataDir, 'alune.db');
-  const tokenImportMarker = path.join(dataDir, 'access-token-import-pending');
-  if (!smokeTest && !existsSync(databasePath) && existsSync(standaloneDatabase)) {
-    const Database = require('better-sqlite3');
-    const source = new Database(standaloneDatabase, { readonly: true });
-    try {
-      await source.backup(databasePath);
-    } finally {
-      source.close();
-    }
-    writeFileSync(tokenImportMarker, '', { mode: 0o600 });
-  }
-  const { startServer } = require('./server/bootstrap.js');
-  const aiSecretStorage = require('./ai-secret-storage.cjs').createAiSecretStorage(
-    require('electron').safeStorage,
-  );
-  if (!smokeTest && existsSync(tokenImportMarker)) {
-    const Database = require('better-sqlite3');
-    const imported = new Database(databasePath);
-    try {
-      const { localSecretStorage } = require('./server/secrets/secret-storage');
-      const {
-        migrateImportedAccessTokens,
-      } = require('./server/access-tokens/access-token-migration');
-      if (
-        migrateImportedAccessTokens(
-          imported,
-          localSecretStorage(path.dirname(standaloneDatabase)),
-          aiSecretStorage,
-        )
-      )
-        rmSync(tokenImportMarker);
-    } finally {
-      imported.close();
-    }
-  }
-  backend = await startServer({
-    port: 0,
-    host: '127.0.0.1',
-    token,
-    desktop: true,
-    webRoot: path.join(__dirname, 'web'),
-    aiSecretStorage,
-  });
-  origin = await backend.getUrl();
-  const { ProxyService } = require('./server/proxy/proxy.service.js');
-  const networkProxy = backend.get(ProxyService);
   const { UpdateService } = require('./update-service.cjs');
   const { registerUpdateIPC } = require('./update-ipc.cjs');
   const adapter = smokeTest
-    ? require('./smoke.cjs').createUpdateAdapter(app.getVersion())
+    ? require('./smoke-updater.cjs').createUpdateAdapter(app.getVersion())
     : process.platform === 'darwin'
       ? require('./mac-updater.cjs').createMacUpdater({
           version: app.getVersion(),
@@ -218,6 +244,10 @@ async function start() {
       : require('./electron-updater-adapter.cjs').createElectronUpdater({
           updater: require('electron-updater').autoUpdater,
           nativeUpdater,
+          installDirectory:
+            process.platform === 'win32' && app.isPackaged
+              ? path.dirname(app.getPath('exe'))
+              : undefined,
           proxyBridge: () => networkProxy.updaterBridge(),
         });
   if (adapter.install) {
@@ -243,7 +273,9 @@ async function start() {
     platform: process.platform,
     supported,
     adapter,
-    closeBackend,
+    confirmClose: confirmTerminalShutdown,
+    closeBackend: () => closeBackend(true),
+    cleanupTimeout: process.platform === 'win32' ? 17000 : 6500,
   });
   const installError =
     !smokeTest && process.platform === 'darwin'
@@ -277,7 +309,7 @@ async function start() {
     getWindow: () => window,
     getOrigin: () => origin,
   });
-  const preferences = createWorkspacePreferences(path.join(dataDir, 'workspace.json'));
+  const preferences = createWorkspacePreferences(preferencesFile());
   ipcMain.handle('workspace:choose-directory', async (event) => {
     if (!isTrustedWorkspaceSender(event, window?.webContents, origin))
       throw new Error('Workspace access denied');
@@ -420,9 +452,17 @@ async function start() {
     app.once('before-quit', () => clearTimeout(timer));
   }
   if (smokeTest) {
-    await require(
-      process.env.ALUNE_TERMINAL_SMOKE === '1' ? './terminal-smoke.cjs' : './smoke.cjs',
-    )({ window, origin, token, updates, closeBackend, backend, version: app.getVersion() });
+    await require('./candidate-smoke.cjs')({ window, origin, logWindow, backend, updates });
+    if (process.env.ALUNE_CANDIDATE_EVIDENCE) {
+      mkdirSync(process.env.ALUNE_CANDIDATE_EVIDENCE, { recursive: true });
+      writeFileSync(path.join(process.env.ALUNE_CANDIDATE_EVIDENCE,
+        'complete-' + process.env.ALUNE_SMOKE_PHASE + '.json'), JSON.stringify({
+          sha: process.env.ALUNE_ACCEPTANCE_SHA ?? process.env.GITHUB_SHA ?? null,
+          focus: process.env.ALUNE_CANDIDATE_FOCUS ?? null,
+          phase: process.env.ALUNE_SMOKE_PHASE,
+          result: 'passed',
+        }) + '\n');
+    }
     app.quit();
   }
 }
@@ -451,43 +491,34 @@ if (!app.requestSingleInstanceLock()) {
     }
     if (quitting || !backend) return;
     event.preventDefault();
-    if (terminalRegistry()?.impact({}).length) {
-      if (!terminalClosePending) {
-        terminalClosePending = true;
-        void confirmTerminalShutdown()
-          .then((confirmed) => {
-            if (confirmed) app.quit();
-          })
-          .finally(() => {
-            terminalClosePending = false;
-          });
-      }
-      return;
-    }
-    quitting = true;
+    if (quitRequested || terminalClosePending) return;
+    quitRequested = true;
     appLog().logger.info('app', 'Alune 正在退出');
-    const timeout = setTimeout(() => {
-      console.error('关闭本地服务超时');
-      appLog().logger.error('app', '关闭本地服务超时');
-      appLog().logStore().flush();
-      app.exit(1);
-    }, 5000);
     closeBackend()
       .then(() => {
-        clearTimeout(timeout);
+        quitting = true;
         app.quit();
       })
-      .catch(fail);
+      .catch((error) => {
+        quitRequested = false;
+        if (!error.cancelled) fail(error);
+      });
   });
 }
 
-function closeBackend() {
+function closeBackend(confirmed = false) {
   if (!backend) return Promise.resolve();
   if (!closingBackend) {
     closingBackend = Promise.resolve()
       .then(async () => {
-        if (!(await confirmTerminalShutdown())) throw new Error('已取消关闭终端；应用保持运行。');
-        await backend.close();
+        if (!confirmed && !(await confirmTerminalShutdown()))
+          throw Object.assign(new Error('已取消关闭终端；应用保持运行。'), { cancelled: true });
+        const timer = setTimeout(() => app.exit(1), process.platform === 'win32' ? 18000 : 8000);
+        try {
+          await backend.close();
+        } finally {
+          clearTimeout(timer);
+        }
       })
       .then(() => {
         backend = null;
@@ -500,8 +531,8 @@ function closeBackend() {
 }
 
 async function openLogDirectory() {
-  const { logStore, logger } = appLog();
-  const directory = logStore().settings().directory;
+  const { logger } = appLog();
+  const directory = (await backend.client.getLoggingSettings()).settings.directory;
   if (smokeTest) return directory;
   const error = await shell.openPath(directory);
   if (error) {
@@ -511,13 +542,26 @@ async function openLogDirectory() {
   return directory;
 }
 
-function terminalRegistry() {
-  return backend?.get(require('./server/terminal/terminal-registry.js').TerminalRegistry);
-}
-
 async function confirmTerminalShutdown() {
-  const registry = terminalRegistry();
-  const sessions = registry?.impact({}) || [];
+  if (backend?.client) {
+    const tasks = await backend.client.request('desktop.tasks.impact', {});
+    if (tasks.length) {
+      const result = await dialog.showMessageBox({
+        type: 'warning',
+        title: '仍有操作正在执行',
+        message: '退出将中断 ' + tasks.length + ' 个操作。',
+        detail: '操作可能已在文件、仓库或托管平台生效，重新打开后请核对结果。',
+        buttons: ['保持运行', '确认退出'],
+        defaultId: 0,
+        cancelId: 0,
+      });
+      if (result.response !== 1) return false;
+      const current = await backend.client.request('desktop.tasks.impact', {});
+      if (current.some((t) => !tasks.some((previous) => previous.requestId === t.requestId)))
+        return false;
+    }
+  }
+  const sessions = (await registry?.impact({})) || [];
   if (!sessions.length) return true;
   if (window && !window.isDestroyed() && !window.webContents.isCrashed()) {
     const target = window;
@@ -549,7 +593,7 @@ async function confirmTerminalShutdown() {
     });
     if (!confirmed) return false;
     try {
-      registry.remove(
+      await registry.remove(
         {},
         sessions.map((item) => item.id),
       );
@@ -580,7 +624,7 @@ async function confirmTerminalShutdown() {
       : await dialog.showMessageBox(options);
   if (result.response !== 1 || !result.checkboxChecked) return false;
   try {
-    registry.remove(
+    await registry.remove(
       {},
       sessions.map((item) => item.id),
     );

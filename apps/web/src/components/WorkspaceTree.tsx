@@ -3,7 +3,7 @@ import { LOCAL_GROUP_ID, repositoryGroupId } from '../stores/repositorySource';
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import { LaptopOutlined, HolderOutlined, RightOutlined } from '@ant-design/icons';
-import type { ConnectionStatusInfo, Repository } from '@alune/shared';
+import type { ConnectionStatusInfo, Repository } from '@alune/domain';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { RepositoryStatusIndicator } from './RepositoryStatusIndicator';

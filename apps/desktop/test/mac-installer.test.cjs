@@ -23,6 +23,24 @@ async function parentProcess(t) {
   return parent;
 }
 
+// hdiutil can leave a connected, unmounted image after an APFS attach failure.
+// Dispose only this test's unique image before deleting its backing directory.
+async function detachNativeFixtureImage(root, image) {
+  const inventory = path.join(root, 'image-inventory.plist');
+  await writeFile(inventory, (await exec('/usr/bin/hdiutil', ['info', '-plist'])).stdout, { mode: 0o600 });
+  const info = JSON.parse((await exec('/usr/bin/plutil', ['-convert', 'json', '-o', '-', inventory])).stdout);
+  const aliases = new Set([image, path.join(await realpath(root), path.basename(image))]);
+  let detached = 0;
+  for (const attached of info.images || []) {
+    if (!aliases.has(attached['image-path'])) continue;
+    const device = attached['system-entities']?.[0]?.['dev-entry'];
+    assert.match(device, /^\/dev\/disk\d+$/);
+    await exec('/usr/bin/hdiutil', ['detach', device]);
+    detached++;
+  }
+  return detached;
+}
+
 async function fixture(t, { metadata = {}, binaryArch = 'arm64', failure, ...options } = {}) {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'alune-install-test-')));
   const applications = path.join(root, "Applications ' $literal (test)");
@@ -179,7 +197,11 @@ test('failed helper startup leaves the app intact and the staged update can be d
 test('macOS native DMG staging, replacement and open launch upgrade an isolated app from 1.0.0 to 1.1.0',
   { skip: process.platform !== 'darwin', timeout: 60000 }, async (t) => {
     const root = await mkdtemp(path.join(tmpdir(), 'alune-native-upgrade-'));
-    t.after(() => rm(root, { recursive: true, force: true }));
+    const dmg = path.join(root, 'update.dmg');
+    t.after(async () => {
+      await detachNativeFixtureImage(root, dmg);
+      await rm(root, { recursive: true, force: true });
+    });
     const target = path.join(root, 'Applications', 'Alune.app');
     const payload = path.join(root, 'payload', 'Alune.app');
     const cacheDir = path.join(root, 'data', 'updates');
@@ -202,7 +224,6 @@ test('macOS native DMG staging, replacement and open launch upgrade an isolated 
     await cp(payload, target, { recursive: true });
     await writeFile(path.join(target, 'Contents', 'Info.plist'), plist('1.0.0'));
     await writeFile(path.join(root, 'data', 'preferences'), 'existing preferences');
-    const dmg = path.join(root, 'update.dmg');
     await exec('/usr/bin/hdiutil', ['create', '-quiet', '-srcfolder', path.dirname(payload), '-format', 'UDZO', dmg], { timeout: 30000 });
     const parent = spawn(path.join(target, 'Contents', 'MacOS', 'Alune'), ['--wait'], { stdio: 'ignore' });
     t.after(() => stop(parent));
@@ -222,4 +243,9 @@ test('macOS native DMG staging, replacement and open launch upgrade an isolated 
     assert.match(await readFile(path.join(target, 'Contents', 'Info.plist'), 'utf8'), /1\.1\.0/);
     assert.equal(await readFile(path.join(root, 'data', 'preferences'), 'utf8'), 'existing preferences');
     assert.deepEqual(await readdir(path.dirname(target)), ['Alune.app']);
+    // Exercise cleanup of a connected image with no mount point, the resource
+    // state observed after failed attaches, without touching an unrelated image.
+    await exec('/usr/bin/hdiutil', ['attach', '-readonly', '-nomount', dmg]);
+    assert.equal(await detachNativeFixtureImage(root, dmg), 1);
+    assert.equal(await detachNativeFixtureImage(root, dmg), 0);
   });

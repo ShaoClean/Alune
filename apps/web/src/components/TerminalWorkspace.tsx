@@ -16,8 +16,8 @@ import {
   WarningOutlined,
   EllipsisOutlined,
 } from '@ant-design/icons';
-import type { Repository, TerminalSession } from '@alune/shared';
-import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/shared';
+import type { Repository, TerminalSession } from '@alune/domain';
+import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/domain';
 import {
   useTerminalStore,
   connectTerminals,

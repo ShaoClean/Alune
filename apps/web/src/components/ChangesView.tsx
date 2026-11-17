@@ -17,7 +17,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, MoonLoader, Tooltip, type TooltipProps } from '@alune/ui';
 import { AlunePopconfirm } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
-import { changeActions, changeKindLabel, type FileStatus } from '@alune/shared';
+import { changeActions, changeKindLabel, type FileStatus } from '@alune/domain';
 import {
   CheckOutlined,
   DeleteOutlined,
@@ -143,6 +143,7 @@ export function ChangesView({
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const [discardAllOpen, setDiscardAllOpen] = useState(false);
   const discardAllTrigger = useRef<HTMLButtonElement>(null);
+  const restoreDiscardFocus = useRef(false);
   const [directoryFile, setDirectoryFile] = useState<FileStatus | null>(null);
   const [stagePlan, setStagePlan] = useState<{
     actionable: FileStatus[];
@@ -150,6 +151,20 @@ export function ChangesView({
   } | null>(null);
   const [operationBusy, setOperationBusy] = useState(false);
   const busy = loading || operationBusy || deletePath !== null || discardAllOpen;
+  useLayoutEffect(()=>{
+    if(!restoreDiscardFocus.current || busy)return;
+    // afterClose can run before React has committed the enabled trigger.
+    // Restore only after that commit; never steal focus from a new task.
+    const frame=requestAnimationFrame(()=>{
+      restoreDiscardFocus.current=false;
+      const trigger=discardAllTrigger.current;
+      if(trigger && trigger.getClientRects().length && !trigger.closest('[inert]') &&
+        (!document.activeElement || document.activeElement===document.body || !document.activeElement.isConnected)){
+        trigger.focus({preventScroll:true});
+      }
+    });
+    return ()=>cancelAnimationFrame(frame);
+  },[busy,discardAllOpen]);
 
   const panel = useRef<HTMLElement>(null);
   const actionFocus = useRef<{
@@ -740,8 +755,8 @@ export function ChangesView({
           key={repoId}
           repoId={repoId}
           onClose={() => {
+            restoreDiscardFocus.current=true;
             setDiscardAllOpen(false);
-            requestAnimationFrame(() => discardAllTrigger.current?.focus({ preventScroll: true }));
           }}
         />
       )}
@@ -854,7 +869,7 @@ export function ChangesView({
                 type="button"
                 className="commit-ai-generate"
                 aria-label="AI 生成提交信息"
-                disabled={busy || ai.generating}
+                disabled={!status || busy || ai.generating}
                 onClick={() => void ai.generate()}
               >
                 {ai.generating ? <MoonLoader /> : <Sparkles />}

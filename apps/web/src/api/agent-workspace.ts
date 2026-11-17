@@ -1,0 +1,522 @@
+import { confirmTerminalRemoval } from '../stores/terminalRemoval';
+import { AgentClient, openRemoteAgent, openLegacyRepository } from '@alune/agent-client';
+import {
+  validateRepositoryResource,
+  ProtocolError,
+  isRecord,
+  type RepositoryResource,
+  type ResourceRef,
+} from '@alune/protocol';
+import { aiApi } from './ai';
+import { loggingApi } from './logging';
+import { proxyApi } from './proxy';
+import {
+  repositoryApi,
+  gitApi,
+  fileApi,
+  accessTokenApi,
+  connectionApi,
+  pullRequestCenterApi,
+} from './index';
+import { createAgentRepositoryQueries, createAgentFileWrite } from './agent-repositories';
+import { createAgentCollaboration } from './agent-collaboration';
+import { workspaceTopics } from './ui-agent';
+import { hostConsent } from '../features/connections/HostConsent';
+import { fileAccessApi } from './file-access';
+import type { DirectoryGrant } from '@alune/protocol';
+
+type Binding = { localId: string; resource: ResourceRef };
+type Host = {
+  hostId: string;
+  hostKey: string | null;
+  terminalEnvironment?: string;
+  state: string;
+  reason: string | null;
+  gitProxy: string | null;
+  proxyRevision: string | null;
+  activeTasks: number;
+  updatedAt: number;
+  bindings: Binding[];
+};
+export type Target = {
+  client: AgentClient;
+  resource: ResourceRef;
+  alias: RepositoryResource;
+  terminalEnvironment?: string;
+};
+export let repositoryTarget: (id: string) => Promise<Target>;
+export const agentOwners = new Set<AgentClient>();
+const ownerListeners = new Set<(client: AgentClient) => void>();
+export function observeOwners(listener: (client: AgentClient) => void) {
+  ownerListeners.add(listener);
+  for (const client of agentOwners) listener(client);
+  return () => {
+    ownerListeners.delete(listener);
+  };
+}
+function addOwner(client: AgentClient) {
+  agentOwners.add(client);
+  for (const listener of ownerListeners) listener(client);
+  client.onClose(() => agentOwners.delete(client));
+}
+const fail = () => {
+  throw new Error('当前连接不支持此操作。');
+};
+function methods<T extends object>(template: T, run: (key: keyof T, ...args: any[]) => any): T {
+  return Object.fromEntries(
+    Object.keys(template).map((key) => [key, (...args: any[]) => run(key as keyof T, ...args)]),
+  ) as T;
+}
+export async function installWorkspaceAgent(local: AgentClient, logsOnly = false) {
+  const ref = (resourceId: string) => ({ agentId: local.initialized!.agentId, resourceId });
+  let logRevision = '';
+  Object.assign(loggingApi, {
+    recent: (n: number) => local.recentLogs(n),
+    settings: async () => {
+      const r = await local.getLoggingSettings();
+      logRevision = r.revision;
+      return r.settings;
+    },
+    save: async (input) => {
+      const r = await local.saveLoggingSettings(input, logRevision);
+      logRevision = r.revision;
+      return r.settings;
+    },
+    report: async (level, message, context) => {
+      await local.request(
+        'diagnostics.logs.client',
+        JSON.parse(JSON.stringify({ level, message, context })),
+      );
+    },
+  } satisfies typeof loggingApi);
+  if (logsOnly) return;
+  addOwner(local);
+  const catalog = async () =>
+    (await local.request('hosts.catalog', {})) as unknown as { hosts: Host[] };
+  const clients = new Map<string, AgentClient>(),
+    opening = new Map<string, Promise<AgentClient>>();
+  function connect(id: string, interactive = false, reconnectRevision?: string) {
+    const active = clients.get(id);
+    if (!reconnectRevision && active?.state === 'ready') return Promise.resolve(active);
+    const pending = opening.get(id);
+    if (pending && reconnectRevision) throw new Error('服务器正在连接。');
+    if (pending) return pending;
+    const work = (async () => {
+      const host = (await catalog()).hosts.find((h) => h.hostId === id);
+      if (!host) throw new Error('服务器不存在。');
+      if (!interactive && !host.hostKey) throw new Error('请先在连接页验证服务器指纹。');
+      const policy = interactive
+        ? await hostConsent(
+            (await local.listHostProfiles()).hosts.find((h) => h.id === id)!.name,
+            host.hostKey,
+          )
+        : { hostKey: host.hostKey!, install: false };
+      const client = await openRemoteAgent(local, {
+        hostId: id,
+        ...policy,
+        ...(reconnectRevision ? { reconnectRevision } : {}),
+      });
+      try {
+        await client.subscribe(workspaceTopics);
+      } catch (e) {
+        client.close();
+        throw e;
+      }
+      clients.set(id, client);
+      addOwner(client);
+      client.onClose(() => {
+        if (clients.get(id) === client) clients.delete(id);
+      });
+      return client;
+    })().finally(() => opening.delete(id));
+    opening.set(id, work);
+    return work;
+  }
+  const aliasFor = async (client: AgentClient, resource: ResourceRef) => {
+    if (client === local) return client.getRepository(resource);
+    await client.listRepositories();
+    return validateRepositoryResource(
+      await local.request('hosts.bindRepository', { resource: { ...resource } }),
+    );
+  };
+  repositoryTarget = async (id: string) => {
+    const alias = await local.getRepository(ref(id));
+    if (alias.source === 'local') return { client: local, resource: alias.resource, alias };
+    const hostId = alias.connectionId!,
+      client = await connect(hostId);
+    const host = (await catalog()).hosts.find((h) => h.hostId === hostId);
+    const binding = host?.bindings.find((b) => b.localId === id);
+    const resource =
+      binding?.resource ?? (await openLegacyRepository(local, client, hostId, id)).resource;
+    if (resource.agentId !== client.initialized?.agentId) throw new Error('服务器仓库身份不匹配。');
+    return { client, resource, alias, terminalEnvironment: host?.terminalEnvironment };
+  };
+  async function remove(kind: 'host' | 'repository', id: string) {
+    const expected =
+      kind === 'host'
+        ? {
+            revision: (await local.listHostProfiles()).revision,
+            repositories: (await local.listRepositories())
+              .filter((r) => r.connectionId === id)
+              .map((r) => r.id),
+          }
+        : {};
+    const submit = (sessions: string[]) =>
+      local.request(
+        'workspace.remove',
+        JSON.parse(JSON.stringify({ kind, id, sessions, ...expected })),
+      );
+    try {
+      return await submit([]);
+    } catch (error) {
+      if (
+        !(error instanceof ProtocolError) ||
+        error.outcome !== 'not-started' ||
+        !isRecord(error.details) ||
+        error.details.code !== 'TERMINAL_CONFIRM_REQUIRED' ||
+        !Array.isArray(error.details.sessions)
+      )
+        throw error;
+      const sessions = error.details
+        .sessions as unknown as import('@alune/domain').TerminalSession[];
+      if (!(await confirmTerminalRemoval(sessions))) throw new Error('已取消移除。');
+      if (kind === 'repository')
+        for (const session of sessions.filter((s) => s.source === 'ssh')) {
+          const owner = clients.get(session.connectionId!);
+          if (!owner) throw new Error('请在拥有该会话的窗口关闭终端。');
+          await owner.request('terminals.close', { sessionId: session.requestId, confirmed: true });
+        }
+      return submit(sessions.map((s) => s.id));
+    }
+  }
+  const queryAdapters = new WeakMap<AgentClient, ReturnType<typeof createAgentRepositoryQueries>>();
+  function adapter(client: AgentClient) {
+    let a = queryAdapters.get(client);
+    if (!a) {
+      a = createAgentRepositoryQueries(
+        client,
+        (id) => ({ agentId: client.initialized!.agentId, resourceId: id }),
+        methods(repositoryApi, fail),
+        methods(gitApi, fail),
+      );
+      queryAdapters.set(client, a);
+      client.onClose(() => a!.dispose());
+    }
+    return a;
+  }
+  const targetFor = repositoryTarget; // capture the connection generation for already-dispatched calls
+  const collaboration = createAgentCollaboration(local, ref);
+  const withBinding =
+    <A extends unknown[], R>(operation: (id: string, ...args: A) => Promise<R>) =>
+    async (id: string, ...args: A) => {
+      await targetFor(id);
+      return operation(id, ...args);
+    };
+  const repositoryCollaboration = Object.fromEntries(
+    Object.entries(collaboration.repository).map(([key, fn]) => [
+      key,
+      withBinding(fn as (id: string, ...a: any[]) => Promise<unknown>),
+    ]),
+  );
+  Object.assign(aiApi, collaboration.ai, {
+    generate: withBinding(collaboration.ai.generate),
+    generatePullRequest: withBinding(collaboration.ai.generatePullRequest),
+  });
+  Object.assign(accessTokenApi, collaboration.accounts);
+  Object.assign(pullRequestCenterApi, collaboration.center, {
+    context: withBinding(collaboration.center.context),
+  });
+  const routed =
+    (group: 'repository' | 'git') =>
+    async (key: string, id: string, ...args: any[]) => {
+      const { client, resource } = await targetFor(id);
+      const invoke = adapter(client)[group] as Record<string, (...args: any[]) => Promise<any>>;
+      const value = await invoke[key](resource.resourceId, ...args);
+      // Each Agent sees the repository as local. The UI must describe the host
+      // relative to this window when explaining where signing keys are used.
+      if (key === 'context' || key === 'signingConfig' || key === 'saveSigningConfig')
+        return { ...value, source: client === local ? 'local' : 'ssh' };
+      if (client !== local && ['createWorktree', 'openWorktree', 'openSubmodule'].includes(key))
+        return aliasFor(client, validateRepositoryResource(value).resource);
+      if (client !== local && key === 'removeWorktree') {
+        const host = (await catalog()).hosts.find((h) => clients.get(h.hostId) === client);
+        const ids =
+          host?.bindings
+            .filter((b) => value.removedIds.includes(b.resource.resourceId))
+            .map((b) => b.localId) ?? [];
+        for (const aliasId of ids) await local.unregisterRepository(ref(aliasId));
+        return { removedIds: ids };
+      }
+      return value;
+    };
+  Object.assign(gitApi, methods(gitApi, routed('git')));
+  Object.assign(
+    repositoryApi,
+    methods(repositoryApi, routed('repository')),
+    repositoryCollaboration,
+    {
+      list: async (id?: string) =>
+        (await local.listRepositories()).filter((r) => !id || r.connectionId === id),
+      get: (id: string) => local.getRepository(ref(id)),
+      pin: (id: string, pinned: boolean) => local.pinRepository(ref(id), pinned),
+      delete: (id: string) => remove('repository', id),
+      inspectLocal: (path: string) => local.inspectRepository(path),
+      addLocal: (path: string) => local.registerRepository(path),
+      add: async (id: string, path: string) => {
+        const client = await connect(id);
+        return aliasFor(client, (await client.registerRepository(path)).resource);
+      },
+      scan: async (id: string, path: string) =>
+        ((await (await connect(id)).discoverRepositories(path)) as { paths: string[] }).paths,
+      analytics: async (ids: string[], collect = false, refresh = false, signal?: AbortSignal) => {
+        const groups = new Map<AgentClient, Target[]>();
+        const results = new Map<string, import('@alune/domain').RepositoryAnalyticsEntry>();
+        const failed = (id: string, error: unknown) => {
+          signal?.throwIfAborted();
+          results.set(id, {
+            id,
+            error: error instanceof Error ? error.message : '无法读取仓库统计。',
+          });
+        };
+        await Promise.all(
+          ids.map(async (id) => {
+            try {
+              signal?.throwIfAborted();
+              const target = await targetFor(id);
+              const group = groups.get(target.client) ?? [];
+              group.push(target);
+              groups.set(target.client, group);
+            } catch (error) {
+              failed(id, error);
+            }
+          }),
+        );
+        await Promise.all(
+          [...groups].map(async ([client, targets]) => {
+            try {
+              signal?.throwIfAborted();
+              const rows = await adapter(client).repository.analytics(
+                targets.map((t) => t.resource.resourceId),
+                collect,
+                refresh,
+                signal,
+              );
+              for (const row of rows) {
+                const id = targets.find((t) => t.resource.resourceId === row.id)!.alias.id;
+                results.set(id, { ...row, id });
+              }
+            } catch (error) {
+              for (const target of targets) failed(target.alias.id, error);
+            }
+          }),
+        );
+        signal?.throwIfAborted();
+        return ids.map((id) => results.get(id) ?? { id });
+      },
+    },
+  );
+  Object.assign(connectionApi, {
+    list: async () => {
+      const [profiles, c] = await Promise.all([local.listHostProfiles(), catalog()]);
+      return profiles.hosts.map((h) => {
+        const route = c.hosts.find((r) => r.hostId === h.id);
+        return {
+          ...h,
+          hasAuth: h.hasPassword || h.hasPassphrase,
+          status:
+            route?.state === 'ready'
+              ? 'connected'
+              : route?.reason
+                ? 'error'
+                : !route?.updatedAt
+                  ? 'unknown'
+                  : route.state === 'offline'
+                    ? 'disconnected'
+                    : 'connecting',
+          updatedAt: route?.updatedAt ?? 0,
+          error: route?.reason,
+        };
+      });
+    },
+    get: async (id: string) => {
+      const host = (await connectionApi.list()).find((h: { id: string }) => h.id === id);
+      if (!host) throw new ProtocolError('not-found', '服务器不存在。');
+      return host;
+    },
+    create: async (profile) => {
+      const before = await local.listHostProfiles();
+      const after = await local.saveHostProfile(
+        null,
+        { ...profile, privateKeyPath: profile.privateKeyPath || null },
+        before.revision,
+      );
+      return after.hosts.find((h) => !before.hosts.some((old) => old.id === h.id));
+    },
+    delete: async (id) => {
+      await remove('host', id);
+      clients.get(id)?.close();
+    },
+    test: async (id) => {
+      const client = await connect(id, true);
+      await client.health();
+      return { success: true, status: 'connected', updatedAt: Date.now() };
+    },
+  } satisfies typeof connectionApi);
+  Object.assign(proxyApi, {
+    settings: () => local.getProxySettings(),
+    save: (input) => local.saveProxySettings(input),
+    connections: async () => {
+      const [hosts, c, settings] = await Promise.all([
+        local.listHostProfiles(),
+        catalog(),
+        local.getProxySettings(),
+      ]);
+      return hosts.hosts.map((h) => {
+        const route = c.hosts.find((r) => r.hostId === h.id);
+        return {
+          id: h.id,
+          name: h.name,
+          connected: route?.state === 'ready',
+          connecting: opening.has(h.id),
+          revision: route?.proxyRevision ?? null,
+          pendingReconnect: !!route?.proxyRevision && route.proxyRevision !== settings.revision,
+          activeTasks: route?.activeTasks ?? 0,
+          forwarding:
+            route?.gitProxy === 'ready'
+              ? 'ready'
+              : route?.gitProxy === 'blocked'
+                ? 'denied'
+                : route?.state === 'ready'
+                  ? 'disabled'
+                  : 'disconnected',
+        };
+      });
+    },
+    reconnect: async (id, revision) => {
+      if ((await local.getProxySettings()).revision !== revision)
+        throw new Error('代理设置已变更。');
+      await connect(id, false, revision);
+      return proxyApi.connections();
+    },
+    test: async (input, signal) => {
+      let key;
+      if (input.kind === 'ssh') {
+        const host = (await catalog()).hosts.find((h) => h.hostId === input.connectionId);
+        if (!host) throw new Error('服务器不存在。');
+        key =
+          host.hostKey ??
+          (
+            await hostConsent(
+              (await local.listHostProfiles()).hosts.find((h) => h.id === input.connectionId)!.name,
+              null,
+              false,
+            )
+          ).hostKey;
+      } else if (input.kind === 'git') await targetFor(input.repositoryId);
+      return (await local.request(
+        'network.testProxy',
+        { ...input, ...(key ? { hostKey: key } : {}) },
+        {
+          signal,
+          timeoutMs: 35000,
+        },
+      )) as unknown as Awaited<ReturnType<typeof proxyApi.test>>;
+    },
+  } satisfies typeof proxyApi);
+  async function locate(id: string, path: string) {
+    const normalized = (p: string) => p.replaceAll('\\', '/').replace(/\/$/, '');
+    const abs = normalized(path);
+    const row = (await local.listRepositories())
+      .filter(
+        (r) =>
+          r.connectionId === id &&
+          (abs === normalized(r.path) || abs.startsWith(normalized(r.path) + '/')),
+      )
+      .sort((a, b) => b.path.length - a.path.length)[0];
+    if (!row) return null;
+    return {
+      ...(await targetFor(row.id)),
+      relativePath: abs.slice(normalized(row.path).length + 1),
+    };
+  }
+  const grantRef = (g: DirectoryGrant) => ({ id: g.id, agentId: g.agentId });
+  Object.assign(fileAccessApi, {
+    available: true,
+    grants: async (id: string) =>
+      (await connect(id)).request('files.grants', {}) as unknown as Promise<DirectoryGrant[]>,
+    grant: async (id: string, path: string, access: DirectoryGrant['access']) =>
+      (await connect(id)).request('files.grant', {
+        path,
+        access,
+        confirmed: true,
+      }) as unknown as Promise<DirectoryGrant>,
+    revoke: async (id: string, g: DirectoryGrant) => {
+      await (await connect(id)).request('files.revoke', { grant: grantRef(g) });
+    },
+  } satisfies typeof fileAccessApi);
+  async function granted(id: string, path: string, write = false) {
+    const client = await connect(id);
+    const grants = (await client.request('files.grants', {})) as unknown as DirectoryGrant[];
+    const normalize = (p: string) => p.replaceAll('\\', '/').replace(/\/$/, '');
+    const abs = normalize(path),
+      windows = /^[a-z]:\//i.test(abs);
+    const key = (p: string) => (windows ? p.toLowerCase() : p);
+    const grant = grants
+      .filter(
+        (g) =>
+          (!write || g.access === 'read-write') &&
+          (key(abs) === key(normalize(g.path)) ||
+            key(abs).startsWith(key(normalize(g.path)) + '/')),
+      )
+      .sort((a, b) => b.path.length - a.path.length)[0];
+    if (!grant) throw new Error('请先在 SSH 连接的“目录授权”中授权此目录。');
+    return {
+      client,
+      grant: grantRef(grant),
+      path: abs.slice(normalize(grant.path).length).replace(/^\//, ''),
+    };
+  }
+  Object.assign(fileApi, {
+    list: async (id, path) => {
+      const t = await locate(id, path);
+      if (!t) {
+        const { client, ...p } = await granted(id, path);
+        return client.request('files.list', p);
+      }
+      const tree = await t.client.readRepository(t.resource, 'tree', { path: t.relativePath });
+      return tree.entries.map((e) => ({
+        name: e.name,
+        isFile: e.kind === 'file',
+        isDirectory: e.kind === 'directory',
+        longname: e.name,
+      }));
+    },
+    read: async (id, path) => {
+      const t = await locate(id, path);
+      if (!t) {
+        const { client, ...p } = await granted(id, path);
+        const r = (await client.request('files.read', p)) as unknown as { content: string };
+        return { content: r.content };
+      }
+      const f = await t.client.readRepository(t.resource, 'file', { path: t.relativePath });
+      if (f.kind !== 'text') throw new Error('文件不是可读取的文本。');
+      return { content: f.content };
+    },
+    write: async (id, path, content) => {
+      const t = await locate(id, path);
+      if (!t) {
+        const { client, ...p } = await granted(id, path, true);
+        let version: string;
+        try {
+          version = ((await client.request('files.read', p)) as unknown as { version: string })
+            .version;
+        } catch (e) {
+          if (!(e instanceof ProtocolError) || e.kind !== 'not-found') throw e;
+          version = 'missing';
+        }
+        return client.request('files.write', { ...p, content, version });
+      }
+      return createAgentFileWrite(t.client, () => t)(id, path, content);
+    },
+  } satisfies typeof fileApi);
+}

@@ -7,7 +7,7 @@ import { ChangesView } from '../src/components/ChangesView';
 import { gitApi, repositoryApi } from '../src/api';
 import { aiApi } from '../src/api/ai';
 import { useRepositoryStore, useWorkspaceData } from '../src/stores/repositoryStore';
-import type { FileStatus, Repository, RepositoryStatus } from '@alune/shared';
+import type { FileStatus, Repository, RepositoryStatus } from '@alune/domain';
 import '@alune/ui/styles.css';
 import '../src/index.css';
 import '../src/theme.css';

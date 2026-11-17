@@ -1,4 +1,4 @@
-import type { Repository } from '@alune/shared';
+import type { Repository } from '@alune/domain';
 import { repositoryGroupId } from './repositorySource';
 
 export function worktreeKindLabel(kind: Repository['worktreeKind']): string | undefined {

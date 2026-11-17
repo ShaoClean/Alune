@@ -1,3 +1,5 @@
+import { uiAgent } from '../../api/ui-agent';
+import { EnableCredentialStorage } from './EnableCredentialStorage';
 import { FeedbackAlert, DialogField, CountBadge } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useRef, useState } from 'react';
@@ -13,7 +15,7 @@ import {
   ReloadOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import type { AiModel, AiProvider, AiSettings, SaveAiProvider } from '@alune/shared';
+import type { AiModel, AiProvider, AiSettings, SaveAiProvider } from '@alune/protocol';
 import { aiApi, aiError } from '../../api/ai';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
 import { AluneModal } from '@alune/ui';
@@ -416,11 +418,18 @@ function ProviderForm({
             )}
           </div>
           {!settings.secretStorage.available && (
-            <FeedbackAlert
-              source="ProviderSettings-1"
-              type="info"
-              title={settings.secretStorage.description}
-            />
+            <>
+              {uiAgent ? (
+                <p className="settings-field-hint">{settings.secretStorage.description}</p>
+              ) : (
+                <FeedbackAlert
+                  source="ProviderSettings-1"
+                  type="info"
+                  title={settings.secretStorage.description}
+                />
+              )}
+              <EnableCredentialStorage refresh={useAiSettingsStore.getState().load} />
+            </>
           )}
           <label htmlFor="provider-test-model" className="settings-field">
             测试模型

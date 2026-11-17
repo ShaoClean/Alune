@@ -1,4 +1,4 @@
-import type { TerminalSession } from '@alune/shared';
+import type { TerminalSession } from '@alune/domain';
 declare global {
   interface Window {
     aluneTerminal?: {

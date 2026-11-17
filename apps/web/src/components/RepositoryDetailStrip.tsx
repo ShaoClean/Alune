@@ -1,6 +1,6 @@
 import { FolderOpenOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, Tooltip } from '@alune/ui';
-import type { Repository } from '@alune/shared';
+import type { Repository } from '@alune/domain';
 import type { RepositoryBranchSummary } from '../stores/repositoryBranchOverview';
 
 export function RepositoryDetailStrip({

@@ -1,2 +1,3 @@
 .githooks/* text eol=lf
+packages/agent/bin/* text eol=lf
 *.svg text eol=lf

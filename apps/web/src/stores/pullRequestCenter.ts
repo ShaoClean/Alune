@@ -4,7 +4,7 @@ import type {
   PullRequestCenterPage,
   PullRequestCenterQuery,
   PullRequestSources,
-} from '@alune/shared';
+} from '@alune/protocol';
 import { pullRequestCenterApi } from '../api';
 import { errorMessage } from '../components/files-tree';
 

@@ -1,4 +1,5 @@
-// Measures the current production HTTP/Socket.IO path in disposable repositories.
+// Historical HTTP/Socket.IO comparison requires an explicitly frozen old checkout.
+// The current default runtime is the Agent (ALUNE_BASELINE_UI=1).
 // Cold means a fresh application process, NOT a flushed operating-system cache.
 const fs = require('node:fs');
 const os = require('node:os');
@@ -7,16 +8,58 @@ const { fork, execFileSync } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { performance } = require('node:perf_hooks');
 const root = path.resolve(__dirname, '..');
+const sourceRoot = process.env.ALUNE_BASELINE_SOURCE_ROOT || root;
+const readsOnly = process.env.ALUNE_BASELINE_READS_ONLY === '1';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// A common core-HTTP caller keeps cold measurements independent of whether the
+// application happened to initialize fetch/Undici while loading its own services.
+// First-request socket setup and response decoding remain inside the timer.
+function readHttp(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const request = require('node:http').get(
+      url,
+      { headers, signal: AbortSignal.timeout(30000) },
+      (response) => {
+        response.setEncoding('utf8');
+        let body = '';
+        response.on('data', (chunk) => {
+          body += chunk;
+          if (body.length > 32 * 1024 * 1024)
+            response.destroy(new Error('Benchmark response exceeded budget'));
+        });
+        response.once('error', reject);
+        response.once('end', () => {
+          if (response.statusCode < 200 || response.statusCode >= 300)
+            return reject(new Error(`HTTP ${response.statusCode}: ${body}`));
+          try {
+            resolve(
+              response.headers['content-type']?.includes('application/json')
+                ? JSON.parse(body)
+                : body,
+            );
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+    request.once('error', reject);
+  });
+}
+
 async function worker() {
+  if (sourceRoot === root || !fs.existsSync(path.join(sourceRoot, 'apps/server/dist/bootstrap.js')))
+    throw new Error('Historical baseline requires ALUNE_BASELINE_SOURCE_ROOT pointing to a built frozen checkout');
   const [repo, count, data] = process.argv.slice(3);
   process.env.ALUNE_DATA_DIR = data;
   process.env.SHELL = '/bin/sh';
   process.env.PS1 = 'ALUNE_BASELINE> ';
-  const { startServer } = require('../apps/server/dist/bootstrap');
-  const { RepositoryService } = require('../apps/server/dist/repository/repository.service');
-  const { io } = require('socket.io-client');
+  const { startServer } = require(path.join(sourceRoot, 'apps/server/dist/bootstrap'));
+  const { RepositoryService } = require(
+    path.join(sourceRoot, 'apps/server/dist/repository/repository.service'),
+  );
+  const { io } = require('node:module').createRequire(path.join(sourceRoot, 'package.json'))('socket.io-client');
   const token = randomUUID();
   const app = await startServer({
     port: 0,
@@ -34,32 +77,28 @@ async function worker() {
   try {
     const record = await app.get(RepositoryService).addLocal(repo);
     const base = `http://127.0.0.1:${app.getHttpServer().address().port}`;
-    const get = async (suffix) => {
-      const response = await fetch(`${base}/api/repositories/${record.id}/${suffix}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(30000),
+    const get = (suffix) =>
+      readHttp(`${base}/api/repositories/${record.id}/${suffix}`, {
+        Authorization: `Bearer ${token}`,
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-      return response.headers.get('content-type')?.includes('application/json')
-        ? response.json()
-        : response.text();
-    };
-    socket = io(base + '/terminal', {
-      transports: ['websocket'],
-      reconnection: false,
-      extraHeaders: { Authorization: `Bearer ${token}` },
-    });
     const states = new Map();
     const outputs = new Map();
-    socket.on('terminal:state', (state) => states.set(state.id, state));
-    socket.on('terminal:output', (packet) => {
-      outputs.set(packet.sessionId, (outputs.get(packet.sessionId) || '') + packet.data);
-      socket.emit('terminal:ack', { sessionId: packet.sessionId, sequence: packet.sequence });
-    });
-    await new Promise((resolve, reject) => {
-      socket.once('connect', resolve);
-      socket.once('connect_error', reject);
-    });
+    if (!readsOnly) {
+      socket = io(base + '/terminal', {
+        transports: ['websocket'],
+        reconnection: false,
+        extraHeaders: { Authorization: `Bearer ${token}` },
+      });
+      socket.on('terminal:state', (state) => states.set(state.id, state));
+      socket.on('terminal:output', (packet) => {
+        outputs.set(packet.sessionId, (outputs.get(packet.sessionId) || '') + packet.data);
+        socket.emit('terminal:ack', { sessionId: packet.sessionId, sequence: packet.sequence });
+      });
+      await new Promise((resolve, reject) => {
+        socket.once('connect', resolve);
+        socket.once('connect_error', reject);
+      });
+    }
     const request = async (name, body) => {
       const reply = await socket.timeout(10000).emitWithAck('terminal:' + name, body);
       if (!reply.ok) throw new Error(reply.error);
@@ -93,21 +132,23 @@ async function worker() {
           throw new Error(`Invalid ${name} fixture response`);
         }
       }
-      const id = randomUUID();
-      await request('create', { requestId: id, repositoryId: record.id, cols: 80, rows: 24 });
-      await until(() => states.get(id)?.state === 'running');
-      const start = performance.now();
-      await request('input', {
-        sessionId: id,
-        data: `${JSON.stringify(process.execPath)} -e "process.stdout.write('X'.repeat(65536)+'\\nALUNE_BENCH_DONE\\n')"\r`,
-      });
-      await until(() => (outputs.get(id) || '').includes('\r\nALUNE_BENCH_DONE\r\n'));
-      row.terminalOutput = performance.now() - start;
-      if ((outputs.get(id).match(/X/g) || []).length < 65536)
-        throw new Error('Truncated PTY output');
-      await request('close', { sessionId: id, confirmed: true });
-      outputs.delete(id);
-      states.delete(id);
+      if (!readsOnly) {
+        const id = randomUUID();
+        await request('create', { requestId: id, repositoryId: record.id, cols: 80, rows: 24 });
+        await until(() => states.get(id)?.state === 'running');
+        const start = performance.now();
+        await request('input', {
+          sessionId: id,
+          data: `${JSON.stringify(process.execPath)} -e "process.stdout.write('X'.repeat(65536)+'\\nALUNE_BENCH_DONE\\n')"\r`,
+        });
+        await until(() => (outputs.get(id) || '').includes('\r\nALUNE_BENCH_DONE\r\n'));
+        row.terminalOutput = performance.now() - start;
+        if ((outputs.get(id).match(/X/g) || []).length < 65536)
+          throw new Error('Truncated PTY output');
+        await request('close', { sessionId: id, confirmed: true });
+        outputs.delete(id);
+        states.delete(id);
+      }
       rows.push(row);
     }
     process.send({ rows, nodeMaxRssKiB: process.resourceUsage().maxRSS });
@@ -118,16 +159,89 @@ async function worker() {
   }
 }
 
+// Same HTTP request boundary as P0, with only a thin query bridge in the caller.
+// The measured descendant set includes the real standalone Agent process.
+async function agentReadWorker() {
+  if (!readsOnly) throw new Error('Agent P3 measurements require ALUNE_BASELINE_READS_ONLY=1');
+  const [repo, count, data] = process.argv.slice(3);
+  const { createServer } = require('node:http');
+  const { spawnAgent } = require('../packages/agent-client/dist/node');
+  const agent = spawnAgent(process.execPath, [
+    path.join(root, 'packages/agent/bin/alune-agent.cjs'),
+    'serve',
+    '--data-dir',
+    data,
+  ]);
+  let server;
+  const stop = async () => {
+    await agent.close();
+    server?.close();
+    process.exit(1);
+  };
+  process.once('SIGTERM', stop);
+  try {
+    await agent.client.initialize();
+    const registered = await agent.client.registerRepository(repo);
+    const routes = {
+      status: ['status', { foreground: true }],
+      diff: ['diff', { file: 'tracked.txt' }],
+      log: ['log', { count: 50 }],
+    };
+    server = createServer(async (req, res) => {
+      try {
+        const name = new URL(req.url, 'http://localhost').pathname.split('/').at(-1);
+        const route = routes[name];
+        if (!route) {
+          res.writeHead(404).end();
+          return;
+        }
+        const result = await agent.client.readRepository(registered.resource, route[0], route[1]);
+        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));
+      } catch (error) {
+        res.writeHead(500).end(String(error));
+      }
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${server.address().port}/api/repositories/${registered.id}`;
+    const rows = [];
+    for (let i = 0; i < Number(count); i++) {
+      const row = {};
+      for (const [name, suffix] of [
+        ['status', 'status?foreground=true'],
+        ['diff', 'diff?file=tracked.txt'],
+        ['history', 'log?limit=50'],
+      ]) {
+        const start = performance.now();
+        const result = await readHttp(`${base}/${suffix}`);
+        row[name] = performance.now() - start;
+        if (
+          result == null ||
+          (name === 'status' && !result.files?.some((f) => f.path === 'tracked.txt')) ||
+          (name === 'history' && result.commits?.length !== 50) ||
+          (name === 'diff' && !result.includes('modified'))
+        )
+          throw new Error(`Invalid ${name} fixture response`);
+      }
+      rows.push(row);
+    }
+    process.send({ rows, nodeMaxRssKiB: process.resourceUsage().maxRSS });
+  } finally {
+    process.removeListener('SIGTERM', stop);
+    if (server) await new Promise((resolve) => server.close(resolve));
+    await agent.close();
+  }
+}
+
 function processTable() {
   return execFileSync('ps', ['-axo', 'pid=,ppid=,rss='], { encoding: 'utf8' })
     .trim()
     .split('\n')
     .map((line) => line.trim().split(/\s+/).map(Number));
 }
-async function runWorker(repo, count, data) {
+async function runWorker(repo, count, data, env = process.env) {
   const child = fork(__filename, ['--worker', repo, String(count), data], {
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
-    env: process.env,
+    env,
   });
   let errors = '';
   child.stderr.on('data', (chunk) => {
@@ -240,11 +354,24 @@ async function main() {
         fs.writeSync(fd, Buffer.from('modified'), 0, 8, 1024);
         fs.closeSync(fd);
       }
-      const cold = [];
-      for (let i = 0; i < samples; i++)
-        cold.push(await runWorker(repo, 1, path.join(temp, `${name}-cold-${i}`)));
-      const warm = await runWorker(repo, samples + 1, path.join(temp, `${name}-warm`));
-      warm.rows.shift(); // Warm-up request excluded, resource high-water mark still includes startup.
+      const paired = process.env.ALUNE_BASELINE_PAIRED === '1';
+      const cold = [],
+        otherCold = [];
+      const run = (ui, n, suffix) =>
+        runWorker(repo, n, path.join(temp, name + '-' + suffix), {
+          ...process.env,
+          ALUNE_BASELINE_UI: ui ? '1' : '0',
+        });
+      const ui = process.env.ALUNE_BASELINE_UI === '1' || paired;
+      for (let i = 0; i < samples; i++) {
+        if (paired && i % 2 === 0) otherCold.push(await run(false, 1, 'old-cold-' + i));
+        cold.push(await run(ui, 1, 'cold-' + i));
+        if (paired && i % 2 === 1) otherCold.push(await run(false, 1, 'old-cold-' + i));
+      }
+      const warm = await run(ui, samples + 1, 'warm');
+      warm.rows.shift();
+      const otherWarm = paired ? await run(false, samples + 1, 'old-warm') : null;
+      otherWarm?.rows.shift();
       const summarize = (rows) =>
         Object.fromEntries(
           Object.keys(rows[0]).map((key) => {
@@ -263,6 +390,18 @@ async function main() {
         files: files + 1 + Boolean(largeMiB) + (name === 'lfs'),
         largeMiB,
         commits: 61,
+        ...(paired
+          ? {
+              baseline: {
+                cold: otherCold,
+                warm: otherWarm,
+                summary: {
+                  cold: summarize(otherCold.flatMap((item) => item.rows)),
+                  warm: summarize(otherWarm.rows),
+                },
+              },
+            }
+          : {}),
         cold,
         warm,
         summary: { cold: summarize(cold.flatMap((item) => item.rows)), warm: summarize(warm.rows) },
@@ -274,6 +413,14 @@ async function main() {
         {
           schemaVersion: 1,
           sha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+          implementationSha:
+            process.env.ALUNE_BASELINE_SOURCE_SHA ||
+            (sourceRoot === root
+              ? execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+              : null),
+          dirty: Boolean(
+            execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(),
+          ),
           platform: process.platform,
           arch: process.arch,
           osRelease: os.release(),
@@ -281,9 +428,22 @@ async function main() {
           lfsVersion,
           samples,
           methodology: {
+            paired: process.env.ALUNE_BASELINE_PAIRED === '1',
             cold: 'fresh application process; OS page cache NOT flushed',
             warm: 'same process, one warm-up excluded',
-            transport: 'production HTTP + Socket.IO, loopback, local repository',
+            transport:
+              process.env.ALUNE_BASELINE_UI === '1'
+                ? 'production UI host IPC / Agent Client, no Chromium render or preload hop'
+                : process.env.ALUNE_BASELINE_AGENT_READS === '1'
+                  ? 'HTTP read bridge + production stdio Agent, loopback'
+                  : readsOnly
+                    ? 'production HTTP, loopback, local repository'
+                    : 'production HTTP + Socket.IO, loopback, local repository',
+            caller:
+              process.env.ALUNE_BASELINE_UI === '1'
+                ? 'Agent Client via parent/child IPC; same Git fixtures and PTY payload'
+                : 'node:http; fresh first-request socket, response decoding timed identically',
+            sourceRoot: sourceRoot === root ? 'current checkout' : 'frozen baseline checkout',
             memory:
               '25ms sampled aggregate RSS of application worker and observed descendants; includes startup; may miss short-lived peaks',
             processes:
@@ -308,7 +468,14 @@ async function main() {
   }
 }
 
-(process.argv[2] === '--worker' ? worker() : main()).catch((error) => {
+(process.argv[2] === '--worker'
+  ? process.env.ALUNE_BASELINE_UI === '1'
+    ? require('./agent/ui-benchmark-worker.cjs')(...process.argv.slice(3))
+    : process.env.ALUNE_BASELINE_AGENT_READS === '1'
+      ? agentReadWorker()
+      : worker()
+  : main()
+).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

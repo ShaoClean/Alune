@@ -1,3 +1,5 @@
+import { uiAgent } from '../../api/ui-agent';
+import { EnableCredentialStorage } from './EnableCredentialStorage';
 import {
   FeedbackAlert,
   DialogField,
@@ -11,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { Button, Input, Spin } from '@alune/ui';
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { AccessToken } from '@alune/shared';
+import type { AccessToken } from '@alune/protocol';
 import { accessTokenApi } from '../../api';
 import { useAccessTokensStore } from '../../stores/accessTokensStore';
 import type { TokenReturnTarget } from '../../stores/accessTokensStore';
@@ -202,12 +204,19 @@ export function AccessTokenSettings({ returnTo }: { returnTo: string }) {
         </div>
       )}
       {settings && !settings.secretStorage.available && (
-        <FeedbackAlert
-          source="AccessTokenSettings-1"
-          type="warning"
-          title="加密存储不可用"
-          description={settings.secretStorage.description}
-        />
+        <>
+          {uiAgent ? (
+            <p className="settings-field-hint">{settings.secretStorage.description}</p>
+          ) : (
+            <FeedbackAlert
+              source="AccessTokenSettings-1"
+              type="warning"
+              title="加密存储不可用"
+              description={settings.secretStorage.description}
+            />
+          )}
+          <EnableCredentialStorage refresh={load} />
+        </>
       )}
       {loading && !settings ? (
         <Spin aria-label="正在读取访问令牌" />

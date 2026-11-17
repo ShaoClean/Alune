@@ -31,11 +31,8 @@
 ## 开发验证
 
 ```sh
-npm run build -w @alune/shared
-npm run build -w @alune/ssh-client
-npm run build -w server
-npm test -w server -- --runInBand proxy-settings.spec.ts
-node --test packages/ssh-client/tests/proxy-transport.test.cjs packages/ssh-client/tests/local-git*.test.cjs apps/server/test/proxy.integration.cjs
+npx turbo build --filter=@alune/agent
+node --test packages/agent/tests/network-runtime.test.cjs packages/agent/tests/git-proxy-transport.test.cjs packages/agent/tests/git-local-git-proxy.test.cjs packages/agent/tests/git-local-git-partial-proxy.test.cjs
 npm run test:proxy -w desktop
 ```
 
@@ -43,6 +40,6 @@ Electron 测试使用真正的 NsisUpdater / AppImageUpdater 与 ElectronHttpExe
 
 服务端端到端测试使用临时 Git 仓库、SSH 服务、HTTP / HTTPS / SOCKS5 代理，覆盖 AI、macOS 下载及本地和远端主仓库/Worktree 的真实 Git 操作。本地传输测试另覆盖 HTTP remote、部分克隆自动补取对象、取消清理及特殊协议绕过。当前 SSH/Git 集成 fixture 使用 POSIX 命令，在 Windows runner 上跳过；不能据此宣称 Windows 的 SSH 路径已验收。测试证书与私钥仅供隔离 fixture 使用；信任仅配置在测试子进程，不改变系统信任或生产校验。
 
-构建 web 后，可运行 `node apps/server/test/proxy-fixture.cjs` 打开控制台输出的 UI 地址；控制台同时显示一次性测试代理的地址和凭据。HTTP 与 SSH 页面测试无需真实账号，HTTPS 测试需要在启动 fixture 前为该进程设置测试证书的 `NODE_EXTRA_CA_CERTS`。退出时清理临时数据。
+桌面隔离代理/设置界面可运行 `node scripts/smoke.mjs --focus settings`（在 `apps/desktop` 目录）；它使用临时本机服务与测试证书，不改变系统信任。旧服务端代理夹具已退役。
 
 实际平台验证、UI 截图与未验收场景记录在 [Issue #40 Wiki](https://github.com/ShaoClean/Alune/wiki/Issue-40)。

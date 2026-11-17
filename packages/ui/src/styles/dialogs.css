@@ -2403,6 +2403,8 @@
     display: flex;
     align-items: flex-end;
     overflow-x: hidden;
+    /* Keep the sheet edge-to-edge on systems with classic scrollbars. */
+    scrollbar-width: none;
   }
   .a-dlg .ant-modal-wrap.ant-modal-centered::before {
     display: none;

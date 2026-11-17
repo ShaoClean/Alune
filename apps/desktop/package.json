@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
-    "build": "node scripts/stage.mjs",
+    "build": "node scripts/stage.mjs && npm run agent:stage",
     "start": "electron dist/app",
     "pack": "electron-builder --projectDir dist/app --config ../../electron-builder.cjs --dir",
     "dist": "electron-builder --projectDir dist/app --config ../../electron-builder.cjs",
@@ -15,15 +15,25 @@
     "test:diff-theme": "node scripts/test-diff-theme.mjs",
     "test:code-appearance": "node scripts/test-code-appearance.mjs",
     "test:proxy": "node scripts/test-proxy.mjs",
-    "test:notifications": "node scripts/test-notifications.mjs"
+    "test:notifications": "node scripts/test-notifications.mjs",
+    "test:agent-migration": "node scripts/agent-migration-smoke.mjs",
+    "agent:stage": "node scripts/stage-agent.mjs",
+    "prepack": "npm run build",
+    "predist": "npm run build",
+    "build:candidate": "node scripts/stage.mjs --candidate && npm run agent:stage",
+    "dist:candidate": "npm run build:candidate && electron-builder --projectDir dist/candidate-app --config ../../electron-builder.cjs --publish never"
   },
   "devDependencies": {
-    "server": "*",
+    "@alune/agent": "*",
+    "@alune/agent-client": "*",
+    "@alune/domain": "*",
+    "@alune/protocol": "*",
     "web": "*"
   },
   "dependencies": {
     "builder-util-runtime": "^9.7.0",
     "electron-updater": "^6.8.9",
-    "semver": "^7.8.0"
+    "semver": "^7.8.0",
+    "undici": "^7.30.0"
   }
 }

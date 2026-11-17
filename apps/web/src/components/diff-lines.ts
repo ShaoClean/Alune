@@ -1,4 +1,4 @@
-import { diffImageMediaType } from '@alune/shared';
+import { diffImageMediaType } from '@alune/domain';
 
 export type DiffLine = { text: string; kind: 'meta' | 'context' | 'add' | 'remove' };
 export type NumberedDiffLine = DiffLine & { oldLine?: number; newLine?: number };

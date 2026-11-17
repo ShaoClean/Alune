@@ -36,6 +36,7 @@ const labels: Record<string, string> = {
 };
 
 export type GitOperation = {
+  operationId?: string;
   kind: string;
   startedAt: number;
   progress?: string;
@@ -112,7 +113,7 @@ export function GitOperationNotice({
       onAction={async () => {
         setCancelling(true);
         try {
-          await gitApi.cancel(repoId);
+          await gitApi.cancel(repoId, operation.operationId);
         } catch (error: any) {
           setCancelling(false);
           message.error(error.message);

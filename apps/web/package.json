@@ -7,10 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "node --import ./tests/resolve-ts.mjs --test tests/*.test.mjs"
+    "test": "node ../../scripts/test-workspace.mjs web",
+    "dev:agent": "vite",
+    "test:agent-dev": "node --import ./tests/resolve-ts.mjs --test tests/agent-dev.integration.mjs tests/agent-workspace.integration.mjs"
   },
   "dependencies": {
-    "@alune/shared": "*",
     "@alune/ui": "*",
     "@ant-design/icons": "^6.2.2",
     "@fontsource-variable/geist": "^5.3.0",
@@ -19,7 +20,6 @@
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
     "antd": "^6.3.7",
-    "axios": "^1.16.0",
     "jsonc-parser": "3.3.1",
     "prismjs": "^1.30.0",
     "react": "^19.2.5",
@@ -28,8 +28,10 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.15.0",
     "remark-gfm": "^4.0.1",
-    "socket.io-client": "^4.8.3",
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.13",
+    "@alune/agent-client": "*",
+    "@alune/protocol": "*",
+    "@alune/domain": "*"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",
@@ -37,6 +39,9 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "typescript": "~6.0.2",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "ws": "8.18.3",
+    "@types/ws": "8.18.1",
+    "@alune/agent": "*"
   }
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkspaceLocation } from '../hooks/useRepositoryWorkspace';
 import { Button } from '@alune/ui';
-import type { LfsStatus, SubmoduleInfo } from '@alune/shared';
+import type { LfsStatus, SubmoduleInfo } from '@alune/domain';
 import { gitApi, repositoryApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 

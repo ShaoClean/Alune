@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useFeedbackMessage, ToolbarCount } from '@alune/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InputRef } from 'antd';
 import { Input, MoonLoader, Popover } from '@alune/ui';
 import {
@@ -16,6 +16,7 @@ import { useBranchSwitch } from '../hooks/useBranchSwitch';
 import { ToolbarButton } from '@alune/ui';
 import { NewBranchDialog } from './BranchesView';
 import { moveActiveIndex } from './branch-picker-navigation';
+import { restoreBranchTriggerFocus } from './branch-picker-focus';
 
 const LISTBOX_ID = 'branch-picker-listbox';
 const optionId = (index: number) => `branch-picker-option-${index}`;
@@ -46,11 +47,12 @@ export function BranchPicker({
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [creatingBranch, setCreatingBranch] = useState<string | null>(null);
+  const restoreTrigger = useRef(false);
   const { switching: switchingBranch, switchBranch: switchTo } = useBranchSwitch(repoId, () => {
     if (!mounted.current) return;
     setOpen(false);
     setQuery('');
-    trigger.current?.focus();
+    restoreTrigger.current = true;
     onSwitched();
   });
   const switching = switchingBranch ?? creatingBranch;
@@ -59,6 +61,15 @@ export function BranchPicker({
   const trigger = useRef<HTMLButtonElement>(null);
   const search = useRef<InputRef>(null);
   const mounted = useRef(true);
+
+  // The status refresh can disable the trigger, and a native progress dialog
+  // can keep it inert after the popover closes. Finish only after focus lands.
+  useLayoutEffect(() => {
+    if (!restoreTrigger.current || open || disabled || !trigger.current) return;
+    return restoreBranchTriggerFocus(trigger.current, () => {
+      restoreTrigger.current = false;
+    });
+  }, [open, disabled, branch]);
 
   useEffect(() => {
     mounted.current = true;

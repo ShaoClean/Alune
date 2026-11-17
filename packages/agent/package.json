@@ -1,0 +1,175 @@
+{
+  "name": "@alune/agent",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "alune-agent": "./bin/alune-agent.cjs"
+  },
+  "scripts": {
+    "build": "tsc -b && node scripts/version.cjs && node scripts/native-secrets.mjs",
+    "dev": "tsc -b --watch",
+    "test": "npm run build && node ../../scripts/test-workspace.mjs agent"
+  },
+  "dependencies": {
+    "@alune/agent-client": "*",
+    "@alune/protocol": "*",
+    "@alune/domain": "*",
+    "better-sqlite3": "^13.0.3",
+    "node-pty": "1.1.0",
+    "socks": "^2.8.10",
+    "undici": "^7.30.0",
+    "ssh2": "^1.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "node-gyp": "12.4.0",
+    "typescript": "^6.0.3",
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/ssh2": "^1.15.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./network": {
+      "types": "./dist/adapters/network/index.d.ts",
+      "default": "./dist/adapters/network/index.js"
+    },
+    "./logging": {
+      "types": "./dist/adapters/logging/index.d.ts",
+      "default": "./dist/adapters/logging/index.js"
+    },
+    "./secrets-file": {
+      "types": "./dist/adapters/secrets/file.d.ts",
+      "default": "./dist/adapters/secrets/file.js"
+    },
+    "./settings": {
+      "types": "./dist/modules/settings/index.d.ts",
+      "default": "./dist/modules/settings/index.js"
+    },
+    "./accounts": {
+      "types": "./dist/modules/accounts/index.d.ts",
+      "default": "./dist/modules/accounts/index.js"
+    },
+    "./process": {
+      "types": "./dist/ports/process.d.ts",
+      "default": "./dist/ports/process.js"
+    },
+    "./git/*": {
+      "types": "./dist/modules/git/*.d.ts",
+      "default": "./dist/modules/git/*.js"
+    },
+    "./native-repository": {
+      "types": "./dist/adapters/git/native.d.ts",
+      "default": "./dist/adapters/git/native.js"
+    },
+    "./terminals": {
+      "types": "./dist/modules/terminals/index.d.ts",
+      "default": "./dist/modules/terminals/index.js"
+    },
+    "./local-pty": {
+      "types": "./dist/adapters/pty/local.d.ts",
+      "default": "./dist/adapters/pty/local.js"
+    },
+    "./supervised-pty": {
+      "types": "./dist/adapters/pty/supervised.d.ts",
+      "default": "./dist/adapters/pty/supervised.js"
+    },
+    "./reviews/*": {
+      "types": "./dist/modules/reviews/*.d.ts",
+      "default": "./dist/modules/reviews/*.js"
+    },
+    "./ai-provider": {
+      "types": "./dist/adapters/providers/ai-provider.d.ts",
+      "default": "./dist/adapters/providers/ai-provider.js"
+    },
+    "./pull-request-prompt": {
+      "types": "./dist/modules/ai/pull-request-prompt.d.ts",
+      "default": "./dist/modules/ai/pull-request-prompt.js"
+    },
+    "./ai": {
+      "types": "./dist/modules/ai/service.d.ts",
+      "default": "./dist/modules/ai/service.js"
+    },
+    "./state-kernel": {
+      "types": "./dist/bootstrap/state-kernel.d.ts",
+      "default": "./dist/bootstrap/state-kernel.js"
+    },
+    "./ssh-queue": {
+      "types": "./dist/adapters/ssh/channel-queue.d.ts",
+      "default": "./dist/adapters/ssh/channel-queue.js"
+    },
+    "./ssh/*": {
+      "types": "./dist/adapters/ssh/*.d.ts",
+      "default": "./dist/adapters/ssh/*.js"
+    },
+    "./host-connections": {
+      "types": "./dist/modules/hosts/connections.d.ts",
+      "default": "./dist/modules/hosts/connections.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "network": [
+        "dist/adapters/network/index.d.ts"
+      ],
+      "logging": [
+        "dist/adapters/logging/index.d.ts"
+      ],
+      "secrets-file": [
+        "dist/adapters/secrets/file.d.ts"
+      ],
+      "settings": [
+        "dist/modules/settings/index.d.ts"
+      ],
+      "accounts": [
+        "dist/modules/accounts/index.d.ts"
+      ],
+      "process": [
+        "dist/ports/process.d.ts"
+      ],
+      "git/*": [
+        "dist/modules/git/*.d.ts"
+      ],
+      "native-repository": [
+        "dist/adapters/git/native.d.ts"
+      ],
+      "terminals": [
+        "dist/modules/terminals/index.d.ts"
+      ],
+      "local-pty": [
+        "dist/adapters/pty/local.d.ts"
+      ],
+      "supervised-pty": [
+        "dist/adapters/pty/supervised.d.ts"
+      ],
+      "reviews/*": [
+        "dist/modules/reviews/*.d.ts"
+      ],
+      "ai-provider": [
+        "dist/adapters/providers/ai-provider.d.ts"
+      ],
+      "pull-request-prompt": [
+        "dist/modules/ai/pull-request-prompt.d.ts"
+      ],
+      "ai": [
+        "dist/modules/ai/service.d.ts"
+      ],
+      "state-kernel": [
+        "dist/bootstrap/state-kernel.d.ts"
+      ],
+      "ssh-queue": [
+        "dist/adapters/ssh/channel-queue.d.ts"
+      ],
+      "ssh/*": [
+        "dist/adapters/ssh/*.d.ts"
+      ],
+      "host-connections": [
+        "dist/modules/hosts/connections.d.ts"
+      ]
+    }
+  }
+}

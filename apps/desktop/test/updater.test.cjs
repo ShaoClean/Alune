@@ -98,6 +98,26 @@ test('install only runs after an explicit request and successful backend cleanup
   assert.deepEqual(order, ['closing', 'closed', 'install']);
 });
 
+test('time spent deciding whether to close terminals never starts shutdown or expires the installer', async () => {
+  const decision = deferred();
+  let closes = 0,
+    installs = 0;
+  const updater = service(
+    { install: async () => installs++ },
+    { confirmClose: () => decision.promise, closeBackend: async () => closes++, cleanupTimeout: 5 },
+  );
+  await updater.check();
+  await updater.download();
+  const installing = updater.install();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(updater.getState().status, 'installing');
+  assert.equal(closes, 0);
+  decision.resolve(false);
+  assert.equal((await installing).status, 'downloaded');
+  assert.equal(installs, 0);
+  assert.equal(closes, 0);
+});
+
 test('failed or timed-out cleanup never installs, including late cleanup completion', async () => {
   for (const fails of [true, false]) {
     const cleanup = deferred();
@@ -229,6 +249,20 @@ test('macOS selects the correct architecture, verifies SHA-256 and atomically co
   }
 });
 
+test('rate-limited macOS discovery resolves the public stable tag and still verifies the real asset',async(t)=>{
+  const cacheDir=await mkdtemp(path.join(tmpdir(),'alune-public-release-'));t.after(()=>rm(cacheDir,{recursive:true,force:true}));
+  const bytes=Buffer.from('verified test asset'),name='Alune-1.1.0-mac-arm64.dmg',base='https://github.com/ShaoClean/Alune/releases/download/v1.1.0/';
+  const adapter=createMacUpdater({version:'1.0.0',arch:'arm64',cacheDir,shell:{},fetchImpl:async(url,opts)=>{
+    if(url==='https://api.github.com/repos/ShaoClean/Alune/releases/latest')return new Response(null,{status:403});
+    if(url==='https://github.com/ShaoClean/Alune/releases/latest'){assert.equal(opts.headers.Accept,'application/json');return Response.json({tag_name:'v1.1.0',url:'https://wrong.invalid'});}
+    if(url===base+name && opts.method==='HEAD')return new Response(null,{headers:{'content-length':String(bytes.length)}});
+    if(url===base+'SHA256SUMS')return new Response(createHash('sha256').update(bytes).digest('hex')+'  '+name+'\n');
+    assert.equal(url,base+name);return new Response(bytes);
+  }});
+  const signal=new AbortController().signal;assert.equal((await adapter.check(signal)).version,'1.1.0');
+  assert.deepEqual(await readFile(await adapter.download(signal,()=>{})),bytes);
+});
+
 test('macOS revalidates the DMG before preparation and quits only after the helper is ready', async (t) => {
   const order = [];
   const prepared = {};
@@ -296,6 +330,25 @@ test('macOS checks handle prereleases, missing assets, unsupported architectures
     await assert.rejects(adapter.check(new AbortController().signal));
   }
   assert.throws(() => checksumFor(`${'a'.repeat(64)}  a.dmg\n${'a'.repeat(64)}  a.dmg`, 'a.dmg'));
+});
+
+test('macOS retries a transient release gateway before reading bytes and stops on cancellation', async () => {
+  const url = 'https://github.com/ShaoClean/Alune/releases/download/v1.0.0/test.dmg';
+  let calls = 0;
+  const result = await githubFetch(async (request) => {
+    assert.equal(request, url);
+    return ++calls === 1 ? new Response('unavailable', { status: 504 }) : new Response('verified separately');
+  }, url, new AbortController().signal);
+  assert.equal(await result.text(), 'verified separately');
+  assert.equal(calls, 2);
+  const controller = new AbortController();
+  calls = 0;
+  await assert.rejects(githubFetch(async () => {
+    calls++;
+    controller.abort();
+    return new Response('', { status: 503 });
+  }, url, controller.signal), { name: 'AbortError' });
+  assert.equal(calls, 1);
 });
 
 test('GitHub errors and redirects are bounded and do not follow untrusted hosts', async () => {

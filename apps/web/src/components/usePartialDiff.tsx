@@ -3,8 +3,8 @@ import type { KeyboardEvent } from 'react';
 import { Button, Dropdown, FeedbackAlert, Tooltip } from '@alune/ui';
 import type { MenuProps } from 'antd';
 import { EllipsisOutlined, SelectOutlined } from '@ant-design/icons';
-import { parsePatchHunks } from '@alune/shared';
-import type { PartialDiffAction, PartialDiffSelection } from '@alune/shared';
+import { parsePatchHunks } from '@alune/domain';
+import type { PartialDiffAction, PartialDiffSelection } from '@alune/domain';
 import { gitApi } from '../api';
 
 export type PartialDiffControls = {

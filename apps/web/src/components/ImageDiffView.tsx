@@ -1,6 +1,7 @@
+import { repositoryFileStatus } from '../api/repository-errors';
 import { FeedbackAlert } from '@alune/ui';
 import { useEffect, useState } from 'react';
-import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/shared';
+import type { DiffImageContent, DiffImageOptions, DiffImageSide } from '@alune/domain';
 import { repositoryApi } from '../api';
 import type { ImageDiffKind } from './diff-lines';
 
@@ -123,7 +124,7 @@ function ImagePane({ repoId, path, side, request }: Props & { side: DiffImageSid
       .catch((error: any) => {
         if (abort.signal.aborted) return;
         // 404 means this side never had content, not a failure to report.
-        if (error?.response?.status === 404)
+        if (repositoryFileStatus(error) === 404)
           setState({ phase: 'absent', message: '此版本不存在该图片。' });
         else setState({ phase: 'error', message: errorMessage(error) });
       });

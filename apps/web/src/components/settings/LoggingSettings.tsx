@@ -11,7 +11,7 @@ import {
   LOGGING_LIMITS,
   type LoggingSettings as Settings,
   type SaveLoggingSettings,
-} from '@alune/shared';
+} from '@alune/protocol';
 import { logBridge, loggingApi, loggingError, openLogViewer } from '../../api/logging';
 
 const levelLabels: Record<(typeof LOG_LEVELS)[number], string> = {

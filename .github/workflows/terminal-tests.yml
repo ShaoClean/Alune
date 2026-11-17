@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14, windows-latest]
+        os: [ubuntu-22.04, macos-15, macos-15-intel, windows-latest]
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
@@ -30,10 +30,10 @@ jobs:
           node-version: '22.22.0'
           cache: npm
       - run: npm ci
-      - run: npx turbo build --filter=server
+      - run: npx turbo build --filter=@alune/agent
       - name: 会话隔离、SSH、退出与背压
         timeout-minutes: 3
-        run: node --test apps/server/test/terminal.integration.cjs
+        run: node --test packages/agent/tests/terminals.test.cjs
       - run: npm run desktop:build
       - run: npm run pack -w desktop
       - name: 原生包终端、输入、保留输出与关闭确认

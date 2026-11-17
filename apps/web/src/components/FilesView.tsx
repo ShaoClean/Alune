@@ -16,8 +16,8 @@ import {
   MinusSquareOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import { DIFF_IMAGE_MAX_BYTES, REPOSITORY_TREE_MAX_ENTRIES } from '@alune/shared';
-import type { FileStatus, RepositoryFilePreview, RepositoryTreeEntry } from '@alune/shared';
+import { DIFF_IMAGE_MAX_BYTES, REPOSITORY_TREE_MAX_ENTRIES } from '@alune/domain';
+import type { FileStatus, RepositoryFilePreview, RepositoryTreeEntry } from '@alune/domain';
 import { repositoryApi } from '../api';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { FILES_STACKED_WIDTH, FILES_TREE_MAX, FILES_TREE_MIN } from '../stores/workspaceLayout';
@@ -746,6 +746,9 @@ export function FilePreviewPane({
       </div>
     );
 
+  // Selection changes before its read effect runs. Never render the previous
+  // file under the new path: that can also clamp and overwrite its scroll state.
+  file = file?.path === entry.path ? file : null;
   const preview =
     file?.phase === 'ready' ? file.preview : file?.phase === 'loading' ? file.stale : undefined;
   const previewPath = blameEnabled && blameVersion ? blameVersion.path : entry.path;
@@ -765,7 +768,7 @@ export function FilePreviewPane({
     <div
       className="files-view__preview"
       aria-label="文件预览"
-      aria-busy={file?.phase === 'loading'}
+      aria-busy={entry.kind === 'file' && (!file || file.phase === 'loading')}
     >
       <div className="files-preview__header">
         <h3 className="files-preview__path" title={previewPath}>

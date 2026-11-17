@@ -2,7 +2,7 @@ import { useFeedbackMessage, DialogField } from '@alune/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { Button, Dropdown, Input } from '@alune/ui';
-import type { WorkspaceFilePreview } from '@alune/shared';
+import type { WorkspaceFilePreview } from '@alune/domain';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { AluneModal } from '@alune/ui';

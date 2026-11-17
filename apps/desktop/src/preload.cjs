@@ -40,3 +40,29 @@ contextBridge.exposeInMainWorld('aluneLogs', {
   openDirectory: () => ipcRenderer.invoke('logs:open-directory'),
   chooseDirectory: () => ipcRenderer.invoke('logs:choose-directory'),
 });
+
+if (process.argv.includes('--alune-agent-ui')) {
+  let generation;
+  const listen = (name, fn) => {
+    const listener = (_event, id, frame) => {
+      if (id === generation) fn(frame);
+    };
+    ipcRenderer.on(name, listener);
+    return () => ipcRenderer.off(name, listener);
+  };
+  contextBridge.exposeInMainWorld('aluneAgent', {
+    open: async () => {
+      generation = await ipcRenderer.invoke('agent:open');
+    },
+    send: async (frame) => {
+      if (!(await ipcRenderer.invoke('agent:frame', generation, frame)))
+        throw new Error('工作区连接已关闭。');
+    },
+    close: () => {
+      void ipcRenderer.invoke('agent:close', generation).catch(() => {});
+      generation = undefined;
+    },
+    onFrame: (fn) => listen('agent:frame', fn),
+    onEnd: (fn) => listen('agent:end', fn),
+  });
+}

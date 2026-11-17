@@ -24,7 +24,11 @@ function createWorkspacePreferences(filePath) {
       }
     },
     save(value) {
-      if (typeof value !== 'string' || !isPreferences(JSON.parse(value))) throw new Error('Invalid workspace preferences');
+      try {
+        if (typeof value !== 'string' || !isPreferences(JSON.parse(value))) throw new Error('Invalid workspace preferences');
+      } catch (error) {
+        throw new Error('Invalid workspace preferences', { cause: error });
+      }
       const temporary = `${filePath}.tmp`;
       try {
         // Synchronous handlers serialize IPC writes; readers see either complete version.

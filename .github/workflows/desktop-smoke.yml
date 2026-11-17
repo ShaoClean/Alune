@@ -1,0 +1,121 @@
+name: 桌面界面回归
+
+on:
+  pull_request:
+  push:
+    branches: [development]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-smoke-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop-smoke:
+    name: 桌面 write/restore (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Includes dependency/native builds, default Agent smoke, packaging and the expanded
+    # candidate write/restore replay. Per-action and process waits stay fixed.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-15, macos-15-intel]
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:build
+        env:
+          ALUNE_UI_AUDIT: '1'
+      - name: 原生 safeStorage 与 Agent 私有导入
+        if: runner.os != 'Linux'
+        run: npm run test:agent-migration -w desktop
+      - name: 原生 safeStorage 与 Agent 私有导入 (Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:agent-migration -w desktop
+      - name: 真实桌面隔离数据冒烟
+        if: runner.os != 'Linux'
+        run: npm run desktop:test
+      - name: 真实桌面隔离数据冒烟 (Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run desktop:test
+      - name: 打包与内置 Agent 版本、架构绑定的候选桌面
+        run: npm run pack -w desktop -- --publish never
+      - name: 安装目录运行、升级旧数据与再次启动
+        if: runner.os != 'Linux'
+        run: node apps/desktop/scripts/test-packaged.mjs
+        env:
+          ALUNE_CANDIDATE_EVIDENCE: ${{ runner.temp }}/candidate-ui
+      - name: 安装目录运行、升级旧数据与再次启动 (Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node apps/desktop/scripts/test-packaged.mjs
+        env:
+          ALUNE_CANDIDATE_EVIDENCE: ${{ runner.temp }}/candidate-ui
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-ui-${{ matrix.os }}
+          path: ${{ runner.temp }}/candidate-ui
+          if-no-files-found: error
+
+  installer-cycle:
+    name: 安装、原版升级与回退 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-15, macos-15-intel]
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .githooks
+            .github
+            scripts
+            apps/desktop
+            apps/web
+            packages/agent
+            packages/agent-client
+            packages/domain
+            packages/protocol
+            packages/ui
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: node scripts/agent/check-clean-checkout.mjs before-install desktop-candidate
+      # Root supplies Electron packaging tools; stage.mjs installs the candidate's
+      # own runtime manifest; the regular desktop uses the same Agent-only runtime.
+      - run: npm ci --workspace=@alune/agent --workspace=@alune/agent-client --workspace=@alune/domain --workspace=@alune/protocol --workspace=@alune/ui --workspace=web --include-workspace-root=true
+      - run: node scripts/agent/check-clean-checkout.mjs after-install desktop-candidate
+      - name: Prepare a private RC version below the published stable update
+        run: node apps/desktop/scripts/acceptance-version.mjs
+      - run: npm run desktop:candidate:build
+      - name: Verify candidate has no embedded server, old workspaces or Electron-native database
+        run: node apps/desktop/scripts/check-candidate.mjs
+      - run: npm run dist:candidate -w desktop
+      - if: runner.os != 'Linux'
+        run: node apps/desktop/scripts/installer-cycle.mjs
+      - if: runner.os == 'Linux'
+        run: xvfb-run -a node apps/desktop/scripts/installer-cycle.mjs
+      - name: 保存已通过原生升级演练的候选安装器供逐项验收
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-candidate-${{ matrix.os }}
+          path: |
+            apps/desktop/release/Alune-*.exe
+            apps/desktop/release/Alune-*.dmg
+            apps/desktop/release/Alune-*.AppImage
+          if-no-files-found: error
+          retention-days: 7

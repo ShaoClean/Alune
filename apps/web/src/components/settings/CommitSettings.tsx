@@ -2,7 +2,7 @@ import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import { Button, Input, Select } from '@alune/ui';
 import { CheckOutlined } from '@ant-design/icons';
-import type { AiSettings, CommitGenerationPreferences } from '@alune/shared';
+import type { AiSettings, CommitGenerationPreferences } from '@alune/protocol';
 import { aiApi, aiError } from '../../api/ai';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
 

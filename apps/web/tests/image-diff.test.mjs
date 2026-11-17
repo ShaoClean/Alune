@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getDiffNotice, getImageDiffKind } from '../src/components/diff-lines.ts';
-import { diffImageMediaType } from '../../../packages/shared/src/index.ts';
+import { diffImageMediaType } from '@alune/domain';
 
 const header = (path, mode) =>
   `diff --git a/${path} b/${path}\n${mode}\nindex 0000000..1111111\n`;

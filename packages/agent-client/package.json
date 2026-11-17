@@ -1,0 +1,43 @@
+{
+  "name": "@alune/agent-client",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/browser.js",
+  "types": "./dist/browser.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "node": [
+        "dist/node.d.ts"
+      ],
+      "browser": [
+        "dist/browser.d.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "test": "npm run build && node --test tests/*.test.cjs"
+  },
+  "dependencies": {
+    "@alune/protocol": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "typescript": "^6.0.3"
+  }
+}

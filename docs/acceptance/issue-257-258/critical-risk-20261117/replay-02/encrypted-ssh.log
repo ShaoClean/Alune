@@ -1,0 +1,5 @@
+{"target":"darwin-arm64","protocol":{"major":1,"minor":7},"sourceSha":"8f30e6bcc0a4b7706c192896a73b87dc1a915ed9","version":"0.11.0","sha256":"3d931d355fb14cef6f7c373ed88f8f83166d4b0d2414606a7fcdf92f919ee786","manifestSha256":"ce8ca75ce360b99ce4f184028a99664b5633f22b5c828d5d5fc09c4fb81e2cdc"}
+Verified legacy deleted-profile cache does not reserve a live Agent identity.
+Verified explicit outside-repository SSH grants: read-only, write, traversal, revocation and cross-host rejection.
+{"target":"darwin-arm64","owner":"38b74e7a-ca71-4994-b15a-4eb89cb53408","verified":["SSH pin","install","Agent parity","worktree safeguards","PTY ACK","proxy fetch","submodule sync/update","cancel","interrupted write not replayed","unknown version and damaged upgrade","offline catalog","reconnect receipt","damaged archive refused"]}
+Isolated SSH acceptance passed with the bundled Node, SDK and native modules; no server, shared or legacy SSH workspace.

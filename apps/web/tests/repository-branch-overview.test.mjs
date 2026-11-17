@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { REPOSITORY_STATUS_CACHE_MS } from '@alune/shared';
+import { REPOSITORY_STATUS_CACHE_MS } from '@alune/domain';
 import {
   groupBranchRepositories,
   repositoryBranchSummary,

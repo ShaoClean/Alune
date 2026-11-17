@@ -1,4 +1,4 @@
-import type { FileStatus, RepositoryTreeEntry } from '@alune/shared';
+import type { FileStatus, RepositoryTreeEntry } from '@alune/domain';
 import { parentOf } from './files-tree';
 
 export type FileDecorationStatus = FileStatus['status'] | 'conflicted';
