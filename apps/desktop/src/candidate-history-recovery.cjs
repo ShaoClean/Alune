@@ -116,27 +116,26 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   );
   await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   await ev(`(()=>{
-    const raf=window.requestAnimationFrame.bind(window),cancel=window.cancelAnimationFrame.bind(window),pending=new Map();
-    window.requestAnimationFrame=callback=>{const entry={callback,time:null};const id=raf(time=>{entry.time=time});pending.set(id,entry);return id};
-    window.cancelAnimationFrame=id=>{cancel(id);pending.delete(id)};
-    window.__historyLayoutFrame=()=>new Promise(resolve=>raf(()=>setTimeout(resolve,0)));
-    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;window.cancelAnimationFrame=cancel;for(const [id,entry] of pending){cancel(id);pending.delete(id);entry.callback(entry.time??performance.now())}delete window.__historyLayoutFrame;delete window.__restoreHistoryFrames};
+    const raf=window.requestAnimationFrame.bind(window);
+    window.__historyClampArmed=false;window.__historyClampApplied=false;
+    window.requestAnimationFrame=callback=>raf(time=>{
+      const v=document.querySelector('.history-viewport');
+      if(window.__historyClampArmed&&v?.clientHeight){
+        window.__historyClampArmed=false;window.__historyClampApplied=true;
+        v.scrollTop=0;v.dispatchEvent(new Event('scroll',{bubbles:true}));
+      }
+      callback(time);
+    });
+    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;delete window.__historyClampArmed;delete window.__historyClampApplied;delete window.__restoreHistoryFrames};
   })()`);
   try {
     await click(button('文件'));
     await wait(wc, "document.querySelector('.history-viewport')?.clientHeight===0");
-    await ev('window.__historyLayoutFrame()');
+    await ev('window.__historyClampArmed=true');
     await click(button('提交历史'));
-    await wait(wc, "document.querySelector('.history-viewport')?.clientHeight>0");
-    // Deliver ResizeObserver/layout updates while restoration RAF callbacks
-    // remain held, so the injected clamp always precedes the final restore.
-    await ev('window.__historyLayoutFrame()');
-    // Model a delayed browser clamp delivered after the retained panel is
-    // visible, before its first restored renderer frame. No store is patched.
-    await ev(
-      "(()=>{const v=document.querySelector('.history-viewport');v.scrollTop=0;v.dispatchEvent(new Event('scroll',{bubbles:true}))})()",
-    );
-    await ev('window.__restoreHistoryFrames()');
+    // Inject the clamp immediately before the first real visible frame, without
+    // freezing unrelated page animations or replaying stale layout callbacks.
+    await wait(wc, 'window.__historyClampApplied===true');
     await wait(
       wc,
       'Math.abs(document.querySelector(".history-viewport").scrollTop-' + scrollBefore + ')<2',
@@ -147,7 +146,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   }
   await pass(
     ['UI-021', 'UI-022', 'UI-042', 'UI-072'],
-    'a controlled delayed renderer frame and late visibility clamp cannot replace the retained history scroll position or selected commit',
+    'a late visibility clamp immediately before the real restoration frame cannot replace the retained history scroll position or selected commit',
   );
   await click(button('关闭提交详情'));
   const treeObject = path.join(repo, '.git', 'objects', tree.slice(0, 2), tree.slice(2)),
