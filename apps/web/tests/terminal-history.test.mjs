@@ -68,7 +68,7 @@ test('a PTY becoming ready receives dimensions already fitted before it connecte
       (cols, rows) => hostSizes.push({ cols, rows }));
     assert.deepEqual(resizeEvents, []); // xterm deliberately suppresses this event.
     assert.deepEqual(hostSizes, [{ cols: 52, rows: 18 }]);
-    terminal.onResize(size => hostSizes.push(size));
+    terminal.onResize(({ cols, rows }) => hostSizes.push({ cols, rows }));
     synchronizeTerminalSize(terminal, () => terminal.resize(60, 20),
       (cols, rows) => hostSizes.push({ cols, rows }));
     assert.deepEqual(hostSizes, [{ cols: 52, rows: 18 }, { cols: 60, rows: 20 }]);
