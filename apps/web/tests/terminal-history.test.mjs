@@ -30,3 +30,27 @@ test('terminal selection is remembered independently for repositories and hiding
   assert.equal(useTerminalStore.getState().sessions.length, 2);
   assert.equal(useTerminalStore.getState().visible, false);
 });
+
+// xterm's parser/buffer runs under Node without opening a renderer or window.
+// Replay ConPTY's resize redraw to prove that previous screen output survives.
+test('Windows execution-host resize redraw preserves terminal history on any UI host', async () => {
+  const { createRequire } = await import('node:module');
+  const { Terminal } = createRequire(import.meta.url)('@xterm/xterm');
+  const { applyTerminalHostOptions } = await import('../src/stores/terminalOptions.ts');
+  for (const windows of [false, true]) {
+    const terminal = new Terminal({ cols: 80, rows: 24 });
+    try {
+      applyTerminalHostOptions(terminal, windows
+        ? { windowsPty: { backend: 'conpty', buildNumber: 26100 } } : {});
+      await new Promise(resolve => terminal.write('retained-before-resize\r\n' + 'line\r\n'.repeat(20), resolve));
+      terminal.resize(80, 5);
+      terminal.resize(80, 24);
+      if (windows) await new Promise(resolve => terminal.write('\x1b[H\x1b[2Jredrawn prompt', resolve));
+      const lines = Array.from({ length: terminal.buffer.active.length }, (_, i) =>
+        terminal.buffer.active.getLine(i).translateToString(true)).join('\n');
+      assert.match(lines, /retained-before-resize/);
+      applyTerminalHostOptions(terminal, {});
+      assert.deepEqual(terminal.options.windowsPty, {});
+    } finally { terminal.dispose(); }
+  }
+});

@@ -6,6 +6,7 @@ import type { TerminalCallbacks, TerminalTransport } from '../../ports/terminal'
 export interface TerminalTarget {
   repositoryName: string;
   initialPath: string;
+  windowsPty?: TerminalSession['windowsPty'];
   source: 'local' | 'ssh';
   connectionId?: string;
   environment: string;

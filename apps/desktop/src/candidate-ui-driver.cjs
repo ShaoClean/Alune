@@ -27,11 +27,12 @@ module.exports = function driver(wc, wait) {
     return true;
   };
   const select = async (label, value) => {
-    await wait(
-      wc,
-      `(()=>{const e=(${button(label)})?.closest('.ant-select');if(!e||e.classList.contains('ant-select-disabled'))return false;e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));return true})()`,
-    );
+    const control = `(${button(label)})?.closest('.ant-select')?.querySelector('[role=combobox]')`;
+    // Enter opens (rather than toggles) a closed combobox. Wait for its actual
+    // expanded state and for selection to close it before another interaction.
+    await wait(wc, `(()=>{const e=(${control});if(!e||e.disabled)return false;if(e.getAttribute('aria-expanded')==='true')return true;e.focus();e.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));return false})()`);
     await click(textButton(value, '.ant-select-item-option'));
+    await wait(wc, `(${control})?.getAttribute('aria-expanded')==='false'`);
   };
   // A visible modal can precede its portal's global Escape subscription. Give
   // React effects a rendered frame, activate the actual window, and send a real

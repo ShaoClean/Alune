@@ -1,4 +1,4 @@
-import { hostname } from 'node:os';
+import { hostname, release } from 'node:os';
 import { normalize } from 'node:path';
 import { terminalHandlers } from '../modules/terminals/handlers';
 import { ProtocolError } from '@alune/protocol';
@@ -17,6 +17,9 @@ export function terminalsKernel(catalog: RepositoryCatalog) {
       // native path as the shell and the original terminal details.
       initialPath: normalize(repo.path),
       source: 'local',
+      ...(process.platform === 'win32'
+        ? { windowsPty: { backend: 'conpty' as const, buildNumber: Number(release().split('.')[2]) } }
+        : {}),
       environment: `Alune 服务主机 · ${hostname()}`,
       open: (cols, rows, signal, callbacks) =>
         supervisedTerminal(repo.path, cols, rows, signal, callbacks),

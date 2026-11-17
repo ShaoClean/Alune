@@ -19,6 +19,8 @@ export interface TerminalSession {
   connectionId?: string;
   environment: string;
   initialPath: string;
+  /** PTY implementation of the execution host, independent of the UI host. */
+  windowsPty?: { backend: 'conpty'; buildNumber: number };
   state: TerminalState;
   createdAt: number;
   exitCode?: number;

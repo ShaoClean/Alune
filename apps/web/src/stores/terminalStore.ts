@@ -12,6 +12,7 @@ import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/domain';
 import type { Repository, TerminalOutput, TerminalSession } from '@alune/domain';
 import { useWorkspaceStore } from './workspaceStore';
 import { retainedTerminalLines } from './terminalHistory';
+import { applyTerminalHostOptions } from './terminalOptions';
 
 type Runtime = {
   terminal: Terminal;
@@ -78,6 +79,7 @@ const stateEvent = (info: TerminalSession) => {
   if (!useTerminalStore.getState().sessions.some((item) => item.id === info.id)) return;
   patch(info.id, info);
   const runtime = ensureRuntime(info.id);
+  applyTerminalHostOptions(runtime.terminal, info);
   runtime.terminal.options.disableStdin = info.state !== 'running';
   if (info.state === 'running') fitTerminal(info.id);
 };
