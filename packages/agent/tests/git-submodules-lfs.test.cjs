@@ -53,9 +53,11 @@ const noLfs = (connection) => ({
 before(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-submodules-lfs-'));
   process.env.GIT_ALLOW_PROTOCOL = 'file';
-  remote = await startSSHServer();
-  ssh = new SSHConnection(remote.options);
-  await ssh.connect();
+  if (process.platform !== 'win32') {
+    remote = await startSSHServer();
+    ssh = new SSHConnection(remote.options);
+    await ssh.connect();
+  }
 });
 after(async () => {
   ssh?.disconnect();
@@ -78,7 +80,8 @@ test('strict LFS pointer parsing does not reinterpret ordinary text', () => {
   assert.equal(parseLfsPointer(`hello\noid sha256:${oid}\nsize 12\n`), null);
 });
 
-for (const source of ['local', 'ssh']) {
+// The /bin/sh SSH fixture runs on POSIX hosts; native Git stays covered on Windows.
+for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']) {
   test(`${source}: LFS detection excludes ignored untracked files but retains tracked ones`, async () => {
     const connection = noLfs(source === 'local' ? new LocalConnection() : ssh);
     const dir = repo();
@@ -122,8 +125,8 @@ for (const source of ['local', 'ssh']) {
     );
     assert.ok(items.every((item) => item.status === 'current' && !item.dirty));
     assert.equal(
-      await modules.resolve(clone, '子 模块/nested space'),
-      fs.realpathSync(path.join(clone, '子 模块/nested space')),
+      fs.realpathSync.native(await modules.resolve(clone, '子 模块/nested space')),
+      fs.realpathSync.native(path.join(clone, '子 模块/nested space')),
     );
     await assert.rejects(modules.resolve(clone, '../escape'), /路径/);
     const checked = path.join(clone, '子 模块');

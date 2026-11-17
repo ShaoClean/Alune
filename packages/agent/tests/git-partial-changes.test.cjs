@@ -68,7 +68,7 @@ for (const kind of ['local', 'worktree', 'ssh']) {
     { skip: kind === 'ssh' && process.platform === 'win32' },
     async (t) => {
       const f = await setup(t, kind);
-      const file = "目录/中文 '$HOME' [*].txt";
+      const file = process.platform === 'win32' ? "目录/中文 '$HOME' [x].txt" : "目录/中文 '$HOME' [*].txt";
       const original = Array.from({ length: 32 }, (_, i) => `line ${i}\n`).join('');
       f.write(file, original);
       f.git('add', '.');

@@ -107,7 +107,7 @@ module.exports = async ({ window, origin, id, wait, measure }) => {
     async () => {
       await tokens();
       await click(textButton('1 个仓库关联'));
-      await wait(wc, "document.querySelector('.a-dlg-shell')?.innerText.includes('team/review')");
+      await wait(wc, '(' + element('.a-dlg-shell') + ")?.innerText.includes('team/review')");
       await click(textButton('关闭', '.a-dlg-shell button'));
       await click(button('编辑令牌 ' + tokenName));
       await masked();
@@ -125,7 +125,7 @@ module.exports = async ({ window, origin, id, wait, measure }) => {
       // the editor itself to close, not merely the absence of its Save button.
       await wait(
         wc,
-        `(()=>{const n=[...document.querySelectorAll('.a-dlg-shell .feedback-description')].find(e=>e.getClientRects().length);if(n?.textContent.trim())throw Error('Token replacement failed: '+n.textContent);return !document.querySelector('.a-dlg-shell input[aria-label="令牌值"]')})()`,
+        `(()=>{const n=(${element('.a-dlg-shell .feedback-description')});if(n?.textContent.trim())throw Error('Token replacement failed: '+n.textContent);return !(${element('.a-dlg-shell input[aria-label="令牌值"]')})})()`,
       );
       await observeAfterReload('replaced');
     },

@@ -99,6 +99,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   await wait(wc, "document.querySelector('.history-viewport').scrollTop>=79");
   const scrollBefore = await ev("document.querySelector('.history-viewport').scrollTop");
   await click(button('文件'));
+  await wait(wc, "document.querySelector('.history-viewport')?.clientHeight===0");
   await click(button('提交历史'));
   await wait(
     wc,
@@ -109,6 +110,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
     ['UI-013', 'UI-021', 'UI-022'],
     'prime history through a real tag creation, scroll its cached graph and switch panels; returning preserves both scroll position and the selected commit',
   );
+  await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   await ev(`(()=>{
     const raf=window.requestAnimationFrame.bind(window),cancel=window.cancelAnimationFrame.bind(window),pending=new Map();
     window.requestAnimationFrame=callback=>{const entry={callback,time:null};const id=raf(time=>{entry.time=time});pending.set(id,entry);return id};
@@ -117,6 +119,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   })()`);
   try {
     await click(button('文件'));
+    await wait(wc, "document.querySelector('.history-viewport')?.clientHeight===0");
     await click(button('提交历史'));
     await wait(wc, "document.querySelector('.history-viewport')?.clientHeight>0");
     // Model a delayed browser clamp delivered after the retained panel is
@@ -368,7 +371,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   await click(textButton('从所选提交交互式变基'));
   await verifyPlan();
   await click(textButton('取消', '.a-dlg-actions button'));
-  await wait(wc, "!document.querySelector('.a-dlg-shell')");
+  await wait(wc, '!(' + element('.a-dlg-shell') + ')');
   const target = row(blameOwner);
   await ev(
     '(()=>{const e=(' +
@@ -378,7 +381,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   await click(textButton('从此处交互式变基', '.ant-dropdown-menu-item'));
   await verifyPlan();
   await click(textButton('取消', '.a-dlg-actions button'));
-  await wait(wc, "!document.querySelector('.a-dlg-shell')");
+  await wait(wc, '!(' + element('.a-dlg-shell') + ')');
   assert.equal(git('rev-parse', 'HEAD'), head);
   assert.equal(git('status', '--porcelain'), '');
   assert.equal(git('show-ref'), refsBeforePlans);

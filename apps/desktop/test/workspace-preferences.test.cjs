@@ -35,7 +35,8 @@ test('workspace preferences save atomically, loads valid data and clears the fil
   assert.equal(preferences.load(), null);
   preferences.save(valid);
   assert.equal(preferences.load(), valid);
-  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  // Windows does not expose POSIX owner/group permission bits.
+  if (process.platform !== 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   assert.equal(fs.existsSync(file + '.tmp'), false);
   preferences.clear();
   assert.equal(preferences.load(), null);

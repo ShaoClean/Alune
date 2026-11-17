@@ -15,7 +15,7 @@ for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']
     const blame = new GitBlame(ssh?.connection ?? new LocalConnection());
     const { repo, write } = fixture;
     const git = (...args) => fixture.git(...args).trim();
-    const file = '中文 " file.txt';
+    const file = process.platform === 'win32' ? "中文 ' file.txt" : '中文 " file.txt';
     try {
       write(file, 'alpha\nbeta\ngamma\ndelta\n');
       git('add', '--', file);

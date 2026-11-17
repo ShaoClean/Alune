@@ -10,7 +10,8 @@ const read = (name) => fs.readFile(path.join(desktop, name), 'utf8');
 
 for (const executor of [undefined, 'agent', 'legacy', 'unknown']) {
   test(`ordinary main uses only Agent (executor=${executor}) and fails closed`, async () => {
-    const calls = [], paths = { appData: '/isolated', userData: '/isolated/Alune' };
+    const isolated = path.resolve('isolated');
+    const calls = [], paths = { appData: isolated, userData: path.join(isolated, 'Alune') };
     const app = {
       setName() {}, setPath: (key, value) => { paths[key] = value; },
       getPath: (key) => paths[key], requestSingleInstanceLock: () => true,
@@ -40,7 +41,7 @@ for (const executor of [undefined, 'agent', 'legacy', 'unknown']) {
     };
     vm.runInNewContext(await read('src/main.cjs'), context);
     await new Promise(setImmediate);
-    assert.deepEqual(calls, [['agent', '/isolated/Alune'], ['exit', 1]]);
+    assert.deepEqual(calls, [['agent', path.join(isolated, 'Alune')], ['exit', 1]]);
   });
 }
 

@@ -51,6 +51,7 @@ jobs:
   local-git:
     name: 本地 Git 与代理 (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     strategy:
@@ -66,4 +67,4 @@ jobs:
       - run: npm ci
       - run: npx turbo build --filter=@alune/agent
       - name: Agent Git、文件、SSH 与代理行为
-        run: node --test --test-concurrency=2 packages/agent/tests/git-*.test.cjs
+        run: node --test --test-concurrency=2 --test-timeout=120000 packages/agent/tests/git-*.test.cjs

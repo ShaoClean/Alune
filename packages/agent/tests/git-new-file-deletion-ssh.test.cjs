@@ -18,7 +18,9 @@ test(
     const deletion = new NewFileDeletion(ssh.connection);
     const git = new GitCommands(ssh.connection);
     for (const stage of ['untracked', 'staged', 'mixed']) {
-      const name = `目录/中文 $ '\" [*] ${stage}.txt`;
+      const name = process.platform === 'win32'
+        ? `目录/中文 $ ' [x] ${stage}.txt`
+        : `目录/中文 $ '\" [*] ${stage}.txt`;
       fixture.write(name, 'index contents\n');
       if (stage !== 'untracked') fixture.git('add', '--', name);
       if (stage === 'mixed') fixture.write(name, 'working contents\n');
@@ -48,6 +50,8 @@ test(
         false,
       );
     }
+    // chmod cannot model a non-writable parent on Windows (or for root).
+    if (process.platform === 'win32' || process.getuid?.() === 0) return;
     fixture.write('readonly/new.txt');
     fixture.git('add', '--', 'readonly/new.txt');
     const preview = await deletion.preview(fixture.repo, 'readonly/new.txt');

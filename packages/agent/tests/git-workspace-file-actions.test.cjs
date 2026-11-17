@@ -19,7 +19,7 @@ for (const remote of [false, true]) {
       const connection = ssh?.connection || new LocalConnection();
       const actions = new WorkspaceFileActions(connection);
       for (const state of ['untracked', 'modified', 'staged', 'mixed', 'intent']) {
-        const name = `目录/中文 ' $ [*] ${state}.txt`;
+        const name = `目录/中文 ' $ [${process.platform === 'win32' ? 'x' : '*'}] ${state}.txt`;
         f.write(name, 'original');
         if (state === 'modified') {
           f.git('add', '--', name);
@@ -31,7 +31,7 @@ for (const remote of [false, true]) {
         const before = f.git('ls-files', '--stage', '-z');
         const preview = await actions.preview(f.repo, name);
         assert.equal(preview.canModify, true);
-        assert.equal(preview.absolutePath, path.join(fs.realpathSync(f.repo), name));
+        assert.equal(fs.realpathSync.native(preview.absolutePath), fs.realpathSync.native(path.join(f.repo, name)));
         assert.equal(preview.staged, ['staged', 'mixed'].includes(state));
         assert.equal(f.git('ls-files', '--stage', '-z'), before, 'preview/cancel preserves index');
         assert.ok(fs.existsSync(path.join(f.repo, name)), 'preview/cancel preserves disk');
@@ -108,7 +108,7 @@ test('uses the selected Worktree root and refuses races creating the destination
   const local = new LocalConnection();
   const actions = new WorkspaceFileActions(local);
   const p = await actions.preview(worktree, 'tracked.txt');
-  assert.equal(p.absolutePath, path.join(fs.realpathSync(worktree), 'tracked.txt'));
+  assert.equal(fs.realpathSync.native(p.absolutePath), fs.realpathSync.native(path.join(worktree, 'tracked.txt')));
   await actions.mutate(worktree, 'tracked.txt', p.token, 'delete');
   assert.ok(fs.existsSync(path.join(f.repo, 'tracked.txt')));
   const race = new WorkspaceFileActions({

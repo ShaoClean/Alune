@@ -7,7 +7,7 @@ const { execFileSync } = require('node:child_process');
 module.exports = async ({ window, origin, repo, wait, pass }) => {
   const wc = window.webContents,
     ev = (code) => wc.executeJavaScript(code);
-  const { element, button, textButton, click, input } = require('./candidate-ui-driver.cjs')(
+  const { element, button, textButton, click, input, pressKey } = require('./candidate-ui-driver.cjs')(
     wc,
     wait,
   );
@@ -84,7 +84,7 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
   const conflicted = facts();
   await click(textButton('中止合并', '.conflict-bar button'));
   await wait(wc, primary('中止合并'));
-  await click(primary('取消'));
+  await pressKey(primary('取消'), 'Escape');
   await wait(wc, '!(' + primary('取消') + ')');
   assert.deepEqual(facts(), conflicted);
   await click(textButton('中止合并', '.conflict-bar button'));

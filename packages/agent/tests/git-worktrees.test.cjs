@@ -57,14 +57,14 @@ test('real SSH discovers siblings and isolates staged, unstaged, untracked diffs
   const list = await worktrees.list(fixture.feature);
   assert.equal(list.length, 4);
   assert.equal(list.find((item) => item.isCurrent).branch, 'feature/worktrees');
-  assert.equal(list.find((item) => item.detached).path, fs.realpathSync(fixture.detached));
+  assert.equal(fs.realpathSync.native(list.find((item) => item.detached).path), fs.realpathSync.native(fixture.detached));
   assert.equal(list.find((item) => item.prunable).path.endsWith('/missing-worktree'), true);
   fixture.git('worktree', 'lock', '--reason', 'keep this directory', fixture.feature);
   const locked = (await worktrees.list(fixture.repo)).find((item) => item.locked);
   assert.equal(locked.lockedReason, 'keep this directory');
   assert.equal(
-    await worktrees.resolve(fixture.repo, locked.path),
-    fs.realpathSync(fixture.feature),
+    fs.realpathSync.native(await worktrees.resolve(fixture.repo, locked.path)),
+    fs.realpathSync.native(fixture.feature),
   );
   for (const [directory, marker] of [
     [fixture.repo, 'main'],
@@ -103,7 +103,7 @@ test('real SSH discovers siblings and isolates staged, unstaged, untracked diffs
   assert.equal((await git.commit(fixture.feature, 'feat: worktree-only commit')).exitCode, 0);
   assert.equal(fixture.runAt(fixture.repo, 'status', '--porcelain=v2', '-z'), before);
   assert.equal(fixture.runAt(fixture.detached, 'status', '--porcelain=v2', '-z'), detachedBefore);
-  if (process.getuid?.() !== 0) {
+  if (process.platform !== 'win32' && process.getuid?.() !== 0) {
     fs.chmodSync(fixture.feature, 0);
     try {
       await assert.rejects(worktrees.resolve(fixture.repo, locked.path), /权限|denied|Permission/);
@@ -136,7 +136,7 @@ test('a sole worktree is current, subdirectories/aliases resolve, and read failu
   const fixture = createRepository();
   t.after(() => fixture.close());
   const alias = path.join(fixture.root, 'alias');
-  fs.symlinkSync(fixture.repo, alias);
+  fs.symlinkSync(fixture.repo, alias, 'junction');
   fs.mkdirSync(path.join(fixture.repo, 'sub'));
   const reader = new GitWorktrees(fixture.connection);
   for (const directory of [fixture.repo, alias, path.join(fixture.repo, 'sub')]) {

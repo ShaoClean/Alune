@@ -1,4 +1,4 @@
-const { before, after, test } = require('node:test');
+const { before, after, test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -8,6 +8,8 @@ const { SSHConnection } = require('../dist/adapters/ssh/connection-manager');
 const { DiffImages, DiffImageAbsentError } = require('../dist/modules/git/diff-images');
 const { DIFF_IMAGE_MAX_BYTES } = require('@alune/domain');
 const { startSSHServer } = require('./helpers/ssh-server.cjs');
+// Exercise a POSIX SSH host (/bin/sh), independently of native Windows Git.
+describe('POSIX SSH image previews', { skip: process.platform === 'win32' }, () => {
 
 let remote, connection, images, root;
 
@@ -150,6 +152,8 @@ test('unsupported types, oversized files, directories, missing paths and travers
     /超出预览限制/,
   );
   assert.equal(connection.connected, true);
+});
+
 });
 
 test('Windows repositories reject backslash and stream paths before connecting', async () => {

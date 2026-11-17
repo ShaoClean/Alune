@@ -4,7 +4,7 @@ const assert = require('node:assert/strict'),
 const { execFileSync } = require('node:child_process'),
   { pathToFileURL } = require('node:url');
 module.exports = async ({ window, wc, work, wait, fact, pass }) => {
-  const { element, button, textButton, click, input } = require('./candidate-ui-driver.cjs')(
+  const { element, button, textButton, click, input, pressKey } = require('./candidate-ui-driver.cjs')(
     wc,
     wait,
   );
@@ -78,7 +78,8 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   await wait(wc, '(' + primary('保存到此仓库') + ')?.disabled===true');
   await input(element('#git-author-name'), '  Saved author  ');
   await input(element('#git-author-email'), 'saved-author@example.invalid');
-  await click(primary('取消'));
+  await pressKey(primary('取消'), 'Escape');
+  await wait(wc, '!(' + primary('保存到此仓库') + ')');
   assert.throws(() => git('config', '--local', '--get', 'user.name'));
   assert.throws(() => git('config', '--local', '--get', 'user.email'));
   await notice('提交前需要设置作者');

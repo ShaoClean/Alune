@@ -1,4 +1,4 @@
-const { before, after, test } = require('node:test');
+const { before, after, test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -7,6 +7,9 @@ const { execFileSync } = require('node:child_process');
 const { SSHConnection } = require('../dist/adapters/ssh/connection-manager');
 const { GitCommands, DIFF_PREVIEW_MAX_BYTES } = require('../dist/modules/git/git-commands-writes');
 const { startSSHServer } = require('./helpers/ssh-server.cjs');
+// This server executes /bin/sh and these cases include POSIX-only filenames,
+// links and permissions. Windows command transport has git-diff-windows.test.cjs.
+describe('POSIX SSH diff', { skip: process.platform === 'win32' }, () => {
 let remote, connection, git, root;
 const run = (repo, ...args) =>
   execFileSync('git', ['-C', repo, ...args], {
@@ -259,4 +262,5 @@ test('full-file context includes unchanged head and tail for worktree, index and
   await check({ staged: true });
   run(dir, 'commit', '-qm', 'edit');
   await check({ commit: 'HEAD' });
+});
 });

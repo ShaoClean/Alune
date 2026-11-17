@@ -8,6 +8,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   const marker = 'PTY_CONTENT_' + require('node:crypto').randomUUID();
   fs.writeFileSync(file, marker + '\n');
   const ev = (s) => wc.executeJavaScript(s);
+  await require('./smoke-window.cjs')(require('electron').BrowserWindow.fromWebContents(wc));
   const { pressKey } = require('./candidate-ui-driver.cjs')(wc, wait);
   const tab = '.terminal-tab [role=tab]',
     active = '.terminal-tab.is-active [role=tab]';
@@ -17,6 +18,14 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     "document.querySelector('.terminal-output .xterm-accessibility')?.textContent.includes(" +
     JSON.stringify(t) +
     ')';
+  async function retainedOutput() {
+    // The accessibility tree represents the viewport, not the scrollback.
+    // Long packaged runtime paths can scroll the probe off screen. Reveal the
+    // retained history through the real terminal before asserting its bytes.
+    const point = await ev("(()=>{const r=document.querySelector('.terminal-output .xterm-screen').getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()");
+    wc.sendInputEvent({ type: 'mouseWheel', ...point, deltaY: -10000, deltaX: 0 });
+    await wait(wc, output(marker));
+  }
   const key = (expr, key, code, n, modifiers = {}) =>
     wait(
       wc,
@@ -98,7 +107,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   );
   const to = point.y + (await height()) - originalHeight;
   wc.sendInputEvent({ type: 'mouseMove', ...point });
-  wc.sendInputEvent({ type: 'mouseDown', ...point, button: 'left', clickCount: 1 });
+  wc.sendInputEvent({ type: 'mouseDown', ...point, button: 'left', clickCount: 1, modifiers: ['leftbuttondown'] });
   try {
     await wait(wc, '!!(' + resize + ')?.dataset.start');
     wc.sendInputEvent({
@@ -108,12 +117,17 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
       button: 'left',
       modifiers: ['leftbuttondown'],
     });
-    await wait(wc, 'Number((' + resize + ')?.getAttribute("aria-valuenow"))===' + originalHeight);
+    try {
+      await wait(wc, 'Number((' + resize + ')?.getAttribute("aria-valuenow"))===' + originalHeight);
+    } catch (error) {
+      throw new Error(error.message + ' | resize: ' + JSON.stringify({ point, to, originalHeight,
+        current: await height(), start: await ev('(' + resize + ')?.dataset.start') }));
+    }
   } finally {
     wc.sendInputEvent({ type: 'mouseUp', x: point.x, y: to, button: 'left', clickCount: 1 });
     fs.rmSync(dimensionsFile, { force: true });
   }
-  await wait(wc, output(marker));
+  await retainedOutput();
   await pass(
     ['UI-046', 'UI-074', 'UI-042'],
     'terminal keyboard limits change actual PTY rows; native pointer drag restores the original height and retains output',
@@ -131,7 +145,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   });
   await wait(wc, '!document.querySelector(".terminal-panel")');
   await click(element('[data-terminal-toggle]'));
-  await wait(wc, output(marker));
+  await retainedOutput();
   assert.equal((await counts(wc)).get(inputCallback) ?? 0, inputCount);
   await pass(
     ['UI-074', 'UI-046', 'UI-025'],
@@ -146,7 +160,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   await click(button('收起终端'));
   await wait(wc, "!document.querySelector('.terminal-panel')");
   await click(element('[data-terminal-toggle]'));
-  await wait(wc, output(marker));
+  await retainedOutput();
   await pass(
     ['UI-046', 'UI-042'],
     'real terminal renders file bytes from its registered Git directory; maximize, restore and collapse retain the session output',
@@ -165,14 +179,14 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   await wait(wc, element('.terminal-output .xterm-accessibility'));
   assert.ok(!(await ev(output(marker))));
   await click(element('.terminal-tab:not(.is-active) [role=tab]'));
-  await wait(wc, output(marker));
+  await retainedOutput();
   await click(element('.terminal-tab:not(.is-active) [role=tab]'));
   await wait(
     wc,
     `document.querySelector('${active}')?.getAttribute('aria-controls')===${JSON.stringify(second)} && !(${output(marker)})`,
   );
   await key(element(active), 'Home', 'Home', 36);
-  await wait(wc, output(marker));
+  await retainedOutput();
   await key(element(active), 'End', 'End', 35);
   await wait(
     wc,
@@ -188,7 +202,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   assert.equal(await ev(`document.querySelectorAll('${tab}').length`), 2);
   await click(button('全部终端会话'));
   await click(element('.terminal-all-sessions li:first-child button'));
-  await wait(wc, output(marker));
+  await retainedOutput();
   await click(button('关闭终端 1'));
   await wait(wc, '(' + primary('关闭会话') + ')?.disabled===true');
   await click(primary('取消'));

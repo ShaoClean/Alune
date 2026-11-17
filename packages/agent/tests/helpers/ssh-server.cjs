@@ -177,9 +177,19 @@ async function startSSHServer({ onSftp } = {}) {
           });
           channel.pipe(child.stdin);
           child.stdin.on('error', () => {});
+          let spawnFailed = false;
+          child.once('error', (error) => {
+            // A missing fixture shell must fail the command, not leave the SSH
+            // channel open until the whole CI job times out.
+            spawnFailed = true;
+            channel.stderr.write(error.message);
+            channel.exit(127);
+            channel.end();
+          });
           child.stdout.on('data', (data) => channel.write(data));
           child.stderr.on('data', (data) => channel.stderr.write(data));
           child.on('close', (code) => {
+            if (spawnFailed) return;
             channel.exit(code ?? 1);
             channel.end();
           });

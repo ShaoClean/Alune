@@ -76,7 +76,7 @@ module.exports = async ({
   await click(primary('预览结果'));
   await wait(
     wc,
-    "document.querySelector('.a-dlg-shell')?.innerText.includes('second replayed first')",
+    '(' + element('.a-dlg-shell') + ")?.innerText.includes('second replayed first')",
   );
   await click(textButton('返回编辑'));
   await wait(wc, '(' + message + ')?.value==="second replayed first"');
@@ -128,7 +128,8 @@ module.exports = async ({
   await fact(
     () =>
       git('branch', '--show-current') === branch &&
-      git('log', '-1', '--format=%s') === 'first rebase fixture',
+      git('log', '-1', '--format=%s') === 'first rebase fixture' &&
+      !fs.existsSync(path.join(work, '.git', 'alune-interactive-rebase')),
     'rebase did not finish on original branch',
   );
   assert.equal(git('log', '-2', '--format=%s'), 'first rebase fixture\nsecond replayed first');
@@ -160,7 +161,8 @@ module.exports = async ({
   await control('跳过当前提交');
   await click(primary('确认跳过'));
   await fact(
-    () => git('branch', '--show-current') === skipBranch && git('ls-files', '-u') === '',
+    () => git('branch', '--show-current') === skipBranch && git('ls-files', '-u') === '' &&
+      !fs.existsSync(path.join(work, '.git', 'alune-interactive-rebase')),
     'confirmed skip did not finish the plan',
   );
   assert.equal(git('rev-parse', 'HEAD^'), base);
@@ -184,7 +186,8 @@ module.exports = async ({
   await control('中止变基');
   await click(primary('确认中止'));
   await fact(
-    () => git('rev-parse', 'HEAD') === two && git('branch', '--show-current') === abortBranch,
+    () => git('rev-parse', 'HEAD') === two && git('branch', '--show-current') === abortBranch &&
+      !fs.existsSync(path.join(work, '.git', 'alune-interactive-rebase')),
     'abort did not restore original branch and commits',
   );
   assert.equal(git('rev-parse', 'HEAD^'), one);

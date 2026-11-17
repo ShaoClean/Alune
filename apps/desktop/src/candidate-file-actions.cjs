@@ -73,10 +73,10 @@ module.exports = async ({
   await click(primary('重命名'));
   await wait(
     wc,
-    "document.querySelector('.feedback-description')?.textContent.includes('重新读取并确认')",
+    '(' + element('.a-dlg-shell .feedback-description') + ")?.textContent.includes('重新读取并确认')",
   );
   assert.doesNotMatch(
-    await wc.executeJavaScript("document.querySelector('.feedback-description').textContent"),
+    await wc.executeJavaScript('(' + element('.a-dlg-shell .feedback-description') + ').textContent'),
     /请勿重复执行/,
   );
   await click(primary('返回'));
@@ -98,7 +98,7 @@ module.exports = async ({
   );
 
   async function openDelete() {
-    await wait(wc, "!document.querySelector('.a-dlg-shell')");
+    await wait(wc, '!(' + element('.a-dlg-shell') + ')');
     await openFileAction(moved, true, '删除文件…');
     await wait(wc, '(' + primary('永久删除') + ')?.disabled===true');
   }

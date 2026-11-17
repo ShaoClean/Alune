@@ -3,7 +3,7 @@ const assert = require('node:assert/strict'),
   path = require('node:path');
 const { execFileSync } = require('node:child_process');
 module.exports = async ({ window, wc, scratchUrl, linked, git, wait, fact, pass }) => {
-  const { element, button, textButton, click, input } = require('./candidate-ui-driver.cjs')(
+  const { element, button, textButton, click, input, pressKey } = require('./candidate-ui-driver.cjs')(
     wc,
     wait,
   );
@@ -21,9 +21,7 @@ module.exports = async ({ window, wc, scratchUrl, linked, git, wait, fact, pass 
     `(()=>{const b=(${trigger});if(!b)return false;b.focus();b.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));return true})()`,
   );
   await wait(wc, panel);
-  await ev(
-    `(()=>{const e=(${panel});e.focus();e.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))})()`,
-  );
+  await pressKey(panel, 'Escape');
   await wait(wc, '!(' + panel + ')&&document.activeElement===(' + trigger + ')');
   await pass(
     ['UI-052', 'UI-053'],

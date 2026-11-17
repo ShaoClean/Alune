@@ -1,4 +1,4 @@
-const { before, after, test } = require('node:test');
+const { before, after, test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -17,6 +17,8 @@ const {
   REPOSITORY_TREE_MAX_ENTRIES,
 } = require('@alune/domain');
 const { startSSHServer } = require('./helpers/ssh-server.cjs');
+// The SSH host fixture uses /bin/sh, POSIX permissions and /etc/passwd links.
+describe('POSIX SSH repository files', { skip: process.platform === 'win32' }, () => {
 
 let remote, connection, files, root;
 
@@ -287,6 +289,8 @@ test('very large directories are truncated with the real total', async () => {
     listing.entries.slice(0, 3).map((entry) => entry.name),
     ['f0', 'f1', 'f2'],
   );
+});
+
 });
 
 test('text decoding sniffs binaries like Git and keeps UTF-16 apart from NUL bytes', () => {

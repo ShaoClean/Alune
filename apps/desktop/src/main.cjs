@@ -145,11 +145,21 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       webSecurity: true,
-      // Native acceptance deliberately keeps its window hidden. Its polling
-      // timers and layout frames must keep running while Codex is in front.
+      // Acceptance timers and layout frames must keep running while another
+      // application is in front of the isolated smoke window.
       backgroundThrottling: !smokeTest,
     },
   });
+  if (smokeTest) {
+    // Each loadURL creates a new document. Native focus and painting are needed
+    // for portal focus traps and animation completion, even with throttling off.
+    window.webContents.on('did-finish-load', () => {
+      window.show();
+      if (process.platform === 'darwin') app.focus({ steal: true });
+      window.focus();
+      window.webContents.focus();
+    });
+  }
   window.webContents.setWindowOpenHandler(
     createExternalLinkHandler(
       smokeTest ? async () => {} : (url) => shell.openExternal(url),

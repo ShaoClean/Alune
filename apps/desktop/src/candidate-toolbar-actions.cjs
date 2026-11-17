@@ -60,7 +60,7 @@ module.exports = async ({
     "[...document.querySelectorAll('.files-tree__item')].some(e=>e.getClientRects().length&&e.textContent.includes('toolbar.txt'))",
   );
   await click(button('提交签名设置'));
-  await wait(wc, "document.querySelector('.a-dlg-shell')?.innerText.includes('在本机签名')");
+  await wait(wc, '(' + element('.a-dlg-shell') + ")?.innerText.includes('在本机签名')");
   const scheme = element('[aria-labelledby="signing-format"]');
   await wait(
     wc,

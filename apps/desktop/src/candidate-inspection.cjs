@@ -188,6 +188,9 @@ module.exports = async ({
       ')',
   );
   await wc.executeJavaScript('document.activeElement.blur()');
+  // A focus-triggered popover can also be held open by the native pointer.
+  // Move off the blame block so this checks dismissal after both triggers end.
+  wc.sendInputEvent({ type: 'mouseMove', x: 1, y: 1 });
   await wait(
     wc,
     "![...document.querySelectorAll('.blame-popover')].some(e=>e.getClientRects().length)",

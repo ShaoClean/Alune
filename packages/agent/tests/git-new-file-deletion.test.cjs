@@ -17,7 +17,9 @@ for (const initial of [true, false])
   for (const stage of ['untracked', 'staged', 'mixed', 'intent']) {
     test(`deletes only the selected ${stage} file (${initial ? 'existing' : 'unborn'} HEAD)`, async (t) => {
       const f = fixture(t, { initial });
-      const name = '子目录/中文 \' " $(touch sentinel) `touch sentinel` [*]? :文件\t\n.txt';
+      const name = process.platform === 'win32'
+        ? "子目录/中文 ' $(touch sentinel) `touch sentinel` [x] 文件.txt"
+        : '子目录/中文 \' " $(touch sentinel) `touch sentinel` [*]? :文件\t\n.txt';
       f.write(name, 'index version\n');
       f.write('other.txt', 'keep staged\n');
       f.git('add', '--', 'other.txt');

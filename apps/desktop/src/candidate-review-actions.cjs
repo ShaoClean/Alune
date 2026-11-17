@@ -188,12 +188,12 @@ module.exports = async ({
   await click(btn('压缩并合并提交', '.a-dlg-shell label'));
   await wait(
     w,
-    "document.querySelector('.a-dlg-shell .ant-segmented-item-selected')?.textContent==='压缩并合并提交'",
+    '(' + sel('.a-dlg-shell .ant-segmented-item-selected') + ")?.textContent==='压缩并合并提交'",
   );
   await click(btn('取消', '.a-dlg-actions button'));
   await click(aria('更多审阅操作'));
   await click(btn('关闭 PR/MR', '[role=menuitem]'));
-  await wait(w, "document.querySelector('.a-dlg-shell')?.textContent.includes('确认关闭 PR/MR')");
+  await wait(w, '(' + sel('.a-dlg-shell') + ")?.textContent.includes('确认关闭 PR/MR')");
   const closeAck = sel('.a-dlg-shell .dlg-check input');
   await wait(w, closeAck);
   const closeSubmit = btn('确认关闭', '.a-dlg-actions button');
