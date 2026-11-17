@@ -15,26 +15,23 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   const running = () =>
     wait(wc, "document.querySelector('.terminal-state')?.textContent==='运行中'");
   const output = (t) =>
-    "document.querySelector('.terminal-output .xterm-accessibility')?.textContent.includes(" +
+    "document.querySelector('.terminal-output .xterm-accessibility-tree')?.textContent.includes(" +
     JSON.stringify(t) +
     ')';
   async function retainedOutput() {
     // The accessibility tree represents the viewport, not the scrollback.
     // Long packaged runtime paths can scroll the probe off screen. Reveal the
     // retained history through the real terminal before asserting its bytes.
-    // Mounting/refitting the retained xterm can still be in flight when the
-    // panel appears. Move the native pointer over its current screen and keep
-    // scrolling until Chromium has delivered the wheel and xterm has rendered.
+    // Select history using xterm's own keyboard navigation, avoiding native
+    // pointer coordinates during tab remounts. Assert only the rendered rows,
+    // not the accessibility live region's previously announced output.
+    // Shift+PageUp scrolls xterm locally and never writes input to the shell.
     const end = Date.now() + 15000;
     while (Date.now() < end) {
       if (await ev(output(marker))) return;
-      const point = await ev("(()=>{const e=document.querySelector('.terminal-output .xterm-screen');if(!e)return null;const r=e.getBoundingClientRect();return r.width&&r.height?{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}:null})()");
-      if (point) {
-        wc.sendInputEvent({ type: 'mouseMove', ...point });
-        // Electron's native wheel sign is opposite to DOM WheelEvent.deltaY.
-        // Positive here scrolls toward retained history (see toolbar wheel test).
-        wc.sendInputEvent({ type: 'mouseWheel', ...point, deltaY: 10000, deltaX: 0, canScroll: true });
-      }
+      await key(element('.terminal-output .xterm-helper-textarea'), 'PageUp', 'PageUp', 33, {
+        shiftKey: true,
+      });
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     await wait(wc, output(marker));

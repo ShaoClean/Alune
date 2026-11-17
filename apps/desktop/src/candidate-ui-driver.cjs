@@ -42,6 +42,10 @@ module.exports = function driver(wc, wait) {
     await require('./smoke-window.cjs')(window);
     await wait(wc, `(()=>{const e=(${expr});if(!e)return false;e.focus();return document.activeElement===e;})()`);
     await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+    // Closing portals remain on rc-dialog's global Escape stack until their
+    // exit motion finishes. Wait for finite dialog motions, including the
+    // previous dialog, so Escape is delivered to the visible modal's owner.
+    await wait(wc, "![...document.querySelectorAll('.a-dlg')].some(root=>root.getAnimations({subtree:true}).some(a=>a.playState==='running'&&a.effect?.getTiming().iterations!==Infinity))");
     // Portal initial-focus/motion callbacks can run during those frames. Rebind
     // and focus the actual current control, then verify the native key's target.
     await wait(wc, `(()=>{const e=(${expr});if(!e)return false;e.focus();if(document.activeElement!==e)return false;window.__candidateNativeKeyTarget=e;return true})()`);
