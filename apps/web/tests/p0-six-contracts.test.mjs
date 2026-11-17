@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { AgentClient } from '@alune/agent-client';
 import { AgentSession } from '@alune/agent';
-import { compareContracts } from '../../../scripts/agent/check-p0-models.mjs';
+import { compareContracts } from "../../../scripts/archive/agent-acceptance/check-p0-models.mjs";
 import { subscribeWorkspaceEvents } from '../src/api/workspace-events.ts';
 import { createAgentRepositoryQueries } from '../src/api/agent-repositories.ts';
 

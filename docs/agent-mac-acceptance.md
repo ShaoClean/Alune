@@ -8,10 +8,10 @@ GitHub Actions 当前不可正常运行，不再等待其恢复或以其结果�
 
 ## 放行范围
 
-`scripts/agent/acceptance-mac-arm64.json` 明确本轮策略。执行：
+`scripts/archive/agent-acceptance/acceptance-mac-arm64.json` 明确本轮策略。执行：
 
 ```sh
-node scripts/agent/check-release-evidence.mjs P0_LEDGER RECEIPTS REPORT scripts/agent/acceptance-mac-arm64.json
+node scripts/archive/agent-acceptance/check-release-evidence.mjs P0_LEDGER RECEIPTS REPORT scripts/archive/agent-acceptance/acceptance-mac-arm64.json
 ```
 
 后续验收必须显式指定上述本地策略；回执顶层声明 `policy: "mac-arm64-local-2026-11-08"`。未指定策略的通用工具仍保留原四平台默认值，但不用于本次放行。

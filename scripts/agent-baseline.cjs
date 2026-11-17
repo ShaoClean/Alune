@@ -470,7 +470,7 @@ async function main() {
 
 (process.argv[2] === '--worker'
   ? process.env.ALUNE_BASELINE_UI === '1'
-    ? require('./agent/ui-benchmark-worker.cjs')(...process.argv.slice(3))
+    ? require('./archive/agent-acceptance/ui-benchmark-worker.cjs')(...process.argv.slice(3))
     : process.env.ALUNE_BASELINE_AGENT_READS === '1'
       ? agentReadWorker()
       : worker()
