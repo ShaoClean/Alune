@@ -24,6 +24,7 @@ import { useUIAppearance } from '../appearance';
 import { DialogIcon } from './DialogIcons';
 import { MoonLoader } from './MoonLoader';
 import { DialogField } from './DialogFields';
+import { handleDialogEscape } from './dialog-keyboard';
 import type { DialogIconName } from './DialogIcons';
 
 /**
@@ -287,6 +288,7 @@ export function AluneModal({
   const titleId = useId();
   const descriptionId = useId();
   const shellRef = useRef<HTMLDivElement>(null);
+  const compositionEndedAt = useRef(0);
   const okRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const settleInitialFocus = useRef<(() => void) | null>(null);
@@ -559,6 +561,7 @@ export function AluneModal({
           <Modal
             {...rest}
             open={open}
+            keyboard={false}
             afterOpenChange={(visible) => {
               if (visible) settleInitialFocus.current?.();
               afterOpenChange?.(visible);
@@ -640,6 +643,13 @@ export function AluneModal({
               <MotionProvider motion={!reduceMotion}>
                 <div
                   ref={shellRef}
+                  onCompositionEndCapture={() => { compositionEndedAt.current = Date.now(); }}
+                  onKeyDown={(event) => handleDialogEscape(event, {
+                    enabled: Boolean(open) && rest.keyboard !== false,
+                    busy: !feedback && busy,
+                    compositionEndedAt: compositionEndedAt.current,
+                    cancel: () => { if (feedback) dismissFeedback(); else onCancel?.(); },
+                  })}
                   data-feedback-host={open ? hostId : undefined}
                   className="a-dlg-shell"
                   data-tone={mergedTone === 'default' ? undefined : mergedTone}

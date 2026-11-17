@@ -74,6 +74,9 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   const row = (h) => element('.history-row[data-hash="' + h + '"]'),
     title = "document.querySelector('.feedback-dialog[open] #feedback-title')?.textContent";
   await wait(wc, row(recovery));
+  // The first cached graph can predate the tag. Wait for the post-mutation
+  // graph, otherwise its legitimate generation reset races the scroll probe.
+  await wait(wc, '(' + row(head) + ')?.textContent.includes("warm-history-snapshot")');
   await click(row(head));
   await wait(
     wc,
@@ -93,6 +96,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
       separator +
       ').getAttribute("aria-valuemin")',
   );
+  await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   await ev(
     "(()=>{const v=document.querySelector('.history-viewport');v.scrollTop=80;v.dispatchEvent(new Event('scroll',{bubbles:true}))})()",
   );
