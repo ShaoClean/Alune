@@ -1,5 +1,5 @@
 import { AgentClient, frameTransport, type FrameChannel } from '@alune/agent-client';
-import { MAX_FRAME_BYTES, TERMINAL_TOPICS } from '@alune/protocol';
+import { MAX_FRAME_BYTES, TERMINAL_TOPICS, COMMAND_TOPICS } from '@alune/protocol';
 
 declare global {
   interface Window {
@@ -12,6 +12,7 @@ export const workspaceTopics = [
   'accounts.tokens.changed',
   'hosts.changed',
   ...TERMINAL_TOPICS,
+  ...COMMAND_TOPICS,
 ];
 export let uiAgent: AgentClient | undefined;
 const changed = new Set<() => void>();

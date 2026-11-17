@@ -186,20 +186,29 @@ export class NativeRepositoryConnection implements RepositoryTransport {
     return result;
   }
 
-  async hasAnyPath(paths: string[]): Promise<boolean> {
+  hasAnyPath(paths: string[]): Promise<boolean> {
+    return this.own(this.probePaths(paths));
+  }
+  private async probePaths(paths: string[]): Promise<boolean> {
     this.signal?.throwIfAborted();
-    const present = await Promise.all(
-      paths.map(async (path) => {
-        try {
-          await fs.promises.lstat(path);
-          return true;
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
-          throw error;
-        }
-      }),
-    );
-    return present.some(Boolean);
+    const probes = paths.map(async (path) => {
+      try {
+        await fs.promises.lstat(path);
+        return true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+        throw error;
+      }
+    });
+    try {
+      const present = await Promise.all(probes);
+      return present.some(Boolean);
+    } finally {
+      // A failed probe must not leave sibling filesystem work unowned. Closing
+      // the connection waits for all probes, and cancellation wins over ENOENT.
+      await Promise.allSettled(probes);
+      this.signal.throwIfAborted();
+    }
   }
 
   gitDirectory(repositoryPath: string): Promise<string | undefined> {
@@ -319,6 +328,12 @@ export class NativeRepositoryConnection implements RepositoryTransport {
     ])
       delete env[key];
     return new Promise((resolve, reject) => {
+      const observer = options.observe?.({
+        executable: 'git',
+        args: ['--literal-pathspecs', '-C', path, ...args],
+        cwd: path,
+      });
+      let started = false;
       const child = spawn('git', ['--literal-pathspecs', '-C', path, ...args], {
         shell: false,
         windowsHide: true,
@@ -326,6 +341,10 @@ export class NativeRepositoryConnection implements RepositoryTransport {
         env,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
+      child.once('spawn', () => {
+        started = true;
+      });
+      let delivery = Promise.resolve();
       const stdout: Buffer[] = [];
       const stderr: Buffer[] = [];
       let bytes = 0;
@@ -371,14 +390,26 @@ export class NativeRepositoryConnection implements RepositoryTransport {
         if (bytes > max) stop(new CommandOutputLimitError());
         else target.push(chunk);
       };
-      child.stdout.on('data', (chunk: Buffer) => {
-        collect(stdout, chunk);
-        options.onStdout?.(chunk.toString('utf8'));
-      });
-      child.stderr.on('data', (chunk: Buffer) => {
-        collect(stderr, chunk);
-        options.onStderr?.(chunk.toString('utf8'));
-      });
+      const output = (stream: 'stdout' | 'stderr', chunk: Buffer) => {
+        collect(stream === 'stdout' ? stdout : stderr, chunk);
+        try {
+          (stream === 'stdout' ? options.onStdout : options.onStderr)?.(chunk.toString('utf8'));
+        } catch (error) {
+          stop(error instanceof Error ? error : new Error(String(error)));
+        }
+        if (!observer) return;
+        // Pause the actual pipe until reliable delivery is acknowledged. At most
+        // one pending chunk per pipe; never accumulate an unbounded promise queue.
+        child[stream].pause();
+        delivery = delivery
+          .then(() => observer.output(stream, chunk))
+          .catch((error) => {
+            stop(error instanceof Error ? error : new Error(String(error)));
+          })
+          .finally(() => child[stream].resume());
+      };
+      child.stdout.on('data', (chunk: Buffer) => output('stdout', chunk));
+      child.stderr.on('data', (chunk: Buffer) => output('stderr', chunk));
       child.stdin.on('error', (error: NodeJS.ErrnoException) => {
         if (error.code !== 'EPIPE') stop(error);
       });
@@ -391,27 +422,34 @@ export class NativeRepositoryConnection implements RepositoryTransport {
             : error,
         );
       });
-      child.on('close', (exitCode) => {
+      child.on('close', (exitCode, exitSignal) => {
         cleanup();
-        if (failure) {
-          void (termination ?? Promise.resolve()).then(() => reject(failure));
-          return;
-        }
-        try {
-          const output = Buffer.concat(stdout);
-          resolve({
-            exitCode,
-            stdout: options.binary
-              ? ''
-              : options.strictUtf8
-                ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(output)
-                : output.toString('utf8'),
-            stderr: Buffer.concat(stderr).toString('utf8'),
-            ...(options.binary ? { stdoutBytes: output } : {}),
-          });
-        } catch (error) {
-          reject(error);
-        }
+        void delivery
+          .then(async () => {
+            // A close code comes from the process, even when the operation was
+            // cancelled. A signal is represented by null, never a fabricated code.
+            if (started) await observer?.exit(exitCode, exitSignal);
+            if (failure) {
+              void (termination ?? Promise.resolve()).then(() => reject(failure));
+              return;
+            }
+            try {
+              const output = Buffer.concat(stdout);
+              resolve({
+                exitCode,
+                stdout: options.binary
+                  ? ''
+                  : options.strictUtf8
+                    ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(output)
+                    : output.toString('utf8'),
+                stderr: Buffer.concat(stderr).toString('utf8'),
+                ...(options.binary ? { stdoutBytes: output } : {}),
+              });
+            } catch (error) {
+              reject(error);
+            }
+          })
+          .catch(reject);
       });
       signal?.addEventListener('abort', abort, { once: true });
       if (signal?.aborted) abort();

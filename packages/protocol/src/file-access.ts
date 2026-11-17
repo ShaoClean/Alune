@@ -18,7 +18,8 @@ export function validateFileAccess(method: string, value: unknown): void {
     if (
       !text(value.path) ||
       !value.path ||
-      !['read', 'read-write'].includes(String(value.access)) ||
+      typeof value.access !== 'string' ||
+      !['read', 'read-write'].includes(value.access) ||
       value.confirmed !== true
     )
       throw new ProtocolError('invalid-params', 'Confirm a directory and its access level');

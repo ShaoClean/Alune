@@ -264,7 +264,7 @@ export class LogStore {
 
   recent(limit: number = LOGGING_LIMITS.history) {
     const count = Math.max(0, Math.min(limit, LOGGING_LIMITS.history));
-    return this.history.slice(-count);
+    return count === 0 ? [] : this.history.slice(-count);
   }
 
   subscribe(listener: Listener) {

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "node --import ./tests/resolve-ts.mjs --test tests/*.test.mjs",
+    "test": "node ../../scripts/test-workspace.mjs web",
     "dev:agent": "vite",
     "test:agent-dev": "node --import ./tests/resolve-ts.mjs --test tests/agent-dev.integration.mjs tests/agent-workspace.integration.mjs"
   },

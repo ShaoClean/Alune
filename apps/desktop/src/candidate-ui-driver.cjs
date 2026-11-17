@@ -42,13 +42,16 @@ module.exports = function driver(wc, wait) {
     await require('./smoke-window.cjs')(window);
     await wait(wc, `(()=>{const e=(${expr});if(!e)return false;e.focus();return document.activeElement===e;})()`);
     await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
-    await wc.executeJavaScript(`(()=>{window.__candidateNativeKey=false;window.__candidateNativeKeyListener=e=>{if(e.key===${JSON.stringify(eventKey)})window.__candidateNativeKey=true};window.addEventListener('keydown',window.__candidateNativeKeyListener,true)})()`);
+    // Portal initial-focus/motion callbacks can run during those frames. Rebind
+    // and focus the actual current control, then verify the native key's target.
+    await wait(wc, `(()=>{const e=(${expr});if(!e)return false;e.focus();if(document.activeElement!==e)return false;window.__candidateNativeKeyTarget=e;return true})()`);
+    await wc.executeJavaScript(`(()=>{window.__candidateNativeKey=false;window.__candidateNativeKeyListener=e=>{if(e.key===${JSON.stringify(eventKey)}&&e.target===window.__candidateNativeKeyTarget)window.__candidateNativeKey=true};window.addEventListener('keydown',window.__candidateNativeKeyListener,true)})()`);
     try {
       wc.sendInputEvent({ type: 'keyDown', keyCode });
       await wait(wc, 'window.__candidateNativeKey===true');
     } finally {
       wc.sendInputEvent({ type: 'keyUp', keyCode });
-      await wc.executeJavaScript("window.removeEventListener('keydown',window.__candidateNativeKeyListener,true);delete window.__candidateNativeKeyListener;delete window.__candidateNativeKey");
+      await wc.executeJavaScript("window.removeEventListener('keydown',window.__candidateNativeKeyListener,true);delete window.__candidateNativeKeyListener;delete window.__candidateNativeKey;delete window.__candidateNativeKeyTarget");
     }
   };
   const text = (label) => 'document.body.innerText.includes(' + JSON.stringify(label) + ')';

@@ -121,13 +121,20 @@ export interface WorkspaceData extends DiffState {
   commitFiles: any[];
   commitFilesLoading: boolean;
   commitFilesError: string | null;
+  /** Deprecated aggregate error fields retained for older workspace consumers. */
+  error: string | null;
+  errorPanel: 'branches' | 'stashes' | 'remotes' | null;
   /** The `commit` slot; the fields above it hold the `worktree` slot. */
   commitDiff: DiffState;
   worktreeDiffRevision: number;
+}
+
+/** Internal panel errors supplement the public workspace snapshot contract. */
+interface RepositoryWorkspaceData extends WorkspaceData {
   panelErrors: Record<'branches' | 'stashes' | 'remotes', string | null>;
 }
 
-export const emptyWorkspace = (): WorkspaceData => ({
+export const emptyWorkspace = (): RepositoryWorkspaceData => ({
   log: [],
   logBranch: undefined,
   logFilter: {},
@@ -145,6 +152,8 @@ export const emptyWorkspace = (): WorkspaceData => ({
   branches: [],
   stashes: [],
   remotes: [],
+  error: null,
+  errorPanel: null,
   commitFiles: [],
   commitFilesLoading: false,
   commitFilesError: null,
@@ -155,7 +164,7 @@ export const emptyWorkspace = (): WorkspaceData => ({
 });
 
 /** Read by tabs whose workspace has not been opened yet, or was just closed. */
-export const EMPTY_WORKSPACE: Readonly<WorkspaceData> = Object.freeze({
+export const EMPTY_WORKSPACE: Readonly<RepositoryWorkspaceData> = Object.freeze({
   ...emptyWorkspace(),
   commitDiff: Object.freeze(emptyDiff()),
 });
@@ -181,7 +190,7 @@ interface RepositoryState {
   openRepositories: any[];
   /** The active tab's registration, for the shell around the workspaces. */
   currentRepo: any | null;
-  workspaces: Record<string, WorkspaceData>;
+  workspaces: Record<string, RepositoryWorkspaceData>;
   listLoading: boolean;
   listLoaded: boolean;
   listError: string | null;
@@ -258,7 +267,9 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
   /** Updates an open workspace; a disposed one stays disposed. */
   const patch = (
     id: string,
-    update: Partial<WorkspaceData> | ((workspace: WorkspaceData) => Partial<WorkspaceData>),
+    update:
+      | Partial<RepositoryWorkspaceData>
+      | ((workspace: RepositoryWorkspaceData) => Partial<RepositoryWorkspaceData>),
   ) =>
     set((state) => {
       const workspace = state.workspaces[id];
@@ -268,13 +279,15 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     });
   const patchList = (
     id: string,
-    panel: keyof WorkspaceData['panelErrors'],
-    update: Partial<WorkspaceData>,
+    panel: keyof RepositoryWorkspaceData['panelErrors'],
+    update: Partial<RepositoryWorkspaceData>,
     error: string | null = null,
   ) =>
     patch(id, (workspace) => ({
       ...update,
       panelErrors: { ...workspace.panelErrors, [panel]: error },
+      error: error ?? null,
+      errorPanel: error === null ? workspace.errorPanel : panel,
     }));
   const patchDiff = (
     id: string,
@@ -1042,7 +1055,10 @@ export const useRepositoryStore = createRepositoryStore();
  * Selects from one tab's workspace data, compared shallowly so a picked object is stable.
  * A tab that has not been opened yet, or was just closed, reads the empty workspace.
  */
-export function useWorkspaceData<T>(repoId: string, selector: (workspace: WorkspaceData) => T): T {
+export function useWorkspaceData<T>(
+  repoId: string,
+  selector: (workspace: RepositoryWorkspaceData) => T,
+): T {
   return useRepositoryStore(
     useShallow((state) => selector(state.workspaces[repoId] ?? EMPTY_WORKSPACE)),
   );

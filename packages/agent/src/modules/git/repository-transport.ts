@@ -21,8 +21,11 @@ export async function runGit(
   // accepted by our stash operations, so allow Git's internal pathspec handling.
   // git-lfs also builds internal wildcard pathspecs while checking out fetched objects.
   if (args[0] === 'stash' || args[0] === 'lfs') args = ['--no-literal-pathspecs', ...args];
-  const execute = (argv: string[]) =>
-    connection.execGit
+  const execute = (argv: string[]) => {
+    // A transport can finish after cancellation. Recheck before dispatching a
+    // fallback read so cancellation never starts another command.
+    combined?.throwIfAborted();
+    return connection.execGit
       ? connection.execGit(path, argv, combined, options)
       : connection.execCommand(
           gitFileCommand(path, argv, options?.environment),
@@ -30,6 +33,7 @@ export async function runGit(
           combined,
           options,
         );
+  };
   const result = await execute(args);
   let verb = '';
   for (let i = 0; i < args.length; i++) {

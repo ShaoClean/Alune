@@ -96,20 +96,44 @@ export class GitLfs {
 
   // Reading a preview never downloads objects. Respect custom LFS storage and
   // linked worktrees using git-lfs when present, with the standard cache fallback.
-  async readObject(repoPath: string, pointer: LfsPointer, limit: number): Promise<Buffer | null> {
+  async readObject(
+    repoPath: string,
+    pointer: LfsPointer,
+    limit: number,
+    signal?: AbortSignal,
+  ): Promise<Buffer | null> {
+    signal =
+      signal && this.connection.signal
+        ? AbortSignal.any([signal, this.connection.signal])
+        : (signal ?? this.connection.signal);
+    signal?.throwIfAborted();
     if (pointer.size > limit)
       throw new Error(`LFS 文件超出预览限制（${limit / 1024 / 1024} MiB）。`);
-    const location = await runGit(this.connection, repoPath, [
-      'lfs',
-      'contentlocation',
-      pointer.oid,
-    ]);
+    const location = await runGit(
+      this.connection,
+      repoPath,
+      ['lfs', 'contentlocation', pointer.oid],
+      signal,
+    );
+    signal?.throwIfAborted();
     let target = location.exitCode === 0 ? location.stdout.trimEnd() : '';
     if (!target) {
-      const storage = await runGit(this.connection, repoPath, ['config', '--get', 'lfs.storage']);
+      const storage = await runGit(
+        this.connection,
+        repoPath,
+        ['config', '--get', 'lfs.storage'],
+        signal,
+      );
+      signal?.throwIfAborted();
       if (storage.exitCode !== 0 && storage.exitCode !== 1)
         throw new Error(storage.stderr || '无法读取 LFS 存储配置。');
-      const common = await runGit(this.connection, repoPath, ['rev-parse', '--git-common-dir']);
+      const common = await runGit(
+        this.connection,
+        repoPath,
+        ['rev-parse', '--git-common-dir'],
+        signal,
+      );
+      signal?.throwIfAborted();
       if (common.exitCode !== 0) throw new Error(common.stderr || '无法定位 LFS 缓存。');
       const absolute = (value: string) => /^(\/|[a-z]:[\\/])/i.test(value);
       const gitDir = absolute(common.stdout.trimEnd())
@@ -129,18 +153,22 @@ export class GitLfs {
         pointer.oid,
       );
     } else if (!/^(\/|[a-z]:[\\/])/i.test(target)) target = joinRepositoryPath(repoPath, target);
-    return this.connection.withSftp(async (sftp) => {
+    const object = await this.connection.withSftp(async (sftp) => {
       try {
+        signal?.throwIfAborted();
         const stat = await promisify(sftp.lstat.bind(sftp))(target);
+        signal?.throwIfAborted();
         if (!stat.isFile() || stat.size !== pointer.size)
           throw new Error('LFS 对象大小不匹配或不是普通文件，请重新拉取。');
         const chunks: Buffer[] = [];
         let size = 0;
         for await (const chunk of readSftpChunks(sftp, target)) {
+          signal?.throwIfAborted();
           size += chunk.length;
           if (size > limit || size > pointer.size) throw new Error('LFS 对象超出预览限制。');
           chunks.push(chunk);
         }
+        signal?.throwIfAborted();
         const bytes = Buffer.concat(chunks);
         if (
           bytes.length !== pointer.size ||
@@ -149,10 +177,14 @@ export class GitLfs {
           throw new Error('LFS 对象校验失败，请重新拉取。');
         return bytes;
       } catch (error) {
+        // A cancellation reason may itself carry ENOENT; never turn it into a cache miss.
+        signal?.throwIfAborted();
         const code = (error as { code?: string | number }).code;
         if (code === 'ENOENT' || code === 2) return null;
         throw error;
       }
     });
+    signal?.throwIfAborted();
+    return object;
   }
 }

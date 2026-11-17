@@ -1,0 +1,29 @@
+{
+  "result": "passed",
+  "checks": [
+    "final regression, exact test totals and logs",
+    "sealed current regression inputs unchanged",
+    "packaged current output maps to tested package manifest",
+    "actual released modules and native full credential recovery",
+    "live production download, native staging and released payload rollback",
+    "all earlier evidence and pre-existing business sources preserved",
+    "no accidental P0 deductions"
+  ],
+  "preservedUnchanged": 9236,
+  "intentionalChanges": [
+    {
+      "file": "docs/acceptance/issue-257-258/README.md",
+      "before": "4184d06477ebc44ba529bd132e0c78069264598893a0fb25e6bb90350ccef30c",
+      "after": "a0de2578e106bfb53a7af0c64f7dcc0e8ff4f4b7aeb1ca68a4e11f635274403b"
+    }
+  ],
+  "archivedFiles": 37,
+  "p0Deductions": 0,
+  "remainingP0Entries": 510,
+  "releaseEligible": false,
+  "pendingApplicationGates": [
+    "installed-upgrade-rollback",
+    "darwin-arm64:native-update"
+  ],
+  "historicalFullPreservationVerified": false
+}

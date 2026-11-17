@@ -1,0 +1,27 @@
+{
+  "result": "passed",
+  "imported": {
+    "hosts": 2,
+    "repositories": 2,
+    "tokens": 1,
+    "bindings": 1,
+    "documents": 4,
+    "unresolvedReferences": 0
+  },
+  "nativeBackend": "keychain",
+  "sourceUnchanged": true,
+  "gitUnchanged": true,
+  "duplicateWithoutDecryption": true,
+  "missingDecryptAuthorityRefused": true,
+  "wrongRecoveryPhraseUnchanged": true,
+  "originalKeyAndIdentityLost": true,
+  "recoveredCredentialKinds": [
+    "ssh-password",
+    "key-passphrase",
+    "token",
+    "ai-key",
+    "proxy-password"
+  ],
+  "workspaceRestored": true,
+  "freshNativeKey": true
+}

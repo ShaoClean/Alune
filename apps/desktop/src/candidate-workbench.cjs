@@ -61,6 +61,8 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'files') {
       await require('./candidate-git-actions.cjs')({ wc, window, origin, repo, id, wait,
         element, button, textButton, click, text, pass });
+    } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'change-safety') {
+      await require('./candidate-change-safety.cjs')({ window, origin, repo, wait, pass });
     } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'repositories') {
       await require('./candidate-overview-actions.cjs')({ window, origin, repo, wait, pass });
     } else if (process.env.ALUNE_CANDIDATE_FOCUS === 'file-retries') {

@@ -18,7 +18,8 @@ export function proxyTest(
       if (
         !isRecord(v) ||
         typeof v.revision !== 'string' ||
-        !['http', 'ssh', 'git'].includes(String(v.kind))
+        typeof v.kind !== 'string' ||
+        !['http', 'ssh', 'git'].includes(v.kind)
       )
         throw new ProtocolError('invalid-params', '无效的连接测试。');
     },
@@ -28,10 +29,11 @@ export function proxyTest(
       if (!settings.proxy.read().enabled)
         throw new ProtocolError('invalid-params', '请先保存并启用代理。');
       const start = performance.now(),
-        signal = AbortSignal.any([ctx.signal, AbortSignal.timeout(30000)]);
+        signal = AbortSignal.any([ctx.signal, ctx.sessionSignal, AbortSignal.timeout(30000)]);
       let message = '',
         success = false;
       try {
+        signal.throwIfAborted();
         if (kind === 'http') {
           const target = new URL(url);
           if (

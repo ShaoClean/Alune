@@ -16,6 +16,7 @@ import { RepositoryReader } from '../modules/repositories/reads';
 import type { RepositoryTransport } from '../ports/repository-files';
 import type { Handler, HandlerContext } from '../ports/handler';
 import { redactText } from '../adapters/logging/redact';
+import { commandObserver } from '../runtime/command-events';
 
 const key = (path: string) =>
   process.platform === 'win32' ? worktreePathKey(path).toLowerCase() : worktreePathKey(path);
@@ -186,6 +187,7 @@ export function repositoryWrites(
             execGit: (root, args, abort, options) =>
               native.execGit!(root, args, abort, {
                 ...options,
+                observe: commandObserver(c, repo.resource, intent.operationId),
                 environment: {
                   ...options?.environment,
                   ...(['push', 'pull'].includes(intent.kind)

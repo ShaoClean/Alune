@@ -1,0 +1,13 @@
+{
+  "status": 1,
+  "signal": null,
+  "cleanup": {
+    "uniqueSafeStorageAbsent": true,
+    "destinationKeychainRemoved": true,
+    "scratchRemoved": true
+  },
+  "log": {
+    "path": "native.log",
+    "sha256": "72cee803b8d6ebdab3a36e5e9d9c48724fe70f03a66c1dc4a354eb1160c33cc9"
+  }
+}

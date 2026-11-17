@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: reviewed allowlist preserves 88 unique remaining IDs in exactly 18 frozen modules
+ok 1 - reviewed allowlist preserves 88 unique remaining IDs in exactly 18 frozen modules
+  ---
+  duration_ms: 1.191209
+  type: 'test'
+  ...
+# Subtest: source and class associations never expand to unasserted helpers, types or channels
+ok 2 - source and class associations never expand to unasserted helpers, types or channels
+  ---
+  duration_ms: 0.340792
+  type: 'test'
+  ...
+# Subtest: generator refuses stale progress and previously associated IDs rather than silently filtering
+ok 3 - generator refuses stale progress and previously associated IDs rather than silently filtering
+  ---
+  duration_ms: 13.123584
+  type: 'test'
+  ...
+# Subtest: every exact test is committed unchanged and points to its test callsite
+ok 4 - every exact test is committed unchanged and points to its test callsite
+  ---
+  duration_ms: 338.752958
+  type: 'test'
+  ...
+# Subtest: generation pins committed business sources and fixture helpers without test-tooling exemptions
+ok 5 - generation pins committed business sources and fixture helpers without test-tooling exemptions
+  ---
+  duration_ms: 1967.743458
+  type: 'test'
+  ...
+# Subtest: receipt runner rejects skipped, wrong-line, missing and failing exact assertions
+ok 6 - receipt runner rejects skipped, wrong-line, missing and failing exact assertions
+  ---
+  duration_ms: 0.544917
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2407.61875

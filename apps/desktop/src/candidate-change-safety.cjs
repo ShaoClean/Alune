@@ -83,7 +83,13 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
     .repositorySession;
   await click(button('打开本地仓库'));
   await input(element('#local-repo-path'), path.join(base, 'not-registered'));
-  await click(textButton('取消', '.a-dlg-actions button'));
+  // Use the actual current dialog's button and native pointer activation. A
+  // keyDown/keyUp-only Enter injection does not generate a button click on Mac.
+  await require('./smoke-window.cjs')(window);
+  const cancelPoint = await ev(`(()=>{const e=(${textButton('取消', '.ant-modal:has(#local-repo-path) .a-dlg-actions button')});const r=e.getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
+  wc.sendInputEvent({type:'mouseMove',...cancelPoint});
+  wc.sendInputEvent({type:'mouseDown',...cancelPoint,button:'left',clickCount:1});
+  wc.sendInputEvent({type:'mouseUp',...cancelPoint,button:'left',clickCount:1});
   await wait(wc, '!(' + element('#local-repo-path') + ')');
   unaffected();
   assert.deepEqual(

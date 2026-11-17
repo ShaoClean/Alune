@@ -10,9 +10,9 @@ const requestedFocus = process.argv[2] === '--focus' ? process.argv[3] : undefin
 if (
   process.argv.length > 2 &&
   (process.argv.length !== 4 ||
-    !['conflicts', 'reviews', 'settings', 'terminals', 'web', 'files', 'branches', 'file-retries', 'updates', 'repositories'].includes(requestedFocus))
+    !['conflicts', 'reviews', 'settings', 'terminals', 'web', 'files', 'branches', 'file-retries', 'updates', 'repositories', 'change-safety'].includes(requestedFocus))
 )
-  throw new Error('Usage: smoke.mjs [--focus conflicts|reviews|settings|terminals|web|files|branches|file-retries|updates|repositories]');
+  throw new Error('Usage: smoke.mjs [--focus conflicts|reviews|settings|terminals|web|files|branches|file-retries|updates|repositories|change-safety]');
 const dataDir = await mkdtemp(path.join(tmpdir(), 'alune-smoke-'));
 const executable = process.env.ALUNE_TEST_EXECUTABLE || require('electron');
 const args = process.env.ALUNE_TEST_EXECUTABLE ? [] : ['dist/app'];
@@ -27,6 +27,7 @@ try {
   env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
     (await import('./candidate-fixture.mjs')).legacyFixture(dataDir),
   );
+  Object.assign(env, (await import('./signature-failure-fixture.mjs')).signatureFailureFixture(dataDir));
   if (!requestedFocus || requestedFocus === 'reviews') {
     peer = await (await import('./candidate-review-fixture.mjs')).reviewFixture(dataDir);
     Object.assign(env, peer.env);

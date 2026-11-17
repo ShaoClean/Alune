@@ -11,6 +11,11 @@ export class CommandOutputLimitError extends Error {
   }
 }
 export interface CommandOptions {
+  /** Reliable observation of an already authorized native process. No executor. */
+  observe?: (command: { executable: string; args: string[]; cwd: string }) => {
+    output(stream: 'stdout' | 'stderr', bytes: Buffer): Promise<void>;
+    exit(exitCode: number | null, signal: string | null): Promise<void>;
+  };
   onStderr?: (data: string) => void;
   onStdout?: (data: string) => void;
   stdin?: string | Buffer;

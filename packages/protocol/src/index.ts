@@ -6,6 +6,7 @@ export * from './legacy/ai';
 export * from './legacy/logging';
 export * from './legacy/proxy';
 export * from './messages';
+export * from './command-events';
 export * from './methods';
 export * from './network';
 export * from './settings';

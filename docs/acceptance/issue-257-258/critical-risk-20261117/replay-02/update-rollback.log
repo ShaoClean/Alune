@@ -1,0 +1,208 @@
+TAP version 13
+# Subtest: locates only an installed macOS application bundle
+ok 1 - locates only an installed macOS application bundle
+  ---
+  duration_ms: 0.687333
+  type: 'test'
+  ...
+# Subtest: macOS prepares on the same filesystem, validates copied bundle and detaches the DMG
+ok 2 - macOS prepares on the same filesystem, validates copied bundle and detaches the DMG
+  ---
+  duration_ms: 22.218958
+  type: 'test'
+  ...
+# Subtest: macOS rejects wrong bundle identity, version, binary architecture and failed copy without altering the app
+ok 3 - macOS rejects wrong bundle identity, version, binary architecture and failed copy without altering the app
+  ---
+  duration_ms: 33.933041
+  type: 'test'
+  ...
+# Subtest: non-writable application directory is rejected before mounting or stopping the app
+ok 4 - non-writable application directory is rejected before mounting or stopping the app
+  ---
+  duration_ms: 3.965083
+  type: 'test'
+  ...
+# Subtest: helper waits for the old process, replaces the bundle and relaunches with literal paths
+ok 5 - helper waits for the old process, replaces the bundle and relaunches with literal paths
+  ---
+  duration_ms: 1313.11225
+  type: 'test'
+  ...
+# Subtest: helper restores and relaunches the old app when replacement or launch fails
+ok 6 - helper restores and relaunches the old app when replacement or launch fails
+  ---
+  duration_ms: 2686.62775
+  type: 'test'
+  ...
+# Subtest: quit timeout preserves the running app and cleans the staged update
+ok 7 - quit timeout preserves the running app and cleans the staged update
+  ---
+  duration_ms: 19.476916
+  type: 'test'
+  ...
+# Subtest: failed rollback retains the original backup and reports its recovery location
+ok 8 - failed rollback retains the original backup and reports its recovery location
+  ---
+  duration_ms: 1320.979917
+  type: 'test'
+  ...
+# Subtest: failed helper startup leaves the app intact and the staged update can be disposed
+ok 9 - failed helper startup leaves the app intact and the staged update can be disposed
+  ---
+  duration_ms: 16.079458
+  type: 'test'
+  ...
+# Subtest: macOS native DMG staging, replacement and open launch upgrade an isolated app from 1.0.0 to 1.1.0
+ok 10 - macOS native DMG staging, replacement and open launch upgrade an isolated app from 1.0.0 to 1.1.0
+  ---
+  duration_ms: 15937.537417
+  type: 'test'
+  ...
+# Subtest: stable SemVer comparison rejects prereleases, invalid tags, equal versions and downgrades
+ok 11 - stable SemVer comparison rejects prereleases, invalid tags, equal versions and downgrades
+  ---
+  duration_ms: 1.777875
+  type: 'test'
+  ...
+# Subtest: concurrent checks/downloads share work; snapshots survive UI subscriptions
+ok 12 - concurrent checks/downloads share work; snapshots survive UI subscriptions
+  ---
+  duration_ms: 0.308667
+  type: 'test'
+  ...
+# Subtest: cancellation is recoverable and a failed download can be retried
+ok 13 - cancellation is recoverable and a failed download can be retried
+  ---
+  duration_ms: 3.730417
+  type: 'test'
+  ...
+# Subtest: unsupported development mode never contacts the update source
+ok 14 - unsupported development mode never contacts the update source
+  ---
+  duration_ms: 0.171084
+  type: 'test'
+  ...
+# Subtest: install only runs after an explicit request and successful backend cleanup
+ok 15 - install only runs after an explicit request and successful backend cleanup
+  ---
+  duration_ms: 1.841417
+  type: 'test'
+  ...
+# Subtest: time spent deciding whether to close terminals never starts shutdown or expires the installer
+ok 16 - time spent deciding whether to close terminals never starts shutdown or expires the installer
+  ---
+  duration_ms: 21.577542
+  type: 'test'
+  ...
+# Subtest: failed or timed-out cleanup never installs, including late cleanup completion
+ok 17 - failed or timed-out cleanup never installs, including late cleanup completion
+  ---
+  duration_ms: 17.1385
+  type: 'test'
+  ...
+# Subtest: macOS stages the verified download before cleanup and installs only on explicit request
+ok 18 - macOS stages the verified download before cleanup and installs only on explicit request
+  ---
+  duration_ms: 0.626584
+  type: 'test'
+  ...
+# Subtest: failed install preparation leaves backend running and permits retry
+ok 19 - failed install preparation leaves backend running and permits retry
+  ---
+  duration_ms: 0.674834
+  type: 'test'
+  ...
+# Subtest: staged application is disposed after failed or timed-out backend cleanup and failed handoff
+ok 20 - staged application is disposed after failed or timed-out backend cleanup and failed handoff
+  ---
+  duration_ms: 12.400292
+  type: 'test'
+  ...
+# Subtest: a manually deleted DMG can be downloaded again
+ok 21 - a manually deleted DMG can be downloaded again
+  ---
+  duration_ms: 0.48675
+  type: 'test'
+  ...
+# Subtest: IPC rejects other windows, child frames, external origins and all renderer arguments
+ok 22 - IPC rejects other windows, child frames, external origins and all renderer arguments
+  ---
+  duration_ms: 0.820459
+  type: 'test'
+  ...
+# Subtest: macOS selects the correct architecture, verifies SHA-256 and atomically completes the DMG
+ok 23 - macOS selects the correct architecture, verifies SHA-256 and atomically completes the DMG
+  ---
+  duration_ms: 48.199708
+  type: 'test'
+  ...
+# Subtest: rate-limited macOS discovery resolves the public stable tag and still verifies the real asset
+ok 24 - rate-limited macOS discovery resolves the public stable tag and still verifies the real asset
+  ---
+  duration_ms: 11.287166
+  type: 'test'
+  ...
+# Subtest: macOS revalidates the DMG before preparation and quits only after the helper is ready
+ok 25 - macOS revalidates the DMG before preparation and quits only after the helper is ready
+  ---
+  duration_ms: 9.728041
+  type: 'test'
+  ...
+# Subtest: deleted or modified macOS downloads can be downloaded again without closing the backend
+ok 26 - deleted or modified macOS downloads can be downloaded again without closing the backend
+  ---
+  duration_ms: 29.702459
+  type: 'test'
+  ...
+# Subtest: macOS rejects incomplete, corrupt or oversized downloads and removes partial files
+ok 27 - macOS rejects incomplete, corrupt or oversized downloads and removes partial files
+  ---
+  duration_ms: 5.664834
+  type: 'test'
+  ...
+# Subtest: macOS removes partial downloads on cancellation and stalled response timeout
+ok 28 - macOS removes partial downloads on cancellation and stalled response timeout
+  ---
+  duration_ms: 19.682458
+  type: 'test'
+  ...
+# Subtest: macOS checks handle prereleases, missing assets, unsupported architectures and network failure
+ok 29 - macOS checks handle prereleases, missing assets, unsupported architectures and network failure
+  ---
+  duration_ms: 3.584917
+  type: 'test'
+  ...
+# Subtest: macOS retries a transient release gateway before reading bytes and stops on cancellation
+ok 30 - macOS retries a transient release gateway before reading bytes and stops on cancellation
+  ---
+  duration_ms: 251.626125
+  type: 'test'
+  ...
+# Subtest: GitHub errors and redirects are bounded and do not follow untrusted hosts
+ok 31 - GitHub errors and redirects are bounded and do not follow untrusted hosts
+  ---
+  duration_ms: 0.36175
+  type: 'test'
+  ...
+# Subtest: Electron adapter disables automatic installation, handles retry cancellation and relays native install errors
+ok 32 - Electron adapter disables automatic installation, handles retry cancellation and relays native install errors
+  ---
+  duration_ms: 0.58025
+  type: 'test'
+  ...
+# Subtest: Electron adapter reports check and stalled-download timeouts
+ok 33 - Electron adapter reports check and stalled-download timeouts
+  ---
+  duration_ms: 22.100833
+  type: 'test'
+  ...
+1..33
+# tests 33
+# suites 0
+# pass 33
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21971.8445

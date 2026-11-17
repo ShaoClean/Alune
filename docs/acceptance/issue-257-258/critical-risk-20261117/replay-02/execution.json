@@ -1,0 +1,138 @@
+[
+  {
+    "name": "build",
+    "command": "/private/tmp/alune-agent-20261113-mac/runtime/bin/node",
+    "args": [
+      "node_modules/typescript/bin/tsc",
+      "-b",
+      "packages/domain",
+      "packages/protocol",
+      "packages/agent-client",
+      "packages/agent",
+      "--force"
+    ],
+    "startedAt": "2026-11-17T01:49:44.282Z",
+    "finishedAt": "2026-11-17T01:49:47.749Z",
+    "status": 0,
+    "signal": null,
+    "log": {
+      "path": "build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "name": "native-build",
+    "command": "/opt/homebrew/bin/node",
+    "args": [
+      "packages/agent/scripts/native-secrets.mjs"
+    ],
+    "startedAt": "2026-11-17T01:49:47.756Z",
+    "finishedAt": "2026-11-17T01:49:47.827Z",
+    "status": 0,
+    "signal": null,
+    "log": {
+      "path": "native-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "name": "writes-terminals-migration-boundaries",
+    "command": "/private/tmp/alune-agent-20261113-mac/runtime/bin/node",
+    "args": [
+      "--test",
+      "--test-concurrency=2",
+      "--test-reporter=tap",
+      "packages/agent/tests/repository-writes.test.cjs",
+      "packages/agent/tests/task-journal.test.cjs",
+      "packages/agent/tests/terminals.test.cjs",
+      "packages/agent/tests/p0-terminal-migration.test.cjs",
+      "packages/agent/tests/legacy-import.test.cjs",
+      "packages/agent/tests/legacy-cli.test.cjs",
+      "packages/agent/tests/recovery.test.cjs",
+      "packages/agent/tests/recovery-cli.test.cjs",
+      "packages/agent/tests/recovery-platform.test.cjs",
+      "packages/agent/tests/hosts.test.cjs",
+      "packages/agent/tests/file-access.test.cjs",
+      "packages/agent/tests/relayed-file-write.test.cjs",
+      "packages/agent/tests/p0-account-migration.test.cjs"
+    ],
+    "startedAt": "2026-11-17T01:49:47.828Z",
+    "finishedAt": "2026-11-17T01:50:07.585Z",
+    "status": 0,
+    "signal": null,
+    "log": {
+      "path": "writes-terminals-migration-boundaries.log",
+      "sha256": "60331b086dfdfc4895ca1a253db20661abb9acd3d6b189d805823b85e47992c1"
+    },
+    "tests": 44
+  },
+  {
+    "name": "update-rollback",
+    "command": "/private/tmp/alune-agent-20261113-mac/runtime/bin/node",
+    "args": [
+      "--test",
+      "--test-concurrency=1",
+      "--test-reporter=tap",
+      "apps/desktop/test/mac-installer.test.cjs",
+      "apps/desktop/test/updater.test.cjs"
+    ],
+    "startedAt": "2026-11-17T01:50:07.587Z",
+    "finishedAt": "2026-11-17T01:50:29.592Z",
+    "status": 0,
+    "signal": null,
+    "log": {
+      "path": "update-rollback.log",
+      "sha256": "39cbf60f16b4049943ce1ff2a490ba07392be18907c157508725056c13549a95"
+    },
+    "tests": 33
+  },
+  {
+    "name": "package",
+    "command": "/private/tmp/alune-agent-20261113-mac/runtime/bin/node",
+    "args": [
+      "scripts/agent/package.mjs",
+      "--output",
+      "/var/folders/04/5tbfvcls5tjfgwsg7hvxmz940000gn/T/alune-critical-risk-44uqEc/package"
+    ],
+    "startedAt": "2026-11-17T01:50:29.593Z",
+    "finishedAt": "2026-11-17T01:50:33.509Z",
+    "status": 0,
+    "signal": null,
+    "log": {
+      "path": "package.log",
+      "sha256": "218ba26feb838b58cb9fc05483bd16240ff6bc496f4bbe45f5c2080771421740"
+    }
+  },
+  {
+    "name": "packaged-agent",
+    "command": "/private/tmp/alune-agent-20261113-mac/runtime/bin/node",
+    "args": [
+      "scripts/agent/test-packaged.mjs",
+      "/var/folders/04/5tbfvcls5tjfgwsg7hvxmz940000gn/T/alune-critical-risk-44uqEc/package"
+    ],
+    "startedAt": "2026-11-17T01:50:33.510Z",
+    "finishedAt": "2026-11-17T01:50:37.936Z",
+    "status": 0,
+    "signal": null,
+    "log": {
+      "path": "packaged-agent.log",
+      "sha256": "7fa186b0c2b1c1bea71bf91e31f23052ab561ba281a37fc4abfcd0cbb0d4a395"
+    }
+  },
+  {
+    "name": "encrypted-ssh",
+    "command": "/private/tmp/alune-agent-20261113-mac/runtime/bin/node",
+    "args": [
+      "scripts/agent/test-ssh-isolated.mjs",
+      "/var/folders/04/5tbfvcls5tjfgwsg7hvxmz940000gn/T/alune-critical-risk-44uqEc/package"
+    ],
+    "startedAt": "2026-11-17T01:50:37.936Z",
+    "finishedAt": "2026-11-17T01:51:09.172Z",
+    "status": 0,
+    "signal": null,
+    "log": {
+      "path": "encrypted-ssh.log",
+      "sha256": "2cbc20ce190d5815166e2f2e24ea73ad316286b402f13eb65a49ddb89d937bd4"
+    }
+  }
+]

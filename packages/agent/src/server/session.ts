@@ -384,16 +384,16 @@ export class AgentSession {
     error: Error = new ProtocolError('disconnected', 'Agent session ended', 'unknown'),
   ): Promise<void> {
     if (this.closing) return this.closing;
-    // Set a sentinel before closing transport, whose onClose callback can re-enter.
-    this.closing = Promise.resolve();
     this.failure = error;
-    for (const dispose of this.disposers) dispose();
-    this.lifecycle.abort();
-    this.events.close(error);
-    for (const task of this.tasks.values())
-      if (task.info.state === 'running') task.controller.abort();
-    this.transport.close(error);
-    this.closing = (async () => {
+    // Publish the complete shutdown promise before abort/transport callbacks can
+    // re-enter close(). A resolved sentinel lets those callers outlive cleanup.
+    this.closing = Promise.resolve().then(async () => {
+      for (const dispose of this.disposers) dispose();
+      this.lifecycle.abort();
+      this.events.close(error);
+      for (const task of this.tasks.values())
+        if (task.info.state === 'running') task.controller.abort();
+      this.transport.close(error);
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([
@@ -418,7 +418,7 @@ export class AgentSession {
         clearTimeout(timer);
         this.resolveClosed();
       }
-    })();
+    });
     return this.closing;
   }
 }

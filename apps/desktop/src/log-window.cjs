@@ -46,7 +46,10 @@ function createLogWindow({
     const target = logWindow;
     target.webContents.setWindowOpenHandler(createExternalLinkHandler(openExternal));
     const guardNavigation = (event, url) => {
-      if (new URL(url).origin !== origin) event.preventDefault();
+      try {
+        if (new URL(url).origin === origin) return;
+      } catch {}
+      event.preventDefault();
     };
     target.webContents.on('will-navigate', guardNavigation);
     target.webContents.on('will-redirect', guardNavigation);

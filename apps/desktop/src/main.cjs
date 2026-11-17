@@ -10,8 +10,30 @@ const {
   autoUpdater: nativeUpdater,
 } = require('electron');
 const { randomBytes } = require('node:crypto');
-const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const { mkdirSync, readFileSync, writeFileSync, writeSync } = require('node:fs');
 const path = require('node:path');
+let backend;
+// Install before asynchronous startup. A fatal monitor cannot wait for Agent RPC.
+function reportProcessError(message, error) {
+  let detail = '[无法读取错误原因]';
+  try {
+    detail = error?.stack || String(error);
+  } catch {}
+  try {
+    writeSync(2, `${message}\n${detail}\n`);
+  } catch {}
+  try {
+    const { logger, errorContext } = appLog();
+    logger.error('process', message, errorContext(error));
+  } catch {}
+}
+process.on('uncaughtExceptionMonitor', (error, source) =>
+  reportProcessError(`未捕获异常（${source}）`, error),
+);
+// Keep the desktop's existing nonfatal rejection policy, including before ready.
+process.on('unhandledRejection', (reason) =>
+  reportProcessError('未处理的 Promise 拒绝', reason),
+);
 let registry;
 const preferencesFile = () =>
   path.join(app.getPath('userData'), 'agent', 'workspace.json');
@@ -74,7 +96,6 @@ function appLog() {
   };
 }
 
-let backend;
 let window;
 let origin;
 let quitting = false;
@@ -207,12 +228,6 @@ async function start() {
     electron: process.versions.electron,
     packaged: app.isPackaged,
   });
-  process.on('uncaughtExceptionMonitor', (error, source) =>
-    logger.error('process', `未捕获异常（${source}）`, errorContext(error)),
-  );
-  process.on('unhandledRejection', (reason) =>
-    logger.error('process', '未处理的 Promise 拒绝', errorContext(reason)),
-  );
   const { UpdateService } = require('./update-service.cjs');
   const { registerUpdateIPC } = require('./update-ipc.cjs');
   const adapter = smokeTest

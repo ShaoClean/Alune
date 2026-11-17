@@ -81,10 +81,16 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
       ')?.getAttribute("aria-valuemin")',
   );
   const small = await dimensions();
+  const smallRendered = await ev("document.querySelector('.terminal-emulator').clientHeight");
   await key(resize, 'End', 'End', 35);
   await wait(wc, 'Number((' + resize + ')?.getAttribute("aria-valuenow"))>' + originalHeight);
+  // The React store updates before ResizeObserver delivers the measured xterm
+  // dimensions. Wait for the actual viewport and rendered frames before asking
+  // a new shell command to observe its PTY size.
+  await wait(wc, "document.querySelector('.terminal-emulator').clientHeight>" + smallRendered);
+  await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   const large = await dimensions();
-  assert.ok(large.rows > small.rows, 'the real PTY must receive the rendered terminal resize');
+  assert.ok(large.rows > small.rows, 'the real PTY must receive the rendered terminal resize: ' + JSON.stringify({small, large, smallRendered, largeRendered: await ev("document.querySelector('.terminal-emulator').clientHeight")}));
   const point = await ev(
     '(()=>{const r=(' +
       resize +

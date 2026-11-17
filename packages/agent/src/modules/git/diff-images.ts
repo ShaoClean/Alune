@@ -86,7 +86,7 @@ export class DiffImages {
 
     const { blob, worktree } = this.revisions(options);
     let bytes = worktree
-      ? await this.readWorktree(repoPath, options.file)
+      ? await this.readWorktree(repoPath, options.file, signal)
       : await this.readBlob(repoPath, blob!, signal);
     const pointer = parseLfsPointer(bytes.toString('utf8'));
     if (pointer) {
@@ -94,6 +94,7 @@ export class DiffImages {
         repoPath,
         pointer,
         DIFF_IMAGE_MAX_BYTES,
+        signal,
       );
       if (!object)
         throw new DiffImageError(
@@ -134,25 +135,48 @@ export class DiffImages {
     }
   }
 
-  private async readWorktree(repoPath: string, file: string): Promise<Buffer> {
+  private async readWorktree(
+    repoPath: string,
+    file: string,
+    signal?: AbortSignal,
+  ): Promise<Buffer> {
+    signal =
+      signal && this.connection.signal
+        ? AbortSignal.any([signal, this.connection.signal])
+        : (signal ?? this.connection.signal);
     try {
+      signal?.throwIfAborted();
       return await this.connection.withSftp(async (sftp) => {
         // SFTP resolves Windows drive paths as well as POSIX paths without shell syntax.
         const root = await promisify(sftp.realpath.bind(sftp))(repoPath);
-        const target = joinRepositoryPath(root, file);
-        const stat = await promisify(sftp.lstat.bind(sftp))(target);
-        if (!stat.isFile()) throw new DiffImageError('仅支持预览普通文件。');
-        if (stat.size > DIFF_IMAGE_MAX_BYTES) throw new DiffImageError(limitMessage);
+        const parts = file.split('/');
+        let target = root;
+        for (let i = 0; i < parts.length; i++) {
+          signal?.throwIfAborted();
+          target = joinRepositoryPath(target, parts[i]);
+          const stat = await promisify(sftp.lstat.bind(sftp))(target);
+          if (stat.isSymbolicLink()) throw new DiffImageError('仅支持预览普通文件。');
+          if (i < parts.length - 1) {
+            if (!stat.isDirectory()) throw new DiffImageError('仅支持预览普通文件。');
+          } else {
+            if (!stat.isFile()) throw new DiffImageError('仅支持预览普通文件。');
+            if (stat.size > DIFF_IMAGE_MAX_BYTES) throw new DiffImageError(limitMessage);
+          }
+        }
+        signal?.throwIfAborted();
         const chunks: Buffer[] = [];
         let read = 0;
         for await (const chunk of readSftpChunks(sftp, target)) {
+          signal?.throwIfAborted();
           read += chunk.length;
           if (read > DIFF_IMAGE_MAX_BYTES) throw new DiffImageError(limitMessage);
           chunks.push(chunk);
         }
+        signal?.throwIfAborted();
         return Buffer.concat(chunks);
       });
     } catch (error) {
+      signal?.throwIfAborted();
       if (error instanceof DiffImageError) throw error;
       const code = (error as { code?: number | string })?.code;
       if (code === 2 || code === 'ENOENT') throw new DiffImageAbsentError();

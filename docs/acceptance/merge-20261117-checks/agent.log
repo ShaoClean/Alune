@@ -1,0 +1,2536 @@
+TAP version 13
+# Subtest: Agent token ciphertext is bound to stable IDs and target changes cannot revive credentials
+ok 1 - Agent token ciphertext is bound to stable IDs and target changes cannot revive credentials
+  ---
+  duration_ms: 82.684542
+  type: 'test'
+  ...
+# Subtest: token replacement invalidates active snapshots and deletion removes secrets and bindings
+ok 2 - token replacement invalidates active snapshots and deletion removes secrets and bindings
+  ---
+  duration_ms: 44.077166
+  type: 'test'
+  ...
+# Subtest: a failed transactional token save rolls back all rows and never reports raw storage errors
+ok 3 - a failed transactional token save rolls back all rows and never reports raw storage errors
+  ---
+  duration_ms: 45.401209
+  type: 'test'
+  ...
+# Subtest: missing token revision does not reset existing tokens or retain a failed kernel writer lock
+ok 4 - missing token revision does not reset existing tokens or retain a failed kernel writer lock
+  ---
+  duration_ms: 39.348208
+  type: 'test'
+  ...
+# Subtest: Windows CRLF checkout plus npm shebang normalization leaves the Agent bin clean
+ok 5 - Windows CRLF checkout plus npm shebang normalization leaves the Agent bin clean
+  ---
+  duration_ms: 166.084291
+  type: 'test'
+  ...
+# Subtest: stdio collaboration keeps staged data and credentials scoped; an ambiguous platform write cannot replay after restart
+ok 6 - stdio collaboration keeps staged data and credentials scoped; an ambiguous platform write cannot replay after restart
+  ---
+  duration_ms: 603.710666
+  type: 'test'
+  ...
+# Subtest: logging settings use durable revisions and reject stale or invalid saves
+ok 7 - logging settings use durable revisions and reject stale or invalid saves
+  ---
+  duration_ms: 224.997708
+  type: 'test'
+  ...
+# Subtest: immutable log snapshots cross UTF-8 chunk boundaries, redact ciphertext and publish bounded invalidations
+ok 8 - immutable log snapshots cross UTF-8 chunk boundaries, redact ciphertext and publish bounded invalidations
+  ---
+  duration_ms: 159.917333
+  type: 'test'
+  ...
+# Subtest: renderer log flood is rate limited and stale snapshot handles fail explicitly
+ok 9 - renderer log flood is rate limited and stale snapshot handles fail explicitly
+  ---
+  duration_ms: 190.566042
+  type: 'test'
+  ...
+# Subtest: corrupt logging configuration stays intact and valid replacement is refused until recovery
+ok 10 - corrupt logging configuration stays intact and valid replacement is refused until recovery
+  ---
+  duration_ms: 53.109084
+  type: 'test'
+  ...
+# Subtest: worktree diff overlaps index validation and drains both reads before returning a validation error
+ok 11 - worktree diff overlaps index validation and drains both reads before returning a validation error
+  ---
+  duration_ms: 3.265417
+  type: 'test'
+  ...
+# Subtest: speculative diff failures retain preview limits and Git errors after successful index validation
+ok 12 - speculative diff failures retain preview limits and Git errors after successful index validation
+  ---
+  duration_ms: 0.44675
+  type: 'test'
+  ...
+# Subtest: untracked previews still check file state and permissions then use no-index
+ok 13 - untracked previews still check file state and permissions then use no-index
+  ---
+  duration_ms: 0.248583
+  type: 'test'
+  ...
+# Subtest: staged previews check blob size before starting the diff
+ok 14 - staged previews check blob size before starting the diff
+  ---
+  duration_ms: 0.459208
+  type: 'test'
+  ...
+# Subtest: bounded reliable queue blocks on ACK and rejects overload without dropping data
+ok 15 - bounded reliable queue blocks on ACK and rejects overload without dropping data
+  ---
+  duration_ms: 1.276625
+  type: 'test'
+  ...
+# Subtest: state coalescing is bounded, owns payloads and announces resync
+ok 16 - state coalescing is bounded, owns payloads and announces resync
+  ---
+  duration_ms: 19.01575
+  type: 'test'
+  ...
+# Subtest: cancelled queued reliable writes are removed; delivered writes keep ACK accounting
+ok 17 - cancelled queued reliable writes are removed; delivered writes keep ACK accounting
+  ---
+  duration_ms: 0.508709
+  type: 'test'
+  ...
+# Subtest: missing ACK terminates stream instead of retaining data forever
+ok 18 - missing ACK terminates stream instead of retaining data forever
+  ---
+  duration_ms: 21.460584
+  type: 'test'
+  ...
+# Subtest: explicit session grants preserve outside-repository text access and isolate authority
+ok 19 - explicit session grants preserve outside-repository text access and isolate authority
+  ---
+  duration_ms: 284.505667
+  type: 'test'
+  ...
+# Subtest: replacing an authorized directory does not transfer its authority
+ok 20 - replacing an authorized directory does not transfer its authority
+  ---
+  duration_ms: 7.00975
+  type: 'test'
+  ...
+# Preparing worktree (detached HEAD a623dca)
+# Subtest: local: blame matches Git, follows renames, maps parent lines, and supports worktrees
+ok 21 - local: blame matches Git, follows renames, maps parent lines, and supports worktrees
+  ---
+  duration_ms: 1045.734084
+  type: 'test'
+  ...
+# Subtest: local: whitespace and ignore-revs file take effect, including ignored line markers
+ok 22 - local: whitespace and ignore-revs file take effect, including ignored line markers
+  ---
+  duration_ms: 1182.48475
+  type: 'test'
+  ...
+# Preparing worktree (detached HEAD b388c8f)
+# Subtest: ssh: blame matches Git, follows renames, maps parent lines, and supports worktrees
+ok 23 - ssh: blame matches Git, follows renames, maps parent lines, and supports worktrees
+  ---
+  duration_ms: 1811.626083
+  type: 'test'
+  ...
+# Subtest: ssh: whitespace and ignore-revs file take effect, including ignored line markers
+ok 24 - ssh: whitespace and ignore-revs file take effect, including ignored line markers
+  ---
+  duration_ms: 1254.997416
+  type: 'test'
+  ...
+# Subtest: new, staged, unborn, empty, binary, encoded and large files have explicit states
+ok 25 - new, staged, unborn, empty, binary, encoded and large files have explicit states
+  ---
+  duration_ms: 390.534084
+  type: 'test'
+  ...
+# Subtest: parent line mapping handles insertions, deletions, replacements and unchanged offsets
+ok 26 - parent line mapping handles insertions, deletions, replacements and unchanged offsets
+  ---
+  duration_ms: 0.714958
+  type: 'test'
+  ...
+# Subtest: CRLF, no final newline and literal control characters keep Git line/path correspondence
+ok 27 - CRLF, no final newline and literal control characters keep Git line/path correspondence
+  ---
+  duration_ms: 481.417
+  type: 'test'
+  ...
+# Subtest: cancellation reaches the running blame process
+ok 28 - cancellation reaches the running blame process
+  ---
+  duration_ms: 236.555958
+  type: 'test'
+  ...
+# Subtest: previous navigation rejects a changed displayed snapshot
+ok 29 - previous navigation rejects a changed displayed snapshot
+  ---
+  duration_ms: 319.674583
+  type: 'test'
+  ...
+# Subtest: local: classify, stage, discard and locally ignore directory entries without traversing them
+ok 30 - local: classify, stage, discard and locally ignore directory entries without traversing them
+  ---
+  duration_ms: 1714.581625
+  type: 'test'
+  ...
+# Subtest: local: identifies worktrees registered through a path alias with missing siblings
+ok 31 - local: identifies worktrees registered through a path alias with missing siblings
+  ---
+  duration_ms: 621.39775
+  type: 'test'
+  ...
+# Subtest: ssh: classify, stage, discard and locally ignore directory entries without traversing them
+ok 32 - ssh: classify, stage, discard and locally ignore directory entries without traversing them
+  ---
+  duration_ms: 2319.2095
+  type: 'test'
+  ...
+# warning: adding embedded git repository: module
+# hint: You've added another git repository inside your current repository.
+# hint: Clones of the outer repository will not contain the contents of
+# hint: the embedded repository and will not know how to obtain it.
+# hint: If you meant to add a submodule, use:
+# hint: 
+# hint: \\tgit submodule add <url> module
+# hint: 
+# hint: If you added this path by mistake, you can remove it from the
+# hint: index with:
+# hint: 
+# hint: \\tgit rm --cached module
+# hint: 
+# hint: See "git help submodule" for more information.
+# Subtest: ssh: identifies worktrees registered through a path alias with missing siblings
+ok 33 - ssh: identifies worktrees registered through a path alias with missing siblings
+  ---
+  duration_ms: 627.979292
+  type: 'test'
+  ...
+# Subtest: tracked submodules retain pointer previews/staging and are excluded from file discard/deletion
+ok 34 - tracked submodules retain pointer previews/staging and are excluded from file discard/deletion
+  ---
+  duration_ms: 1006.802917
+  type: 'test'
+  ...
+# Subtest: directory replacements and their children are skipped together while other files remain actionable
+ok 35 - directory replacements and their children are skipped together while other files remain actionable
+  ---
+  duration_ms: 526.492166
+  type: 'test'
+  ...
+# Subtest: ignore rules escape metacharacters, use the common Git directory, and reject unrelated paths
+ok 36 - ignore rules escape metacharacters, use the common Git directory, and reject unrelated paths
+  ---
+  duration_ms: 648.322916
+  type: 'test'
+  ...
+# Subtest: directory-to-file replacements stage without deleting working contents; file checkout remains guarded
+ok 37 - directory-to-file replacements stage without deleting working contents; file checkout remains guarded
+  ---
+  duration_ms: 436.368375
+  type: 'test'
+  ...
+# Subtest: local ignore refuses a symlinked exclude file without touching its target
+ok 38 - local ignore refuses a symlinked exclude file without touching its target
+  ---
+  duration_ms: 304.5525
+  type: 'test'
+  ...
+# Subtest: staging and concurrent refreshes succeed with MaxSessions=10
+ok 39 - staging and concurrent refreshes succeed with MaxSessions=10
+  ---
+  duration_ms: 726.943375
+  type: 'test'
+  ...
+# Subtest: staging and concurrent refreshes succeed with MaxSessions=1
+ok 40 - staging and concurrent refreshes succeed with MaxSessions=1
+  ---
+  duration_ms: 869.521666
+  type: 'test'
+  ...
+# Subtest: file reads and failed SFTP operations release sessions before later refreshes
+ok 41 - file reads and failed SFTP operations release sessions before later refreshes
+  ---
+  duration_ms: 681.540875
+  type: 'test'
+  ...
+# (node:23064) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: streaming, buffered commands and SFTP share slots until their channels close
+ok 42 - streaming, buffered commands and SFTP share slots until their channels close
+  ---
+  duration_ms: 1.7385
+  type: 'test'
+  ...
+# Subtest: cancelled queued commands never execute; cancelled opens retain their slot until close
+ok 43 - cancelled queued commands never execute; cancelled opens retain their slot until close
+  ---
+  duration_ms: 4.962459
+  type: 'test'
+  ...
+# Subtest: output limits close only the failing channel and unblock queued commands after close
+ok 44 - output limits close only the failing channel and unblock queued commands after close
+  ---
+  duration_ms: 1.9355
+  type: 'test'
+  ...
+# Subtest: disconnect rejects queued and opening work and disposes late channels
+ok 45 - disconnect rejects queued and opening work and disposes late channels
+  ---
+  duration_ms: 2.926
+  type: 'test'
+  ...
+# Subtest: only refused channel opens retry, once; command failures and policy denial are preserved
+ok 46 - only refused channel opens retry, once; command failures and policy denial are preserved
+  ---
+  duration_ms: 0.873166
+  type: 'test'
+  ...
+# Subtest: SFTP timeout cancels queued opens and closes a late acknowledgement without running the operation
+ok 47 - SFTP timeout cancels queued opens and closes a late acknowledgement without running the operation
+  ---
+  duration_ms: 1.763458
+  type: 'test'
+  ...
+# Subtest: SFTP cancellation closes active sessions and retains the slot until close
+ok 48 - SFTP cancellation closes active sessions and retains the slot until close
+  ---
+  duration_ms: 0.21175
+  type: 'test'
+  ...
+# Subtest: SFTP cancellation removes queued work and disposes late channel opens
+ok 49 - SFTP cancellation removes queued work and disposes late channel opens
+  ---
+  duration_ms: 0.2675
+  type: 'test'
+  ...
+# Subtest: SFTP aborted immediately after opening never starts the file operation
+ok 50 - SFTP aborted immediately after opening never starts the file operation
+  ---
+  duration_ms: 0.199083
+  type: 'test'
+  ...
+# Rebasing (1/2)
+# error: could not apply 144c591... feature edit
+# hint: Resolve all conflicts manually, mark them as resolved with
+# hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+# hint: You can instead skip this commit: run "git rebase --skip".
+# hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+# Could not apply 144c591... feature edit
+# Subtest: local: merge conflicts report kinds, resolve per block and continue
+ok 51 - local: merge conflicts report kinds, resolve per block and continue
+  ---
+  duration_ms: 1115.729458
+  type: 'test'
+  ...
+# Rebasing (1/2)
+# error: could not apply 144c591... feature edit
+# hint: Resolve all conflicts manually, mark them as resolved with
+# hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+# hint: You can instead skip this commit: run "git rebase --skip".
+# hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+# Could not apply 144c591... feature edit
+# error: could not apply 65572ba... feature edit
+# hint: After resolving the conflicts, mark them with
+# hint: "git add/rm <pathspec>", then run
+# hint: "git cherry-pick --continue".
+# hint: You can instead skip this commit with "git cherry-pick --skip".
+# hint: To abort and get back to the state before "git cherry-pick",
+# hint: run "git cherry-pick --abort".
+# Subtest: local: rebase reports progress, stops again on the next conflict, skips and aborts
+ok 52 - local: rebase reports progress, stops again on the next conflict, skips and aborts
+  ---
+  duration_ms: 1257.836667
+  type: 'test'
+  ...
+# error: could not apply 65572ba... feature edit
+# hint: After resolving the conflicts, mark them with
+# hint: "git add/rm <pathspec>", then run
+# hint: "git cherry-pick --continue".
+# hint: You can instead skip this commit with "git cherry-pick --skip".
+# hint: To abort and get back to the state before "git cherry-pick",
+# hint: run "git cherry-pick --abort".
+# error: could not revert 2064b34... feature edit
+# hint: After resolving the conflicts, mark them with
+# hint: "git add/rm <pathspec>", then run
+# hint: "git revert --continue".
+# hint: You can instead skip this commit with "git revert --skip".
+# hint: To abort and get back to the state before "git revert",
+# hint: run "git revert --abort".
+# Subtest: local: cherry-pick and revert conflicts continue or abort like the CLI
+ok 53 - local: cherry-pick and revert conflicts continue or abort like the CLI
+  ---
+  duration_ms: 1153.384542
+  type: 'test'
+  ...
+# Subtest: local: linked worktrees and stash conflicts
+ok 54 - local: linked worktrees and stash conflicts
+  ---
+  duration_ms: 862.713291
+  type: 'test'
+  ...
+# Rebasing (1/2)
+# error: could not apply e91ebfd... feature edit
+# hint: Resolve all conflicts manually, mark them as resolved with
+# hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+# hint: You can instead skip this commit: run "git rebase --skip".
+# hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+# Could not apply e91ebfd... feature edit
+# Subtest: exec: merge conflicts report kinds, resolve per block and continue
+ok 55 - exec: merge conflicts report kinds, resolve per block and continue
+  ---
+  duration_ms: 943.679125
+  type: 'test'
+  ...
+# Rebasing (1/2)
+# error: could not apply e91ebfd... feature edit
+# hint: Resolve all conflicts manually, mark them as resolved with
+# hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+# hint: You can instead skip this commit: run "git rebase --skip".
+# hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+# Could not apply e91ebfd... feature edit
+# error: could not apply 2dd95a3... feature edit
+# hint: After resolving the conflicts, mark them with
+# hint: "git add/rm <pathspec>", then run
+# hint: "git cherry-pick --continue".
+# hint: You can instead skip this commit with "git cherry-pick --skip".
+# hint: To abort and get back to the state before "git cherry-pick",
+# hint: run "git cherry-pick --abort".
+# Subtest: exec: rebase reports progress, stops again on the next conflict, skips and aborts
+ok 56 - exec: rebase reports progress, stops again on the next conflict, skips and aborts
+  ---
+  duration_ms: 1124.729166
+  type: 'test'
+  ...
+# error: could not apply 2dd95a3... feature edit
+# hint: After resolving the conflicts, mark them with
+# hint: "git add/rm <pathspec>", then run
+# hint: "git cherry-pick --continue".
+# hint: You can instead skip this commit with "git cherry-pick --skip".
+# hint: To abort and get back to the state before "git cherry-pick",
+# hint: run "git cherry-pick --abort".
+# error: could not revert 6dfaddb... feature edit
+# hint: After resolving the conflicts, mark them with
+# hint: "git add/rm <pathspec>", then run
+# hint: "git revert --continue".
+# hint: You can instead skip this commit with "git revert --skip".
+# hint: To abort and get back to the state before "git revert",
+# hint: run "git revert --abort".
+# Subtest: exec: cherry-pick and revert conflicts continue or abort like the CLI
+ok 57 - exec: cherry-pick and revert conflicts continue or abort like the CLI
+  ---
+  duration_ms: 1319.670625
+  type: 'test'
+  ...
+# Subtest: exec: linked worktrees and stash conflicts
+ok 58 - exec: linked worktrees and stash conflicts
+  ---
+  duration_ms: 700.034959
+  type: 'test'
+  ...
+# Subtest: ssh: merge conflicts report kinds, resolve per block and continue
+ok 59 - ssh: merge conflicts report kinds, resolve per block and continue
+  ---
+  duration_ms: 1748.708333
+  type: 'test'
+  ...
+# Rebasing (1/2)
+# error: could not apply a5e1d6a... feature edit
+# hint: Resolve all conflicts manually, mark them as resolved with
+# hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+# hint: You can instead skip this commit: run "git rebase --skip".
+# hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+# Could not apply a5e1d6a... feature edit
+# Rebasing (1/2)
+# error: could not apply a5e1d6a... feature edit
+# hint: Resolve all conflicts manually, mark them as resolved with
+# hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+# hint: You can instead skip this commit: run "git rebase --skip".
+# hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+# Could not apply a5e1d6a... feature edit
+# Subtest: ssh: rebase reports progress, stops again on the next conflict, skips and aborts
+ok 60 - ssh: rebase reports progress, stops again on the next conflict, skips and aborts
+  ---
+  duration_ms: 1879.451459
+  type: 'test'
+  ...
+# error: could not apply 33d4bcd... feature edit
+# hint: After resolving the conflicts, mark them with
+# hint: "git add/rm <pathspec>", then run
+# hint: "git cherry-pick --continue".
+# hint: You can instead skip this commit with "git cherry-pick --skip".
+# hint: To abort and get back to the state before "git cherry-pick",
+# hint: run "git cherry-pick --abort".
+# error: could not apply 33d4bcd... feature edit
+# hint: After resolving the conflicts, mark them with
+# hint: "git add/rm <pathspec>", then run
+# hint: "git cherry-pick --continue".
+# hint: You can instead skip this commit with "git cherry-pick --skip".
+# hint: To abort and get back to the state before "git cherry-pick",
+# hint: run "git cherry-pick --abort".
+# error: could not revert 46f5e8c... feature edit
+# hint: After resolving the conflicts, mark them with
+# hint: "git add/rm <pathspec>", then run
+# hint: "git revert --continue".
+# hint: You can instead skip this commit with "git revert --skip".
+# hint: To abort and get back to the state before "git revert",
+# hint: run "git revert --abort".
+# Subtest: ssh: cherry-pick and revert conflicts continue or abort like the CLI
+ok 61 - ssh: cherry-pick and revert conflicts continue or abort like the CLI
+  ---
+  duration_ms: 1426.669
+  type: 'test'
+  ...
+# Subtest: ssh: linked worktrees and stash conflicts
+ok 62 - ssh: linked worktrees and stash conflicts
+  ---
+  duration_ms: 919.378875
+  type: 'test'
+  ...
+# Subtest: local: per-block resolution keeps CRLF, BOM and refuses symlinked parents
+ok 63 - local: per-block resolution keeps CRLF, BOM and refuses symlinked parents
+  ---
+  duration_ms: 158.761125
+  type: 'test'
+  ...
+# Subtest: commit previews return both sides of a modified image and report added/deleted sides
+ok 64 - commit previews return both sides of a modified image and report added/deleted sides
+  ---
+  duration_ms: 845.272833
+  type: 'test'
+  ...
+# Subtest: worktree and index previews stay on their own side without touching the repository
+ok 65 - worktree and index previews stay on their own side without touching the repository
+  ---
+  duration_ms: 448.64675
+  type: 'test'
+  ...
+# Subtest: unsupported types, oversized files, directories, missing paths and traversal are rejected
+ok 66 - unsupported types, oversized files, directories, missing paths and traversal are rejected
+  ---
+  duration_ms: 232.212042
+  type: 'test'
+  ...
+# Subtest: Windows repositories reject backslash and stream paths before connecting
+ok 67 - Windows repositories reject backslash and stream paths before connecting
+  ---
+  duration_ms: 0.428209
+  type: 'test'
+  ...
+# Subtest: Windows diff rejects non-relative paths before contacting the remote host
+ok 68 - Windows diff rejects non-relative paths before contacting the remote host
+  ---
+  duration_ms: 1.003041
+  type: 'test'
+  ...
+# Subtest: Windows previews untracked and staged files with literal paths without changing the index
+ok 69 - Windows previews untracked and staged files with literal paths without changing the index # SKIP
+  ---
+  duration_ms: 0.056333
+  type: 'test'
+  ...
+# Subtest: untracked → staged → edited → unstaged preserves both comparisons (HEAD=true)
+ok 70 - untracked → staged → edited → unstaged preserves both comparisons (HEAD=true)
+  ---
+  duration_ms: 869.254667
+  type: 'test'
+  ...
+# Subtest: untracked → staged → edited → unstaged preserves both comparisons (HEAD=false)
+ok 71 - untracked → staged → edited → unstaged preserves both comparisons (HEAD=false)
+  ---
+  duration_ms: 791.593459
+  type: 'test'
+  ...
+# Subtest: empty, binary, oversized, invalid UTF-8, vanished and unreadable files have distinct results
+ok 72 - empty, binary, oversized, invalid UTF-8, vanished and unreadable files have distinct results
+  ---
+  duration_ms: 1006.240416
+  type: 'test'
+  ...
+# Subtest: patch output is bounded even when a file itself is within the size limit
+ok 73 - patch output is bounded even when a file itself is within the size limit
+  ---
+  duration_ms: 407.557584
+  type: 'test'
+  ...
+# Subtest: a file disappearing after preflight is an error even when no-index exits with code 1
+ok 74 - a file disappearing after preflight is an error even when no-index exits with code 1
+  ---
+  duration_ms: 202.080042
+  type: 'test'
+  ...
+# Subtest: SFTP preflight distinguishes a vanished file from a directory and preserves dangling links
+ok 75 - SFTP preflight distinguishes a vanished file from a directory and preserves dangling links
+  ---
+  duration_ms: 354.791417
+  type: 'test'
+  ...
+# Subtest: literal paths cannot match neighbours, escape the repository, or invoke shell expansion
+ok 76 - literal paths cannot match neighbours, escape the repository, or invoke shell expansion
+  ---
+  duration_ms: 1983.985708
+  type: 'test'
+  ...
+# Subtest: modified, deleted, renamed and initial/history diffs retain Git semantics
+ok 77 - modified, deleted, renamed and initial/history diffs retain Git semantics
+  ---
+  duration_ms: 826.371417
+  type: 'test'
+  ...
+# Subtest: full-file context includes unchanged head and tail for worktree, index and history
+ok 78 - full-file context includes unchanged head and tail for worktree, index and history
+  ---
+  duration_ms: 959.466084
+  type: 'test'
+  ...
+# Subtest: tracked: preserves the index and staged new files with existing HEAD
+ok 79 - tracked: preserves the index and staged new files with existing HEAD
+  ---
+  duration_ms: 1024.60675
+  type: 'test'
+  ...
+# Subtest: all: preserves the index and staged new files with existing HEAD
+ok 80 - all: preserves the index and staged new files with existing HEAD
+  ---
+  duration_ms: 929.579709
+  type: 'test'
+  ...
+# Subtest: tracked: preserves the index and staged new files with unborn HEAD
+ok 81 - tracked: preserves the index and staged new files with unborn HEAD
+  ---
+  duration_ms: 758.912292
+  type: 'test'
+  ...
+# Subtest: all: preserves the index and staged new files with unborn HEAD
+ok 82 - all: preserves the index and staged new files with unborn HEAD
+  ---
+  duration_ms: 676.547875
+  type: 'test'
+  ...
+# Subtest: restores tracked deletions and staged renames without changing staged deletion entries
+ok 83 - restores tracked deletions and staged renames without changing staged deletion entries
+  ---
+  duration_ms: 496.701041
+  type: 'test'
+  ...
+# Subtest: literal paths cannot expand to other files or execute shell code
+ok 84 - literal paths cannot expand to other files or execute shell code
+  ---
+  duration_ms: 877.173292
+  type: 'test'
+  ...
+# Subtest: touches only the current worktree and keeps the other worktree index intact
+ok 85 - touches only the current worktree and keeps the other worktree index intact
+  ---
+  duration_ms: 676.662792
+  type: 'test'
+  ...
+# Subtest: rejects stale confirmation after content changes, without any writes
+ok 86 - rejects stale confirmation after content changes, without any writes
+  ---
+  duration_ms: 252.335959
+  type: 'test'
+  ...
+# Subtest: rejects stale confirmation after untracked-content changes, without any writes
+ok 87 - rejects stale confirmation after untracked-content changes, without any writes
+  ---
+  duration_ms: 299.984916
+  type: 'test'
+  ...
+# Subtest: rejects stale confirmation after index changes, without any writes
+ok 88 - rejects stale confirmation after index changes, without any writes
+  ---
+  duration_ms: 325.581166
+  type: 'test'
+  ...
+# Subtest: rejects stale confirmation after branch changes, without any writes
+ok 89 - rejects stale confirmation after branch changes, without any writes
+  ---
+  duration_ms: 259.199458
+  type: 'test'
+  ...
+# Subtest: rejects stale confirmation after new-path changes, without any writes
+ok 90 - rejects stale confirmation after new-path changes, without any writes
+  ---
+  duration_ms: 153.490667
+  type: 'test'
+  ...
+# Subtest: blocks conflicts and intent-to-add before discarding
+    # Subtest: conflict
+    ok 1 - conflict
+      ---
+      duration_ms: 228.915
+      type: 'test'
+      ...
+    # Subtest: intent
+    ok 2 - intent
+      ---
+      duration_ms: 140.63725
+      type: 'test'
+      ...
+    1..2
+ok 91 - blocks conflicts and intent-to-add before discarding
+  ---
+  duration_ms: 370.026
+  type: 'test'
+  ...
+# Subtest: protects symlink targets, refuses symlink parents and skips newly nested repositories
+ok 92 - protects symlink targets, refuses symlink parents and skips newly nested repositories
+  ---
+  duration_ms: 372.992167
+  type: 'test'
+  ...
+# Subtest: returns actual partial results and preserves the index after a permission failure
+ok 93 - returns actual partial results and preserves the index after a permission failure
+  ---
+  duration_ms: 286.757834
+  type: 'test'
+  ...
+# Subtest: stops when another writer changes a remaining file during the batch
+ok 94 - stops when another writer changes a remaining file during the batch
+  ---
+  duration_ms: 199.954083
+  type: 'test'
+  ...
+# Subtest: does not report success when a deleted file is recreated
+ok 95 - does not report success when a deleted file is recreated
+  ---
+  duration_ms: 159.9915
+  type: 'test'
+  ...
+# Subtest: never deletes a file that becomes ignored after restoring .gitignore
+ok 96 - never deletes a file that becomes ignored after restoring .gitignore
+  ---
+  duration_ms: 191.70075
+  type: 'test'
+  ...
+# Subtest: clean repositories and invalid requests never perform writes
+ok 97 - clean repositories and invalid requests never perform writes
+  ---
+  duration_ms: 164.598917
+  type: 'test'
+  ...
+# Subtest: real SSH/SFTP uses the same scopes, preserves staged files and reports a lost connection
+ok 98 - real SSH/SFTP uses the same scopes, preserves staged files and reports a lost connection
+  ---
+  duration_ms: 617.771334
+  type: 'test'
+  ...
+# Subtest: Windows PowerShell preserves Git stdout, stderr and exit status byte for byte
+ok 99 - Windows PowerShell preserves Git stdout, stderr and exit status byte for byte # SKIP
+  ---
+  duration_ms: 0.636375
+  type: 'test'
+  ...
+# Subtest: Windows SSH receives encoded literal arguments and relays raw Git output
+ok 100 - Windows SSH receives encoded literal arguments and relays raw Git output
+  ---
+  duration_ms: 0.891875
+  type: 'test'
+  ...
+# Subtest: Windows file paths cannot use backslash traversal or NTFS alternate data streams
+ok 101 - Windows file paths cannot use backslash traversal or NTFS alternate data streams
+  ---
+  duration_ms: 0.591459
+  type: 'test'
+  ...
+# Subtest: idle state does not require SFTP, but recovery markers still fail closed
+ok 102 - idle state does not require SFTP, but recovery markers still fail closed
+  ---
+  duration_ms: 296.505708
+  type: 'test'
+  ...
+# Subtest: local: reorder, reword, consecutive squash/fixup and drop use real Git
+ok 103 - local: reorder, reword, consecutive squash/fixup and drop use real Git
+  ---
+  duration_ms: 1137.005708
+  type: 'test'
+  ...
+# Subtest: local: conflict can be read, resolved and continued after constructing a new executor
+ok 104 - local: conflict can be read, resolved and continued after constructing a new executor
+  ---
+  duration_ms: 1088.9835
+  type: 'test'
+  ...
+# Subtest: local: abort restores the exact original HEAD, branch and files
+ok 105 - local: abort restores the exact original HEAD, branch and files
+  ---
+  duration_ms: 490.480042
+  type: 'test'
+  ...
+# Subtest: local: dropping every commit resets only the current branch to the base
+ok 106 - local: dropping every commit resets only the current branch to the base
+  ---
+  duration_ms: 397.506417
+  type: 'test'
+  ...
+# Subtest: worktree: reorder, reword, consecutive squash/fixup and drop use real Git
+ok 107 - worktree: reorder, reword, consecutive squash/fixup and drop use real Git
+  ---
+  duration_ms: 633.720584
+  type: 'test'
+  ...
+# Subtest: worktree: conflict can be read, resolved and continued after constructing a new executor
+ok 108 - worktree: conflict can be read, resolved and continued after constructing a new executor
+  ---
+  duration_ms: 819.14875
+  type: 'test'
+  ...
+# Subtest: worktree: abort restores the exact original HEAD, branch and files
+ok 109 - worktree: abort restores the exact original HEAD, branch and files
+  ---
+  duration_ms: 1392.331083
+  type: 'test'
+  ...
+# Subtest: worktree: dropping every commit resets only the current branch to the base
+ok 110 - worktree: dropping every commit resets only the current branch to the base
+  ---
+  duration_ms: 735.432625
+  type: 'test'
+  ...
+# Subtest: ssh: reorder, reword, consecutive squash/fixup and drop use real Git
+ok 111 - ssh: reorder, reword, consecutive squash/fixup and drop use real Git
+  ---
+  duration_ms: 1411.274375
+  type: 'test'
+  ...
+# Subtest: ssh: conflict can be read, resolved and continued after constructing a new executor
+ok 112 - ssh: conflict can be read, resolved and continued after constructing a new executor
+  ---
+  duration_ms: 1982.456917
+  type: 'test'
+  ...
+# Subtest: ssh: abort restores the exact original HEAD, branch and files
+ok 113 - ssh: abort restores the exact original HEAD, branch and files
+  ---
+  duration_ms: 867.502334
+  type: 'test'
+  ...
+# Subtest: ssh: dropping every commit resets only the current branch to the base
+ok 114 - ssh: dropping every commit resets only the current branch to the base
+  ---
+  duration_ms: 769.558791
+  type: 'test'
+  ...
+# Subtest: rejects invalid plans, stale HEAD/ref snapshots, dirty files, and unacknowledged published commits
+ok 115 - rejects invalid plans, stale HEAD/ref snapshots, dirty files, and unacknowledged published commits
+  ---
+  duration_ms: 1767.926709
+  type: 'test'
+  ...
+# Subtest: skip continues the plan without applying the conflicting commit
+ok 116 - skip continues the plan without applying the conflicting commit
+  ---
+  duration_ms: 563.654083
+  type: 'test'
+  ...
+# Subtest: rejects stale conflict content and rejects paths outside the conflict set
+ok 117 - rejects stale conflict content and rejects paths outside the conflict set
+  ---
+  duration_ms: 703.018375
+  type: 'test'
+  ...
+# Subtest: rejects merges, detached HEAD and unrelated bases
+ok 118 - rejects merges, detached HEAD and unrelated bases
+  ---
+  duration_ms: 417.156875
+  type: 'test'
+  ...
+# Subtest: matches an independently executed native interactive rebase in trees, messages and authors
+ok 119 - matches an independently executed native interactive rebase in trees, messages and authors
+  ---
+  duration_ms: 843.44025
+  type: 'test'
+  ...
+# Rebasing (1/2)
+# error: could not apply a007a26... tracked.txt
+# hint: Resolve all conflicts manually, mark them as resolved with
+# hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+# hint: You can instead skip this commit: run "git rebase --skip".
+# hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+# Could not apply a007a26... tracked.txt
+# Subtest: does not adopt an external rebase after an external abort leaves the private session behind
+ok 120 - does not adopt an external rebase after an external abort leaves the private session behind
+  ---
+  duration_ms: 618.192292
+  type: 'test'
+  ...
+# Subtest: cleans interrupted preparation even if its metadata is incomplete
+ok 121 - cleans interrupted preparation even if its metadata is incomplete
+  ---
+  duration_ms: 159.827708
+  type: 'test'
+  ...
+# Subtest: rejects an identically positioned branch switch and foreign session symlinks
+ok 122 - rejects an identically positioned branch switch and foreign session symlinks
+  ---
+  duration_ms: 255.290417
+  type: 'test'
+  ...
+# Subtest: keepalive drops a connection whose network went silent so the next request reconnects
+ok 123 - keepalive drops a connection whose network went silent so the next request reconnects
+  ---
+  duration_ms: 376.909958
+  type: 'test'
+  ...
+# Subtest: large Unicode path lists are checked completely with bounded bytes and concurrency
+ok 124 - large Unicode path lists are checked completely with bounded bytes and concurrency
+  ---
+  duration_ms: 75.025958
+  type: 'test'
+  ...
+# Subtest: finding LFS stops dispatching batches but waits for the in-flight sibling
+ok 125 - finding LFS stops dispatching batches but waits for the in-flight sibling
+  ---
+  duration_ms: 5.203459
+  type: 'test'
+  ...
+# Subtest: command failure aborts in-flight work and stops remaining batches
+ok 126 - command failure aborts in-flight work and stops remaining batches
+  ---
+  duration_ms: 4.379458
+  type: 'test'
+  ...
+# Subtest: deadline failure aborts in-flight work and stops remaining batches
+ok 127 - deadline failure aborts in-flight work and stops remaining batches
+  ---
+  duration_ms: 14.306208
+  type: 'test'
+  ...
+# Subtest: empty repositories skip attribute queries and oversized single paths fail explicitly
+ok 128 - empty repositories skip attribute queries and oversized single paths fail explicitly
+  ---
+  duration_ms: 0.270333
+  type: 'test'
+  ...
+# Subtest: local file and Git transports agree on paths containing native directory aliases
+ok 129 - local file and Git transports agree on paths containing native directory aliases
+  ---
+  duration_ms: 99.617166
+  type: 'test'
+  ...
+# Subtest: local commands use literal argv and bounded, byte-preserving output
+ok 130 - local commands use literal argv and bounded, byte-preserving output
+  ---
+  duration_ms: 372.864417
+  type: 'test'
+  ...
+# Subtest: cancellation stops a real commit hook and leaves staged data available
+ok 131 - cancellation stops a real commit hook and leaves staged data available
+  ---
+  duration_ms: 523.248291
+  type: 'test'
+  ...
+# Subtest: local commands discard inherited repository selectors
+ok 132 - local commands discard inherited repository selectors
+  ---
+  duration_ms: 135.074542
+  type: 'test'
+  ...
+# Subtest: shared path helpers preserve UNC shares, drive paths and POSIX literal backslashes
+ok 133 - shared path helpers preserve UNC shares, drive paths and POSIX literal backslashes
+  ---
+  duration_ms: 0.172334
+  type: 'test'
+  ...
+# Subtest: partial-clone show routes its real lazy fetch through the app proxy
+ok 134 - partial-clone show routes its real lazy fetch through the app proxy
+  ---
+  duration_ms: 497.458167
+  type: 'test'
+  ...
+# Subtest: partial-clone lazy fetch never falls back to a directly reachable origin
+ok 135 - partial-clone lazy fetch never falls back to a directly reachable origin
+  ---
+  duration_ms: 460.678375
+  type: 'test'
+  ...
+# Subtest: ordinary repositories retain offline Git when app proxy settings cannot be read
+ok 136 - ordinary repositories retain offline Git when app proxy settings cannot be read
+  ---
+  duration_ms: 328.944542
+  type: 'test'
+  ...
+# Subtest: local HTTP Git overrides scoped proxy and NO_PROXY without persisting credentials or config
+ok 137 - local HTTP Git overrides scoped proxy and NO_PROXY without persisting credentials or config
+  ---
+  duration_ms: 136.075167
+  type: 'test'
+  ...
+# Subtest: unreadable proxy settings fail network operations but leave offline Git usable
+ok 138 - unreadable proxy settings fail network operations but leave offline Git usable
+  ---
+  duration_ms: 107.813916
+  type: 'test'
+  ...
+# Subtest: repository protocol overrides cannot bypass the enabled app proxy
+ok 139 - repository protocol overrides cannot bypass the enabled app proxy
+  ---
+  duration_ms: 110.585
+  type: 'test'
+  ...
+# Subtest: cancelling a local Git transfer closes its proxy tunnel
+ok 140 - cancelling a local Git transfer closes its proxy tunnel
+  ---
+  duration_ms: 123.597541
+  type: 'test'
+  ...
+# Subtest: local SSH Git uses the application runtime for proxy tunnelling
+ok 141 - local SSH Git uses the application runtime for proxy tunnelling
+  ---
+  duration_ms: 628.2995
+  type: 'test'
+  ...
+# Subtest: message, author, date, branch and path filters combine like git log, across pages
+ok 142 - message, author, date, branch and path filters combine like git log, across pages
+  ---
+  duration_ms: 1462.746292
+  type: 'test'
+  ...
+# Subtest: a path filter rewrites parents so the remaining commits stay connected
+ok 143 - a path filter rewrites parents so the remaining commits stay connected
+  ---
+  duration_ms: 619.539791
+  type: 'test'
+  ...
+# Subtest: file history follows renames and reports the path in each commit
+ok 144 - file history follows renames and reports the path in each commit
+  ---
+  duration_ms: 824.999
+  type: 'test'
+  ...
+# Subtest: a hash prefix leads the results once and still honours the other filters
+ok 145 - a hash prefix leads the results once and still honours the other filters
+  ---
+  duration_ms: 796.480292
+  type: 'test'
+  ...
+# Subtest: malformed filters are rejected before Git runs
+ok 146 - malformed filters are rejected before Git runs
+  ---
+  duration_ms: 70.910708
+  type: 'test'
+  ...
+# Subtest: all references, parents and exact pagination agree with real Git over more than 150 commits
+ok 147 - all references, parents and exact pagination agree with real Git over more than 150 commits
+  ---
+  duration_ms: 2525.535875
+  type: 'test'
+  ...
+# Subtest: end detection with exactly 49 commits
+ok 148 - end detection with exactly 49 commits
+  ---
+  duration_ms: 1074.02575
+  type: 'test'
+  ...
+# Subtest: end detection with exactly 50 commits
+ok 149 - end detection with exactly 50 commits
+  ---
+  duration_ms: 962.909125
+  type: 'test'
+  ...
+# Subtest: end detection with exactly 51 commits
+ok 150 - end detection with exactly 51 commits
+  ---
+  duration_ms: 978.022333
+  type: 'test'
+  ...
+# Subtest: empty repositories and detached HEAD history are readable
+ok 151 - empty repositories and detached HEAD history are readable
+  ---
+  duration_ms: 132.745167
+  type: 'test'
+  ...
+# Subtest: a moved reference or a reference changed during reading never mixes history pages
+ok 152 - a moved reference or a reference changed during reading never mixes history pages
+  ---
+  duration_ms: 473.79025
+  type: 'test'
+  ...
+# Subtest: query values cannot become shell or Git options; malformed pages are rejected
+ok 153 - query values cannot become shell or Git options; malformed pages are rejected
+  ---
+  duration_ms: 94.745125
+  type: 'test'
+  ...
+# Subtest: deepening a shallow clone invalidates the revision even with unchanged tips
+ok 154 - deepening a shallow clone invalidates the revision even with unchanged tips
+  ---
+  duration_ms: 591.36725
+  type: 'test'
+  ...
+# Subtest: octopus parents and nested annotated tags retain exact identities
+ok 155 - octopus parents and nested annotated tags retain exact identities
+  ---
+  duration_ms: 386.6485
+  type: 'test'
+  ...
+# Subtest: real SSH preserves Unicode, NUL-delimited parents and page boundaries
+ok 156 - real SSH preserves Unicode, NUL-delimited parents and page boundaries
+  ---
+  duration_ms: 793.938667
+  type: 'test'
+  ...
+# Subtest: real SSH/SFTP previews and deletes new files, preserves parents, and reports permission failures
+ok 157 - real SSH/SFTP previews and deletes new files, preserves parents, and reports permission failures
+  ---
+  duration_ms: 900.383708
+  type: 'test'
+  ...
+# Subtest: deletes only the selected untracked file (existing HEAD)
+ok 158 - deletes only the selected untracked file (existing HEAD)
+  ---
+  duration_ms: 245.27175
+  type: 'test'
+  ...
+# Subtest: deletes only the selected staged file (existing HEAD)
+ok 159 - deletes only the selected staged file (existing HEAD)
+  ---
+  duration_ms: 258.487458
+  type: 'test'
+  ...
+# Subtest: deletes only the selected mixed file (existing HEAD)
+ok 160 - deletes only the selected mixed file (existing HEAD)
+  ---
+  duration_ms: 311.791208
+  type: 'test'
+  ...
+# Subtest: deletes only the selected intent file (existing HEAD)
+ok 161 - deletes only the selected intent file (existing HEAD)
+  ---
+  duration_ms: 253.8345
+  type: 'test'
+  ...
+# Subtest: deletes only the selected untracked file (unborn HEAD)
+ok 162 - deletes only the selected untracked file (unborn HEAD)
+  ---
+  duration_ms: 171.098083
+  type: 'test'
+  ...
+# Subtest: deletes only the selected staged file (unborn HEAD)
+ok 163 - deletes only the selected staged file (unborn HEAD)
+  ---
+  duration_ms: 193.847416
+  type: 'test'
+  ...
+# Subtest: deletes only the selected mixed file (unborn HEAD)
+ok 164 - deletes only the selected mixed file (unborn HEAD)
+  ---
+  duration_ms: 181.8005
+  type: 'test'
+  ...
+# Subtest: deletes only the selected intent file (unborn HEAD)
+ok 165 - deletes only the selected intent file (unborn HEAD)
+  ---
+  duration_ms: 186.443875
+  type: 'test'
+  ...
+# Subtest: treats Git pathspec magic, leading dashes and backslashes literally
+ok 166 - treats Git pathspec magic, leading dashes and backslashes literally
+  ---
+  duration_ms: 567.246333
+  type: 'test'
+  ...
+# Subtest: rejects directories, submodules, tracked files, traversal and symlinked parents
+ok 167 - rejects directories, submodules, tracked files, traversal and symlinked parents
+  ---
+  duration_ms: 175.402042
+  type: 'test'
+  ...
+# Subtest: unlinks a symlink without touching its outside target or empty parent directory
+ok 168 - unlinks a symlink without touching its outside target or empty parent directory
+  ---
+  duration_ms: 187.427792
+  type: 'test'
+  ...
+# Subtest: rejects confirmation after external content change
+ok 169 - rejects confirmation after external content change
+  ---
+  duration_ms: 144.262667
+  type: 'test'
+  ...
+# Subtest: rejects confirmation after external index change
+ok 170 - rejects confirmation after external index change
+  ---
+  duration_ms: 149.254417
+  type: 'test'
+  ...
+# Subtest: rejects confirmation after external committed change
+ok 171 - rejects confirmation after external committed change
+  ---
+  duration_ms: 146.805417
+  type: 'test'
+  ...
+# Subtest: rejects confirmation after external removed change
+ok 172 - rejects confirmation after external removed change
+  ---
+  duration_ms: 147.425666
+  type: 'test'
+  ...
+# Subtest: rejects confirmation after external directory change
+ok 173 - rejects confirmation after external directory change
+  ---
+  duration_ms: 154.747042
+  type: 'test'
+  ...
+# Subtest: rejects confirmation after external parent-symlink change
+ok 174 - rejects confirmation after external parent-symlink change
+  ---
+  duration_ms: 150.530125
+  type: 'test'
+  ...
+# Subtest: cleans staged additions already missing from disk after a fresh confirmation
+ok 175 - cleans staged additions already missing from disk after a fresh confirmation
+  ---
+  duration_ms: 133.792042
+  type: 'test'
+  ...
+# Subtest: reports partial completion on permission failure and permits a fresh retry
+ok 176 - reports partial completion on permission failure and permits a fresh retry
+  ---
+  duration_ms: 306.667416
+  type: 'test'
+  ...
+# Subtest: index lock failure leaves file and staged content intact
+ok 177 - index lock failure leaves file and staged content intact
+  ---
+  duration_ms: 175.347584
+  type: 'test'
+  ...
+# Subtest: a lost acknowledgement after clearing the index reports an unknown result
+ok 178 - a lost acknowledgement after clearing the index reports an unknown result
+  ---
+  duration_ms: 156.632333
+  type: 'test'
+  ...
+# Subtest: untracked directory contents and both sides of tracked mixed edits remain visible
+ok 179 - untracked directory contents and both sides of tracked mixed edits remain visible
+  ---
+  duration_ms: 77.670792
+  type: 'test'
+  ...
+# Subtest: deletes force-added ignored files even when they disappear from status after unstage
+ok 180 - deletes force-added ignored files even when they disappear from status after unstage
+  ---
+  duration_ms: 193.4185
+  type: 'test'
+  ...
+# Subtest: rejects renamed tracked files and preserves both the old and new paths in status
+ok 181 - rejects renamed tracked files and preserves both the old and new paths in status
+  ---
+  duration_ms: 91.949125
+  type: 'test'
+  ...
+# Subtest: preserves a file restaged by another writer after index cleanup
+ok 182 - preserves a file restaged by another writer after index cleanup
+  ---
+  duration_ms: 203.908417
+  type: 'test'
+  ...
+# Subtest: does not report success or remove a file recreated after unlink
+ok 183 - does not report success or remove a file recreated after unlink
+  ---
+  duration_ms: 209.098542
+  type: 'test'
+  ...
+# Subtest: local: hunk stage / unstage / discard preserve other hunks and both diff sides
+ok 184 - local: hunk stage / unstage / discard preserve other hunks and both diff sides
+  ---
+  duration_ms: 830.671417
+  type: 'test'
+  ...
+# Subtest: local: line selections, CRLF, no final newline and late external changes
+ok 185 - local: line selections, CRLF, no final newline and late external changes
+  ---
+  duration_ms: 4615.608042
+  type: 'test'
+  ...
+# Subtest: worktree: hunk stage / unstage / discard preserve other hunks and both diff sides
+ok 186 - worktree: hunk stage / unstage / discard preserve other hunks and both diff sides
+  ---
+  duration_ms: 970.108583
+  type: 'test'
+  ...
+# Subtest: worktree: line selections, CRLF, no final newline and late external changes
+ok 187 - worktree: line selections, CRLF, no final newline and late external changes
+  ---
+  duration_ms: 4916.533792
+  type: 'test'
+  ...
+# Subtest: ssh: hunk stage / unstage / discard preserve other hunks and both diff sides
+ok 188 - ssh: hunk stage / unstage / discard preserve other hunks and both diff sides
+  ---
+  duration_ms: 1469.43475
+  type: 'test'
+  ...
+# Subtest: ssh: line selections, CRLF, no final newline and late external changes
+ok 189 - ssh: line selections, CRLF, no final newline and late external changes
+  ---
+  duration_ms: 6732.506583
+  type: 'test'
+  ...
+# warning: in the working copy of 'tracked.txt', LF will be replaced by CRLF the next time Git touches it
+# Subtest: new indexed files, deleted files, staged renames and unborn HEAD
+ok 190 - new indexed files, deleted files, staged renames and unborn HEAD
+  ---
+  duration_ms: 2124.332833
+  type: 'test'
+  ...
+# Subtest: attributes normalize CRLF for index operations and preserve worktree CRLF on discard
+ok 191 - attributes normalize CRLF for index operations and preserve worktree CRLF on discard
+  ---
+  duration_ms: 894.182167
+  type: 'test'
+  ...
+# Subtest: rejects unsafe selection, missing confirmation, stale worktree/index/HEAD and late edits
+ok 192 - rejects unsafe selection, missing confirmation, stale worktree/index/HEAD and late edits
+  ---
+  duration_ms: 1155.47675
+  type: 'test'
+  ...
+# Subtest: untracked, binary, symlink and large files have explicit limitations; large text remains usable
+ok 193 - untracked, binary, symlink and large files have explicit limitations; large text remains usable
+  ---
+  duration_ms: 552.547458
+  type: 'test'
+  ...
+# Subtest: custom filters and ident conversion keep the ordinary preview but disable partial writes
+ok 194 - custom filters and ident conversion keep the ordinary preview but disable partial writes
+  ---
+  duration_ms: 170.16175
+  type: 'test'
+  ...
+# Subtest: preview reuses immutable blobs while still rejecting an index change between snapshots
+ok 195 - preview reuses immutable blobs while still rejecting an index change between snapshots
+  ---
+  duration_ms: 259.280458
+  type: 'test'
+  ...
+# Subtest: local: full-file line actions preserve untouched context and reject mismatched scope
+ok 196 - local: full-file line actions preserve untouched context and reject mismatched scope
+  ---
+  duration_ms: 923.040917
+  type: 'test'
+  ...
+# Subtest: worktree: full-file line actions preserve untouched context and reject mismatched scope
+ok 197 - worktree: full-file line actions preserve untouched context and reject mismatched scope
+  ---
+  duration_ms: 904.108625
+  type: 'test'
+  ...
+# Subtest: ssh: full-file line actions preserve untouched context and reject mismatched scope
+ok 198 - ssh: full-file line actions preserve untouched context and reject mismatched scope
+  ---
+  duration_ms: 1339.740333
+  type: 'test'
+  ...
+# Subtest: http: routes HTTP, credentials and proxy-side DNS; never sends proxy authorization to the origin
+ok 199 - http: routes HTTP, credentials and proxy-side DNS; never sends proxy authorization to the origin
+  ---
+  duration_ms: 114.188959
+  type: 'test'
+  ...
+# Subtest: socks5: routes HTTP, credentials and proxy-side DNS; never sends proxy authorization to the origin
+ok 200 - socks5: routes HTTP, credentials and proxy-side DNS; never sends proxy authorization to the origin
+  ---
+  duration_ms: 25.42425
+  type: 'test'
+  ...
+# Subtest: HTTPS proxies reject an untrusted certificate and closed proxies never fall back to direct
+ok 201 - HTTPS proxies reject an untrusted certificate and closed proxies never fall back to direct
+  ---
+  duration_ms: 24.581666
+  type: 'test'
+  ...
+# Subtest: bridge preserves old tunnels and uses saved changes for new requests
+ok 202 - bridge preserves old tunnels and uses saved changes for new requests
+  ---
+  duration_ms: 8.311209
+  type: 'test'
+  ...
+# Subtest: SSH connects through the proxy; forwarding, busy tasks, and disconnect cleanup are distinct
+ok 203 - SSH connects through the proxy; forwarding, busy tasks, and disconnect cleanup are distinct
+  ---
+  duration_ms: 378.107208
+  type: 'test'
+  ...
+# Subtest: denied forwarding leaves SSH usable and closes the listener
+ok 204 - denied forwarding leaves SSH usable and closes the listener
+  ---
+  duration_ms: 163.812583
+  type: 'test'
+  ...
+# Subtest: a wildcard-bound forward only relays connections that originate on the remote host
+ok 205 - a wildcard-bound forward only relays connections that originate on the remote host
+  ---
+  duration_ms: 85.922
+  type: 'test'
+  ...
+# Subtest: SSH ProxyCommand tunnels through nc
+ok 206 - SSH ProxyCommand tunnels through nc
+  ---
+  duration_ms: 49.571375
+  type: 'test'
+  ...
+# Subtest: SSH ProxyCommand tunnels through ncat
+ok 207 - SSH ProxyCommand tunnels through ncat # SKIP ncat unavailable
+  ---
+  duration_ms: 0.083875
+  type: 'test'
+  ...
+# Subtest: SSH ProxyCommand tunnels through connect
+ok 208 - SSH ProxyCommand tunnels through connect # SKIP connect unavailable
+  ---
+  duration_ms: 0.043875
+  type: 'test'
+  ...
+# Subtest: SSH ProxyCommand tunnels through socat
+ok 209 - SSH ProxyCommand tunnels through socat # SKIP socat unavailable
+  ---
+  duration_ms: 0.152667
+  type: 'test'
+  ...
+# Subtest: SSH ProxyCommand tunnels through python3
+ok 210 - SSH ProxyCommand tunnels through python3
+  ---
+  duration_ms: 229.259333
+  type: 'test'
+  ...
+# Subtest: SSH ProxyCommand explains which tools are missing
+ok 211 - SSH ProxyCommand explains which tools are missing
+  ---
+  duration_ms: 29.502709
+  type: 'test'
+  ...
+# Subtest: ProxyCommand avoids characters that ssh or fish would rewrite
+ok 212 - ProxyCommand avoids characters that ssh or fish would rewrite
+  ---
+  duration_ms: 0.283292
+  type: 'test'
+  ...
+# Subtest: loopback originators are recognised
+ok 213 - loopback originators are recognised
+  ---
+  duration_ms: 0.182125
+  type: 'test'
+  ...
+# Subtest: remote discovery reads real Git config from a quoted path and keeps fetch/push destinations separate
+ok 214 - remote discovery reads real Git config from a quoted path and keeps fetch/push destinations separate
+  ---
+  duration_ms: 123.2095
+  type: 'test'
+  ...
+# Subtest: remote discovery forwards command cancellation, output limits and Windows literal paths
+ok 215 - remote discovery forwards command cancellation, output limits and Windows literal paths
+  ---
+  duration_ms: 1.493084
+  type: 'test'
+  ...
+# Subtest: local remote discovery uses native Git with cancellation and bounded output
+ok 216 - local remote discovery uses native Git with cancellation and bounded output
+  ---
+  duration_ms: 0.494708
+  type: 'test'
+  ...
+# Preparing worktree (detached HEAD 8e3c336)
+# Subtest: local: real Git timestamps, UTC boundaries, empty HEAD, languages and detached HEAD
+ok 217 - local: real Git timestamps, UTC boundaries, empty HEAD, languages and detached HEAD
+  ---
+  duration_ms: 413.541
+  type: 'test'
+  ...
+# Preparing worktree (detached HEAD 8e3c336)
+# Subtest: ssh: real Git timestamps, UTC boundaries, empty HEAD, languages and detached HEAD
+ok 218 - ssh: real Git timestamps, UTC boundaries, empty HEAD, languages and detached HEAD
+  ---
+  duration_ms: 630.455958
+  type: 'test'
+  ...
+# Subtest: language excludes generated/vendor paths, deduplicates index conflict stages and resolves ties
+ok 219 - language excludes generated/vendor paths, deduplicates index conflict stages and resolves ties
+  ---
+  duration_ms: 7.765791
+  type: 'test'
+  ...
+# Subtest: missing repository, invalid day and aborted reads are errors, not empty histories
+ok 220 - missing repository, invalid day and aborted reads are errors, not empty histories
+  ---
+  duration_ms: 64.978125
+  type: 'test'
+  ...
+# Subtest: language failure retains activity and bounded logs explicitly mark truncation
+ok 221 - language failure retains activity and bounded logs explicitly mark truncation
+  ---
+  duration_ms: 17.247959
+  type: 'test'
+  ...
+# Subtest: previews wait for the file handle CLOSE reply before ending the SFTP channel
+ok 222 - previews wait for the file handle CLOSE reply before ending the SFTP channel
+  ---
+  duration_ms: 90.410708
+  type: 'test'
+  ...
+# Subtest: a file growing past the preview limit still closes its handle before returning
+ok 223 - a file growing past the preview limit still closes its handle before returning
+  ---
+  duration_ms: 102.988292
+  type: 'test'
+  ...
+# Subtest: channel closure during OPEN is an application error and another preview can succeed
+ok 224 - channel closure during OPEN is an application error and another preview can succeed
+  ---
+  duration_ms: 67.27525
+  type: 'test'
+  ...
+# Subtest: channel closure during READ is an application error and another preview can succeed
+ok 225 - channel closure during READ is an application error and another preview can succeed
+  ---
+  duration_ms: 51.999
+  type: 'test'
+  ...
+# Subtest: channel closure during CLOSE is an application error and another preview can succeed
+ok 226 - channel closure during CLOSE is an application error and another preview can succeed
+  ---
+  duration_ms: 43.961375
+  type: 'test'
+  ...
+# Subtest: switching between overlapping text and image previews drains all SFTP channels
+ok 227 - switching between overlapping text and image previews drains all SFTP channels
+  ---
+  duration_ms: 69.468834
+  type: 'test'
+  ...
+# Subtest: disconnecting during a preview rejects it and reconnecting restores browsing
+ok 228 - disconnecting during a preview rejects it and reconnecting restores browsing
+  ---
+  duration_ms: 54.310792
+  type: 'test'
+  ...
+# Subtest: a stalled read times out without a late exception and retry opens a usable channel
+ok 229 - a stalled read times out without a late exception and retry opens a usable channel
+  ---
+  duration_ms: 15064.685708
+  type: 'test'
+  ...
+# Subtest: directories list lazily with folders first, natural order, links and nested repositories
+ok 230 - directories list lazily with folders first, natural order, links and nested repositories
+  ---
+  duration_ms: 114.53925
+  type: 'test'
+  ...
+# Subtest: local: listings respect Git ignore rules, negations and tracked files
+ok 231 - local: listings respect Git ignore rules, negations and tracked files
+  ---
+  duration_ms: 71.621334
+  type: 'test'
+  ...
+# Subtest: ssh: listings respect Git ignore rules, negations and tracked files
+ok 232 - ssh: listings respect Git ignore rules, negations and tracked files
+  ---
+  duration_ms: 118.885541
+  type: 'test'
+  ...
+# Subtest: paths outside the worktree, into .git or through links are refused
+ok 233 - paths outside the worktree, into .git or through links are refused
+  ---
+  duration_ms: 30.230416
+  type: 'test'
+  ...
+# Subtest: previews text, images, binaries, encodings and size limits explicitly
+ok 234 - previews text, images, binaries, encodings and size limits explicitly
+  ---
+  duration_ms: 112.840792
+  type: 'test'
+  ...
+# Subtest: permission failures are reported without breaking sibling reads
+ok 235 - permission failures are reported without breaking sibling reads
+  ---
+  duration_ms: 20.706042
+  type: 'test'
+  ...
+# Subtest: very large directories are truncated with the real total
+ok 236 - very large directories are truncated with the real total
+  ---
+  duration_ms: 403.035458
+  type: 'test'
+  ...
+# Subtest: text decoding sniffs binaries like Git and keeps UTF-16 apart from NUL bytes
+ok 237 - text decoding sniffs binaries like Git and keeps UTF-16 apart from NUL bytes
+  ---
+  duration_ms: 0.263125
+  type: 'test'
+  ...
+# Good "git" signature for fixture@example.invalid with ED25519 key SHA256:xcJ4zGfSTQ4697xe6L/2158wCu2+YFT4aAs7k2FNDw0
+# Subtest: local: SSH signed commit/amend/tag, trust changes, tampering and failure integrity
+ok 238 - local: SSH signed commit/amend/tag, trust changes, tampering and failure integrity
+  ---
+  duration_ms: 939.832333
+  type: 'test'
+  ...
+# Subtest: local: real GPG signing, amend and tags
+ok 239 - local: real GPG signing, amend and tags # SKIP
+  ---
+  duration_ms: 0.103625
+  type: 'test'
+  ...
+# Good "git" signature for fixture@example.invalid with ED25519 key SHA256:Hmb6feklN0Lk5FnL3xLH06LeVqGE72ND4NH2+7Oihgw
+# Subtest: ssh: SSH signed commit/amend/tag, trust changes, tampering and failure integrity
+ok 240 - ssh: SSH signed commit/amend/tag, trust changes, tampering and failure integrity
+  ---
+  duration_ms: 1159.901708
+  type: 'test'
+  ...
+# Subtest: ssh: real GPG signing, amend and tags
+ok 241 - ssh: real GPG signing, amend and tags # SKIP
+  ---
+  duration_ms: 0.098
+  type: 'test'
+  ...
+# Subtest: validate inputs before executing Git and retain all Git verification states
+ok 242 - validate inputs before executing Git and retain all Git verification states
+  ---
+  duration_ms: 0.560709
+  type: 'test'
+  ...
+# Subtest: empty signing key removes only the local override, malformed config is reported
+ok 243 - empty signing key removes only the local override, malformed config is reported
+  ---
+  duration_ms: 108.317416
+  type: 'test'
+  ...
+# Subtest: invalid signing config waits for every in-flight Git read before rejecting
+ok 244 - invalid signing config waits for every in-flight Git read before rejecting
+  ---
+  duration_ms: 0.79125
+  type: 'test'
+  ...
+# Subtest: headless GPG pinentry failure gives advice and preserves HEAD/index
+ok 245 - headless GPG pinentry failure gives advice and preserves HEAD/index
+  ---
+  duration_ms: 396.634292
+  type: 'test'
+  ...
+# Subtest: reads only staged data with existing HEAD
+ok 246 - reads only staged data with existing HEAD
+  ---
+  duration_ms: 125.889375
+  type: 'test'
+  ...
+# Subtest: reads only staged data with unborn HEAD
+ok 247 - reads only staged data with unborn HEAD
+  ---
+  duration_ms: 98.639625
+  type: 'test'
+  ...
+# Subtest: binary metadata, empty index, excessive diff and cancellation have explicit behavior
+ok 248 - binary metadata, empty index, excessive diff and cancellation have explicit behavior
+  ---
+  duration_ms: 146.271417
+  type: 'test'
+  ...
+# Subtest: changed index during snapshot capture is discarded
+ok 249 - changed index during snapshot capture is discarded
+  ---
+  duration_ms: 100.040792
+  type: 'test'
+  ...
+# Subtest: commits quotes, literal shell expressions and actual newlines without expansion
+ok 250 - commits quotes, literal shell expressions and actual newlines without expansion
+  ---
+  duration_ms: 91.95375
+  type: 'test'
+  ...
+# Subtest: UTF-8 paths remain exact when SSH splits a character across chunks
+ok 251 - UTF-8 paths remain exact when SSH splits a character across chunks
+  ---
+  duration_ms: 1.554334
+  type: 'test'
+  ...
+# Subtest: a cancelled status closes only its channel; other repository commands still complete
+ok 252 - a cancelled status closes only its channel; other repository commands still complete
+  ---
+  duration_ms: 0.701375
+  type: 'test'
+  ...
+# Subtest: bounded commands close only their own channel and count stderr against the limit
+ok 253 - bounded commands close only their own channel and count stderr against the limit
+  ---
+  duration_ms: 0.144209
+  type: 'test'
+  ...
+# Subtest: UTF-8 survives split SSH packets and invalid text can be rejected for previews
+ok 254 - UTF-8 survives split SSH packets and invalid text can be rejected for previews
+  ---
+  duration_ms: 0.24075
+  type: 'test'
+  ...
+# Subtest: a channel opened after cancellation is immediately closed
+ok 255 - a channel opened after cancellation is immediately closed
+  ---
+  duration_ms: 0.258125
+  type: 'test'
+  ...
+# Subtest: stream errors fail the request and an already aborted signal never starts a command
+ok 256 - stream errors fail the request and an already aborted signal never starts a command
+  ---
+  duration_ms: 0.256833
+  type: 'test'
+  ...
+# Subtest: only explicit foreground status permits saving refreshed index metadata
+ok 257 - only explicit foreground status permits saving refreshed index metadata
+  ---
+  duration_ms: 0.489208
+  type: 'test'
+  ...
+# Subtest: strict LFS pointer parsing does not reinterpret ordinary text
+ok 258 - strict LFS pointer parsing does not reinterpret ordinary text
+  ---
+  duration_ms: 12.653292
+  type: 'test'
+  ...
+# Subtest: local: LFS detection excludes ignored untracked files but retains tracked ones
+ok 259 - local: LFS detection excludes ignored untracked files but retains tracked ones
+  ---
+  duration_ms: 56.433083
+  type: 'test'
+  ...
+# Subtest: local: nested submodule initialization, state, summaries, sync and open validation
+ok 260 - local: nested submodule initialization, state, summaries, sync and open validation
+  ---
+  duration_ms: 1232.357167
+  type: 'test'
+  ...
+# Subtest: local: absent git-lfs, cached images, OID verification and historical versions
+ok 261 - local: absent git-lfs, cached images, OID verification and historical versions
+  ---
+  duration_ms: 230.922125
+  type: 'test'
+  ...
+# Subtest: local: missing required LFS filter leaves status and ordinary file diffs usable
+ok 262 - local: missing required LFS filter leaves status and ordinary file diffs usable
+  ---
+  duration_ms: 98.849125
+  type: 'test'
+  ...
+# Subtest: local: actual git-lfs commit, push, clone, pull and image preview
+ok 263 - local: actual git-lfs commit, push, clone, pull and image preview
+  ---
+  duration_ms: 1618.330917
+  type: 'test'
+  ...
+# Subtest: ssh: LFS detection excludes ignored untracked files but retains tracked ones
+ok 264 - ssh: LFS detection excludes ignored untracked files but retains tracked ones
+  ---
+  duration_ms: 79.2855
+  type: 'test'
+  ...
+# Subtest: ssh: nested submodule initialization, state, summaries, sync and open validation
+ok 265 - ssh: nested submodule initialization, state, summaries, sync and open validation
+  ---
+  duration_ms: 1369.026459
+  type: 'test'
+  ...
+# Subtest: ssh: absent git-lfs, cached images, OID verification and historical versions
+ok 266 - ssh: absent git-lfs, cached images, OID verification and historical versions
+  ---
+  duration_ms: 358.848584
+  type: 'test'
+  ...
+# Subtest: ssh: missing required LFS filter leaves status and ordinary file diffs usable
+ok 267 - ssh: missing required LFS filter leaves status and ordinary file diffs usable
+  ---
+  duration_ms: 102.655542
+  type: 'test'
+  ...
+# Subtest: ssh: actual git-lfs commit, push, clone, pull and image preview
+ok 268 - ssh: actual git-lfs commit, push, clone, pull and image preview
+  ---
+  duration_ms: 1781.314166
+  type: 'test'
+  ...
+# Subtest: local: real Git tag create, history, single/all push, checkout and confirmed deletion
+ok 269 - local: real Git tag create, history, single/all push, checkout and confirmed deletion
+  ---
+  duration_ms: 834.578542
+  type: 'test'
+  ...
+# Subtest: worktree: real Git tag create, history, single/all push, checkout and confirmed deletion
+ok 270 - worktree: real Git tag create, history, single/all push, checkout and confirmed deletion
+  ---
+  duration_ms: 850.348625
+  type: 'test'
+  ...
+# Subtest: ssh: real Git tag create, history, single/all push, checkout and confirmed deletion
+ok 271 - ssh: real Git tag create, history, single/all push, checkout and confirmed deletion
+  ---
+  duration_ms: 1088.106584
+  type: 'test'
+  ...
+# Subtest: ssh-worktree: real Git tag create, history, single/all push, checkout and confirmed deletion
+ok 272 - ssh-worktree: real Git tag create, history, single/all push, checkout and confirmed deletion
+  ---
+  duration_ms: 1177.706417
+  type: 'test'
+  ...
+# To /var/folders/04/5tbfvcls5tjfgwsg7hvxmz940000gn/T/alune-delete-HbBYyf/push.git
+#  + 4aa47ed...0380b48 v1 -> v1 (forced update)
+# Subtest: changed references, different push URLs, rejection and offline reads preserve local tags
+ok 273 - changed references, different push URLs, rejection and offline reads preserve local tags
+  ---
+  duration_ms: 558.9855
+  type: 'test'
+  ...
+# Subtest: unborn repositories stay empty; non-commit tags stay visible and cannot be checked out
+ok 274 - unborn repositories stay empty; non-commit tags stay visible and cannot be checked out
+  ---
+  duration_ms: 91.332333
+  type: 'test'
+  ...
+# Subtest: Windows SSH checks and opens a PTY without POSIX commands: D:\\workspace\\mt_business_daemon
+ok 275 - Windows SSH checks and opens a PTY without POSIX commands: D:\\workspace\\mt_business_daemon
+  ---
+  duration_ms: 1.559792
+  type: 'test'
+  ...
+# Subtest: Windows SSH checks and opens a PTY without POSIX commands: D:/工作区/[repo] ' ; $variable & %TEMP%
+ok 276 - Windows SSH checks and opens a PTY without POSIX commands: D:/工作区/[repo] ' ; $variable & %TEMP%
+  ---
+  duration_ms: 0.273292
+  type: 'test'
+  ...
+# Subtest: Windows SSH checks and opens a PTY without POSIX commands: /D:/workspace/repo
+ok 277 - Windows SSH checks and opens a PTY without POSIX commands: /D:/workspace/repo
+  ---
+  duration_ms: 0.2095
+  type: 'test'
+  ...
+# Subtest: Windows SSH checks and opens a PTY without POSIX commands: \\\\server\\share\\repo
+ok 278 - Windows SSH checks and opens a PTY without POSIX commands: \\\\server\\share\\repo
+  ---
+  duration_ms: 0.1505
+  type: 'test'
+  ...
+# Subtest: Windows SSH checks and opens a PTY without POSIX commands: //server/share/repo
+ok 279 - Windows SSH checks and opens a PTY without POSIX commands: //server/share/repo
+  ---
+  duration_ms: 0.303167
+  type: 'test'
+  ...
+# Subtest: invalid paths and failed or cancelled checks never start a PTY
+ok 280 - invalid paths and failed or cancelled checks never start a PTY
+  ---
+  duration_ms: 1.101167
+  type: 'test'
+  ...
+# Subtest: POSIX commands preserve literal paths, interactive input and exit status
+ok 281 - POSIX commands preserve literal paths, interactive input and exit status
+  ---
+  duration_ms: 38.751667
+  type: 'test'
+  ...
+# Subtest: workspace file actions preserve index and target only the requested file (local)
+ok 282 - workspace file actions preserve index and target only the requested file (local)
+  ---
+  duration_ms: 1229.995708
+  type: 'test'
+  ...
+# Subtest: workspace file actions preserve index and target only the requested file (SSH/SFTP)
+ok 283 - workspace file actions preserve index and target only the requested file (SSH/SFTP)
+  ---
+  duration_ms: 2000.599292
+  type: 'test'
+  ...
+# Subtest: rejects stale confirmations, overwrite, unsafe boundaries and invalid names
+ok 284 - rejects stale confirmations, overwrite, unsafe boundaries and invalid names
+  ---
+  duration_ms: 302.774417
+  type: 'test'
+  ...
+# Subtest: uses the selected Worktree root and refuses races creating the destination
+ok 285 - uses the selected Worktree root and refuses races creating the destination
+  ---
+  duration_ms: 223.985
+  type: 'test'
+  ...
+# Subtest: reports permission failures and lost connection without success
+ok 286 - reports permission failures and lost connection without success
+  ---
+  duration_ms: 170.526625
+  type: 'test'
+  ...
+# Subtest: rejects files inside uninitialized gitlinks and edits with unchanged size/mtime
+ok 287 - rejects files inside uninitialized gitlinks and edits with unchanged size/mtime
+  ---
+  duration_ms: 144.976625
+  type: 'test'
+  ...
+# Subtest: does not report success when the connection fails after unlink
+ok 288 - does not report success when the connection fails after unlink
+  ---
+  duration_ms: 106.377375
+  type: 'test'
+  ...
+# Subtest: reports all possible paths when case-only rename loses its completion acknowledgement
+ok 289 - reports all possible paths when case-only rename loses its completion acknowledgement
+  ---
+  duration_ms: 136.308417
+  type: 'test'
+  ...
+# Subtest: SFTP drive paths become native Git paths without rewriting POSIX or UNC paths
+ok 290 - SFTP drive paths become native Git paths without rewriting POSIX or UNC paths
+  ---
+  duration_ms: 0.694833
+  type: 'test'
+  ...
+# Subtest: NUL records preserve literal paths, optional reasons, bare and detached states
+ok 291 - NUL records preserve literal paths, optional reasons, bare and detached states
+  ---
+  duration_ms: 0.463458
+  type: 'test'
+  ...
+# Subtest: real SSH discovers siblings and isolates staged, unstaged, untracked diffs and writes
+ok 292 - real SSH discovers siblings and isolates staged, unstaged, untracked diffs and writes
+  ---
+  duration_ms: 1026.069542
+  type: 'test'
+  ...
+# Subtest: removed/replaced directories never fall back to a containing or unrelated repository
+ok 293 - removed/replaced directories never fall back to a containing or unrelated repository
+  ---
+  duration_ms: 397.31
+  type: 'test'
+  ...
+# Subtest: a sole worktree is current, subdirectories/aliases resolve, and read failures remain failures
+ok 294 - a sole worktree is current, subdirectories/aliases resolve, and read failures remain failures
+  ---
+  duration_ms: 162.627667
+  type: 'test'
+  ...
+# Subtest: host passwords are encrypted and bound to both profile and destination
+ok 295 - host passwords are encrypted and bound to both profile and destination
+  ---
+  duration_ms: 106.598
+  type: 'test'
+  ...
+# Subtest: key passphrases require explicit replacement for another key path and host deletion preserves repository references
+ok 296 - key passphrases require explicit replacement for another key path and host deletion preserves repository references
+  ---
+  duration_ms: 34.69225
+  type: 'test'
+  ...
+# Subtest: legacy-import CLI supports standalone source keys and duplicate execution reports the existing receipt
+ok 297 - legacy-import CLI supports standalone source keys and duplicate execution reports the existing receipt
+  ---
+  duration_ms: 373.141875
+  type: 'test'
+  ...
+# Subtest: desktop safeStorage migration uses only the dedicated inherited IPC channel and exact ciphertext allowlist
+ok 298 - desktop safeStorage migration uses only the dedicated inherited IPC channel and exact ciphertext allowlist
+  ---
+  duration_ms: 344.892542
+  type: 'test'
+  ...
+# Subtest: loss of the trusted old host cancels private import without partial business data
+ok 299 - loss of the trusted old host cancels private import without partial business data
+  ---
+  duration_ms: 211.846459
+  type: 'test'
+  ...
+# Subtest: legacy import preserves IDs, all credentials, UI references and Git content without modifying its source
+ok 300 - legacy import preserves IDs, all credentials, UI references and Git content without modifying its source
+  ---
+  duration_ms: 231.920584
+  type: 'test'
+  ...
+# Subtest: corrupt JSON, missing source key and pre-cancel never replace old data or partially import
+ok 301 - corrupt JSON, missing source key and pre-cancel never replace old data or partially import
+  ---
+  duration_ms: 132.258083
+  type: 'test'
+  ...
+# Subtest: safeStorage values require an explicit private decryptor and an interrupted import stays atomic
+ok 302 - safeStorage values require an explicit private decryptor and an interrupted import stays atomic
+  ---
+  duration_ms: 157.021959
+  type: 'test'
+  ...
+# Subtest: a target with existing configuration cannot be overwritten by legacy import
+ok 303 - a target with existing configuration cannot be overwritten by legacy import
+  ---
+  duration_ms: 81.19775
+  type: 'test'
+  ...
+# Subtest: an importer process crash inside the target transaction leaves no partial rows and can resume explicitly
+ok 304 - an importer process crash inside the target transaction leaves no partial rows and can resume explicitly
+  ---
+  duration_ms: 198.183584
+  type: 'test'
+  ...
+# Subtest: source changes while credentials are decrypted abort import before business writes
+ok 305 - source changes while credentials are decrypted abort import before business writes
+  ---
+  duration_ms: 93.576041
+  type: 'test'
+  ...
+# Subtest: future source versions and unsupported columns are retained instead of partially imported
+ok 306 - future source versions and unsupported columns are retained instead of partially imported
+  ---
+  duration_ms: 93.359291
+  type: 'test'
+  ...
+# Subtest: legacy imports read existing AES credentials without creating or replacing source keys
+ok 307 - legacy imports read existing AES credentials without creating or replacing source keys
+  ---
+  duration_ms: 12.737083
+  type: 'test'
+  ...
+# Subtest: Agent file cipher uses a separate key and an explicit create decision
+ok 308 - Agent file cipher uses a separate key and an explicit create decision
+  ---
+  duration_ms: 12.276166
+  type: 'test'
+  ...
+# Subtest: checked desktop import source never creates a missing key or repairs unsafe permissions
+ok 309 - checked desktop import source never creates a missing key or repairs unsafe permissions
+  ---
+  duration_ms: 12.197291
+  type: 'test'
+  ...
+# Subtest: diagnostics never expose ciphertext or master material and keep valid JSON values
+ok 310 - diagnostics never expose ciphertext or master material and keep valid JSON values
+  ---
+  duration_ms: 2.730333
+  type: 'test'
+  ...
+# Subtest: the real disk log and live listener receive only redacted entries
+ok 311 - the real disk log and live listener receive only redacted entries
+  ---
+  duration_ms: 3.234333
+  type: 'test'
+  ...
+# Subtest: older on-disk entries are redacted again before being returned to a client
+ok 312 - older on-disk entries are redacted again before being returned to a client
+  ---
+  duration_ms: 1.490917
+  type: 'test'
+  ...
+# Subtest: versioned Agent ciphertext is removed from free-form messages
+ok 313 - versioned Agent ciphertext is removed from free-form messages
+  ---
+  duration_ms: 0.099209
+  type: 'test'
+  ...
+# Subtest: native file port bounds reads and closes cancelled reads before returning
+ok 314 - native file port bounds reads and closes cancelled reads before returning
+  ---
+  duration_ms: 6.513375
+  type: 'test'
+  ...
+# Subtest: explicit fetch and updater bridge fail closed when proxy authentication fails
+ok 315 - explicit fetch and updater bridge fail closed when proxy authentication fails
+  ---
+  duration_ms: 134.777834
+  type: 'test'
+  ...
+# Subtest: Agent updater port is scoped to its host and closes with the owning process
+ok 316 - Agent updater port is scoped to its host and closes with the owning process
+  ---
+  duration_ms: 157.954458
+  type: 'test'
+  ...
+# Subtest: macOS Keychain holds an immutable master key across child processes and fails closed while locked
+ok 317 - macOS Keychain holds an immutable master key across child processes and fails closed while locked
+  ---
+  duration_ms: 442.883125
+  type: 'test'
+  ...
+# Subtest: Windows DPAPI protects material for the current user and binds it to scope
+ok 318 - Windows DPAPI protects material for the current user and binds it to scope # SKIP
+  ---
+  duration_ms: 0.147959
+  type: 'test'
+  ...
+# Subtest: headless CLI selects its platform protection without a desktop process
+ok 319 - headless CLI selects its platform protection without a desktop process # SKIP
+  ---
+  duration_ms: 0.304875
+  type: 'test'
+  ...
+# Subtest: in-flight input budget rejects excess before execution and async validators cannot bypass it
+ok 320 - in-flight input budget rejects excess before execution and async validators cannot bypass it
+  ---
+  duration_ms: 315.497209
+  type: 'test'
+  ...
+# Subtest: standalone CLI handshake, identity persistence, core methods and EOF cleanup
+ok 321 - standalone CLI handshake, identity persistence, core methods and EOF cleanup
+  ---
+  duration_ms: 202.938958
+  type: 'test'
+  ...
+# Subtest: out-of-order responses, validation and cancellation races use real stdio
+ok 322 - out-of-order responses, validation and cancellation races use real stdio
+  ---
+  duration_ms: 200.280708
+  type: 'test'
+  ...
+# Subtest: disconnect after mutation is unknown and never replayed; cancellation does not undo a write
+ok 323 - disconnect after mutation is unknown and never replayed; cancellation does not undo a write
+  ---
+  duration_ms: 94.9005
+  type: 'test'
+  ...
+# Subtest: reliable output awaits consumer ACK and state overflow requests resync
+ok 324 - reliable output awaits consumer ACK and state overflow requests resync
+  ---
+  duration_ms: 112.879042
+  type: 'test'
+  ...
+# Subtest: EOF aborts running tasks and invokes resource disposal
+ok 325 - EOF aborts running tasks and invokes resource disposal
+  ---
+  duration_ms: 48.436292
+  type: 'test'
+  ...
+# Subtest: duplicate request IDs cannot execute a mutation twice
+ok 326 - duplicate request IDs cannot execute a mutation twice
+  ---
+  duration_ms: 50.949625
+  type: 'test'
+  ...
+# Subtest: doctor performs real Node ABI SQLite and PTY checks
+ok 327 - doctor performs real Node ABI SQLite and PTY checks
+  ---
+  duration_ms: 128.839417
+  type: 'test'
+  ...
+# Subtest: timed-out request ID can be reconciled within its session without replay
+ok 328 - timed-out request ID can be reconciled within its session without replay
+  ---
+  duration_ms: 163.282833
+  type: 'test'
+  ...
+# Subtest: real process rejects pre-init, incompatible versions, unknown methods and bad core params
+ok 329 - real process rejects pre-init, incompatible versions, unknown methods and bad core params
+  ---
+  duration_ms: 156.039625
+  type: 'test'
+  ...
+# Subtest: truncated input ends the process instead of keeping a half-open session
+ok 330 - truncated input ends the process instead of keeping a half-open session
+  ---
+  duration_ms: 115.554709
+  type: 'test'
+  ...
+# Subtest: late cancellation and session close never abort an already completed mutation
+ok 331 - late cancellation and session close never abort an already completed mutation
+  ---
+  duration_ms: 44.831417
+  type: 'test'
+  ...
+# Subtest: long-lived sessions do not accumulate IDs or impose a 4096-request disconnect
+ok 332 - long-lived sessions do not accumulate IDs or impose a 4096-request disconnect
+  ---
+  duration_ms: 374.445542
+  type: 'test'
+  ...
+# Subtest: control queries and cancellation remain available when business concurrency is full
+ok 333 - control queries and cancellation remain available when business concurrency is full
+  ---
+  duration_ms: 55.234125
+  type: 'test'
+  ...
+# Subtest: protected credentials survive reopen and authenticate ciphertext; closed stores cannot access keys
+ok 334 - protected credentials survive reopen and authenticate ciphertext; closed stores cannot access keys
+  ---
+  duration_ms: 43.674666
+  type: 'test'
+  ...
+# Subtest: ready credentials never regenerate missing, truncated or mismatched keys
+ok 335 - ready credentials never regenerate missing, truncated or mismatched keys
+  ---
+  duration_ms: 44.8805
+  type: 'test'
+  ...
+# Subtest: interrupted initialization resumes the persisted key intent without replacing the key
+ok 336 - interrupted initialization resumes the persisted key intent without replacing the key
+  ---
+  duration_ms: 33.375375
+  type: 'test'
+  ...
+# Subtest: missing or corrupt descriptors and fixed backend mismatches fail without overwriting state
+ok 337 - missing or corrupt descriptors and fixed backend mismatches fail without overwriting state
+  ---
+  duration_ms: 36.634041
+  type: 'test'
+  ...
+# Subtest: credential ciphertext is bound to the Agent identity even with identical master bytes
+ok 338 - credential ciphertext is bound to the Agent identity even with identical master bytes
+  ---
+  duration_ms: 32.945084
+  type: 'test'
+  ...
+# Subtest: credential key paths reject links and cancellation leaves no initialized descriptor
+ok 339 - credential key paths reject links and cancellation leaves no initialized descriptor
+  ---
+  duration_ms: 39.155875
+  type: 'test'
+  ...
+# Subtest: minor 0 keeps core methods but cannot invoke minor 1 state handlers or receive unknown error kinds
+ok 340 - minor 0 keeps core methods but cannot invoke minor 1 state handlers or receive unknown error kinds
+  ---
+  duration_ms: 3.190209
+  type: 'test'
+  ...
+# Subtest: recovery CLI reads passphrases only from stdin and restores identity and public state
+ok 341 - recovery CLI reads passphrases only from stdin and restores identity and public state
+  ---
+  duration_ms: 679.778375
+  type: 'test'
+  ...
+# Subtest: native credential recovery creates a fresh local protection record after the original is lost or damaged
+ok 342 - native credential recovery creates a fresh local protection record after the original is lost or damaged
+  ---
+  duration_ms: 792.549542
+  type: 'test'
+  ...
+# Subtest: encrypted recovery restores identity, database and every credential after original keys and identity are lost
+ok 343 - encrypted recovery restores identity, database and every credential after original keys and identity are lost
+  ---
+  duration_ms: 381.796584
+  type: 'test'
+  ...
+# Subtest: wrong passphrases, tampering and cancellation cannot publish recovery state
+ok 344 - wrong passphrases, tampering and cancellation cannot publish recovery state
+  ---
+  duration_ms: 371.347541
+  type: 'test'
+  ...
+# Subtest: full recovery respects writer ownership and refuses a different Agent identity
+ok 345 - full recovery respects writer ownership and refuses a different Agent identity
+  ---
+  duration_ms: 345.815791
+  type: 'test'
+  ...
+# Subtest: a relayed file write blocks host removal until its terminal reply, without replay
+ok 346 - a relayed file write blocks host removal until its terminal reply, without replay
+  ---
+  duration_ms: 38.132167
+  type: 'test'
+  ...
+# Subtest: desktop pins gate SSH downloads: no download on reconnect, redirect allowlist, checksum before upload
+ok 347 - desktop pins gate SSH downloads: no download on reconnect, redirect allowlist, checksum before upload
+  ---
+  duration_ms: 21.806875
+  type: 'test'
+  ...
+# Subtest: repository RPC reads real Git and native files, preserves index and returns bounded snapshots
+ok 348 - repository RPC reads real Git and native files, preserves index and returns bounded snapshots
+  ---
+  duration_ms: 1475.394083
+  type: 'test'
+  ...
+# Subtest: coalesced status cancellation has separate owners; invalidation rejects stale work
+ok 349 - coalesced status cancellation has separate owners; invalidation rejects stale work
+  ---
+  duration_ms: 2.081291
+  type: 'test'
+  ...
+# Subtest: completed native reads invalidated before delivery identify the exact resource
+ok 350 - completed native reads invalidated before delivery identify the exact resource
+  ---
+  duration_ms: 275.363292
+  type: 'test'
+  ...
+# Subtest: frozen pre-P3 implementation matches Agent query results on an isolated repository
+ok 351 - frozen pre-P3 implementation matches Agent query results on an isolated repository # SKIP
+  ---
+  duration_ms: 0.178709
+  type: 'test'
+  ...
+# Subtest: offline repository reads do not unlock or repair missing unrelated credentials
+ok 352 - offline repository reads do not unlock or repair missing unrelated credentials
+  ---
+  duration_ms: 413.674375
+  type: 'test'
+  ...
+# Subtest: metadata stays offline in promisor repositories while object reads retain proxy failure boundaries
+ok 353 - metadata stays offline in promisor repositories while object reads retain proxy failure boundaries
+  ---
+  duration_ms: 209.825
+  type: 'test'
+  ...
+# Subtest: analytics retains cached failure markers and invalidation cannot resurrect old data
+ok 354 - analytics retains cached failure markers and invalidation cannot resurrect old data
+  ---
+  duration_ms: 1.24525
+  type: 'test'
+  ...
+# Subtest: disabled proxy hint is read per command and never retained after configuration changes
+ok 355 - disabled proxy hint is read per command and never retained after configuration changes
+  ---
+  duration_ms: 146.741333
+  type: 'test'
+  ...
+# Subtest: diff revisions cannot turn a read into Git output-file writes
+ok 356 - diff revisions cannot turn a read into Git output-file writes
+  ---
+  duration_ms: 318.883834
+  type: 'test'
+  ...
+# Subtest: Agent checks file bytes, index and shared refs and never replays a committed operation after restart
+ok 357 - Agent checks file bytes, index and shared refs and never replays a committed operation after restart
+  ---
+  duration_ms: 2116.49475
+  type: 'test'
+  ...
+# Subtest: file operations protect staged bytes, stale previews, literal paths, and confirmation scope
+ok 358 - file operations protect staged bytes, stale previews, literal paths, and confirmation scope
+  ---
+  duration_ms: 3091.860666
+  type: 'test'
+  ...
+# Subtest: Agent drives refs, stash, remote pushes, linked worktree catalog and conflict recovery with real Git
+ok 359 - Agent drives refs, stash, remote pushes, linked worktree catalog and conflict recovery with real Git
+  ---
+  duration_ms: 6136.234709
+  type: 'test'
+  ...
+# Subtest: shared worktree lock rejects another writer; cancellation targets its operation ID and durable outcome
+ok 360 - shared worktree lock rejects another writer; cancellation targets its operation ID and durable outcome
+  ---
+  duration_ms: 1258.884792
+  type: 'test'
+  ...
+# Subtest: interactive rebase rechecks its preview; detached checkout, reword, and reset preserve the requested history
+ok 361 - interactive rebase rechecks its preview; detached checkout, reword, and reset preserve the requested history
+  ---
+  duration_ms: 2129.778
+  type: 'test'
+  ...
+# Subtest: disconnect during a real commit hook leaves a queryable unknown receipt and cannot replay
+ok 362 - disconnect during a real commit hook leaves a queryable unknown receipt and cannot replay
+  ---
+  duration_ms: 1149.358583
+  type: 'test'
+  ...
+# Subtest: settings RPC persists revisions, encrypts credentials and exposes no credential read capability
+ok 363 - settings RPC persists revisions, encrypts credentials and exposes no credential read capability
+  ---
+  duration_ms: 250.739833
+  type: 'test'
+  ...
+# Subtest: missing credential keys leave settings readable but reject replacement and preserve recovery material
+ok 364 - missing credential keys leave settings readable but reject replacement and preserve recovery material
+  ---
+  duration_ms: 317.038042
+  type: 'test'
+  ...
+# Subtest: named token RPC keeps IDs and revisions across restart, masks events, and rejects stale deletion
+ok 365 - named token RPC keeps IDs and revisions across restart, masks events, and rejects stale deletion
+  ---
+  duration_ms: 234.698209
+  type: 'test'
+  ...
+# Subtest: host profile RPC preserves stable identity and never returns connection passwords
+ok 366 - host profile RPC preserves stable identity and never returns connection passwords
+  ---
+  duration_ms: 251.674584
+  type: 'test'
+  ...
+# Subtest: closing an event subscriber after a completed write exits cleanly with its durable receipt intact
+ok 367 - closing an event subscriber after a completed write exits cleanly with its durable receipt intact
+  ---
+  duration_ms: 1364.870458
+  type: 'test'
+  ...
+# Subtest: AI settings persist through the document port and never expose or resurrect cleared credentials
+ok 368 - AI settings persist through the document port and never expose or resurrect cleared credentials
+  ---
+  duration_ms: 54.832209
+  type: 'test'
+  ...
+# Subtest: document CAS refreshes stale settings without replacing the newer revision
+ok 369 - document CAS refreshes stale settings without replacing the newer revision
+  ---
+  duration_ms: 36.483917
+  type: 'test'
+  ...
+# Subtest: proxy authentication remains bound to destination and failure never becomes direct access
+ok 370 - proxy authentication remains bound to destination and failure never becomes direct access
+  ---
+  duration_ms: 42.6235
+  type: 'test'
+  ...
+# Subtest: JSON null is damaged settings, distinct from an absent document
+ok 371 - JSON null is damaged settings, distinct from an absent document
+  ---
+  duration_ms: 36.683458
+  type: 'test'
+  ...
+# Subtest: malformed AI public data cannot be read or replaced through valid settings writes
+ok 372 - malformed AI public data cannot be read or replaced through valid settings writes
+  ---
+  duration_ms: 36.351833
+  type: 'test'
+  ...
+# Subtest: source key permission checks never repair or replace unsafe legacy keys
+ok 373 - source key permission checks never repair or replace unsafe legacy keys
+  ---
+  duration_ms: 4.357375
+  type: 'test'
+  ...
+# Subtest: CLI owns a single state writer and backup/restore preserve Agent identity
+ok 374 - CLI owns a single state writer and backup/restore preserve Agent identity
+  ---
+  duration_ms: 599.644708
+  type: 'test'
+  ...
+# Subtest: an existing state directory with a missing identity never gets a replacement UUID
+ok 375 - an existing state directory with a missing identity never gets a replacement UUID
+  ---
+  duration_ms: 591.006834
+  type: 'test'
+  ...
+# Subtest: state documents use revision CAS and resource IDs survive a restart
+ok 376 - state documents use revision CAS and resource IDs survive a restart
+  ---
+  duration_ms: 43.887917
+  type: 'test'
+  ...
+# Subtest: real process crash releases the writer and marks unfinished operations unknown
+ok 377 - real process crash releases the writer and marks unfinished operations unknown
+  ---
+  duration_ms: 86.168167
+  type: 'test'
+  ...
+# Subtest: backup/restore publishes a new generation, retains the previous data and never touches repository files
+ok 378 - backup/restore publishes a new generation, retains the previous data and never touches repository files
+  ---
+  duration_ms: 211.66825
+  type: 'test'
+  ...
+# Subtest: damaged database and pointer are retained and recover only through explicit validated restore
+ok 379 - damaged database and pointer are retained and recover only through explicit validated restore
+  ---
+  duration_ms: 116.551166
+  type: 'test'
+  ...
+# Subtest: empty active databases and unsupported schemas are not silently initialized
+ok 380 - empty active databases and unsupported schemas are not silently initialized
+  ---
+  duration_ms: 35.504375
+  type: 'test'
+  ...
+# Subtest: checksum mismatch and foreign identity cannot replace active state
+ok 381 - checksum mismatch and foreign identity cannot replace active state
+  ---
+  duration_ms: 43.174917
+  type: 'test'
+  ...
+# Subtest: backup cancellation cleans partial snapshots and repeated close waits for the same work
+ok 382 - backup cancellation cleans partial snapshots and repeated close waits for the same work
+  ---
+  duration_ms: 95.212125
+  type: 'test'
+  ...
+# Subtest: private state permissions are real POSIX modes or a protected Windows DACL
+ok 383 - private state permissions are real POSIX modes or a protected Windows DACL
+  ---
+  duration_ms: 31.58525
+  type: 'test'
+  ...
+# Subtest: directory junctions and hardlinked databases cannot escape private state ownership
+ok 384 - directory junctions and hardlinked databases cannot escape private state ownership
+  ---
+  duration_ms: 33.418375
+  type: 'test'
+  ...
+# Subtest: normal status resolves the real Git directory without rev-parse and preserves merge state and index bytes
+ok 385 - normal status resolves the real Git directory without rev-parse and preserves merge state and index bytes
+  ---
+  duration_ms: 205.552959
+  type: 'test'
+  ...
+# Subtest: linked worktree gitfiles use actual Git resolution and retain linked ownership
+ok 386 - linked worktree gitfiles use actual Git resolution and retain linked ownership
+  ---
+  duration_ms: 134.787958
+  type: 'test'
+  ...
+# Subtest: directory resolution is fresh per read, falls back for symlinks and rejects after close
+ok 387 - directory resolution is fresh per read, falls back for symlinks and rejects after close
+  ---
+  duration_ms: 83.949292
+  type: 'test'
+  ...
+# Subtest: mutation receipts survive process restart without storing parameters or operation results
+ok 388 - mutation receipts survive process restart without storing parameters or operation results
+  ---
+  duration_ms: 245.754333
+  type: 'test'
+  ...
+# Subtest: crashed mutations become unknown and an identical request is never executed again
+ok 389 - crashed mutations become unknown and an identical request is never executed again
+  ---
+  duration_ms: 298.2025
+  type: 'test'
+  ...
+# Subtest: failed durable finalization is immediately reported as unknown instead of stale running state
+ok 390 - failed durable finalization is immediately reported as unknown instead of stale running state
+  ---
+  duration_ms: 2.524792
+  type: 'test'
+  ...
+# Subtest: real stdio PTYs: cwd, independent parser ACKs, input, resize, confirmation and exit
+ok 391 - real stdio PTYs: cwd, independent parser ACKs, input, resize, confirmation and exit
+  ---
+  duration_ms: 352.717334
+  type: 'test'
+  ...
+# Subtest: foreground process is reaped after stdio EOF; restart cannot recover its session
+ok 392 - foreground process is reaped after stdio EOF; restart cannot recover its session
+  ---
+  duration_ms: 364.324208
+  type: 'test'
+  ...
+# Subtest: foreground process is reaped after abrupt Agent death; restart cannot recover its session
+ok 393 - foreground process is reaped after abrupt Agent death; restart cannot recover its session
+  ---
+  duration_ms: 351.701125
+  type: 'test'
+  ...
+# Subtest: UI IPC preserves escaped Unicode data across bounded repository chunks
+ok 394 - UI IPC preserves escaped Unicode data across bounded repository chunks
+  ---
+  duration_ms: 211.517542
+  type: 'test'
+  ...
+# Subtest: two windows share committed state, not terminal ownership, request IDs or native authority
+ok 395 - two windows share committed state, not terminal ownership, request IDs or native authority
+  ---
+  duration_ms: 531.237875
+  type: 'test'
+  ...
+# Subtest: a fresh channel restarts a crashed UI host without changing owner or replaying its writes
+ok 396 - a fresh channel restarts a crashed UI host without changing owner or replaying its writes
+  ---
+  duration_ms: 333.590291
+  type: 'test'
+  ...
+1..396
+# tests 398
+# suites 0
+# pass 388
+# fail 0
+# cancelled 0
+# skipped 10
+# todo 0
+# duration_ms 102649.895083

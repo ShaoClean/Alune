@@ -1,0 +1,550 @@
+TAP version 13
+# Subtest: same-frame navigation invalidates a pending open before the replacement document opens
+ok 1 - same-frame navigation invalidates a pending open before the replacement document opens
+  ---
+  duration_ms: 4.795375
+  type: 'test'
+  ...
+# Subtest: pending opens reject duplicates without allocating another channel; SPA and subframe navigation preserve ownership
+ok 2 - pending opens reject duplicates without allocating another channel; SPA and subframe navigation preserve ownership
+  ---
+  duration_ms: 0.303666
+  type: 'test'
+  ...
+# Subtest: late frames/end from a retired channel never reach or close the replacement document
+ok 3 - late frames/end from a retired channel never reach or close the replacement document
+  ---
+  duration_ms: 0.192042
+  type: 'test'
+  ...
+# Subtest: renderer loss during acquisition retires the pending channel and releases listeners
+ok 4 - renderer loss during acquisition retires the pending channel and releases listeners
+  ---
+  duration_ms: 0.198125
+  type: 'test'
+  ...
+# Subtest: frame replacement during acquisition rejects the stale owner even without a navigation callback
+ok 5 - frame replacement during acquisition rejects the stale owner even without a navigation callback
+  ---
+  duration_ms: 1.357292
+  type: 'test'
+  ...
+# Subtest: failed acquisition clears its lease so the same document can try again
+ok 6 - failed acquisition clears its lease so the same document can try again
+  ---
+  duration_ms: 0.303834
+  type: 'test'
+  ...
+# Subtest: current Electron first-argument navigation details fence document changes
+ok 7 - current Electron first-argument navigation details fence document changes
+  ---
+  duration_ms: 0.131584
+  type: 'test'
+  ...
+# Subtest: current Electron navigation also retires an uncompleted acquisition
+ok 8 - current Electron navigation also retires an uncompleted acquisition
+  ---
+  duration_ms: 0.182542
+  type: 'test'
+  ...
+# Subtest: desktop secrets use the main-process OS storage adapter
+ok 9 - desktop secrets use the main-process OS storage adapter
+  ---
+  duration_ms: 0.868292
+  type: 'test'
+  ...
+# Subtest: refuses unavailable or unprotected OS storage (false, undefined)
+ok 10 - refuses unavailable or unprotected OS storage (false, undefined)
+  ---
+  duration_ms: 0.106458
+  type: 'test'
+  ...
+# Subtest: refuses unavailable or unprotected OS storage (true, basic_text)
+ok 11 - refuses unavailable or unprotected OS storage (true, basic_text)
+  ---
+  duration_ms: 0.065541
+  type: 'test'
+  ...
+# Subtest: native first frame follows explicit appearance or system fallback
+ok 12 - native first frame follows explicit appearance or system fallback
+  ---
+  duration_ms: 0.628041
+  type: 'test'
+  ...
+# Subtest: only the trusted app renderer can write clipboard text
+ok 13 - only the trusted app renderer can write clipboard text
+  ---
+  duration_ms: 0.588
+  type: 'test'
+  ...
+# Subtest: clipboard reading and unrelated permissions remain denied
+ok 14 - clipboard reading and unrelated permissions remain denied
+  ---
+  duration_ms: 0.081667
+  type: 'test'
+  ...
+# Subtest: ordinary main uses only Agent (executor=undefined) and fails closed
+ok 15 - ordinary main uses only Agent (executor=undefined) and fails closed
+  ---
+  duration_ms: 21.298459
+  type: 'test'
+  ...
+# Subtest: ordinary main uses only Agent (executor=agent) and fails closed
+ok 16 - ordinary main uses only Agent (executor=agent) and fails closed
+  ---
+  duration_ms: 5.276792
+  type: 'test'
+  ...
+# Subtest: ordinary main uses only Agent (executor=legacy) and fails closed
+ok 17 - ordinary main uses only Agent (executor=legacy) and fails closed
+  ---
+  duration_ms: 6.462209
+  type: 'test'
+  ...
+# Subtest: ordinary main uses only Agent (executor=unknown) and fails closed
+ok 18 - ordinary main uses only Agent (executor=unknown) and fails closed
+  ---
+  duration_ms: 4.199792
+  type: 'test'
+  ...
+# Subtest: ordinary and candidate staging remove all retired artifacts without old source workspaces
+ok 19 - ordinary and candidate staging remove all retired artifacts without old source workspaces
+  ---
+  duration_ms: 4198.763125
+  type: 'test'
+  ...
+# Subtest: build/pack/dist and compatibility commands cannot select the retired executor
+ok 20 - build/pack/dist and compatibility commands cannot select the retired executor
+  ---
+  duration_ms: 84.884
+  type: 'test'
+  ...
+# Subtest: web links open in the system browser without creating an Electron window
+ok 21 - web links open in the system browser without creating an Electron window
+  ---
+  duration_ms: 1.046417
+  type: 'test'
+  ...
+# Subtest: scripts, files, custom protocols and relative URLs never reach the OS
+ok 22 - scripts, files, custom protocols and relative URLs never reach the OS
+  ---
+  duration_ms: 0.322458
+  type: 'test'
+  ...
+# Subtest: a browser launch failure is handled without allowing an Electron popup
+ok 23 - a browser launch failure is handled without allowing an Electron popup
+  ---
+  duration_ms: 5.004709
+  type: 'test'
+  ...
+# Subtest: legacy decrypt bridge accepts each exact allowed ciphertext once and disposes with its child
+ok 24 - legacy decrypt bridge accepts each exact allowed ciphertext once and disposes with its child
+  ---
+  duration_ms: 0.994667
+  type: 'test'
+  ...
+# Subtest: locked storage and native errors never disclose values or source errors to the import child
+ok 25 - locked storage and native errors never disclose values or source errors to the import child
+  ---
+  duration_ms: 0.786792
+  type: 'test'
+  ...
+# Subtest: locates only an installed macOS application bundle
+ok 26 - locates only an installed macOS application bundle
+  ---
+  duration_ms: 0.815833
+  type: 'test'
+  ...
+# Subtest: macOS prepares on the same filesystem, validates copied bundle and detaches the DMG
+ok 27 - macOS prepares on the same filesystem, validates copied bundle and detaches the DMG
+  ---
+  duration_ms: 226.924125
+  type: 'test'
+  ...
+# Subtest: macOS rejects wrong bundle identity, version, binary architecture and failed copy without altering the app
+ok 28 - macOS rejects wrong bundle identity, version, binary architecture and failed copy without altering the app
+  ---
+  duration_ms: 915.4945
+  type: 'test'
+  ...
+# Subtest: non-writable application directory is rejected before mounting or stopping the app
+ok 29 - non-writable application directory is rejected before mounting or stopping the app
+  ---
+  duration_ms: 152.282917
+  type: 'test'
+  ...
+# Subtest: helper waits for the old process, replaces the bundle and relaunches with literal paths
+ok 30 - helper waits for the old process, replaces the bundle and relaunches with literal paths
+  ---
+  duration_ms: 1536.38425
+  type: 'test'
+  ...
+# Subtest: helper restores and relaunches the old app when replacement or launch fails
+ok 31 - helper restores and relaunches the old app when replacement or launch fails
+  ---
+  duration_ms: 2790.145375
+  type: 'test'
+  ...
+# Subtest: quit timeout preserves the running app and cleans the staged update
+ok 32 - quit timeout preserves the running app and cleans the staged update
+  ---
+  duration_ms: 140.020625
+  type: 'test'
+  ...
+# Subtest: failed rollback retains the original backup and reports its recovery location
+ok 33 - failed rollback retains the original backup and reports its recovery location
+  ---
+  duration_ms: 1523.330458
+  type: 'test'
+  ...
+# Subtest: failed helper startup leaves the app intact and the staged update can be disposed
+ok 34 - failed helper startup leaves the app intact and the staged update can be disposed
+  ---
+  duration_ms: 46.920458
+  type: 'test'
+  ...
+# Subtest: macOS native DMG staging, replacement and open launch upgrade an isolated app from 1.0.0 to 1.1.0
+ok 35 - macOS native DMG staging, replacement and open launch upgrade an isolated app from 1.0.0 to 1.1.0
+  ---
+  duration_ms: 36981.987
+  type: 'test'
+  ...
+# Subtest: main process registers guarded workspace and log channels
+ok 36 - main process registers guarded workspace and log channels
+  ---
+  duration_ms: 5.861417
+  type: 'test'
+  ...
+# Subtest: main process pairs terminal shutdown request and trusted response
+ok 37 - main process pairs terminal shutdown request and trusted response
+  ---
+  duration_ms: 0.334708
+  type: 'test'
+  ...
+# Subtest: preload updates:state forwards no renderer arguments and preserves replies and rejection
+ok 38 - preload updates:state forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 3.498291
+  type: 'test'
+  ...
+# Subtest: preload updates:check forwards no renderer arguments and preserves replies and rejection
+ok 39 - preload updates:check forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 0.684292
+  type: 'test'
+  ...
+# Subtest: preload updates:download forwards no renderer arguments and preserves replies and rejection
+ok 40 - preload updates:download forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 0.432667
+  type: 'test'
+  ...
+# Subtest: preload updates:cancel forwards no renderer arguments and preserves replies and rejection
+ok 41 - preload updates:cancel forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 0.41975
+  type: 'test'
+  ...
+# Subtest: preload updates:install forwards no renderer arguments and preserves replies and rejection
+ok 42 - preload updates:install forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 0.4745
+  type: 'test'
+  ...
+# Subtest: preload updates:open-file forwards no renderer arguments and preserves replies and rejection
+ok 43 - preload updates:open-file forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 0.347666
+  type: 'test'
+  ...
+# Subtest: preload updates:reveal-file forwards no renderer arguments and preserves replies and rejection
+ok 44 - preload updates:reveal-file forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 0.383375
+  type: 'test'
+  ...
+# Subtest: preload workspace:choose-directory forwards no renderer arguments and preserves replies and rejection
+ok 45 - preload workspace:choose-directory forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 0.385834
+  type: 'test'
+  ...
+# Subtest: preload workspace:load forwards no renderer arguments and preserves replies and rejection
+ok 46 - preload workspace:load forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 0.922459
+  type: 'test'
+  ...
+# Subtest: preload workspace:clear forwards no renderer arguments and preserves replies and rejection
+ok 47 - preload workspace:clear forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 6.90825
+  type: 'test'
+  ...
+# Subtest: preload logs:open-window forwards no renderer arguments and preserves replies and rejection
+ok 48 - preload logs:open-window forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 1.63925
+  type: 'test'
+  ...
+# Subtest: preload logs:open-directory forwards no renderer arguments and preserves replies and rejection
+ok 49 - preload logs:open-directory forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 1.001291
+  type: 'test'
+  ...
+# Subtest: preload logs:choose-directory forwards no renderer arguments and preserves replies and rejection
+ok 50 - preload logs:choose-directory forwards no renderer arguments and preserves replies and rejection
+  ---
+  duration_ms: 0.371708
+  type: 'test'
+  ...
+# Subtest: preload terminal:shutdown-request strips Electron event and independently removes listeners
+ok 51 - preload terminal:shutdown-request strips Electron event and independently removes listeners
+  ---
+  duration_ms: 0.39925
+  type: 'test'
+  ...
+# Subtest: preload updates:changed strips Electron event and independently removes listeners
+ok 52 - preload updates:changed strips Electron event and independently removes listeners
+  ---
+  duration_ms: 0.337708
+  type: 'test'
+  ...
+# Subtest: preload terminal:shutdown-response only accepts literal true confirmation
+ok 53 - preload terminal:shutdown-response only accepts literal true confirmation
+  ---
+  duration_ms: 0.437042
+  type: 'test'
+  ...
+# Subtest: preload workspace:save-sync preserves data and rejects a synchronous main-process error
+ok 54 - preload workspace:save-sync preserves data and rejects a synchronous main-process error
+  ---
+  duration_ms: 0.532667
+  type: 'test'
+  ...
+# Subtest: update IPC broadcasts exact state only to a live current-origin window and stops after disposal
+ok 55 - update IPC broadcasts exact state only to a live current-origin window and stops after disposal
+  ---
+  duration_ms: 0.300542
+  type: 'test'
+  ...
+# Subtest: release tags must match the root stable version
+ok 56 - release tags must match the root stable version
+  ---
+  duration_ms: 32.418583
+  type: 'test'
+  ...
+# Subtest: complete releases accept electron-builder AppImage names and both macOS architectures
+ok 57 - complete releases accept electron-builder AppImage names and both macOS architectures
+  ---
+  duration_ms: 694.296541
+  type: 'test'
+  ...
+# Subtest: release publication rejects missing platform artifacts and corrupt metadata
+ok 58 - release publication rejects missing platform artifacts and corrupt metadata
+  ---
+  duration_ms: 555.352375
+  type: 'test'
+  ...
+# Subtest: controlled signature command failure leaves real history and other repositories working, then retries with unchanged arguments
+ok 59 - controlled signature command failure leaves real history and other repositories working, then retries with unchanged arguments
+  ---
+  duration_ms: 1212.911875
+  type: 'test'
+  ...
+# Subtest: stable SemVer comparison rejects prereleases, invalid tags, equal versions and downgrades
+ok 60 - stable SemVer comparison rejects prereleases, invalid tags, equal versions and downgrades
+  ---
+  duration_ms: 1.451208
+  type: 'test'
+  ...
+# Subtest: concurrent checks/downloads share work; snapshots survive UI subscriptions
+ok 61 - concurrent checks/downloads share work; snapshots survive UI subscriptions
+  ---
+  duration_ms: 0.242958
+  type: 'test'
+  ...
+# Subtest: cancellation is recoverable and a failed download can be retried
+ok 62 - cancellation is recoverable and a failed download can be retried
+  ---
+  duration_ms: 3.160042
+  type: 'test'
+  ...
+# Subtest: unsupported development mode never contacts the update source
+ok 63 - unsupported development mode never contacts the update source
+  ---
+  duration_ms: 0.150167
+  type: 'test'
+  ...
+# Subtest: install only runs after an explicit request and successful backend cleanup
+ok 64 - install only runs after an explicit request and successful backend cleanup
+  ---
+  duration_ms: 1.474792
+  type: 'test'
+  ...
+# Subtest: time spent deciding whether to close terminals never starts shutdown or expires the installer
+ok 65 - time spent deciding whether to close terminals never starts shutdown or expires the installer
+  ---
+  duration_ms: 21.524959
+  type: 'test'
+  ...
+# Subtest: failed or timed-out cleanup never installs, including late cleanup completion
+ok 66 - failed or timed-out cleanup never installs, including late cleanup completion
+  ---
+  duration_ms: 17.096917
+  type: 'test'
+  ...
+# Subtest: macOS stages the verified download before cleanup and installs only on explicit request
+ok 67 - macOS stages the verified download before cleanup and installs only on explicit request
+  ---
+  duration_ms: 0.65875
+  type: 'test'
+  ...
+# Subtest: failed install preparation leaves backend running and permits retry
+ok 68 - failed install preparation leaves backend running and permits retry
+  ---
+  duration_ms: 0.726625
+  type: 'test'
+  ...
+# Subtest: staged application is disposed after failed or timed-out backend cleanup and failed handoff
+ok 69 - staged application is disposed after failed or timed-out backend cleanup and failed handoff
+  ---
+  duration_ms: 13.470166
+  type: 'test'
+  ...
+# Subtest: a manually deleted DMG can be downloaded again
+ok 70 - a manually deleted DMG can be downloaded again
+  ---
+  duration_ms: 0.321583
+  type: 'test'
+  ...
+# Subtest: IPC rejects other windows, child frames, external origins and all renderer arguments
+ok 71 - IPC rejects other windows, child frames, external origins and all renderer arguments
+  ---
+  duration_ms: 3.172209
+  type: 'test'
+  ...
+# Subtest: macOS selects the correct architecture, verifies SHA-256 and atomically completes the DMG
+ok 72 - macOS selects the correct architecture, verifies SHA-256 and atomically completes the DMG
+  ---
+  duration_ms: 765.876292
+  type: 'test'
+  ...
+# Subtest: rate-limited macOS discovery resolves the public stable tag and still verifies the real asset
+ok 73 - rate-limited macOS discovery resolves the public stable tag and still verifies the real asset
+  ---
+  duration_ms: 96.756875
+  type: 'test'
+  ...
+# Subtest: macOS revalidates the DMG before preparation and quits only after the helper is ready
+ok 74 - macOS revalidates the DMG before preparation and quits only after the helper is ready
+  ---
+  duration_ms: 104.943333
+  type: 'test'
+  ...
+# Subtest: deleted or modified macOS downloads can be downloaded again without closing the backend
+ok 75 - deleted or modified macOS downloads can be downloaded again without closing the backend
+  ---
+  duration_ms: 152.347625
+  type: 'test'
+  ...
+# Subtest: macOS rejects incomplete, corrupt or oversized downloads and removes partial files
+ok 76 - macOS rejects incomplete, corrupt or oversized downloads and removes partial files
+  ---
+  duration_ms: 66.034208
+  type: 'test'
+  ...
+# Subtest: macOS removes partial downloads on cancellation and stalled response timeout
+ok 77 - macOS removes partial downloads on cancellation and stalled response timeout
+  ---
+  duration_ms: 75.351917
+  type: 'test'
+  ...
+# Subtest: macOS checks handle prereleases, missing assets, unsupported architectures and network failure
+ok 78 - macOS checks handle prereleases, missing assets, unsupported architectures and network failure
+  ---
+  duration_ms: 54.809083
+  type: 'test'
+  ...
+# Subtest: macOS retries a transient release gateway before reading bytes and stops on cancellation
+ok 79 - macOS retries a transient release gateway before reading bytes and stops on cancellation
+  ---
+  duration_ms: 252.719166
+  type: 'test'
+  ...
+# Subtest: GitHub errors and redirects are bounded and do not follow untrusted hosts
+ok 80 - GitHub errors and redirects are bounded and do not follow untrusted hosts
+  ---
+  duration_ms: 0.416583
+  type: 'test'
+  ...
+# Subtest: Electron adapter disables automatic installation, handles retry cancellation and relays native install errors
+ok 81 - Electron adapter disables automatic installation, handles retry cancellation and relays native install errors
+  ---
+  duration_ms: 1.376916
+  type: 'test'
+  ...
+# Subtest: Electron adapter reports check and stalled-download timeouts
+ok 82 - Electron adapter reports check and stalled-download timeouts
+  ---
+  duration_ms: 22.57325
+  type: 'test'
+  ...
+# Subtest: trusted workspace sender requires the exact main frame and origin
+ok 83 - trusted workspace sender requires the exact main frame and origin
+  ---
+  duration_ms: 0.625375
+  type: 'test'
+  ...
+# Subtest: workspace preferences save atomically, loads valid data and clears the file
+ok 84 - workspace preferences save atomically, loads valid data and clears the file
+  ---
+  duration_ms: 2.046875
+  type: 'test'
+  ...
+# Subtest: workspace preference validation rejects malformed JSON and wrong versions without residue
+ok 85 - workspace preference validation rejects malformed JSON and wrong versions without residue
+  ---
+  duration_ms: 5.23975
+  type: 'test'
+  ...
+# Subtest: synchronous workspace IPC save always returns a safe error string
+ok 86 - synchronous workspace IPC save always returns a safe error string
+  ---
+  duration_ms: 3.540625
+  type: 'test'
+  ...
+# Subtest: workspace background uses explicit theme before system fallback
+ok 87 - workspace background uses explicit theme before system fallback
+  ---
+  duration_ms: 0.129084
+  type: 'test'
+  ...
+# Subtest: workspace preferences survive a new reader; invalid writes preserve the last complete file
+ok 88 - workspace preferences survive a new reader; invalid writes preserve the last complete file
+  ---
+  duration_ms: 5.2865
+  type: 'test'
+  ...
+# Subtest: synchronous saves are readable before reply and reject untrusted senders without changing disk
+ok 89 - synchronous saves are readable before reply and reject untrusted senders without changing disk
+  ---
+  duration_ms: 2.525333
+  type: 'test'
+  ...
+# Subtest: workspace IPC accepts only the application window main frame at the current origin
+ok 90 - workspace IPC accepts only the application window main frame at the current origin
+  ---
+  duration_ms: 0.116583
+  type: 'test'
+  ...
+1..90
+# tests 90
+# suites 0
+# pass 90
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 44531.265375

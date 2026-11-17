@@ -17,7 +17,20 @@ export function pullRequestDiffLines(patch: string): PullRequestDiffLine[] {
     oldLeft = 0,
     newLeft = 0,
     hunk = 0;
-  return patch.split('\n').map((text) => {
+  let active: PullRequestDiffLine[] = [];
+  const finishHunk = () => {
+    // A provider may truncate a patch in the middle of a hunk. Even its
+    // available prefix is not a verified comment location.
+    if (oldLeft || newLeft)
+      for (const row of active) {
+        row.kind = 'meta';
+        delete row.oldLine;
+        delete row.newLine;
+      }
+    active = [];
+    oldLeft = newLeft = 0;
+  };
+  const rows = patch.split('\n').map((text) => {
     const header = text.match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
     const row: PullRequestDiffLine = {
       text,
@@ -27,11 +40,15 @@ export function pullRequestDiffLines(patch: string): PullRequestDiffLine[] {
       newPosition: newLine,
     };
     if (header) {
+      finishHunk();
       oldLine = Number(header[1]);
       newLine = Number(header[3]);
       oldLeft = Number(header[2] ?? 1);
       newLeft = Number(header[4] ?? 1);
       row.hunk = ++hunk;
+      if (![oldLine, newLine, oldLeft, newLeft].every(Number.isSafeInteger)) oldLeft = newLeft = 0;
+    } else if (text.startsWith('diff ') || text.startsWith('@@')) {
+      finishHunk();
     } else if (hunk && text.startsWith(' ') && oldLeft > 0 && newLeft > 0) {
       row.kind = 'context';
       row.oldLine = oldLine++;
@@ -47,8 +64,11 @@ export function pullRequestDiffLines(patch: string): PullRequestDiffLine[] {
       row.newLine = newLine++;
       newLeft--;
     }
+    if (row.kind !== 'meta') active.push(row);
     return row;
   });
+  finishHunk();
+  return rows;
 }
 
 export function pullRequestRange(

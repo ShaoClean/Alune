@@ -24,6 +24,8 @@ async function startDesktopAgent({
   logContents,
   smokeTest,
 }) {
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token))
+    throw new Error('Desktop authorization token is required');
   const root = app.isPackaged
     ? path.join(process.resourcesPath, 'agent-runtime')
     : path.resolve(__dirname, '../agent-runtime');
@@ -33,6 +35,7 @@ async function startDesktopAgent({
     manifest.target !== process.platform + '-' + process.arch
   )
     throw new Error('本机运行包与此应用的版本或平台不匹配。');
+  const webRoot = fs.realpathSync(path.join(__dirname, 'web'));
   const node = path.join(
     root,
     process.platform === 'win32' ? 'runtime/node.exe' : 'runtime/bin/node',
@@ -64,43 +67,81 @@ async function startDesktopAgent({
     fs.existsSync(catalog) ? catalog : undefined,
   );
   const channels = new Map();
-  const webRoot = path.join(__dirname, 'web');
-  let origin;
-  const server = createServer((request, response) => {
-    const finish = (status) => {
-      response.writeHead(status);
-      response.end();
-    };
-    if (
-      request.headers.authorization !== 'Bearer ' + token ||
-      request.headers.host !== new URL(origin).host
-    )
-      return finish(401);
-    if (request.method !== 'GET' && request.method !== 'HEAD') return finish(405);
-    let route;
-    try {
-      route = decodeURIComponent(new URL(request.url, origin).pathname);
-    } catch {
-      return finish(400);
-    }
-    if (route.startsWith('/api/') || route.startsWith('/socket.io')) return finish(404);
-    const asset = path.extname(route) || route.startsWith('/assets/');
-    const file = asset ? path.resolve(webRoot, '.' + route) : path.join(webRoot, 'index.html');
-    if (!file.startsWith(webRoot + path.sep) || route.includes('\\') || route.includes('\0'))
-      return finish(403);
-    fs.readFile(file, (error, data) => {
-      if (error) return finish(404);
-      response.writeHead(200, {
-        'Content-Type': mime[path.extname(file)] ?? 'application/octet-stream',
-        'X-Content-Type-Options': 'nosniff',
-        'Cache-Control': 'no-store',
-      });
-      response.end(request.method === 'HEAD' ? undefined : data);
-    });
-  });
-
+  const handlers = new Set();
+  let origin, server, proxy, port, closing;
   let stopping = false;
+  // Startup and shutdown own the same resources, including a partially
+  // registered IPC surface. Always finish every release before reporting errors.
+  const close = () =>
+    (closing ??= (async () => {
+      stopping = true;
+      const failures = [];
+      const release = async (fn) => {
+        try {
+          await fn();
+        } catch (error) {
+          failures.push(error);
+        }
+      };
+      for (const name of handlers) await release(() => ipcMain.removeHandler(name));
+      handlers.clear();
+      for (const channel of channels.values()) await release(() => channel.cleanup());
+      if (server)
+        await release(
+          () =>
+            new Promise((resolve, reject) => {
+              server.close((error) =>
+                error && error.code !== 'ERR_SERVER_NOT_RUNNING' ? reject(error) : resolve(),
+              );
+              server.closeAllConnections();
+            }),
+        );
+      await release(() => proxy?.destroy());
+      await release(() => host.close());
+      if (failures.length) throw new AggregateError(failures, 'Desktop Agent cleanup failed');
+    })());
+  const handle = (name, handler) => {
+    ipcMain.handle(name, handler);
+    handlers.add(name);
+  };
   try {
+    server = createServer((request, response) => {
+      const finish = (status) => {
+        response.writeHead(status);
+        response.end();
+      };
+      if (
+        request.headers.authorization !== 'Bearer ' + token ||
+        request.headers.host !== new URL(origin).host
+      )
+        return finish(401);
+      if (request.method !== 'GET' && request.method !== 'HEAD') return finish(405);
+      let route;
+      try {
+        route = decodeURIComponent(new URL(request.url, origin).pathname);
+      } catch {
+        return finish(400);
+      }
+      if (/^\/(api|socket\.io)(\/|$)/.test(route)) return finish(404);
+      const asset = path.extname(route) || route.startsWith('/assets/');
+      const file = asset ? path.resolve(webRoot, '.' + route) : path.join(webRoot, 'index.html');
+      if (!file.startsWith(webRoot + path.sep) || route.includes('\\') || route.includes('\0'))
+        return finish(403);
+      fs.realpath(file, (error, resolved) => {
+        if (error) return finish(404);
+        if (!resolved.startsWith(webRoot + path.sep)) return finish(403);
+        fs.readFile(resolved, (error, data) => {
+          if (error) return finish(404);
+          response.writeHead(200, {
+            'Content-Type': mime[path.extname(file)] ?? 'application/octet-stream',
+            'X-Content-Type-Options': 'nosniff',
+            'Cache-Control': 'no-store',
+          });
+          response.end(request.method === 'HEAD' ? undefined : data);
+        });
+      });
+    });
+
     await new Promise((resolve, reject) => {
       server.once('error', reject);
       server.listen(0, '127.0.0.1', resolve);
@@ -112,7 +153,7 @@ async function startDesktopAgent({
         : isTrustedWorkspaceSender(e, logContents(), origin)
           ? 'logs'
           : null;
-    ipcMain.handle('agent:open', async (e) => {
+    handle('agent:open', async (e) => {
       const name = role(e),
         contents = e.sender,
         frame = e.senderFrame;
@@ -126,18 +167,17 @@ async function startDesktopAgent({
         isCurrent: () => !stopping && role(e) === name,
       });
     });
-    ipcMain.handle('agent:frame', async (e, generation, value) => {
+    handle('agent:frame', async (e, generation, value) => {
       const endpoint = role(e) && channels.get(e.sender);
       if (stopping || !endpoint?.channel || endpoint.generation !== generation) return false;
       await endpoint.channel.send(value);
       return true;
     });
-    ipcMain.handle('agent:close', (e, generation) => {
+    handle('agent:close', (e, generation) => {
       const endpoint = role(e) && channels.get(e.sender);
       if (endpoint && generation === endpoint.generation) endpoint.cleanup();
     });
     const { ProxyAgent, fetch: networkFetch } = require('undici');
-    let proxy, port;
     const networkProxy = {
       updaterBridge: () => host.client.updaterBridge(),
       async fetch(url, init) {
@@ -161,22 +201,16 @@ async function startDesktopAgent({
         impact: () => host.client.request('desktop.terminals.impact', {}),
         remove: (_scope, ids) => host.client.request('desktop.terminals.remove', ids),
       },
-      async close() {
-        stopping = true;
-        for (const c of channels.values()) c.cleanup();
-
-        server.closeAllConnections();
-        server.close();
-        try {
-          await proxy?.destroy();
-        } finally {
-          await host.close();
-        }
-      },
+      close,
     };
   } catch (error) {
-    server.close();
-    await host.close();
+    try {
+      await close();
+    } catch (cleanupError) {
+      throw new AggregateError([error, cleanupError], 'Desktop Agent startup and cleanup failed', {
+        cause: error,
+      });
+    }
     throw error;
   }
 }

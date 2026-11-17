@@ -24,6 +24,10 @@ export function settingsKernel(
   agentId: string,
   options: Pick<ProtectedSecretOptions, 'backend' | 'keychain'> = {},
 ) {
+  // Credential initialization is lazy, but its registered backend belongs to
+  // this kernel. Later changes to a caller's options must not select a
+  // different backend or Keychain before the first credential operation.
+  const secretOptions = { backend: options.backend, keychain: options.keychain };
   let secrets: ProtectedSecrets | undefined;
   let closed = false;
   let tail: Promise<unknown> = Promise.resolve();
@@ -55,7 +59,7 @@ export function settingsKernel(
     if (!create && port.read() === undefined) return;
     try {
       secrets = await openProtectedSecrets(directory, agentId, port, {
-        ...options,
+        ...secretOptions,
         allowInitialize: create && !state.hasCredentialMaterial(),
         signal,
       });

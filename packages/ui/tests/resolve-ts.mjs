@@ -4,15 +4,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { transpileModule, ModuleKind, JsxEmit } from 'typescript';
 
 // Match Vite's TypeScript imports and JSX when running stores/components with Node.
+// Resolve before installing hooks: createRequire().resolve() also enters
+// synchronous resolve hooks on newer Node versions.
+const iconsEntry = pathToFileURL(createRequire(import.meta.url).resolve('@ant-design/icons')).href;
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
     // The icons package's ESM build uses extensionless imports; use its Node entry.
     if (specifier === '@ant-design/icons') {
-      const entry = pathToFileURL(
-        createRequire(context.parentURL).resolve('@ant-design/icons'),
-      ).href;
-      return nextResolve(entry, context);
+      return nextResolve(iconsEntry, context);
     }
     if (specifier.startsWith('.') && context.parentURL) {
       for (const suffix of ['.ts', '.tsx', '/index.ts']) {

@@ -204,6 +204,12 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   }
   const config = path.join(repo, '.git', 'config'),
     savedConfig = fs.readFileSync(config);
+  const failureFile = process.env.ALUNE_TEST_SIGNATURE_SENTINEL
+    ? path.join(repo, '.git', process.env.ALUNE_TEST_SIGNATURE_SENTINEL) : undefined;
+  const failSignature = () => {
+    if (failureFile) fs.writeFileSync(failureFile, 'controlled-signature-command-failure');
+    else git('config', 'gpg.format', 'invalid-history-test-format');
+  };
   const apply = async (value) => {
     await input(button('搜索提交信息或哈希'), value);
     await ev(
@@ -212,17 +218,18 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
         ').dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true,cancelable:true}))',
     );
   };
-  git('config', 'gpg.format', 'invalid-history-test-format');
   try {
+    failSignature();
     await apply('verification fixture');
-    await wait(wc, row(signed));
+    await wait(wc, 'document.querySelectorAll(".history-row").length===1&&!!(' + row(signed) + ')');
     await wait(wc, title + "==='签名验证未完成'");
     await wait(
       wc,
-      "document.querySelector('.feedback-dialog[open]')?.innerText.includes('invalid-history-test-format')",
+      "document.querySelector('.feedback-dialog[open]')?.innerText.includes(" + JSON.stringify(failureFile ? 'controlled-signature-command-failure' : 'invalid-history-test-format') + ")",
     );
   } finally {
     fs.writeFileSync(config, savedConfig);
+    if (failureFile) fs.rmSync(failureFile, { force: true });
   }
   await click(textButton('重试验证', '.feedback-dialog[open] button'));
   await wait(
@@ -232,14 +239,15 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   await dismiss(['签名验证未完成']);
   await pass(
     ['UI-021'],
-    'a real verifier configuration error is shown by the graph; after restoring configuration, explicit retry reports unknown verification for the intentionally unavailable verifier, never unsigned or valid',
+    'a controlled signature command failure is shown by the graph without breaking its history; after restoring the command, explicit retry reports unknown verification for the intentionally unavailable verifier, never unsigned or valid',
   );
-  git('config', 'gpg.format', 'invalid-history-test-format');
   try {
+    failSignature();
     await click(row(signed));
     await wait(wc, textButton('重试验证', '.history-detail button'));
   } finally {
     fs.writeFileSync(config, savedConfig);
+    if (failureFile) fs.rmSync(failureFile, { force: true });
   }
   await dismiss(['签名验证未完成', '提交文件读取失败', '无法加载差异']);
   await click(textButton('重试验证', '.history-detail button'));

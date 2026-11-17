@@ -1,0 +1,512 @@
+
+> alune@0.11.0 test:acceptance
+> node --test scripts/agent/acceptance-policy.test.mjs scripts/agent/reconcile-ui-evidence.test.mjs scripts/agent/p0-test-receipts.test.mjs scripts/agent/check-p0-models.test.mjs scripts/agent/p0-paired-receipts.test.mjs scripts/agent/p0-followup-archive.test.mjs scripts/agent/p0-history-pointer-review.test.mjs scripts/agent/p0-client-runner.test.mjs scripts/agent/p0-git-bindings.test.mjs scripts/agent/p0-service-delegations.test.mjs scripts/agent/p0-native-current.test.mjs scripts/agent/p0-native-components.test.mjs scripts/agent/p0-client-export-receipts.test.mjs apps/desktop/test/signature-failure-fixture.test.cjs scripts/agent/p0-terminal-account-plan.test.mjs scripts/agent/p0-ai-web-plan.test.mjs scripts/agent/p0-layout-browser-receipts.test.mjs scripts/agent/local-performance-evidence.test.mjs
+
+TAP version 13
+# Subtest: controlled signature command failure leaves real history and other repositories working, then retries with unchanged arguments
+ok 1 - controlled signature command failure leaves real history and other repositories working, then retries with unchanged arguments
+  ---
+  duration_ms: 678.235625
+  type: 'test'
+  ...
+# Subtest: platform deferral is explicit; default acceptance still requires all platforms
+ok 2 - platform deferral is explicit; default acceptance still requires all platforms
+  ---
+  duration_ms: 1.388125
+  type: 'test'
+  ...
+# Subtest: local evidence requires exact bytes, containment, and explicit policy
+ok 3 - local evidence requires exact bytes, containment, and explicit policy
+  ---
+  duration_ms: 6.717459
+  type: 'test'
+  ...
+# Subtest: empty, unknown and duplicate platform policies cannot pass
+ok 4 - empty, unknown and duplicate platform policies cannot pass
+  ---
+  duration_ms: 1.361792
+  type: 'test'
+  ...
+# Subtest: equivalent type, generic and value signatures pass in both directions
+ok 5 - equivalent type, generic and value signatures pass in both directions
+  ---
+  duration_ms: 915.575541
+  type: 'test'
+  ...
+# Subtest: missing, ambiguous, narrowed and incompatible signatures are not credited
+ok 6 - missing, ambiguous, narrowed and incompatible signatures are not credited
+  ---
+  duration_ms: 296.690959
+  type: 'test'
+  ...
+# Subtest: runtime parity compares results and error constructor/message, with independent inputs
+ok 7 - runtime parity compares results and error constructor/message, with independent inputs
+  ---
+  duration_ms: 1.740792
+  type: 'test'
+  ...
+# Subtest: every frozen export gets its own result and pure types never invent runtime samples
+ok 8 - every frozen export gets its own result and pure types never invent runtime samples
+  ---
+  duration_ms: 0.273625
+  type: 'test'
+  ...
+# Subtest: generic defaults cannot change or disappear for callers omitting type arguments
+ok 9 - generic defaults cannot change or disappear for callers omitting type arguments
+  ---
+  duration_ms: 1500.599584
+  type: 'test'
+  ...
+# Subtest: new any fields, nested arrays and function results cannot erase a type constraint
+ok 10 - new any fields, nested arrays and function results cannot erase a type constraint
+  ---
+  duration_ms: 485.250541
+  type: 'test'
+  ...
+# Subtest: selected type contracts never certify runtime exports or silently omit missing frozen names
+ok 11 - selected type contracts never certify runtime exports or silently omit missing frozen names
+  ---
+  duration_ms: 225.9305
+  type: 'test'
+  ...
+# Subtest: explicit ambient asset declarations participate in selected and generic type checks without weakening diagnostics
+ok 12 - explicit ambient asset declarations participate in selected and generic type checks without weakening diagnostics
+  ---
+  duration_ms: 815.472333
+  type: 'test'
+  ...
+# Subtest: confirmed performance boundary switches at 50ms and uses all 80 comparisons
+ok 13 - confirmed performance boundary switches at 50ms and uses all 80 comparisons
+  ---
+  duration_ms: 3.815042
+  type: 'test'
+  ...
+# Subtest: performance assessment refuses missing LFS, insufficient samples and observed regressions
+ok 14 - performance assessment refuses missing LFS, insufficient samples and observed regressions
+  ---
+  duration_ms: 15.288584
+  type: 'test'
+  ...
+# Subtest: AI/web assertions identify exact disjoint remaining rows and real test declarations
+ok 15 - AI/web assertions identify exact disjoint remaining rows and real test declarations
+  ---
+  duration_ms: 34.327875
+  type: 'test'
+  ...
+# Subtest: AI/web review rejects stale progress, shortened ledgers and previously credited identities
+ok 16 - AI/web review rejects stale progress, shortened ledgers and previously credited identities
+  ---
+  duration_ms: 34.355375
+  type: 'test'
+  ...
+# Subtest: client namespace review requires every case and credits exactly nine namespaces, three error helpers and four scoped sources
+ok 17 - client namespace review requires every case and credits exactly nine namespaces, three error helpers and four scoped sources
+  ---
+  duration_ms: 4.305042
+  type: 'test'
+  ...
+# Subtest: missing or skipped exact namespace calls cannot be inferred from a successful batch
+ok 18 - missing or skipped exact namespace calls cannot be inferred from a successful batch
+  ---
+  duration_ms: 1.475
+  type: 'test'
+  ...
+# Subtest: failed unrelated client assertions invalidate the entire namespace batch
+ok 19 - failed unrelated client assertions invalidate the entire namespace batch
+  ---
+  duration_ms: 1.702833
+  type: 'test'
+  ...
+# Subtest: client runner certifies one exact completed test
+ok 20 - client runner certifies one exact completed test
+  ---
+  duration_ms: 0.898584
+  type: 'test'
+  ...
+# Subtest: client runner rejects failure or cancellation despite a forged green summary
+ok 21 - client runner rejects failure or cancellation despite a forged green summary
+  ---
+  duration_ms: 0.328167
+  type: 'test'
+  ...
+# Subtest: client runner rejects skipped and todo assertions
+ok 22 - client runner rejects skipped and todo assertions
+  ---
+  duration_ms: 0.193875
+  type: 'test'
+  ...
+# Subtest: client runner rejects duplicate pass and duplicate expected bindings
+ok 23 - client runner rejects duplicate pass and duplicate expected bindings
+  ---
+  duration_ms: 0.192209
+  type: 'test'
+  ...
+# Subtest: client runner rejects absent summary and missing or wrong-file assertion
+ok 24 - client runner rejects absent summary and missing or wrong-file assertion
+  ---
+  duration_ms: 0.3125
+  type: 'test'
+  ...
+# Subtest: client runner rejects extra tests and summary count drift
+ok 25 - client runner rejects extra tests and summary count drift
+  ---
+  duration_ms: 0.096042
+  type: 'test'
+  ...
+# Subtest: client runner binds exact full frozen ledger and progress bytes
+ok 26 - client runner binds exact full frozen ledger and progress bytes
+  ---
+  duration_ms: 78.0955
+  type: 'test'
+  ...
+# Subtest: client runner rejects unknown duplicate retired and incomplete plan entries
+ok 27 - client runner rejects unknown duplicate retired and incomplete plan entries
+  ---
+  duration_ms: 218.626625
+  type: 'test'
+  ...
+# Subtest: client runner rejects foreign malformed and historical source SHAs
+ok 28 - client runner rejects foreign malformed and historical source SHAs
+  ---
+  duration_ms: 0.552041
+  type: 'test'
+  ...
+# Subtest: client runner detects source mutation and local proof hash tampering
+ok 29 - client runner detects source mutation and local proof hash tampering
+  ---
+  duration_ms: 5.588083
+  type: 'test'
+  ...
+# Subtest: client runner refuses existing or out-of-scope evidence directories
+ok 30 - client runner refuses existing or out-of-scope evidence directories
+  ---
+  duration_ms: 1.519125
+  type: 'test'
+  ...
+# Subtest: client UUID oracle validates v4 format and task correlation without weakening payloads
+ok 31 - client UUID oracle validates v4 format and task correlation without weakening payloads
+  ---
+  duration_ms: 2.294167
+  type: 'test'
+  ...
+# Subtest: client runner requires every live binding and rejects foreign request owners
+ok 32 - client runner requires every live binding and rejects foreign request owners
+  ---
+  duration_ms: 105.1425
+  type: 'test'
+  ...
+# Subtest: both authored plans bind exact non-UI identities and existing declaration lines
+ok 33 - both authored plans bind exact non-UI identities and existing declaration lines
+  ---
+  duration_ms: 22.67525
+  type: 'test'
+  ...
+# Subtest: receipt archive validation rejects wrong SHA, policy, IDs, target, duplicate IDs and unverified proofs
+ok 34 - receipt archive validation rejects wrong SHA, policy, IDs, target, duplicate IDs and unverified proofs
+  ---
+  duration_ms: 10.104166
+  type: 'test'
+  ...
+# Subtest: archive preserves failed same-ID runs, full historical gap and prevents output reuse
+ok 35 - archive preserves failed same-ID runs, full historical gap and prevents output reuse
+  ---
+  duration_ms: 124.928875
+  type: 'test'
+  ...
+# Subtest: archive copies referenced raw test events and rejects a changed nested attachment
+ok 36 - archive copies referenced raw test events and rejects a changed nested attachment
+  ---
+  duration_ms: 97.472875
+  type: 'test'
+  ...
+# Subtest: archive retains engineering command logs and refuses tampering or escaped log references
+ok 37 - archive retains engineering command logs and refuses tampering or escaped log references
+  ---
+  duration_ms: 89.101709
+  type: 'test'
+  ...
+# Subtest: reviewed allowlist preserves 88 unique remaining IDs in exactly 18 frozen modules
+ok 38 - reviewed allowlist preserves 88 unique remaining IDs in exactly 18 frozen modules
+  ---
+  duration_ms: 1.812917
+  type: 'test'
+  ...
+# Subtest: source and class associations never expand to unasserted helpers, types or channels
+ok 39 - source and class associations never expand to unasserted helpers, types or channels
+  ---
+  duration_ms: 0.451667
+  type: 'test'
+  ...
+# Subtest: generator refuses stale progress and previously associated IDs rather than silently filtering
+ok 40 - generator refuses stale progress and previously associated IDs rather than silently filtering
+  ---
+  duration_ms: 26.5505
+  type: 'test'
+  ...
+# Subtest: every exact test is committed unchanged and points to its test callsite
+ok 41 - every exact test is committed unchanged and points to its test callsite
+  ---
+  duration_ms: 955.895208
+  type: 'test'
+  ...
+# Subtest: generation pins committed business sources and fixture helpers without test-tooling exemptions
+ok 42 - generation pins committed business sources and fixture helpers without test-tooling exemptions
+  ---
+  duration_ms: 2486.772958
+  type: 'test'
+  ...
+# Subtest: receipt runner rejects skipped, wrong-line, missing and failing exact assertions
+ok 43 - receipt runner rejects skipped, wrong-line, missing and failing exact assertions
+  ---
+  duration_ms: 0.467917
+  type: 'test'
+  ...
+# Subtest: pointer review requires exact SHA, clean source provenance, build hashes, callback trace and geometry
+ok 44 - pointer review requires exact SHA, clean source provenance, build hashes, callback trace and geometry
+  ---
+  duration_ms: 86.906917
+  type: 'test'
+  ...
+# Subtest: four pointer assertions from an incomplete batch stay partial and never become release evidence
+ok 45 - four pointer assertions from an incomplete batch stay partial and never become release evidence
+  ---
+  duration_ms: 33.203292
+  type: 'test'
+  ...
+# Subtest: browser review associates only the 24 exact IDs and ignores incidental traces
+ok 46 - browser review associates only the 24 exact IDs and ignores incidental traces
+  ---
+  duration_ms: 3.89975
+  type: 'test'
+  ...
+# Subtest: browser review rejects failed or incomplete batches, missing callbacks and leaked listeners
+ok 47 - browser review rejects failed or incomplete batches, missing callbacks and leaked listeners
+  ---
+  duration_ms: 27.804417
+  type: 'test'
+  ...
+# Subtest: component review associates only named source/export responsibility and does not count callback anchors
+ok 48 - component review associates only named source/export responsibility and does not count callback anchors
+  ---
+  duration_ms: 0.884333
+  type: 'test'
+  ...
+# Subtest: incomplete native phase or missing direct component participation cannot be promoted
+ok 49 - incomplete native phase or missing direct component participation cannot be promoted
+  ---
+  duration_ms: 0.22125
+  type: 'test'
+  ...
+# Subtest: duplicate, wrong-file, unknown and callback entries cannot be inferred as component exports
+ok 50 - duplicate, wrong-file, unknown and callback entries cannot be inferred as component exports
+  ---
+  duration_ms: 0.140375
+  type: 'test'
+  ...
+# Subtest: fresh native proof reasserts original IDs and only the six explicitly reviewed missing callbacks
+ok 51 - fresh native proof reasserts original IDs and only the six explicitly reviewed missing callbacks
+  ---
+  duration_ms: 1.542791
+  type: 'test'
+  ...
+# Subtest: failed/incomplete or mixed-source native flows cannot mint successful receipts
+ok 52 - failed/incomplete or mixed-source native flows cannot mint successful receipts
+  ---
+  duration_ms: 0.575708
+  type: 'test'
+  ...
+# Subtest: missing callback, duplicate scenario or false geometry invalidates individual native assertions
+ok 53 - missing callback, duplicate scenario or false geometry invalidates individual native assertions
+  ---
+  duration_ms: 6.10075
+  type: 'test'
+  ...
+# Subtest: exact endpoint and direct controller handler are associated, incidental traces are not
+ok 54 - exact endpoint and direct controller handler are associated, incidental traces are not
+  ---
+  duration_ms: 0.907709
+  type: 'test'
+  ...
+# Subtest: failed scenarios remain failed and incomplete or mixed-source reports are rejected
+ok 55 - failed scenarios remain failed and incomplete or mixed-source reports are rejected
+  ---
+  duration_ms: 0.200541
+  type: 'test'
+  ...
+# Subtest: unknown, ambiguous or wrong-file controller mappings cannot earn associations
+ok 56 - unknown, ambiguous or wrong-file controller mappings cannot earn associations
+  ---
+  duration_ms: 0.325458
+  type: 'test'
+  ...
+# Subtest: direct returned service output earns only the exact reviewed method, never incidental helpers or a module
+ok 57 - direct returned service output earns only the exact reviewed method, never incidental helpers or a module
+  ---
+  duration_ms: 1.806666
+  type: 'test'
+  ...
+# Subtest: additional controller effects, conditional calls, dynamic owners and argument drift invalidate direct return review
+ok 58 - additional controller effects, conditional calls, dynamic owners and argument drift invalidate direct return review
+  ---
+  duration_ms: 2.145542
+  type: 'test'
+  ...
+# Subtest: paired execution, exact scenario, full batch and baseline identity are all required
+ok 59 - paired execution, exact scenario, full batch and baseline identity are all required
+  ---
+  duration_ms: 0.568792
+  type: 'test'
+  ...
+# Subtest: a failed unselected scenario cannot be hidden by a passed reviewed one
+ok 60 - a failed unselected scenario cannot be hidden by a passed reviewed one
+  ---
+  duration_ms: 0.245125
+  type: 'test'
+  ...
+# Subtest: terminal and account bindings preserve exactly 48 reviewed unasserted identities
+ok 61 - terminal and account bindings preserve exactly 48 reviewed unasserted identities
+  ---
+  duration_ms: 11.78
+  type: 'test'
+  ...
+# Subtest: terminal and account bindings reject shortened ledgers and previously asserted rows
+ok 62 - terminal and account bindings reject shortened ledgers and previously asserted rows
+  ---
+  duration_ms: 17.791458
+  type: 'test'
+  ...
+# Subtest: terminal and account bindings require the actual reviewed progress source
+ok 63 - terminal and account bindings require the actual reviewed progress source
+  ---
+  duration_ms: 0.97975
+  type: 'test'
+  ...
+# Subtest: shortened, duplicate or different baseline ID sets cannot produce receipts
+ok 64 - shortened, duplicate or different baseline ID sets cannot produce receipts
+  ---
+  duration_ms: 1.122167
+  type: 'test'
+  ...
+# Subtest: bindings require explicit assertions, limitations, IDs and exact test references
+ok 65 - bindings require explicit assertions, limitations, IDs and exact test references
+  ---
+  duration_ms: 0.439125
+  type: 'test'
+  ...
+# Subtest: only the exact successful test file, name and declaration line can earn association
+ok 66 - only the exact successful test file, name and declaration line can earn association
+  ---
+  duration_ms: 2.512333
+  type: 'test'
+  ...
+# Subtest: failed, cancelled, missing and empty batches never mint passed receipts
+ok 67 - failed, cancelled, missing and empty batches never mint passed receipts
+  ---
+  duration_ms: 0.744292
+  type: 'test'
+  ...
+# Subtest: progress preserves all old missing IDs and never merges historical SHA for release
+ok 68 - progress preserves all old missing IDs and never merges historical SHA for release
+  ---
+  duration_ms: 3.434291
+  type: 'test'
+  ...
+# Subtest: unknown IDs or mixed-source receipts are rejected, including failed runs
+ok 69 - unknown IDs or mixed-source receipts are rejected, including failed runs
+  ---
+  duration_ms: 0.237292
+  type: 'test'
+  ...
+# Subtest: nonpassing current assertions remain visible and override a passed result for the same ID
+ok 70 - nonpassing current assertions remain visible and override a passed result for the same ID
+  ---
+  duration_ms: 1.184084
+  type: 'test'
+  ...
+# Subtest: new test tooling requires an exact reviewed hash but cannot override committed implementation
+ok 71 - new test tooling requires an exact reviewed hash but cannot override committed implementation
+  ---
+  duration_ms: 0.555166
+  type: 'test'
+  ...
+# Subtest: only the repository TypeScript test resolver is accepted as a loader
+ok 72 - only the repository TypeScript test resolver is accepted as a loader
+  ---
+  duration_ms: 0.466875
+  type: 'test'
+  ...
+# Subtest: historical associations and source references are never current execution
+ok 73 - historical associations and source references are never current execution
+  ---
+  duration_ms: 1.042709
+  type: 'test'
+  ...
+# Subtest: focused or incomplete execution credits only fired callbacks in asserted families
+ok 74 - focused or incomplete execution credits only fired callbacks in asserted families
+  ---
+  duration_ms: 0.254292
+  type: 'test'
+  ...
+# Subtest: reviewed associations require the exact observed ID and scenario, and remain partial
+ok 75 - reviewed associations require the exact observed ID and scenario, and remain partial
+  ---
+  duration_ms: 0.975458
+  type: 'test'
+  ...
+# Subtest: old partial observations retain their actual SHA and cannot fill current gaps
+ok 76 - old partial observations retain their actual SHA and cannot fill current gaps
+  ---
+  duration_ms: 0.107791
+  type: 'test'
+  ...
+# Subtest: unknown IDs, mixed-source records and failed historical receipts fail closed
+ok 77 - unknown IDs, mixed-source records and failed historical receipts fail closed
+  ---
+  duration_ms: 0.286833
+  type: 'test'
+  ...
+# Subtest: manual unwired dispositions preserve the entry and require a reason and references
+ok 78 - manual unwired dispositions preserve the entry and require a reason and references
+  ---
+  duration_ms: 0.331792
+  type: 'test'
+  ...
+# Subtest: missing restore and focused completion remain partial; complete phases are independently required
+ok 79 - missing restore and focused completion remain partial; complete phases are independently required
+  ---
+  duration_ms: 4.591
+  type: 'test'
+  ...
+# Subtest: focused measure-only suites retain their JSONL without inventing a workbench or full acceptance
+ok 80 - focused measure-only suites retain their JSONL without inventing a workbench or full acceptance
+  ---
+  duration_ms: 2.089458
+  type: 'test'
+  ...
+# Subtest: source patch provenance is retained and mismatched snapshots fail closed
+ok 81 - source patch provenance is retained and mismatched snapshots fail closed
+  ---
+  duration_ms: 4.419417
+  type: 'test'
+  ...
+# Subtest: new untracked acceptance assertions are candidates, never evidence
+ok 82 - new untracked acceptance assertions are candidates, never evidence
+  ---
+  duration_ms: 59.54925
+  type: 'test'
+  ...
+# Subtest: forged completion markers and empty phases are rejected
+ok 83 - forged completion markers and empty phases are rejected
+  ---
+  duration_ms: 2.478292
+  type: 'test'
+  ...
+1..83
+# tests 83
+# suites 0
+# pass 83
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4764.927708
