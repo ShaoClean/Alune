@@ -158,8 +158,9 @@ module.exports = async ({ wait }) => {
         await ev(
           'history.pushState({},"","/settings/logs");window.dispatchEvent(new PopStateEvent("popstate"))',
         );
-        await wait(wc, element('.logging-path'));
-        assert.equal(await ev('document.querySelector(".logging-path").textContent'), directory);
+        // Navigation/cache refresh can replace this node between evaluations.
+        // Read and compare the loaded path in the same renderer turn.
+        await wait(wc, 'document.querySelector(".logging-path")?.textContent===' + JSON.stringify(directory));
       },
     );
     console.log(

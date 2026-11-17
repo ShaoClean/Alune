@@ -18,6 +18,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     "document.querySelector('.terminal-output .xterm-accessibility-tree')?.textContent.includes(" +
     JSON.stringify(t) +
     ')';
+  const settledOutput = (token) => wait(wc, `(()=>{const tree=document.querySelector('.terminal-output .xterm-accessibility-tree');if(!tree)return false;const text=tree.textContent.trim();return text.includes(${JSON.stringify(token)})&&text.endsWith(${JSON.stringify(process.platform === 'win32' ? '>' : '$')})})()`);
   async function retainedOutput() {
     // The accessibility tree represents the viewport, not the scrollback.
     // Long packaged runtime paths can scroll the probe off screen. Reveal the
@@ -57,7 +58,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     fs.realpathSync.native(work),
   );
   await send(process.platform === 'win32' ? 'type terminal-probe.txt' : 'cat terminal-probe.txt');
-  await wait(wc, output(marker));
+  await settledOutput(marker);
   const resize = button('调整终端高度');
   const height = () => ev('Number((' + resize + ').getAttribute("aria-valuenow"))');
   const originalHeight = await height();
@@ -71,15 +72,16 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   );
   const probeScript = path.join(work, 'terminal-dimensions.cjs');
   const probeLauncher = path.join(work, process.platform === 'win32' ? 'terminal-dimensions.cmd' : 'terminal-dimensions.sh');
-  fs.writeFileSync(probeScript, "require('node:fs').writeFileSync('terminal-dimensions.json',JSON.stringify({cols:process.stdout.columns,rows:process.stdout.rows}))");
   const quotedNode = process.platform === 'win32'
     ? '"' + node.replaceAll('%', '%%') + '"'
     : "'" + node.replaceAll("'", "'\"'\"'") + "'";
   fs.writeFileSync(probeLauncher, process.platform === 'win32'
-    ? '@echo off\r\n' + quotedNode + ' terminal-dimensions.cjs\r\n'
+    ? '@echo off\r\n' + quotedNode + ' terminal-dimensions.cjs\r\n@echo on\r\n'
     : 'exec ' + quotedNode + ' terminal-dimensions.cjs\n');
   async function dimensions() {
     fs.rmSync(dimensionsFile, { force: true });
+    const done = 'SIZE_' + require('node:crypto').randomBytes(4).toString('hex');
+    fs.writeFileSync(probeScript, "require('node:fs').writeFileSync('terminal-dimensions.json',JSON.stringify({cols:process.stdout.columns,rows:process.stdout.rows}));console.log(" + JSON.stringify(done) + ")");
     // A short launcher measures the bundled runtime without filling a tiny
     // viewport with the runner's long executable path and inline JavaScript.
     await send(process.platform === 'win32' ? 'terminal-dimensions.cmd' : 'sh terminal-dimensions.sh');
@@ -96,6 +98,9 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     assert.ok(actual, 'the shell must run the dimensions probe');
     assert.ok(Number.isInteger(actual.rows) && actual.rows > 0);
     assert.ok(Number.isInteger(actual.cols) && actual.cols > 0);
+    // File I/O completes before ConPTY's redraw and the shell prompt reach
+    // xterm. Do not resize again until the parser has consumed that barrier.
+    await settledOutput(done);
     return actual;
   }
   await key(resize, 'Home', 'Home', 36);
