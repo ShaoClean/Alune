@@ -1,5 +1,5 @@
 // Ordinary workspace regression is independent of historical P0 replay inputs.
-// Frozen/current P0 suites are invoked explicitly by scripts/archive/agent-acceptance/p0-*.mjs.
+// Historical P0 suites are excluded from ordinary workspace regression.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

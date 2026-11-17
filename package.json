@@ -34,8 +34,6 @@
     "web:agent": "turbo build --filter=@alune/agent --filter=@alune/ui && npm run dev:agent -w web",
     "desktop:candidate:build": "npm run icons:check && turbo build --filter=web --filter=@alune/agent && npm run build:candidate -w desktop",
     "test:retirement": "node --test scripts/agent/retirement.test.mjs",
-    "test:acceptance": "node scripts/archive/agent-acceptance/run.mjs test",
-    "acceptance:archive": "node scripts/archive/agent-acceptance/run.mjs",
     "test:agent-tools": "node --test scripts/agent/download-runtime.test.mjs scripts/agent/layout.test.mjs"
   },
   "devDependencies": {
