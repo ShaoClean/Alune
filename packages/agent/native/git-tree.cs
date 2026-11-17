@@ -71,9 +71,14 @@ class GitTree {
                         string file=Path.Combine(dir.FullName,@"usr\bin\ps.exe");
                         if(File.Exists(file)){msys=file;break;}
                     }
-                    for(int pass=0;pass<3;pass++){
+                    var clock=Stopwatch.StartNew();long lastDiscovery=0;
+                    // MSYS exec can finish replacing its native PID after the
+                    // first snapshot. Keep held ancestry alive through a quiet
+                    // interval and revisit survivors instead of stopping at 100ms.
+                    while(clock.ElapsedMilliseconds<5000){
+                        int previousCount=known.Count;
                         var edges=Snapshot(msys);
-                        var queue=new Queue<int>(known.Keys);var order=new List<Process>();
+                        var queue=new Queue<int>(known.Keys);
                         while(queue.Count>0){
                             int parent=queue.Dequeue();List<int> children;
                             if(!edges.TryGetValue(parent,out children))continue;
@@ -82,14 +87,16 @@ class GitTree {
                                 try{
                                     var process=Process.GetProcessById(id);
                                     var hold=process.Handle;
-                                    known.Add(id,process);queue.Enqueue(id);order.Add(process);
+                                    known.Add(id,process);queue.Enqueue(id);
                                 }catch(ArgumentException){}catch(InvalidOperationException){}
                             }
                         }
-                        order.Reverse();
-                        foreach(var process in order) if(!process.HasExited)try{process.Kill();}catch(InvalidOperationException){}
+                        if(known.Count!=previousCount)lastDiscovery=clock.ElapsedMilliseconds;
+                        var all=new List<Process>(known.Values);all.Reverse();
+                        foreach(var process in all) if(process!=root && !process.HasExited)try{process.Kill();}catch(InvalidOperationException){}
                         if(!root.HasExited)try{root.Kill();}catch(InvalidOperationException){}
-                        if(pass<2)System.Threading.Thread.Sleep(50);
+                        if(clock.ElapsedMilliseconds-lastDiscovery>=2000)break;
+                        System.Threading.Thread.Sleep(100);
                     }
                     return 0;
                 }finally{foreach(var p in known.Values)if(p!=root)p.Dispose();}

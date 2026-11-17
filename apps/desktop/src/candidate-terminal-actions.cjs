@@ -69,12 +69,20 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     runtimeRoot,
     process.platform === 'win32' ? 'runtime/node.exe' : 'runtime/bin/node',
   );
+  const probeScript = path.join(work, 'terminal-dimensions.cjs');
+  const probeLauncher = path.join(work, process.platform === 'win32' ? 'terminal-dimensions.cmd' : 'terminal-dimensions.sh');
+  fs.writeFileSync(probeScript, "require('node:fs').writeFileSync('terminal-dimensions.json',JSON.stringify({cols:process.stdout.columns,rows:process.stdout.rows}))");
+  const quotedNode = process.platform === 'win32'
+    ? '"' + node.replaceAll('%', '%%') + '"'
+    : "'" + node.replaceAll("'", "'\"'\"'") + "'";
+  fs.writeFileSync(probeLauncher, process.platform === 'win32'
+    ? '@echo off\r\n' + quotedNode + ' terminal-dimensions.cjs\r\n'
+    : 'exec ' + quotedNode + ' terminal-dimensions.cjs\n');
   async function dimensions() {
     fs.rmSync(dimensionsFile, { force: true });
-    await send(
-      JSON.stringify(node.replaceAll('\\', '/')) +
-        ` -e "require('node:fs').writeFileSync('terminal-dimensions.json',JSON.stringify({cols:process.stdout.columns,rows:process.stdout.rows}))"`,
-    );
+    // A short launcher measures the bundled runtime without filling a tiny
+    // viewport with the runner's long executable path and inline JavaScript.
+    await send(process.platform === 'win32' ? 'terminal-dimensions.cmd' : 'sh terminal-dimensions.sh');
     const end = Date.now() + 15000;
     let actual;
     while (!actual && Date.now() < end) {
@@ -135,7 +143,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     }
   } finally {
     wc.sendInputEvent({ type: 'mouseUp', x: point.x, y: to, button: 'left', clickCount: 1 });
-    fs.rmSync(dimensionsFile, { force: true });
+    for (const file of [dimensionsFile, probeScript, probeLauncher]) fs.rmSync(file, { force: true });
   }
   await retainedOutput();
   await pass(

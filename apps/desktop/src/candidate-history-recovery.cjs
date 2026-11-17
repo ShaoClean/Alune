@@ -115,13 +115,18 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
     const raf=window.requestAnimationFrame.bind(window),cancel=window.cancelAnimationFrame.bind(window),pending=new Map();
     window.requestAnimationFrame=callback=>{const entry={callback,time:null};const id=raf(time=>{entry.time=time});pending.set(id,entry);return id};
     window.cancelAnimationFrame=id=>{cancel(id);pending.delete(id)};
-    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;window.cancelAnimationFrame=cancel;for(const [id,entry] of pending){cancel(id);pending.delete(id);entry.callback(entry.time??performance.now())}delete window.__restoreHistoryFrames};
+    window.__historyLayoutFrame=()=>new Promise(resolve=>raf(()=>setTimeout(resolve,0)));
+    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;window.cancelAnimationFrame=cancel;for(const [id,entry] of pending){cancel(id);pending.delete(id);entry.callback(entry.time??performance.now())}delete window.__historyLayoutFrame;delete window.__restoreHistoryFrames};
   })()`);
   try {
     await click(button('文件'));
     await wait(wc, "document.querySelector('.history-viewport')?.clientHeight===0");
+    await ev('window.__historyLayoutFrame()');
     await click(button('提交历史'));
     await wait(wc, "document.querySelector('.history-viewport')?.clientHeight>0");
+    // Deliver ResizeObserver/layout updates while restoration RAF callbacks
+    // remain held, so the injected clamp always precedes the final restore.
+    await ev('window.__historyLayoutFrame()');
     // Model a delayed browser clamp delivered after the retained panel is
     // visible, before its first restored renderer frame. No store is patched.
     await ev(
