@@ -44,7 +44,6 @@ Release 提供 `SHA256SUMS`，可使用系统的 SHA-256 工具核对下载文�
 
 [返回项目首页](../README.md) · [文档索引](README.md)
 
-普通桌面与验收包均附带匹配平台与应用版本的独立 Agent。候选入口、首次升级、回退及 SSH 运行包准备见[开发与打包](development.md#独立-agent-候选入口p8p9-验收)。可用 `node apps/desktop/scripts/test-packaged.mjs` 对已打包程序执行隔离的升级、暂存、日志及重启测试；它只使用临时目录。
-
+普通桌面与验收包均附带匹配平台与应用版本的独立 Agent。首次升级、回退及隔离测试入口见[开发与打包](development.md#默认-agent-入口与迁移)。可用 `node apps/desktop/scripts/test-packaged.mjs` 对已打包程序执行隔离的升级、暂存、日志及重启测试；它只使用临时目录。
 
 人工复验可从通过的安装演练作业下载 `reviewed-candidate-*` 构建产物（保留 7 天）。这些是验收版，版本号特意低于公开稳定版，以测试真实更新；不替换正式 Release。若需隔离状态，请在启动候选程序前设置 `ALUNE_CANDIDATE_DATA_DIR` 为测试目录的绝对路径。该模式只使用指定目录，不自动发现个人 standalone 数据。Git 写入仍然作用于打开的真实仓库，请使用测试仓库与测试主机。

@@ -92,10 +92,8 @@ node apps/desktop/scripts/check-candidate.mjs --default
 
 `npm run desktop:candidate:build`、`npm run dist:candidate -w desktop` 保留为验收产物目录命令；与普通入口使用同一 Agent 执行器，不存在旧版构建分支。
 
-### 脚本目录与历史验收
+### Agent 工具
 
 [`scripts/agent`](../scripts/agent/README.md) 只保留日常构建、打包、发布和普通回归工具，执行 `npm run test:agent-tools` 检查工具与入口。
-
-历史 P0 计划、逐批回放、UI 回执及专项 Mac 演练脚本已从当前分支移除，相关 npm 命令和旧性能基线入口一并移除。需要复查旧流程时，使用对应的 Git 历史提交；删除前的完整工具版本为 `f711227`。原始回执和快照保留原字节，不重标历史源码或验收结果。
 
 `node scripts/agent-inventory.mjs` 仍可发现当前 Agent/UI/SDK 源码入口，用于静态检查，不替代功能审查或测试回执。

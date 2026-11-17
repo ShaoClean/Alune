@@ -23,4 +23,4 @@
 - [迁移清单与旧路径对照](https://github.com/ShaoClean/Alune/wiki/Migration-25)
 - [设计模板](https://github.com/ShaoClean/Alune/wiki/Design-Template) 与 [维护约定](https://github.com/ShaoClean/Alune/wiki/Contributing)
 
-代码仓库保留现行使用、配置、开发、发布说明与测试 fixtures；方案、实际验收记录及配套截图和附件继续只在 Wiki 维护。返回[项目首页](../README.md)。
+代码仓库保留现行使用、配置、开发、发布说明与测试 fixtures；方案、实际验收记录及配套截图和附件继续只在 Wiki 维护。批次报告、运行日志和源码快照不随代码提交，`docs/acceptance/` 已加入忽略规则。返回[项目首页](../README.md)。

@@ -9,3 +9,4 @@ dist
 apps/desktop/release
 release-notes*.md
 /TODO.md
+/docs/acceptance/
