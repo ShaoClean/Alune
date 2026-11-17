@@ -54,3 +54,19 @@ test('Windows execution-host resize redraw preserves terminal history on any UI 
     } finally { terminal.dispose(); }
   }
 });
+
+test('a PTY becoming ready receives dimensions already fitted before it connected', async () => {
+  const { createRequire } = await import('node:module');
+  const { Terminal } = createRequire(import.meta.url)('@xterm/xterm');
+  const { synchronizeTerminalSize } = await import('../src/stores/terminalOptions.ts');
+  const terminal = new Terminal({ cols: 80, rows: 24 });
+  try {
+    terminal.resize(52, 18); // Renderer layout completed during PTY startup.
+    const resizeEvents = [], hostSizes = [];
+    terminal.onResize(size => resizeEvents.push(size));
+    synchronizeTerminalSize(terminal, () => terminal.resize(52, 18),
+      (cols, rows) => hostSizes.push({ cols, rows }));
+    assert.deepEqual(resizeEvents, []); // xterm deliberately suppresses this event.
+    assert.deepEqual(hostSizes, [{ cols: 52, rows: 18 }]);
+  } finally { terminal.dispose(); }
+});

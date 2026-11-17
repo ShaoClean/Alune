@@ -136,25 +136,31 @@ module.exports = async ({
     if (!(await wc.executeJavaScript('Boolean(' + line(i) + ')'))) await click(enable);
     await wait(wc, '(' + line(i) + ')?.disabled===false');
   }
-  async function lineAction(label) {
-    const direct = textButton(label);
-    if (await wc.executeJavaScript('Boolean(' + direct + ')')) return click(direct);
-    await click(button('更多按行操作'));
-    await click(
-      "[...document.querySelectorAll('[role=menuitem]')].find(e=>e.getClientRects().length && e.textContent.trim()===" +
-        JSON.stringify(label) +
-        ')',
-    );
+  async function lineAction(label, selectedLine) {
+    // A refresh can rebuild the diff and clear its selection. Re-select the
+    // known fixture line and dispatch one action against the same live DOM.
+    await wait(wc, `(()=>{
+      const line=(${line(selectedLine)});if(!line||line.disabled)return false;
+      if(!line.checked){line.click();return false;}
+      const direct=(${textButton(label)});
+      const menu=[...document.querySelectorAll('[role=menuitem]')].find(e=>e.getClientRects().length&&e.textContent.trim()===${JSON.stringify(label)});
+      const action=direct||menu;
+      if(action){if(action.disabled||action.getAttribute('aria-disabled')==='true')return false;action.click();return true;}
+      const more=(${button('更多按行操作')});
+      const opened=[...document.querySelectorAll('.ant-dropdown')].some(e=>e.getClientRects().length&&!e.classList.contains('ant-dropdown-hidden'));
+      if(more&&!more.disabled&&!opened)more.click();
+      return false;
+    })()`);
   }
   fs.writeFileSync(trackedPath, both);
   await click(button('刷新仓库'));
   await click(row(tracked));
   await prepareLine(1);
   await click(line(1));
-  await lineAction('清除选择');
+  await lineAction('清除选择', 1);
   await wait(wc, '(' + line(1) + ')?.checked===false');
   await click(line(1));
-  await lineAction('暂存所选行');
+  await lineAction('暂存所选行', 1);
   await fact(() => blob() === first.trimEnd(), 'selected line did not reach index');
   assert.equal(fs.readFileSync(trackedPath, 'utf8'), both);
   assert.equal(git('show', 'HEAD:' + tracked), original.trimEnd());
@@ -162,12 +168,12 @@ module.exports = async ({
   await click(row(tracked));
   await prepareLine(2);
   await click(line(2));
-  await lineAction('放弃所选行');
+  await lineAction('放弃所选行', 2);
   const confirm = element('[aria-label="确认放弃改动"]');
   await key(confirm, 'Escape');
   await wait(wc, '!(' + confirm + ')');
   assert.equal(fs.readFileSync(trackedPath, 'utf8'), both);
-  await lineAction('放弃所选行');
+  await lineAction('放弃所选行', 2);
   await click(textButton('确认放弃'));
   await fact(
     () => fs.readFileSync(trackedPath, 'utf8') === first,
