@@ -8,7 +8,7 @@ const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapter
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 const { RepositoryFiles } = require('../dist/modules/git/repository-files');
 const { runGit } = require('../dist/modules/git/repository-transport');
-const { joinRepositoryPath, normalizeRepositoryPath } = require('../dist/modules/git/repository-path');
+const { joinRepositoryPath, normalizeRepositoryPath, sameRepositoryPath } = require('../dist/modules/git/repository-path');
 
 function fixture() {
   const root = fs.realpathSync.native(
@@ -132,4 +132,13 @@ test('shared path helpers preserve UNC shares, drive paths and POSIX literal bac
   assert.equal(normalizeRepositoryPath('//server/share/repo/../other'), '//server/share/other');
   assert.equal(joinRepositoryPath('C:/repo', 'src/file.txt'), 'C:/repo/src/file.txt');
   assert.equal(joinRepositoryPath('/repo', 'back\\slash.txt'), '/repo/back\\slash.txt');
+});
+
+test('canonical Windows filesystem paths compare across separators without weakening POSIX checks', () => {
+  assert.equal(joinRepositoryPath('C:\\repo', 'dir/file'), 'C:/repo/dir/file');
+  assert.equal(sameRepositoryPath('C:\\repo\\dir', 'c:/repo/dir'), true);
+  assert.equal(sameRepositoryPath('C:\\repo\\other', 'C:/repo/dir'), false);
+  assert.equal(sameRepositoryPath('/repo/Dir', '/repo/dir'), false);
+  assert.equal(sameRepositoryPath('/repo/a\\b', '/repo/a/b'), false);
+  assert.equal(normalizeRepositoryPath('/repo/a\\b'), '/repo/a\\b');
 });

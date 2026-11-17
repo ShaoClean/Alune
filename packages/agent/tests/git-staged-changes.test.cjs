@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createRepository } = require('./helpers/local-repository.cjs');
+const { createRepository, interceptGit } = require('./helpers/local-repository.cjs');
 const { StagedChanges, AI_DIFF_MAX_BYTES } = require('../dist/modules/git/staged-changes');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 const { gitFileCommand } = require('../dist/modules/git/git-shell');
@@ -49,16 +49,13 @@ test('changed index during snapshot capture is discarded', async (t) => {
   t.after(f.close);
   f.write('change.txt', 'before\n');
   f.git('add', 'change.txt');
-  const connection = {
-    execCommand: async (...args) => {
-      const result = await f.connection.execCommand(...args);
-      if (args[0].includes('--unified=3')) {
-        f.write('change.txt', 'after\n');
-        f.git('add', 'change.txt');
-      }
-      return result;
-    },
-  };
+  const connection = { ...f.connection };
+  interceptGit(connection, (args) => {
+    if (args.includes('--unified=3')) {
+      f.write('change.txt', 'after\n');
+      f.git('add', 'change.txt');
+    }
+  });
   await assert.rejects(
     new StagedChanges(connection, f.repo).read(new AbortController().signal),
     /已变化/,

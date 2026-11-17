@@ -22,8 +22,19 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     // The accessibility tree represents the viewport, not the scrollback.
     // Long packaged runtime paths can scroll the probe off screen. Reveal the
     // retained history through the real terminal before asserting its bytes.
-    const point = await ev("(()=>{const r=document.querySelector('.terminal-output .xterm-screen').getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()");
-    wc.sendInputEvent({ type: 'mouseWheel', ...point, deltaY: -10000, deltaX: 0 });
+    // Mounting/refitting the retained xterm can still be in flight when the
+    // panel appears. Move the native pointer over its current screen and keep
+    // scrolling until Chromium has delivered the wheel and xterm has rendered.
+    const end = Date.now() + 15000;
+    while (Date.now() < end) {
+      if (await ev(output(marker))) return;
+      const point = await ev("(()=>{const e=document.querySelector('.terminal-output .xterm-screen');if(!e)return null;const r=e.getBoundingClientRect();return r.width&&r.height?{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}:null})()");
+      if (point) {
+        wc.sendInputEvent({ type: 'mouseMove', ...point });
+        wc.sendInputEvent({ type: 'mouseWheel', ...point, deltaY: -10000, deltaX: 0 });
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     await wait(wc, output(marker));
   }
   const key = (expr, key, code, n, modifiers = {}) =>

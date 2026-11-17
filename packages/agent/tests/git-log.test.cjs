@@ -4,7 +4,7 @@ const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 const { GitLogChangedError, GitLogOptionsError } = require('../dist/modules/git/git-log');
-const { createRepository } = require('./helpers/local-repository.cjs');
+const { createRepository, interceptGit } = require('./helpers/local-repository.cjs');
 const { createHistoryRepository } = require('./helpers/history-repository.cjs');
 
 const readAll = async (git, repo, count = 50) => {
@@ -93,12 +93,9 @@ test('a moved reference or a reference changed during reading never mixes histor
     git.log(fixture.repo, { count: 2, skip: first.nextSkip, revision: first.revision }),
     GitLogChangedError,
   );
-  const original = fixture.connection.execCommand;
-  fixture.connection.execCommand = async (command, ...args) => {
-    const result = await original(command, ...args);
-    if (command.includes("'log'")) fixture.git('tag', 'changed-during-query');
-    return result;
-  };
+  interceptGit(fixture.connection, (args) => {
+    if (args[0] === 'log') fixture.git('tag', 'changed-during-query');
+  });
   await assert.rejects(git.log(fixture.repo), GitLogChangedError);
 });
 

@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createRepository } = require('./helpers/local-repository.cjs');
+const { createRepository, interceptGit } = require('./helpers/local-repository.cjs');
 const { NewFileDeletion } = require('../dist/modules/git/new-file-deletion');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 
@@ -57,7 +57,7 @@ for (const initial of [true, false])
 
 test('treats Git pathspec magic, leading dashes and backslashes literally', async (t) => {
   const f = fixture(t);
-  for (const name of [':(glob)*', '-rf', 'a\\b', ' spaced ']) {
+  for (const name of process.platform === 'win32' ? ['-rf', '[literal]', ' spaced'] : [':(glob)*', '-rf', 'a\\b', ' spaced ']) {
     f.write(name);
     f.write('keep.txt');
     f.git('--literal-pathspecs', 'add', '--', name);
@@ -196,17 +196,18 @@ test('a lost acknowledgement after clearing the index reports an unknown result'
   f.write('new.txt');
   f.git('add', '--', 'new.txt');
   const preview = await f.deletion.preview(f.repo, 'new.txt');
-  const original = f.connection.execCommand;
   let disconnected = false;
-  f.connection.execCommand = async (...args) => {
-    if (disconnected) throw new Error('SSH disconnected');
-    const result = await original(...args);
-    if (args[0].includes("'rm' '--cached'")) {
+  const execute = f.connection.execCommand.bind(f.connection);
+  f.connection.execCommand = (...args) => {
+    if (disconnected) return Promise.reject(new Error('SSH disconnected'));
+    return execute(...args);
+  };
+  interceptGit(f.connection, (args) => {
+    if (args[0] === 'rm' && args.includes('--cached')) {
       disconnected = true;
       throw new Error('SSH disconnected');
     }
-    return result;
-  };
+  });
   f.connection.withSftp = (operation) =>
     disconnected ? Promise.reject(new Error('SSH disconnected')) : operation(fs);
   await assert.rejects(
@@ -258,15 +259,12 @@ test('preserves a file restaged by another writer after index cleanup', async (t
   f.write('new.txt');
   f.git('add', '--', 'new.txt');
   const preview = await f.deletion.preview(f.repo, 'new.txt');
-  const original = f.connection.execCommand;
-  f.connection.execCommand = async (...args) => {
-    const result = await original(...args);
-    if (args[0].includes("'rm' '--cached'")) {
+  interceptGit(f.connection, (args) => {
+    if (args[0] === 'rm' && args.includes('--cached')) {
       f.write('new.txt', 'concurrent staged contents\n');
       f.git('add', '--', 'new.txt');
     }
-    return result;
-  };
+  });
   await assert.rejects(
     f.deletion.delete(f.repo, 'new.txt', preview.token),
     /重新暂存或提交.*磁盘文件：仍存在；暂存记录：仍存在/,

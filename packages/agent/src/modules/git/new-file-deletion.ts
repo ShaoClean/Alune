@@ -1,4 +1,4 @@
-import { joinRepositoryPath } from './repository-path';
+import { joinRepositoryPath, normalizeRepositoryPath, sameRepositoryPath } from './repository-path';
 import { runGit } from './repository-transport';
 import type { RepositoryTransport } from './repository-transport';
 import { createHash } from 'node:crypto';
@@ -56,7 +56,7 @@ export class NewFileDeletion {
   }
 
   private async disk(sftp: SFTPWrapper, repoPath: string, path: string): Promise<DiskSnapshot> {
-    const root = await promisify(sftp.realpath.bind(sftp))(repoPath);
+    const root = normalizeRepositoryPath(await promisify(sftp.realpath.bind(sftp))(repoPath));
     const target = joinRepositoryPath(root, path);
     const parent = posix.dirname(target);
     let ancestor = root;
@@ -75,7 +75,7 @@ export class NewFileDeletion {
       }
     }
     const actualParent = await promisify(sftp.realpath.bind(sftp))(parent);
-    if (actualParent !== parent) {
+    if (!sameRepositoryPath(actualParent, parent)) {
       throw new NewFileDeletionError('目标文件的父目录包含符号链接，无法安全删除。');
     }
     let before;
@@ -242,7 +242,7 @@ export class NewFileDeletion {
     let index = '无法确认（连接或 Git 不可用）';
     try {
       disk = await this.connection.withSftp(async (sftp) => {
-        const root = await promisify(sftp.realpath.bind(sftp))(repoPath);
+        const root = normalizeRepositoryPath(await promisify(sftp.realpath.bind(sftp))(repoPath));
         try {
           await promisify(sftp.lstat.bind(sftp))(joinRepositoryPath(root, path));
           return '仍存在';

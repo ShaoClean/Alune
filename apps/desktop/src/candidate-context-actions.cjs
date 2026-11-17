@@ -117,9 +117,10 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
     fs.writeFileSync(configPath, configBefore);
   }
   assert.deepEqual(fingerprint(), unchanged);
-  // The concurrent status failure may become the active notice after the
-  // context error arrived. Select the context notice again before its retry.
-  await notice('无法读取仓库配置', ['无法读取仓库状态'], '重试');
+  // Restoring .git/config may trigger the repository watcher and remove the
+  // old error before its retry can be selected. Explicitly refresh the restored
+  // repository instead of waiting for a notification that is already resolved.
+  await click(button('刷新仓库'));
   await wait(
     wc,
     "!document.querySelector('.feedback-list')?.textContent.includes('无法读取仓库配置')",
@@ -138,7 +139,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   assert.deepEqual(fingerprint(), unchanged);
   await pass(
     ['UI-035', 'UI-072'],
-    'a malformed local Git config reports an actual context read error; restore its exact bytes and explicitly retry to recover the saved author without touching HEAD, index or working files',
+    'a malformed local Git config reports an actual context read error; restore its exact bytes and explicitly refresh to recover the saved author without touching HEAD, index or working files',
   );
   const offline = upstream + '.offline';
   fs.renameSync(upstream, offline);
