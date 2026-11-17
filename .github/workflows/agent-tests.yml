@@ -61,7 +61,7 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: node scripts/agent/check-clean-checkout.mjs after-install
-      - run: node --test scripts/agent/download-runtime.test.mjs
+      - run: node --test scripts/agent/download-runtime.test.mjs scripts/agent/layout.test.mjs
       - run: npm test -w @alune/protocol
       - run: npm test -w @alune/agent-client
       - run: npm test -w @alune/agent
