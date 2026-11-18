@@ -101,23 +101,28 @@ export async function readBundle(
     // reconnect verifies the archive on the target without a network download.
     async bytes() {
       let bytes: Buffer;
-      if (catalogFile) {
-        if (!send) throw unavailable('Release download transport unavailable');
-        bytes = await download(
-          'https://github.com/ShaoClean/Alune/releases/download/v' +
-            version +
-            '/alune-agent-' +
-            version +
-            '-' +
-            target +
-            '.tar.gz',
-          send,
-          signal,
-        );
-      } else {
-        const file = join(base, 'agent.tar.gz');
+      const file = join(base, 'agent.tar.gz');
+      try {
         if ((await stat(file)).size > limit) throw unavailable('SSH bundle exceeds size limit');
         bytes = await readFile(file);
+      } catch (error) {
+        if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error;
+        if (catalogFile) {
+          if (!send) throw unavailable('Release download transport unavailable');
+          bytes = await download(
+            'https://github.com/ShaoClean/Alune/releases/download/v' +
+              version +
+              '/alune-agent-' +
+              version +
+              '-' +
+              target +
+              '.tar.gz',
+            send,
+            signal,
+          );
+        } else {
+          throw unavailable('Provision the trusted SSH bundle for ' + target);
+        }
       }
       if (createHash('sha256').update(bytes).digest('hex') !== pin.sha256)
         throw unavailable('Local SSH bundle checksum mismatch');

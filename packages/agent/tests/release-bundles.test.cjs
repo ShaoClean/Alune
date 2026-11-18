@@ -25,6 +25,8 @@ test('desktop pins gate SSH downloads: no download on reconnect, redirect allowl
       }),
     );
     process.env.ALUNE_AGENT_RELEASE_CATALOG = file;
+    fs.mkdirSync(path.join(dir, 'ssh-bundles', 'linux-x64'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'ssh-bundles', 'linux-x64', 'agent.tar.gz'), bytes);
     const calls = [];
     const bundle = await readBundle(dir, 'linux-x64', async (url, options) => {
       calls.push(url);
@@ -37,9 +39,21 @@ test('desktop pins gate SSH downloads: no download on reconnect, redirect allowl
         : new Response(bytes);
     });
     assert.equal(bundle.sha256, sum);
-    assert.equal(calls.length, 0);
     assert.deepEqual(await bundle.bytes(), bytes);
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 0);
+    fs.rmSync(path.join(dir, 'ssh-bundles', 'linux-x64', 'agent.tar.gz'));
+    const remoteBundle = await readBundle(dir, 'linux-x64', async (url, options) => {
+      calls.push(url);
+      assert.equal(options.redirect, 'manual');
+      return calls.length === 1
+        ? new Response(null, {
+            status: 302,
+            headers: { location: 'https://release-assets.githubusercontent.com/fixture' },
+          })
+        : new Response(bytes);
+    });
+    assert.deepEqual(await remoteBundle.bytes(), bytes);
+    assert.equal(calls.length, 2)
     const bad = await readBundle(
       dir,
       'linux-x64',
