@@ -26,6 +26,8 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* The virtualized graph restores its own scroll position when shown. */
+  overflow-anchor: none;
   overscroll-behavior: contain;
 }
 .history-table {
