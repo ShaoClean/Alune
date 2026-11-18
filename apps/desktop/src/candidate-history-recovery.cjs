@@ -31,7 +31,8 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
   fs.writeFileSync(path.join(repo, 'later.txt'), 'independent later change\n');
   git('add', 'later.txt');
   git('commit', '-qm', 'later main');
-  for (let i = 0; i < 8; i++) git('commit', '--allow-empty', '-qm', 'cached history ' + i);
+  // Keep the scroll probe usable on runners with different window sizes.
+  for (let i = 0; i < 23; i++) git('commit', '--allow-empty', '-qm', 'cached history ' + i);
 
   const head = git('rev-parse', 'HEAD'),
     index = git('rev-parse', ':main.txt');
@@ -96,29 +97,33 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
       separator +
       ').getAttribute("aria-valuemin")',
   );
-  await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
-  await ev(
-    "(()=>{const v=document.querySelector('.history-viewport');v.scrollTop=80;v.dispatchEvent(new Event('scroll',{bubbles:true}))})()",
-  );
-  await wait(wc, "document.querySelector('.history-viewport').scrollTop>=79");
-  const scrollBefore = await ev("document.querySelector('.history-viewport').scrollTop");
+  const viewport = "document.querySelector('.history-viewport')";
+  const waitForFrames = () =>
+    ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  const waitForScroll = (top) =>
+    wait(wc, `Math.abs(${viewport}.scrollTop - ${top}) < 2`);
+  const scrollBefore = 80;
+  await wait(wc, `${viewport}.scrollHeight - ${viewport}.clientHeight >= ${scrollBefore}`);
+  await wait(wc, `new Promise(resolve => {
+    const viewport = ${viewport};
+    viewport.scrollTop = ${scrollBefore};
+    viewport.dispatchEvent(new Event('scroll', { bubbles: true }));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      resolve(Math.abs(viewport.scrollTop - ${scrollBefore}) < 2);
+    }));
+  })`);
   await click(button('文件'));
-  await wait(wc, "document.querySelector('.history-viewport')?.clientHeight===0");
+  await wait(wc, `${viewport}.clientHeight === 0`);
   await click(button('提交历史'));
-  await wait(
-    wc,
-    'Math.abs(document.querySelector(".history-viewport").scrollTop-' + scrollBefore + ')<2',
-  );
+  await waitForFrames();
+  await waitForScroll(scrollBefore);
   assert.equal(await ev('document.querySelector(".history-detail code[title]")?.title'), head);
   await pass(
     ['UI-013', 'UI-021', 'UI-022'],
     'prime history through a real tag creation, scroll its cached graph and switch panels; returning preserves both scroll position and the selected commit',
   );
-  const waitForFrames = () =>
-    ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
-  await waitForFrames();
   await click(button('文件'));
-  await wait(wc, "document.querySelector('.history-viewport')?.clientHeight===0");
+  await wait(wc, `${viewport}.clientHeight === 0`);
   await ev(`(() => {
     const viewport = document.querySelector('.history-viewport');
     const scrollTop = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
@@ -150,10 +155,7 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
     // it runs before the restoration frame, independent of other animations.
     await wait(wc, 'window.__historyClampApplied===true');
     await waitForFrames();
-    await wait(
-      wc,
-      'Math.abs(document.querySelector(".history-viewport").scrollTop-' + scrollBefore + ')<2',
-    );
+    await waitForScroll(scrollBefore);
     assert.equal(await ev('document.querySelector(".history-detail code[title]")?.title'), head);
   } finally {
     await ev('window.__restoreHistoryFrames?.()').catch(() => {});
