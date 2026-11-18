@@ -60,29 +60,31 @@ export async function readBundle(
   if (!targets.includes(target)) throw unavailable('Unsupported SSH target');
   const version: string = require('../../version.json').version;
   const catalogFile = process.env.ALUNE_AGENT_RELEASE_CATALOG,
-    base = join(directory, 'ssh-bundles', target);
-  const pin = catalogFile
-    ? await (async () => {
-        const catalog = JSON.parse(await readFile(catalogFile, 'utf8')),
-          entry = catalog.targets?.[target];
-        if (
-          !entry ||
-          catalog.schemaVersion !== 1 ||
-          catalog.version !== version ||
-          entry.protocol?.major !== PROTOCOL_VERSION.major ||
-          entry.protocol.minor !== PROTOCOL_VERSION.minor
-        )
-          throw new ProtocolError(
-            'incompatible-version',
-            'Desktop release catalog does not match the Agent',
-          );
-        return { ...entry, target, version };
-      })()
-    : JSON.parse(
-        await readFile(join(base, 'release.json'), 'utf8').catch(() => {
-          throw unavailable('Provision the trusted SSH bundle for ' + target);
-        }),
-      );
+    base = join(directory, 'ssh-bundles', target),
+    localPin = await readFile(join(base, 'release.json'), 'utf8')
+      .then((value) => JSON.parse(value))
+      .catch(() => undefined);
+  const pin = localPin ??
+    (catalogFile
+      ? await (async () => {
+          const catalog = JSON.parse(await readFile(catalogFile, 'utf8')),
+            entry = catalog.targets?.[target];
+          if (
+            !entry ||
+            catalog.schemaVersion !== 1 ||
+            catalog.version !== version ||
+            entry.protocol?.major !== PROTOCOL_VERSION.major ||
+            entry.protocol.minor !== PROTOCOL_VERSION.minor
+          )
+            throw new ProtocolError(
+              'incompatible-version',
+              'Desktop release catalog does not match the Agent',
+            );
+          return { ...entry, target, version };
+        })()
+      : undefined);
+  if (!pin)
+    throw unavailable('Provision the trusted SSH bundle for ' + target);
   if (
     !/^[0-9a-f]{64}$/.test(pin.sha256) ||
     !/^[0-9a-f]{64}$/.test(pin.manifestSha256) ||

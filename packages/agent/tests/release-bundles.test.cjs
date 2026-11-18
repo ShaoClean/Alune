@@ -26,6 +26,10 @@ test('desktop pins gate SSH downloads: no download on reconnect, redirect allowl
     );
     process.env.ALUNE_AGENT_RELEASE_CATALOG = file;
     fs.mkdirSync(path.join(dir, 'ssh-bundles', 'linux-x64'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'ssh-bundles', 'linux-x64', 'release.json'),
+      JSON.stringify({ target: 'linux-x64', version, protocol: PROTOCOL_VERSION, sha256: sum, manifestSha256: '0'.repeat(64) }),
+    );
     fs.writeFileSync(path.join(dir, 'ssh-bundles', 'linux-x64', 'agent.tar.gz'), bytes);
     const calls = [];
     const bundle = await readBundle(dir, 'linux-x64', async (url, options) => {
@@ -53,7 +57,7 @@ test('desktop pins gate SSH downloads: no download on reconnect, redirect allowl
         : new Response(bytes);
     });
     assert.deepEqual(await remoteBundle.bytes(), bytes);
-    assert.equal(calls.length, 2)
+    assert.equal(calls.length, 2);
     const bad = await readBundle(
       dir,
       'linux-x64',

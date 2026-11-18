@@ -180,7 +180,15 @@ module.exports = async ({
     closed = 0;
   const server = http.createServer((req, res) => {
     started++;
-    res.on('close', () => closed++);
+    let counted = false;
+    const markClosed = () => {
+      if (!counted) {
+        counted = true;
+        closed++;
+      }
+    };
+    req.once('close', markClosed);
+    res.once('close', markClosed);
   });
   await new Promise((ok, fail) => {
     server.once('error', fail);
