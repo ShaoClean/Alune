@@ -3,8 +3,18 @@ name: 独立 Agent
 on:
   workflow_call:
   pull_request:
-  push:
-    branches: [development]
+    paths:
+      - 'apps/web/**'
+      - 'apps/desktop/src/ai-secret-storage.cjs'
+      - 'apps/desktop/src/legacy-agent-secrets.cjs'
+      - 'packages/**'
+      - 'scripts/**'
+      - '.githooks/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'turbo.json'
+      - '.github/workflows/agent-tests.yml'
 
 permissions:
   contents: read
@@ -62,11 +72,21 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: node scripts/agent/check-clean-checkout.mjs after-install
       - run: node --test scripts/agent/download-runtime.test.mjs scripts/agent/layout.test.mjs
-      - run: npm test -w @alune/protocol
-      - run: npm test -w @alune/agent-client
-      - run: npm test -w @alune/agent
+      # Linux PR source tests already run in unit-tests.yml. The sparse
+      # checkout still builds and verifies the actual runtime and Web gateway.
+      - name: 构建 Linux PR 的独立 Agent
+        if: runner.os == 'Linux' && github.event_name == 'pull_request'
+        run: npm run build -w @alune/agent
+      - name: 运行协议、客户端与 Agent 源码测试
+        if: runner.os != 'Linux' || github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          npm test -w @alune/protocol
+          npm test -w @alune/agent-client
+          npm test -w @alune/agent
       - run: npm run build -w web
-      - run: npm test -w web
+      - if: runner.os != 'Linux' || github.event_name != 'pull_request'
+        run: npm test -w web
       - if: runner.os == 'Linux'
         run: bash scripts/agent/test-web-gateway-linux.sh
       - if: runner.os != 'Linux'

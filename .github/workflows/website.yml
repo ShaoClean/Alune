@@ -40,9 +40,13 @@ jobs:
           cache: npm
       # The website does not need Electron, native server packages or desktop builds.
       - run: npm ci --workspace website --workspace @alune/ui --include-workspace-root=false
-      - run: npm run ui:check
+      # PRs run the shared UI checks in unit-tests.yml. Keep them in the
+      # deployment build so a failed UI check still blocks Pages publishing.
+      - if: github.event_name != 'pull_request'
+        run: npm run ui:check
       - run: npm run website:check
-      - uses: actions/upload-pages-artifact@v3
+      - if: github.ref == 'refs/heads/development' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: apps/website/dist
 

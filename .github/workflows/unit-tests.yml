@@ -2,7 +2,7 @@ name: 单元测试
 
 on:
   push:
-    branches: ['**']
+    branches: [development]
   pull_request:
 
 permissions:
@@ -14,50 +14,11 @@ concurrency:
 
 jobs:
   unit-tests:
-    name: 单元测试 (${{ matrix.workspace }})
-    if: github.event_name != 'push' || !github.event.deleted
+    name: 单元测试
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - workspace: agent-client
-            command: npm test -w @alune/agent-client
-          - workspace: agent
-            command: npm test -w @alune/agent
-          - workspace: domain
-            command: npm test -w @alune/domain
-          - workspace: protocol
-            command: npm test -w @alune/protocol
-          - workspace: desktop
-            command: npm run desktop:test:unit
-          - workspace: ui
-            command: npm run ui:check
-          - workspace: web
-            command: npm test -w web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.22.0'
-          cache: npm
-      - run: npm ci
-      - name: 构建 Agent、SDK 与领域契约
-        run: npx turbo build --filter=@alune/agent
-      - run: npm run test:retirement
-      - name: 运行单元测试
-        run: ${{ matrix.command }}
-
-  local-git:
-    name: 本地 Git 与代理 (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-15, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -65,6 +26,20 @@ jobs:
           node-version: '22.22.0'
           cache: npm
       - run: npm ci
-      - run: npx turbo build --filter=@alune/agent
-      - name: Agent Git、文件、SSH 与代理行为
-        run: node --test --test-concurrency=2 --test-timeout=300000 packages/agent/tests/git-*.test.cjs
+      - name: 架构约束、Git hooks 与发布说明
+        run: |
+          npm run test:retirement
+          npm run test:hooks
+          npm run test:release-notes
+      - name: 领域契约、协议与客户端
+        run: |
+          npm test -w @alune/domain
+          npm test -w @alune/protocol
+          npm test -w @alune/agent-client
+      - name: Agent（含 Git 回归与 PTY）
+        run: npm test -w @alune/agent
+      - name: 桌面端与 Web
+        run: |
+          npm run desktop:test:unit
+          npm test -w web
+      - run: npm run ui:check

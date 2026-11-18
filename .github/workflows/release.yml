@@ -39,6 +39,10 @@ jobs:
     needs: validate
     uses: ./.github/workflows/agent-tests.yml
 
+  installer-cycle:
+    needs: validate
+    uses: ./.github/workflows/desktop-smoke.yml
+
   build:
     needs: agent-artifacts
     strategy:
@@ -73,6 +77,12 @@ jobs:
         run: node -e "if (process.arch !== process.env.EXPECTED_ARCH) throw new Error('Native runner architecture mismatch')"
       - run: npm ci
       - run: npm run desktop:build
+      - name: Native safeStorage migration
+        if: runner.os != 'Linux'
+        run: npm run test:agent-migration -w desktop
+      - name: Native safeStorage migration (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:agent-migration -w desktop
       - name: Desktop smoke test
         if: runner.os != 'Linux'
         run: npm run desktop:test
@@ -81,15 +91,13 @@ jobs:
         run: xvfb-run -a npm run desktop:test
       - uses: actions/download-artifact@v4
         with:
-          pattern: ssh-deploy-*
-          path: ${{ runner.temp }}/agent-builds
-      - name: Bind the four SSH release hashes to the desktop installer
-        shell: bash
-        run: node scripts/agent/release-assets.mjs catalog "$RUNNER_TEMP/agent-builds" "$RUNNER_TEMP/agent-release"
+          name: verified-agent-catalog
+          path: ${{ runner.temp }}/agent-release
       - name: Build installers without publishing
         env:
           ALUNE_STAGE_RELEASE_CATALOG: ${{ runner.temp }}/agent-release/agent-catalog.json
-        run: npm run dist -w desktop -- --publish never
+        # desktop:build already staged the app and Agent runtime.
+        run: npm --ignore-scripts run dist -w desktop -- --publish never
       - name: Packaged application smoke test
         if: runner.os != 'Linux'
         run: node apps/desktop/scripts/test-packaged.mjs
@@ -108,7 +116,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: build
+    needs: [build, installer-cycle]
     runs-on: ubuntu-22.04
     permissions:
       contents: write

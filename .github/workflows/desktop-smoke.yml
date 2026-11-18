@@ -1,9 +1,21 @@
 name: 桌面界面回归
 
 on:
+  workflow_call:
+  workflow_dispatch:
   pull_request:
-  push:
-    branches: [development]
+    paths:
+      - 'apps/desktop/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'scripts/**'
+      - '.githooks/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'turbo.json'
+      - '.github/workflows/desktop-smoke.yml'
+      - '.github/workflows/release.yml'
 
 permissions:
   contents: read
@@ -14,17 +26,17 @@ concurrency:
 
 jobs:
   desktop-smoke:
+    if: github.event_name == 'pull_request'
     name: 桌面 write/restore (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    # Includes dependency/native builds, default Agent smoke, packaging and the expanded
-    # candidate write/restore replay. Per-action and process waits stay fixed.
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-15, macos-15-intel]
+        os: [ubuntu-22.04, windows-latest]
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      ALUNE_UI_AUDIT: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,28 +45,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run desktop:build
-        env:
-          ALUNE_UI_AUDIT: '1'
+      - name: 打包已构建的应用
+        # desktop:build already staged the app and Agent runtime.
+        run: npm --ignore-scripts run pack -w desktop -- --publish never
       - name: 原生 safeStorage 与 Agent 私有导入
         if: runner.os != 'Linux'
         run: npm run test:agent-migration -w desktop
       - name: 原生 safeStorage 与 Agent 私有导入 (Xvfb)
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:agent-migration -w desktop
-      - name: 真实桌面隔离数据冒烟
-        if: runner.os != 'Linux'
-        run: npm run desktop:test
-      - name: 真实桌面隔离数据冒烟 (Xvfb)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a npm run desktop:test
-      - name: 打包与内置 Agent 版本、架构绑定的候选桌面
-        run: npm run pack -w desktop -- --publish never
-      - name: 安装目录运行、升级旧数据与再次启动
+      # The full packaged replay also exercises the real PTY and terminal UI.
+      - name: 原生包界面、终端与再次启动
         if: runner.os != 'Linux'
         run: node apps/desktop/scripts/test-packaged.mjs
         env:
           ALUNE_CANDIDATE_EVIDENCE: ${{ runner.temp }}/candidate-ui
-      - name: 安装目录运行、升级旧数据与再次启动 (Xvfb)
+      - name: 原生包界面、终端与再次启动 (Xvfb)
         if: runner.os == 'Linux'
         run: xvfb-run -a node apps/desktop/scripts/test-packaged.mjs
         env:
@@ -66,6 +72,7 @@ jobs:
           if-no-files-found: error
 
   installer-cycle:
+    if: github.event_name != 'pull_request'
     name: 安装、原版升级与回退 (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45

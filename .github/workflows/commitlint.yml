@@ -2,7 +2,7 @@ name: Commit messages
 
 on:
   push:
-    branches: ['**']
+    branches: [development]
   pull_request:
     types: [opened, synchronize, reopened, edited, ready_for_review]
 
@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   commitlint:
-    if: github.event_name != 'push' || !github.event.deleted
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -24,5 +23,3 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Validate new commits and pull request title
         run: npm run lint:commits
-      - run: npm run test:hooks
-      - run: npm run test:release-notes
