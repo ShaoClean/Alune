@@ -114,28 +114,42 @@ module.exports = async ({ window, wc, work, wait, fact, pass }) => {
     ['UI-013', 'UI-021', 'UI-022'],
     'prime history through a real tag creation, scroll its cached graph and switch panels; returning preserves both scroll position and the selected commit',
   );
-  await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
-  await ev(`(()=>{
-    const raf=window.requestAnimationFrame.bind(window);
-    window.__historyClampArmed=false;window.__historyClampApplied=false;
-    window.requestAnimationFrame=callback=>raf(time=>{
-      const v=document.querySelector('.history-viewport');
-      if(window.__historyClampArmed&&v?.clientHeight){
-        window.__historyClampArmed=false;window.__historyClampApplied=true;
-        v.scrollTop=0;v.dispatchEvent(new Event('scroll',{bubbles:true}));
-      }
-      callback(time);
+  const waitForFrames = () =>
+    ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  await waitForFrames();
+  await click(button('文件'));
+  await wait(wc, "document.querySelector('.history-viewport')?.clientHeight===0");
+  await ev(`(() => {
+    const viewport = document.querySelector('.history-viewport');
+    const scrollTop = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
+    let frame;
+    window.__historyClampApplied = false;
+    Object.defineProperty(viewport, 'scrollTop', {
+      configurable: true,
+      get() { return scrollTop.get.call(this); },
+      set(value) {
+        scrollTop.set.call(this, value);
+        if (frame !== undefined || value <= 0 || !this.clientHeight) return;
+        frame = requestAnimationFrame(() => {
+          scrollTop.set.call(viewport, 0);
+          viewport.dispatchEvent(new Event('scroll', { bubbles: true }));
+          window.__historyClampApplied = true;
+        });
+      },
     });
-    window.__restoreHistoryFrames=()=>{window.requestAnimationFrame=raf;delete window.__historyClampArmed;delete window.__historyClampApplied;delete window.__restoreHistoryFrames};
+    window.__restoreHistoryFrames = () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      delete viewport.scrollTop;
+      delete window.__historyClampApplied;
+      delete window.__restoreHistoryFrames;
+    };
   })()`);
   try {
-    await click(button('文件'));
-    await wait(wc, "document.querySelector('.history-viewport')?.clientHeight===0");
-    await ev('window.__historyClampArmed=true');
     await click(button('提交历史'));
-    // Inject the clamp immediately before the first real visible frame, without
-    // freezing unrelated page animations or replaying stale layout callbacks.
+    // Queue the clamp from the viewport's first visible restoration write so
+    // it runs before the restoration frame, independent of other animations.
     await wait(wc, 'window.__historyClampApplied===true');
+    await waitForFrames();
     await wait(
       wc,
       'Math.abs(document.querySelector(".history-viewport").scrollTop-' + scrollBefore + ')<2',
