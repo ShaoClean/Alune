@@ -199,13 +199,18 @@ export function HistoryView({
     element.scrollTop = retainedScroll.current ?? scrollTopRef.current;
     if (retainedScroll.current === null) return;
     // The browser may deliver its hidden-panel clamp after the panel is shown.
-    // Keep the saved position until the visible layout has reached a frame.
-    const frame = requestAnimationFrame(() => {
+    // Hidden panels can apply their scroll clamp after the first visible frame.
+    // Re-apply on the following frame as well, then publish the settled value.
+    let frame = requestAnimationFrame(() => {
       if (!visibleRef.current || !element.clientHeight) return;
       element.scrollTop = retainedScroll.current ?? scrollTopRef.current;
-      scrollTopRef.current = element.scrollTop;
-      retainedScroll.current = null;
-      setScrollTop(element.scrollTop);
+      frame = requestAnimationFrame(() => {
+        if (!visibleRef.current || !element.clientHeight) return;
+        element.scrollTop = retainedScroll.current ?? scrollTopRef.current;
+        scrollTopRef.current = element.scrollTop;
+        retainedScroll.current = null;
+        setScrollTop(element.scrollTop);
+      });
     });
     return () => cancelAnimationFrame(frame);
   }, [visible, height, logGeneration]);
