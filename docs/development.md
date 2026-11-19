@@ -52,6 +52,8 @@ npm run dist -w desktop -- --publish never
 node apps/desktop/scripts/test-packaged.mjs
 ```
 
+桌面集成测试默认隐藏窗口，并在 Electron 渲染进程中执行界面操作。将 `ALUNE_SMOKE_VISIBLE` 设为 `1` 可显示测试窗口。GitHub 托管 CI 使用可见模式验证系统剪贴板。
+
 Linux CI 的桌面测试使用 `xvfb-run -a`。测试中的模拟更新适配器只在 `--smoke-test` 且提供隔离数据目录时启用，测试不会连接 GitHub，也不会启动安装程序。
 
 PR/MR、AI、命名令牌和多主机协作由 `packages/agent/tests/collaboration.test.cjs`、`settings-rpc.test.cjs`、`hosts.test.cjs` 验证；Web API 与本机网关分别运行 `npm run test:agent-dev -w web`。测试使用临时数据库、Git/SSH 和受控平台响应，不创建真实 PR/MR。旧 HTTP 集成夹具已退役。

@@ -73,7 +73,8 @@ module.exports = async ({ window, wc, work, git, wait, fact, pass }) => {
     ['UI-034', 'UI-072'],
     'reject a duplicate remote without overwriting origin; save a trimmed name and local URL, then refresh an independently changed push URL',
   );
-  const native = process.env.GITHUB_ACTIONS === 'true';
+  const focusSmokeWindow = require('./smoke-window.cjs');
+  const native = focusSmokeWindow.showNativeWindow && process.env.GITHUB_ACTIONS === 'true';
   if (native)
     assert.equal(
       process.env.RUNNER_ENVIRONMENT,
@@ -81,7 +82,7 @@ module.exports = async ({ window, wc, work, git, wait, fact, pass }) => {
       'native clipboard verification requires an isolated hosted runner',
     );
   if (native) {
-    await require('./smoke-window.cjs')(window);
+    await focusSmokeWindow(window);
   } else {
     // The developer's clipboard is not part of this disposable test fixture.
     // Local replay checks the submitted value; hosted workers verify the real OS clipboard.

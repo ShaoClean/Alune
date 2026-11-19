@@ -47,12 +47,20 @@ const { createExternalLinkHandler } = require('./external-links.cjs');
 const { createLogWindow } = require('./log-window.cjs');
 
 const smokeTest = process.argv.includes('--smoke-test');
+const smokeWindow = smokeTest ? require('./smoke-window.cjs') : null;
+const backgroundSmoke = smokeTest && !smokeWindow.showNativeWindow;
 app.setName('Alune');
 if (smokeTest) {
   if (!process.env.ALUNE_SMOKE_DIR)
     throw new Error('Smoke tests require an isolated data directory');
   if (process.env.CI === 'true') app.disableHardwareAcceleration();
   app.setPath('userData', process.env.ALUNE_SMOKE_DIR);
+  if (backgroundSmoke) {
+    if (process.platform === 'darwin') app.setActivationPolicy('accessory');
+    app.on('browser-window-created', (_event, target) => {
+      target.on('show', () => fail(new Error('A background smoke window became visible')));
+    });
+  }
 } else if (process.env.ALUNE_CANDIDATE_DATA_DIR) {
   const dir = process.env.ALUNE_CANDIDATE_DATA_DIR;
   if (!path.isAbsolute(dir)) throw new Error('候选工作区必须指定绝对数据目录。');
@@ -150,15 +158,9 @@ function createWindow() {
       backgroundThrottling: !smokeTest,
     },
   });
-  if (smokeTest) {
-    // Each loadURL creates a new document. Native focus and painting are needed
-    // for portal focus traps and animation completion, even with throttling off.
-    window.webContents.on('did-finish-load', () => {
-      window.show();
-      if (process.platform === 'darwin') app.focus({ steal: true });
-      window.focus();
-      window.webContents.focus();
-    });
+  if (smokeWindow) {
+    const target = window;
+    target.webContents.on('did-finish-load', () => smokeWindow.focusContents(target));
   }
   window.webContents.setWindowOpenHandler(
     createExternalLinkHandler(
@@ -172,7 +174,7 @@ function createWindow() {
   window.webContents.on('will-redirect', guardNavigation);
   window.webContents.on('will-attach-webview', (event) => event.preventDefault());
   window.once('ready-to-show', () => {
-    if (state.maximized) window.maximize();
+    if (state.maximized && !backgroundSmoke) window.maximize();
     if (!smokeTest) window.show();
   });
   let closeApproved = false;
@@ -212,7 +214,7 @@ function createWindow() {
 }
 
 async function start() {
-  if (process.platform === 'darwin') app.dock.setIcon(iconPath);
+  if (process.platform === 'darwin' && !backgroundSmoke) app.dock.setIcon(iconPath);
   const dataDir = app.getPath('userData');
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   process.env.ALUNE_DATA_DIR = dataDir;
@@ -481,6 +483,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', () => {
+    if (backgroundSmoke) return;
     if (window) {
       if (window.isMinimized()) window.restore();
       window.show();
@@ -556,6 +559,7 @@ async function confirmTerminalShutdown() {
   if (backend?.client) {
     const tasks = await backend.client.request('desktop.tasks.impact', {});
     if (tasks.length) {
+      if (backgroundSmoke) throw new Error('Background smoke shutdown has active tasks');
       const result = await dialog.showMessageBox({
         type: 'warning',
         title: '仍有操作正在执行',
@@ -612,6 +616,7 @@ async function confirmTerminalShutdown() {
       return false;
     }
   }
+  if (backgroundSmoke) throw new Error('Background smoke shutdown cannot confirm terminal closure');
   // If the renderer has crashed, the native fallback still defaults to cancel.
   const options = {
     type: 'warning',
