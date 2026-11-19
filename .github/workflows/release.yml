@@ -78,12 +78,8 @@ jobs:
         run: node -e "if (process.arch !== process.env.EXPECTED_ARCH) throw new Error('Native runner architecture mismatch')"
       - run: npm ci
       - run: npm run desktop:build
-      - name: Desktop smoke test
-        if: runner.os != 'Linux'
-        run: npm run desktop:test
-      - name: Desktop smoke test (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a npm run desktop:test
+      # test-packaged.mjs runs the full write/restore suite against this platform's executable.
+      - run: npm run desktop:test:unit
       - uses: actions/download-artifact@v4
         with:
           name: verified-agent-catalog
@@ -106,6 +102,7 @@ jobs:
         run: node apps/desktop/scripts/release.mjs collect "$RELEASE_TARGET"
       - uses: actions/upload-artifact@v4
         with:
+          compression-level: 0
           name: desktop-${{ matrix.target }}
           path: apps/desktop/release/upload/*
           if-no-files-found: error

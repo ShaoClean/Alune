@@ -14,7 +14,8 @@
     "prepack": "npm run build",
     "predist": "npm run build",
     "build:candidate": "node scripts/stage.mjs --candidate && npm run agent:stage",
-    "dist:candidate": "npm run build:candidate && electron-builder --projectDir dist/candidate-app --config ../../electron-builder.cjs --publish never"
+    "predist:candidate": "npm run build:candidate",
+    "dist:candidate": "electron-builder --projectDir dist/candidate-app --config ../../electron-builder.cjs --publish never"
   },
   "devDependencies": {
     "@alune/agent": "*",

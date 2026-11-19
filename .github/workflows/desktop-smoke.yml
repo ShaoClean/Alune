@@ -106,7 +106,8 @@ jobs:
       - run: npm run desktop:candidate:build
       - name: Verify candidate entry and standalone runtime separation
         run: node apps/desktop/scripts/check-candidate.mjs
-      - run: npm run dist:candidate -w desktop
+      # Package the staging directory just verified by check-candidate.mjs.
+      - run: npm --ignore-scripts run dist:candidate -w desktop
       - if: runner.os != 'Linux'
         run: node apps/desktop/scripts/installer-cycle.mjs
       - if: runner.os == 'Linux'
@@ -114,6 +115,7 @@ jobs:
       - name: 保存已通过原生升级演练的候选安装器供逐项验收
         uses: actions/upload-artifact@v4
         with:
+          compression-level: 0
           name: reviewed-candidate-${{ matrix.os }}
           path: |
             apps/desktop/release/Alune-*.exe
