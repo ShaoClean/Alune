@@ -102,7 +102,7 @@ const formatSize = (bytes: number) =>
 
 function ConnectionProgressPanel({ progress }: { progress: ConnectionProgress }) {
   const label = PHASE_LABELS[progress.phase] ?? '正在连接…';
-  if (progress.phase !== 'downloading') {
+  if (progress.phase !== 'downloading' && progress.phase !== 'installing') {
     return (
       <div className="connection-progress" role="status">
         <span className="connection-progress__label">{label}</span>
