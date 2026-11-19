@@ -7,6 +7,7 @@ export default function Example() {
         <h2 className="example-title">任务进度</h2>
         <div className="example-stack">
           <Progress percent={60} />
+          <Progress percent={42} size={['100%', 20]} percentPosition={{ type: 'inner' }} />
           <Progress percent={35} status="exception" />
           <Progress percent={100} />
         </div>

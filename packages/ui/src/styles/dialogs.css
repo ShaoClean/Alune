@@ -1334,7 +1334,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--moon-indigo), var(--moon-cyan));
+  background: var(--progress-fill);
   transform: translateX(calc((var(--p, 0.4) - 1) * 100%));
   transition: transform 700ms var(--ease-spring);
 }

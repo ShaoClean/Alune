@@ -7,7 +7,7 @@
 | Agent 场景与界面来源 | 共享组件与运行示例 | 验收动作与预期 |
 | --- | --- | --- |
 | 仓库目录、主机连接 · `RepositoriesPage`、`ConnectionsPage` | [ViewSwitch](../view-switch/#examples) | 切换卡片、列表、数据总览；只有当前项按下。用 Tab 和空格切换，禁用项跳过。 |
-| Git 拉取、推送 · `RepositoryToolbar` | [Button](../button/#examples)、[ToolbarButton、StatusButton、CommandButton](../toolbar-button/#examples) | 对比普通、紧凑、纯图标按钮；悬停、按住、Tab 聚焦，执行保存观察加载，禁用按钮不能触发。 |
+| Git 拉取、推送 · `RepositoryToolbar` | [Button](../button/#examples)、[ToolbarButton、StatusButton、CommandButton](../toolbar-button/#examples) | 对比普通、紧凑、纯图标按钮；核对保存与加载图标和文字垂直居中、填充贴合顶边。悬停、按住、Tab 聚焦，执行保存观察加载，禁用按钮不能触发。 |
 | PR/MR 标题与描述、Git 作者 · `CreatePullRequestDialog`、`RepositoryContextNotice` | [Input、Input.TextArea](../input/#examples)、[DialogField](../dialog-field/#examples) | 输入多行文字；对比普通、错误、禁用字段，聚焦错误字段仍能辨认错误。 |
 | 创建 PR/MR 时选择评审信息 · `CreatePullRequestDialog` | [Select](../select/#examples) | 展开选项，用键盘选择；检查当前值、禁用选项和无匹配结果。 |
 | 历史筛选 · `HistoryFilterBar` | [Switch](../switch/#examples)、[Segmented](../segmented/#examples) | 以空格切换开关、以方向键改变选项；选中背景与焦点分别可辨。 |
@@ -16,7 +16,7 @@
 | 状态栏与工作区面板 · `Layout`、`ChangesView` | [PanelHeader、PanelToggle](../panel-toggle/#examples) | 展开、收起关联区域，检查标题、计数和焦点。 |
 | 推送菜单、分支选择、动作说明 · `RepositoryToolbar`、`BranchPicker` | [Dropdown](../dropdown/#examples)、[Popover](../popover/#examples)、[Tooltip](../tooltip/#examples) | 打开菜单、浮层；悬停或聚焦提示触发器，比较 Portal 表面和触发器所在主题。 |
 | 放弃更改、移除连接 · `DiscardChangesDialog`、`ConnectionsPage` | [AluneModal](../alune-modal/#examples)、[AlunePopconfirm](../alune-popconfirm/#examples)、[useAluneConfirm](../confirm/#examples) | 逐级打开 L0、L1、L2；核对初始焦点、危险色、勾选和输入门槛，Esc 关闭后焦点回到入口。 |
-| 目录读取、SSH 连接失败、通知中心 · `FilesView`、`ConnectionsPage`、`RepositoryContextNotice` | [LoadingState、EmptyState、ErrorState](../error-state/#examples)、[Feedback](../feedback/#examples) | 比较等待、空结果与失败，执行重试；从反馈入口查看详情，核对消息及可用动作。 |
+| 目录读取、SSH 连接失败、通知中心 · `FilesView`、`ConnectionsPage`、`RepositoryContextNotice` | [Progress](../progress/#examples)、[LoadingState、EmptyState、ErrorState](../error-state/#examples)、[Feedback](../feedback/#examples) | 对照 [DialogProgress](../dialog-parts/#examples) 核对进行中渐变、完成绿和失败红；比较等待、空结果与失败，执行重试；从反馈入口查看详情，核对消息及可用动作。 |
 | 目录访问授权 · `DirectoryAccessDialog` | [OptionCards、DialogPath、DialogNote](../dialog-parts/#examples) | 用方向键选择授权范围，核对路径、选中标记和后果说明。 |
 | 创建与移除 Worktree · `WorktreesPanel` | [RepoRow、DialogLedger](../dialog-parts/#examples)、[DialogBadge](../dialog-badge/#examples) | 对照目标仓库、路径和状态，确认「将改变」与「保留」的内容可分别阅读。 |
 | 本地与 SSH 终端会话 · `TerminalWorkspace` | [Dropdown](../dropdown/#examples)、[Tooltip](../tooltip/#examples)、[异步确认](../confirm/#examples) | 打开会话动作菜单，检查焦点与禁用项；打开确认并取消，焦点回到入口。 |

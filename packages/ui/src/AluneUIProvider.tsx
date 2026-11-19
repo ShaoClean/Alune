@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { App, ConfigProvider, theme as antTheme } from 'antd';
-import type { ThemeConfig } from 'antd';
+import type { ProgressProps, ThemeConfig } from 'antd';
 import zhCN from 'antd/locale/zh_CN.js';
 import { UIAppearanceContext } from './appearance';
 import { FeedbackProvider } from './components/Feedback';
@@ -35,6 +35,11 @@ const popoverConfig = { arrow: false, classNames: { root: 'a-pop' } };
 // Every Ant Design wait state shares the moon-phase loader.
 const spinConfig = { indicator: <MoonLoader /> };
 const buttonConfig = { loadingIcon: <MoonLoader /> };
+const progressConfig = {
+  classNames: ({ props }: { props: ProgressProps }) => ({
+    indicator: props.strokeColor ? undefined : 'alune-progress-label',
+  }),
+};
 // Empty states share the moon: direct <Empty> and the lists inside Select, Table and friends.
 const emptyConfig = { image: <span className="dlg-empty-moon" aria-hidden="true" /> };
 const renderEmpty = (componentName?: string) =>
@@ -88,6 +93,7 @@ function resolveTheme(theme: 'light' | 'dark', reduceMotion: boolean): ThemeConf
     },
     components: {
       Button: { controlHeight: 32, primaryColor: color('brand-on') },
+      Progress: { defaultColor: color('accent') },
       Tooltip: { colorBgSpotlight: color('text'), colorTextLightSolid: color('surface') },
       Switch: { colorTextQuaternary: color('sw-off'), handleBg: color('surface-raised') },
       Input: {
@@ -149,6 +155,7 @@ export function AluneUIProvider({ theme, reduceMotion = false, children }: Alune
         dropdown={dropdownConfig}
         popover={popoverConfig}
         spin={spinConfig}
+        progress={progressConfig}
         button={buttonConfig}
         empty={emptyConfig}
         renderEmpty={renderEmpty}
