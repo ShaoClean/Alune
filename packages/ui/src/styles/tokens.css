@@ -122,7 +122,11 @@
     var(--brand-peach)
   );
   --btn-primary-hover: linear-gradient(110deg, #d3bafb, #f6bade 56%, #ffcfaf);
-  --progress-fill: linear-gradient(90deg, var(--brand-lavender), var(--brand-peach));
+  /* Progress fills use the same dusk palette on both reading surfaces. */
+  --progress-fill: linear-gradient(90deg, #b99be3, #efb38e);
+  --progress-stroke: #d0a5f4;
+  --progress-success: #81b89f;
+  --progress-error: #cf8e9e;
   --btn-primary-shadow: 0 2px 6px var(--shadow-color);
   --btn-danger-bg: linear-gradient(180deg, #ad4259, #94334c);
   --btn-danger-hover: linear-gradient(180deg, #a13a50, #872d43);

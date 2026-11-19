@@ -855,6 +855,11 @@
   justify-content: center;
 }
 
+.ant-progress :is(.ant-progress-track, .ant-progress-circle-path) {
+  --ant-color-success: var(--progress-success);
+  --ant-color-error: var(--progress-error);
+}
+
 .ant-progress-line .ant-progress-track {
   --ant-progress-default-color: var(--progress-fill);
 }

@@ -93,7 +93,7 @@ function resolveTheme(theme: 'light' | 'dark', reduceMotion: boolean): ThemeConf
     },
     components: {
       Button: { controlHeight: 32, primaryColor: color('brand-on') },
-      Progress: { defaultColor: color('accent') },
+      Progress: { defaultColor: color('progress-stroke') },
       Tooltip: { colorBgSpotlight: color('text'), colorTextLightSolid: color('surface') },
       Switch: { colorTextQuaternary: color('sw-off'), handleBg: color('surface-raised') },
       Input: {
