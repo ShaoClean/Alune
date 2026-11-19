@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 256 256">
+  <title>Alune · 小月兽</title>
+  <defs>
+    <linearGradient id="peach" x1=".94" y1="0" x2=".12" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#ffbf57"/><stop offset=".28" stop-color="#ff916e"/>
+      <stop offset=".63" stop-color="#e653aa"/><stop offset="1" stop-color="#ab78ed"/>
+    </linearGradient>
+    <radialGradient id="fur" cx=".55" cy=".31" r=".78">
+      <stop stop-color="#fff8e7"/><stop offset=".64" stop-color="#fae8d2"/>
+      <stop offset=".87" stop-color="#efcdbf"/><stop offset="1" stop-color="#c79dc9"/>
+    </radialGradient>
+    <linearGradient id="horn" x2=".8" y2=".9">
+      <stop stop-color="#fffbea"/><stop offset=".56" stop-color="#ffe3bc"/><stop offset="1" stop-color="#eebf9c"/>
+    </linearGradient>
+    <radialGradient id="blush">
+      <stop stop-color="#fa9894" stop-opacity=".61"/><stop offset="1" stop-color="#fa9894" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="iris" x2=".2" y2="1"><stop stop-color="#3f143c"/><stop offset="1" stop-color="#8a2e5c"/></linearGradient>
+    <path id="head" d="M32 116C54 69 98 41 151 51C191 57 202 82 215 109C221 121 236 127 237 146C240 178 203 201 163 211C119 221 75 217 48 192C39 185 33 177 30 169C10 173 2 159 9 147C12 142 17 140 22 139C4 130 1 113 7 105C13 97 24 107 32 116Z"/>
+    <path id="front-horn" d="M65 76C54 49 78 13 104 11C111 10 116 12 115 15C101 22 96 33 100 43C104 53 117 58 128 58C119 71 82 85 65 76Z"/>
+    <path id="back-horn" d="M113 56C118 36 134 23 147 26C151 27 151 29 148 31C137 42 140 52 147 60Z"/>
+    <g id="eyes">
+      <ellipse cx="150" cy="130" rx="20" ry="26" transform="rotate(-25 150 130)" fill="url(#iris)"/>
+      <ellipse cx="156" cy="116" rx="4.4" ry="7" transform="rotate(-46 156 116)" fill="#fff8e5"/>
+      <ellipse cx="222" cy="123" rx="3.8" ry="7.8" transform="rotate(-33 222 123)" fill="#612147"/>
+      <circle cx="221" cy="120" r="1.35" fill="#fff8e5"/>
+      <path d="M196 162Q211 175 220 156" fill="none" stroke="#83294d" stroke-width="3.7" stroke-linecap="round"/>
+    </g>
+    <g id="character">
+      <path d="M74 233C47 239 29 227 35 213C37 208 42 205 45 204C36 195 16 205 13 223C9 247 39 257 75 252Z" fill="url(#fur)"/>
+      <path d="M47 248C55 225 81 199 109 200C136 199 173 218 176 241C177 252 164 255 150 255H58Q45 255 47 248Z" fill="url(#fur)"/>
+      <path d="M101 251C109 229 124 217 135 219C147 220 158 240 155 249Q153 255 144 255H104Q99 255 101 251Z" fill="url(#fur)"/>
+      <use xlink:href="#back-horn" fill="url(#horn)"/>
+      <use xlink:href="#head" fill="url(#fur)"/>
+      <use xlink:href="#front-horn" fill="url(#horn)"/>
+      <ellipse cx="109" cy="161" rx="32" ry="22" fill="url(#blush)"/>
+      <use xlink:href="#eyes"/>
+    </g>
+    <clipPath id="tile"><rect width="256" height="256" rx="64"/></clipPath>
+    <g id="app" clip-path="url(#tile)">
+      <rect width="256" height="256" fill="url(#peach)"/>
+      <rect x="1" y="1" width="254" height="254" rx="63" fill="none" stroke="#fff" stroke-opacity=".19" stroke-width="2"/>
+      <use xlink:href="#character" transform="translate(8 0)"/>
+    </g>
+    <g id="avatar" clip-path="url(#tile)">
+      <rect width="256" height="256" fill="url(#peach)"/>
+      <g transform="translate(-6 2) scale(1.08)">
+        <use xlink:href="#head" fill="#fff0da"/><use xlink:href="#front-horn" fill="#fff0da"/>
+        <use xlink:href="#eyes"/>
+      </g>
+    </g>
+    <!-- A transparent eye and smile survive OS template-image tinting. -->
+    <mask id="cutouts">
+      <rect width="256" height="256" fill="white"/>
+      <ellipse cx="150" cy="129" rx="19" ry="25" transform="rotate(-25 150 129)"/>
+      <path d="M186 160Q206 181 222 154" fill="none" stroke="black" stroke-width="12" stroke-linecap="round"/>
+    </mask>
+    <g id="template" mask="url(#cutouts)"><use xlink:href="#head"/><use xlink:href="#front-horn"/></g>
+  </defs>
+  <use xlink:href="#app"/>
+</svg>

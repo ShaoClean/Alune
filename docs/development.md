@@ -23,7 +23,7 @@ npm run desktop:test  # 构建后验证当前桌面的工作区、终端和重�
 
 正式对外发布 macOS 应用还需要配置开发者签名和 Apple 公证；仓库默认可生成本机测试包。Windows 签名同样需要自行提供证书。
 
-图标源文件为 `apps/desktop/assets/alune.png`（至少 1024 × 1024 的正方形 PNG）。修改后运行 `npm run icons:generate`，生成 1024 × 1024 桌面 PNG 和 64 × 64 网页 favicon，并一起提交派生资源。`npm run icons:check` 检查资源是否同步，根构建和桌面构建也会执行此检查。高细节头像在 16–32px 下会损失面部与 Git 饰件细节；正式发布前需在目标系统的任务栏、Dock 和安装包中目视验收。
+产品图标母版为 `apps/desktop/assets/moon-creature.svg`。小月兽面向右侧，奶油白圆脸配两枚月牙角，主眼为紫色，光源在左上。默认姿态为微笑静坐。修改母版后运行 `npm run icons:generate` 和 `npm run icons:check`。桌面使用完整渐变底座，macOS 在 1024px 画布四边各留 100px。应用与官网 favicon 使用简化头像。托盘资源包括黑色镂空的 macOS Template（22/44px）和 Windows/Linux 彩色头像（32px），供 #39 接入。下载区使用透明角色，组合标用于 README。原头像保存在 `apps/desktop/assets/alune.png`。跨平台安装、更新缓存与系统栏外观需用相应安装包现场验收。
 
 ## Alune-UI 共享组件
 

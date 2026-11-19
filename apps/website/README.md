@@ -50,15 +50,14 @@ npm run website:preview
 
 截图对应 v0.10.0（界面代码基线 `a0bd6fd`），使用临时仓库、本机测试 SSH 服务和演示数据，展示真实网页界面；PR/MR 托管平台响应为测试数据，终端使用认证隔离服务与真实演示仓库。桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
 
-头像源图为 `apps/desktop/assets/alune.png`，官网的 `public/favicon.png`（64px）、`public/brand.png`（144px）、`public/og-image.png`（1200×630）由以下命令派生：
+官网页头沿用头像与文字组合，下载区使用透明的小月兽。运行以下命令同步 favicon、角色、README 组合标与分享图。分享图保留历史工作区截图，生成中文标题需要本机中文字体。
 
 ```sh
+npm run icons:generate
 node apps/website/scripts/generate-brand.mjs
 ```
 
-分享图组合既有头像、文字和真实工作区截图。中文绘制需要本机可用的中文字体；更新后需目视确认。脚本不修改源头像。
-
-头像是基于视觉参考生成的既有素材，来源和使用权事项沿用 [#84](https://github.com/ShaoClean/Alune/issues/84)、[#87](https://github.com/ShaoClean/Alune/pull/87) 和 [Alune-Brand](https://github.com/ShaoClean/Alune/wiki/Alune-Brand) 的记录。**现有记录未确认素材使用权，不将本次接入视为授权审核已完成。** 当前使用既有头像；全身延展形象尚未生成或确认，未来选定素材放入 `src/assets/character/`，记录参考图、生成方式、确认结果和使用说明。
+角色设定与图标尺寸见 [开发文档](../../docs/development.md)。[选定的小月兽参考图与配套设计](https://github.com/ShaoClean/Alune/wiki/Issue-259)
 
 ## 下载维护
 
