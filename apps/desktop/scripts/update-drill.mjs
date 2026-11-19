@@ -106,17 +106,35 @@ export async function verifyLiveUpdate({ exe, candidateFile, target, data, stabl
     if (Date.now() > deadline) throw Error('Updated stable binary did not relaunch');
     await delay(500);
   }
-  if (win)
+  if (win) {
+    const script = [
+      "$root = [System.IO.Path]::GetFullPath($env:ALUNE_INSTALL_TARGET).TrimEnd('\\') + '\\'",
+      '$drillPid = [int]$env:ALUNE_DRILL_PID',
+      '$deadline = (Get-Date).AddSeconds(15)',
+      'do {',
+      '  $procs = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {',
+      '    $_.ProcessId -ne $PID -and $_.ProcessId -ne $drillPid -and (',
+      '      ($_.ExecutablePath -and $_.ExecutablePath.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) -or',
+      '      ($_.CommandLine -and $_.CommandLine.IndexOf($root, [System.StringComparison]::OrdinalIgnoreCase) -ge 0)',
+      '    )',
+      '  })',
+      '  foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }',
+      '  if ($procs.Count -eq 0) { break }',
+      '  Start-Sleep -Milliseconds 200',
+      '} while ((Get-Date) -lt $deadline)',
+    ].join('\n');
     execFileSync(
       'powershell.exe',
-      [
-        '-NoProfile',
-        '-Command',
-        'Get-Process Alune -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $env:ALUNE_EXPECTED_EXECUTABLE } | Stop-Process -Force',
-      ],
-      { env: { ...env, ALUNE_EXPECTED_EXECUTABLE: exe } },
+      ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')],
+      {
+        env: {
+          ...env,
+          ALUNE_INSTALL_TARGET: path.resolve(target),
+          ALUNE_DRILL_PID: String(process.pid),
+        },
+      },
     );
-  else if (mac) {
+  } else if (mac) {
     // The bundle is installed in this job's unique temporary directory.
     const rows = execFileSync('/bin/ps', ['-axo', 'pid=,command='], { encoding: 'utf8' })
       .trim()

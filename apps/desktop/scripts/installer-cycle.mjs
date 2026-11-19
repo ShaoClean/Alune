@@ -77,5 +77,5 @@ try {
     throw Error('Stable release installer checksum missing');
   await verifyLiveUpdate({ exe: install(candidateFile), candidateFile, target, data, stable, stableDigest });
 } finally {
-  fs.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  fs.rmSync(root, { recursive: true, force: true, maxRetries: 30, retryDelay: 250 });
 }
