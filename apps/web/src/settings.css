@@ -117,7 +117,7 @@
   text-align: left;
   gap: 10px;
   padding: 11px 9px;
-  border-radius: 8px;
+  border-radius: var(--radius-compact);
   cursor: pointer;
 }
 .provider-list__item:hover {
@@ -205,6 +205,16 @@
   padding: 0;
   margin: 0;
   min-width: 0;
+}
+.settings-fieldset.appearance-preferences {
+  padding: clamp(12px, 3%, 22px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.appearance-preferences > :last-child {
+  margin-bottom: 0;
 }
 .settings-field {
   display: flex;
@@ -344,9 +354,9 @@
   margin-right: -4px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-row);
   background: transparent;
-  color: var(--blue);
+  color: var(--accent);
   cursor: pointer;
 }
 .commit-ai-generate > :first-child {

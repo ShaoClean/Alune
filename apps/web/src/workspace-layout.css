@@ -23,7 +23,9 @@
   min-width: 0;
   min-height: 0;
   color: var(--sidebar-text);
-  background: var(--sidebar-bg);
+  background-color: var(--sidebar-bg);
+  background-image: radial-gradient(ellipse 120% 270px at top left, var(--dlg-halo-a), transparent),
+    radial-gradient(ellipse 90% 180px at top right, var(--dlg-halo-b), transparent);
   border-right: 1px solid var(--sidebar-line);
 }
 .app-sidebar__header {
@@ -60,15 +62,15 @@
 .sidebar-nav-item {
   min-height: 36px;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-compact);
 }
 .sidebar-nav-item__label {
   flex: 1;
 }
 .sidebar-nav-item--active {
-  background: var(--blue-soft);
-  border-color: transparent;
-  box-shadow: none;
+  background: var(--sidebar-active);
+  border-color: var(--line);
+  box-shadow: inset 0 1px var(--highlight);
 }
 .sidebar-divider {
   margin: 18px 0;
@@ -147,13 +149,14 @@
   max-width: 300px;
   margin: 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-compact);
   background: transparent;
   box-shadow: none;
 }
 .app-tabbar .repository-tab--active {
-  background: var(--surface);
+  background: var(--surface-raised);
   border-color: var(--line);
+  box-shadow: var(--shadow-sm);
 }
 .app-tabbar .repository-tab__select {
   min-width: 0;
@@ -1183,7 +1186,7 @@
   margin-block: 10px;
 }
 .tree-node {
-  border-radius: 6px;
+  border-radius: var(--radius-row);
 }
 .tree-node--connection {
   background: transparent;
@@ -1235,6 +1238,7 @@
 .tree-node--repo.tree-node--selected {
   background: var(--sidebar-active);
   border-color: transparent;
+  box-shadow: inset 3px 0 var(--accent);
 }
 /* A workspace is one fixed-height row; long identities never wrap. */
 .tree-node--repo {
@@ -1408,8 +1412,8 @@
   color: var(--text);
   background: var(--surface-raised);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: var(--shadow-md);
+  border-radius: var(--r-card);
+  box-shadow: var(--pop-shadow);
 }
 .repository-identity-details {
   font-size: 11px;
@@ -1497,9 +1501,12 @@
 .changes-panel .file-row {
   background: transparent;
 }
-.changes-panel .file-row:hover,
+.changes-panel .file-row:hover {
+  background: var(--surface-hover);
+}
 .changes-panel .file-row--selected {
-  background: var(--blue-soft);
+  background: var(--selected);
+  box-shadow: inset 3px 0 var(--accent);
 }
 .changes-panel .panel-header__icon {
   display: none;
@@ -1787,10 +1794,8 @@
   color: var(--blue);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow:
-    0 24px 60px var(--shadow-color),
-    0 6px 18px var(--shadow-color);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--pop-shadow);
 }
 .repository-switcher-panel__header,
 .repository-switcher-panel__title,
@@ -2349,16 +2354,23 @@
   flex: 0 0 auto;
   align-items: center;
 }
-.toolbar-split__main {
+.toolbar-split .toolbar-split__main {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
-.toolbar-split__toggle {
+.toolbar-split .toolbar-split__toggle {
   min-width: 24px;
   padding: 0 5px;
-  border-left: 1px solid var(--line);
+  border-left: 1px solid var(--orb-ring);
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
+}
+.toolbar-split .toolbar-split__toggle:not([aria-disabled='true']) {
+  background-color: var(--brand-peach);
+  background-image: none;
+}
+.toolbar-split .toolbar-split__toggle:not([aria-disabled='true']):is(:hover, [aria-expanded='true']) {
+  background: var(--btn-primary-hover) right / 400% 100%;
 }
 .toolbar-split__toggle .anticon {
   font-size: 10px;
@@ -2433,14 +2445,14 @@
   cursor: default;
 }
 .branch-picker__option--active:not([aria-disabled='true']) {
-  background: var(--blue-soft);
+  background: var(--surface-hover);
 }
 .branch-picker__option--active[aria-disabled='true'] {
   box-shadow: inset 0 0 0 1px var(--blue);
 }
 .branch-picker__option--current {
   color: var(--blue);
-  background: var(--blue-soft);
+  background: var(--selected);
   cursor: default;
   opacity: 1;
 }

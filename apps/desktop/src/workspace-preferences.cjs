@@ -12,7 +12,7 @@ function isTrustedWorkspaceSender(event, contents, origin) {
   } catch { return false; }
 }
 
-function createWorkspacePreferences(filePath) {
+function createWorkspacePreferences(filePath, onChange) {
   return {
     load() {
       try {
@@ -34,11 +34,15 @@ function createWorkspacePreferences(filePath) {
         // Synchronous handlers serialize IPC writes; readers see either complete version.
         writeFileSync(temporary, value, { mode: 0o600 });
         renameSync(temporary, filePath);
+        onChange?.(value);
       } finally {
         rmSync(temporary, { force: true });
       }
     },
-    clear() { rmSync(filePath, { force: true }); },
+    clear() {
+      rmSync(filePath, { force: true });
+      onChange?.(null);
+    },
   };
 }
 

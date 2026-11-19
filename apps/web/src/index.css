@@ -338,7 +338,7 @@ button {
   inset: -1px 12px auto;
   height: 2px;
   content: '';
-  background: linear-gradient(90deg, var(--blue), var(--blue));
+  background: var(--btn-primary-bg);
   border-radius: 0 0 3px 3px;
 }
 .repository-tab[draggable='true'] .repository-tab__select {
@@ -647,7 +647,7 @@ button {
   inset: 0 auto 0 0;
   width: 3px;
   content: '';
-  background: linear-gradient(180deg, var(--blue), var(--blue));
+  background: var(--btn-primary-bg);
 }
 .stat-card:hover {
   border-color: var(--line);
@@ -739,7 +739,7 @@ button {
   inset: 0 0 auto;
   height: 2px;
   content: '';
-  background: linear-gradient(90deg, var(--blue), transparent 68%);
+  background: var(--btn-primary-bg);
   opacity: 0.65;
 }
 .connection-card:hover,

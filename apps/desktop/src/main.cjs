@@ -105,6 +105,7 @@ function appLog() {
 }
 
 let window;
+let savedPreferences;
 let origin;
 let quitting = false;
 let quitRequested = false;
@@ -131,7 +132,7 @@ function createWindow() {
   try {
     state = JSON.parse(readFileSync(windowStatePath, 'utf8'));
   } catch {}
-  let savedPreferences = null;
+  savedPreferences = null;
   try {
     savedPreferences = createWorkspacePreferences(preferencesFile()).load();
   } catch {}
@@ -321,7 +322,18 @@ async function start() {
     getWindow: () => window,
     getOrigin: () => origin,
   });
-  const preferences = createWorkspacePreferences(preferencesFile());
+  const syncBackground = () => {
+    if (!window || window.isDestroyed()) return;
+    const background = workspaceBackground(savedPreferences, nativeTheme.shouldUseDarkColors);
+    if (window.getBackgroundColor().toLowerCase() !== background) {
+      window.setBackgroundColor(background);
+    }
+  };
+  const preferences = createWorkspacePreferences(preferencesFile(), (value) => {
+    savedPreferences = value;
+    syncBackground();
+  });
+  nativeTheme.on('updated', syncBackground);
   ipcMain.handle('workspace:choose-directory', async (event) => {
     if (!isTrustedWorkspaceSender(event, window?.webContents, origin))
       throw new Error('Workspace access denied');

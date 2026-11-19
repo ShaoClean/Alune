@@ -196,11 +196,11 @@
   border: 0;
   border-left: 1px solid var(--line);
   color: var(--text);
-  background: var(--surface-raised, var(--card-core));
-  box-shadow: -12px 0 40px #0003;
+  background: var(--surface-raised);
+  box-shadow: var(--dlg-shadow);
 }
 .pr-center-drawer::backdrop {
-  background: #0005;
+  background: var(--dlg-scrim);
 }
 .pr-center-drawer[open] {
   display: flex;

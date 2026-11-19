@@ -27,7 +27,7 @@
 .collection-table-scroll {
   max-width: 100%;
   overflow-x: auto;
-  border-radius: 10px;
+  border-radius: var(--r-card);
 }
 .collection-table {
   width: 100%;
