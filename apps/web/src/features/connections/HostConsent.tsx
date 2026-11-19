@@ -2,9 +2,9 @@ import { useSyncExternalStore, useState } from 'react';
 import { hostFingerprint } from './fingerprint';
 import { Input, AluneModal } from '@alune/ui';
 
-type Policy = { hostKey: string; install: boolean };
+type Policy = { hostKey: string | null; install: boolean };
 type Request = {
-  allowInstall: boolean;
+  purpose: 'connect' | 'proxy-test';
   name: string;
   pinned: string | null;
   finish: (p: Policy | null) => void;
@@ -17,14 +17,14 @@ function notify() {
 export function hostConsent(
   name: string,
   pinned: string | null,
-  allowInstall = true,
+  purpose: Request['purpose'] = 'connect',
 ): Promise<Policy> {
   if (request) return Promise.reject(new Error('请先完成当前主机的连接确认。'));
   return new Promise((resolve, reject) => {
     request = {
       name,
       pinned,
-      allowInstall,
+      purpose,
       finish(policy) {
         request = null;
         notify();
@@ -38,26 +38,35 @@ export function hostConsent(
 function Consent({ item }: { item: Request }) {
   const [fingerprint, setFingerprint] = useState(item.pinned ?? ''),
     [install, setInstall] = useState(false);
-  const key = hostFingerprint(fingerprint);
+  const allowInstall = item.purpose === 'connect';
+  const firstConnection = allowInstall && item.pinned === null;
+  const key = firstConnection ? null : hostFingerprint(fingerprint);
+  const description = firstConnection
+    ? '首次连接将信任服务器提供的主机密钥，连接成功后会保存指纹。请确认服务器地址和当前网络可信。'
+    : item.pinned
+      ? '连接时会核对已保存的 SSH 主机公钥指纹。'
+      : '请核对从服务器管理员处独立获取的 SSH 主机公钥 SHA-256 指纹。';
   return (
     <AluneModal
       open
       level={1}
       title={'连接到 ' + item.name}
-      description="请核对从服务器管理员处独立获取的 SSH 主机公钥 SHA-256 指纹。"
-      okText="连接"
-      okDisabled={!key}
-      onOk={() => key && item.finish({ hostKey: key, install })}
+      description={description}
+      okText={firstConnection ? '信任并连接' : '连接'}
+      okDisabled={key === undefined}
+      onOk={() => key !== undefined && item.finish({ hostKey: key, install })}
       onCancel={() => item.finish(null)}
     >
-      <Input
-        aria-label="SSH 主机公钥 SHA-256 指纹"
-        placeholder="SHA256:… 或 64 位十六进制"
-        value={fingerprint}
-        disabled={!!item.pinned}
-        onChange={(e) => setFingerprint(e.target.value)}
-      />
-      {item.allowInstall && (
+      {!firstConnection && (
+        <Input
+          aria-label="SSH 主机公钥 SHA-256 指纹"
+          placeholder="SHA256:… 或 64 位十六进制"
+          value={fingerprint}
+          disabled={!!item.pinned}
+          onChange={(e) => setFingerprint(e.target.value)}
+        />
+      )}
+      {allowInstall && (
         <label>
           <input type="checkbox" checked={install} onChange={(e) => setInstall(e.target.checked)} />
           允许在这台服务器上安装或升级 Alune 运行包

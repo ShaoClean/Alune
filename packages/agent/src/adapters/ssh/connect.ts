@@ -20,7 +20,7 @@ type Profile = ReturnType<HostProfilesStore['credential']>;
 async function authenticate(
   ssh: Client,
   profile: Profile,
-  hostKey: string,
+  hostKey: string | null,
   proxy: ProxySnapshot,
   signal: AbortSignal,
 ) {
@@ -34,6 +34,8 @@ async function authenticate(
     sock.destroy();
     ssh.destroy();
   };
+  let verifiedHostKey = hostKey;
+  let keyMismatch = false;
   signal.addEventListener('abort', abandon, { once: true });
   try {
     signal.throwIfAborted();
@@ -54,15 +56,23 @@ async function authenticate(
         passphrase: profile.passphrase,
         agent: profile.authType === 'sshAgent' ? process.env.SSH_AUTH_SOCK : undefined,
         hostHash: 'sha256',
-        hostVerifier: (key: string) => key === hostKey,
+        hostVerifier: (key: string) => {
+          verifiedHostKey ??= key;
+          keyMismatch = key !== verifiedHostKey;
+          return !keyMismatch;
+        },
         keepaliveInterval: 15000,
         keepaliveCountMax: 3,
         readyTimeout: 20000,
       });
     });
-    return sock;
+    if (verifiedHostKey === null)
+      throw new ProtocolError('permission-denied', '无法获取 SSH 主机公钥指纹。');
+    return { socket: sock, hostKey: verifiedHostKey };
   } catch (error) {
     abandon();
+    if (keyMismatch)
+      throw new ProtocolError('permission-denied', '服务器提供的 SSH 主机公钥指纹与预期不一致。');
     throw error;
   } finally {
     signal.removeEventListener('abort', abandon);
@@ -80,7 +90,7 @@ export async function probeAuthentication(
   ssh.on('error', () => {});
   let socket: Socket | undefined;
   try {
-    socket = await authenticate(ssh, profile, key, proxy, signal);
+    ({ socket } = await authenticate(ssh, profile, key, proxy, signal));
     signal.throwIfAborted();
   } finally {
     ssh.destroy();
@@ -157,7 +167,8 @@ export async function connectHost(
   signal.throwIfAborted();
   signal.addEventListener('abort', abort, { once: true });
   try {
-    sock = await authenticate(ssh, profile, policy.hostKey, proxy, signal);
+    const authenticated = await authenticate(ssh, profile, policy.hostKey, proxy, signal);
+    sock = authenticated.socket;
     transition('probing');
     let detected = targetFrom(await command(unixProbe).catch(() => ''));
     if (!detected.target) detected = targetFrom(await command(windowsProbe).catch(() => ''));
@@ -238,6 +249,7 @@ export async function connectHost(
     return {
       transport,
       close,
+      hostKey: authenticated.hostKey,
       version: bundle.version,
       digest: bundle.sha256,
       gitProxy: proxy.enabled ? (forwardPort ? 'ready' : 'blocked') : 'disabled',

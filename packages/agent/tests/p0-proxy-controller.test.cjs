@@ -1067,6 +1067,7 @@ test('P0 proxy controller successor actual hosts kernel enforces revision sessio
       args[6]('authenticated');
       return {
         transport: {},
+        hostKey: args[2].hostKey ?? 'a'.repeat(64),
         version: {},
         target: 'darwin-arm64',
         digest: 'synthetic-digest',

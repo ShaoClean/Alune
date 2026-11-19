@@ -63,6 +63,8 @@ export function hostsKernel(
       (s) =>
         !s ||
         !validId(s.hostId) ||
+        typeof s.hostKey !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(s.hostKey) ||
         !validId(s.agentId) ||
         !Array.isArray(s.repositories) ||
         s.repositories.some(
@@ -293,7 +295,7 @@ export function hostsKernel(
         if (!profile) throw new ProtocolError('not-found', 'Unknown host profile');
         const prev = live.get(p.hostId),
           prior = saved.get(p.hostId);
-        if (prior && prior.hostKey !== p.hostKey)
+        if (prior && p.hostKey !== null && prior.hostKey !== p.hostKey)
           throw new ProtocolError('permission-denied', 'Pinned SSH host key changed');
         if (p.reconnectRevision) settings.proxy.assertRevision(p.reconnectRevision);
         if (prev && prev.phase !== 'offline') {
@@ -354,7 +356,7 @@ export function hostsKernel(
           const conn = await connectHost(
             directory,
             settings.hosts.credential(p.hostId),
-            p,
+            { ...p, hostKey: prior?.hostKey ?? p.hostKey },
             r.appliedProxy,
             signal,
             prior?.digest,
@@ -390,7 +392,7 @@ export function hostsKernel(
                 );
               save({
                 hostId: p.hostId,
-                hostKey: p.hostKey,
+                hostKey: conn.hostKey,
                 agentId: id.agentId,
                 digest: conn.digest,
                 target: conn.target,

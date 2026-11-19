@@ -104,7 +104,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
     const work = (async () => {
       const host = (await catalog()).hosts.find((h) => h.hostId === id);
       if (!host) throw new Error('服务器不存在。');
-      if (!interactive && !host.hostKey) throw new Error('请先在连接页验证服务器指纹。');
+      if (!interactive && !host.hostKey) throw new Error('请先在连接页测试并信任服务器。');
       const policy = interactive
         ? await hostConsent(
             (await local.listHostProfiles()).hosts.find((h) => h.id === id)!.name,
@@ -409,7 +409,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
             await hostConsent(
               (await local.listHostProfiles()).hosts.find((h) => h.id === input.connectionId)!.name,
               null,
-              false,
+              'proxy-test',
             )
           ).hostKey;
       } else if (input.kind === 'git') await targetFor(input.repositoryId);

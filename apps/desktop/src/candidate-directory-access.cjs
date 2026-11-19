@@ -40,12 +40,12 @@ module.exports = async ({ window, origin, wait, pass }) => {
     );
   async function connect(first) {
     await click(action('测试连接'));
-    await wait(wc, button('SSH 主机公钥 SHA-256 指纹'));
+    await wait(wc, primary(first ? '信任并连接' : '连接'));
     if (first) {
-      await input(button('SSH 主机公钥 SHA-256 指纹'), hostKey);
+      assert.equal(await ev('Boolean(' + button('SSH 主机公钥 SHA-256 指纹') + ')'), false);
       await click(element('.a-dlg-shell input[type=checkbox]'));
     } else assert.equal(await ev('(' + button('SSH 主机公钥 SHA-256 指纹') + ').value'), hostKey);
-    await click(primary('连接'));
+    await click(primary(first ? '信任并连接' : '连接'));
     await wait(wc, '(' + row + ')?.innerText.includes("在线")');
     await dismiss();
   }

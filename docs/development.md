@@ -72,7 +72,8 @@ PR/MR、AI、命名令牌和多主机协作由 `packages/agent/tests/collaborati
 - 桌面：`npm run desktop:dev` / `desktop:pack` / `desktop:dist` 均使用 Agent。安装包带匹配版本/架构的 Node 与 Agent，不依赖系统 Node；Git 仍须另行安装。`ALUNE_CANDIDATE_DATA_DIR` 可隔离测试数据，不自动发现个人独立 Web 数据。
 - 首次启动前退出旧程序和独立服务，保存原库、WAL、JSON 偏好、凭据密钥与可运行旧安装包。首次启动只读捕获旧数据，导入独立 `agent` 子目录；失败停止启动，不启用旧写者、不降级明文。原数据不删除。
 - 桌面旧 `safe-storage:` 凭据由主进程通过专用子进程 IPC 白名单解密，不能从浏览器调用；Web 旧 AES 凭据使用原 `ai-master-key`。完整离线恢复用 Agent 的 `recovery-backup` / `recovery-restore`，数据库备份不能替代凭据恢复包。恢复口令应与备份分开保管。
-- 回退须先退出新程序，再使用已验证的旧应用及原数据副本；移除环境变量不再切换执行器。恢复状态不撤销 Git、文件或平台副作用，`unknown` 写回执不得自动重发。SSH 首次连接仍须独立核对公钥指纹并明确授权部署。
+- 回退须先退出新程序，再使用已验证的旧应用及原数据副本；移除环境变量不再切换执行器。恢复状态不撤销 Git、文件或平台副作用，`unknown` 写回执不得自动重发。
+- SSH 首次测试连接时可确认信任服务器提供的主机密钥。连接成功后保存指纹并用于后续校验。部署仍须明确授权。
 
 ### Agent、Git 与终端验证
 

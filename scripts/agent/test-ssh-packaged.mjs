@@ -56,6 +56,7 @@ const ssh = await fixtures.forwardingSSH({
 });
 const credentials = { username: 'proxy-test', password: randomUUID() };
 let heldFetches = 0;
+let alternateSshPort;
 const gitEndpoint = http.createServer((req, res) => {
   assert.equal(req.headers['proxy-authorization'], undefined);
   if (req.url.startsWith('/wait.git/')) {
@@ -71,7 +72,12 @@ const proxy = await fixtures.httpProxy({
   credentials,
   map: (host, port) => ({
     host: '127.0.0.1',
-    port: host === 'p7-git.invalid' ? gitEndpoint.address().port : port,
+    port:
+      host === 'p7-git.invalid'
+        ? gitEndpoint.address().port
+        : port === ssh.port
+          ? (alternateSshPort ?? port)
+          : port,
   }),
 });
 // Emulate a cache left by an older candidate after deleting a profile. A new
@@ -144,9 +150,12 @@ try {
     credentials: { action: 'replace', ...credentials },
   });
   await assert.rejects(openRemoteAgent(local, { ...policy, hostKey: '0'.repeat(64) }));
-  await assert.rejects(openRemoteAgent(local, { ...policy, install: false }), /install/i);
+  const firstTrust = { ...policy, hostKey: null };
+  await assert.rejects(openRemoteAgent(local, { ...firstTrust, install: false }), /install/i);
+  assert.equal((await local.request('hosts.catalog')).hosts[0].hostKey, null);
   const workspace = new HostWorkspace(local);
-  remote = await workspace.connect(policy);
+  remote = await workspace.connect(firstTrust);
+  assert.equal((await local.request('hosts.catalog')).hosts[0].hostKey, policy.hostKey);
   const owner = remote.initialized.agentId;
   assert.equal(
     owner,
@@ -478,6 +487,16 @@ try {
   await terminal.until(
     () => !fs.readdirSync(path.join(login, '.alune-ssh')).some((s) => s.startsWith('run-')),
     'remote process disposal',
+  );
+  alternateSshPort = secondPeer.port;
+  await assert.rejects(
+    openRemoteAgent(local, { ...firstTrust, install: false }),
+    (e) => e.kind === 'permission-denied' && e.message.includes('指纹与预期不一致'),
+  );
+  alternateSshPort = undefined;
+  assert.equal(
+    (await local.request('hosts.catalog')).hosts.find((r) => r.hostId === host.id).hostKey,
+    policy.hostKey,
   );
   remote = await openRemoteAgent(local, { ...policy, install: false });
   assert.equal(remote.initialized.agentId, owner);
