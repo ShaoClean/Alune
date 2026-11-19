@@ -21,18 +21,6 @@ export const categories = [
 ] as const;
 export const documents: UIDocument[] = [
   {
-    slug: 'acceptance',
-    title: '组件抽象与验收',
-    subtitle: 'Agent 界面清单',
-    description: '从仓库、连接、历史与评审界面定位共享组件，逐项核对 Peach glow 的状态与交互。',
-    category: '设计规范',
-    keywords: ['Agent', '清单', '验收', 'Peach glow', '246'],
-    exports: [],
-    examples: [],
-    source: 'apps/website/src/content/ui/acceptance.mdx',
-    guide: 'acceptance',
-  },
-  {
     slug: 'view-switch',
     title: 'ViewSwitch',
     subtitle: '视图切换器',
