@@ -8,9 +8,9 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
   const wait = (contents, test, label = test) =>
     contents.executeJavaScript(`new Promise((resolve,reject)=>{
       const until=Date.now()+20000;
-      function poll(){
+      async function poll(){
         try{
-          if(${test})return resolve(true);
+          if(await (${test}))return resolve(true);
           if(Date.now()>until)return reject(Error('Candidate UI timeout: '+${JSON.stringify(label)}+' | '+JSON.stringify([...document.querySelectorAll('.a-dlg-actions button')].filter(b=>b.getClientRects().length).map(b=>[b.textContent,b.disabled]))+' | '+document.body.innerText.slice(0,1500)));
           setTimeout(poll,40);
         }catch(error){reject(error);}
