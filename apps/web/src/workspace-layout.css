@@ -1105,7 +1105,7 @@
   padding: 8px 14px;
 }
 .changes-panel .file-row {
-  border-radius: 6px;
+  border-radius: var(--radius-row);
 }
 .file-row__path strong {
   font-size: 12px;

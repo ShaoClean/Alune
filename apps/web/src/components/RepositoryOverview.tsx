@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button, Pagination, CountBadge } from '@alune/ui';
+import { Button, Pagination, CountBadge, ViewSwitch } from '@alune/ui';
 import { ArrowRightOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { Repository } from '@alune/domain';
 import { useNavigate } from 'react-router-dom';
@@ -246,18 +246,12 @@ export function RepositoryOverview({
           <p>规模、活动与工作区状态，一处掌握。</p>
         </div>
         <div className="overview-toolbar__actions">
-          <div className="collection-view-switch" role="group" aria-label="统计周期">
-            {[7, 30, 90].map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={days === value}
-                onClick={() => setDays(value)}
-              >
-                近 {value} 天
-              </button>
-            ))}
-          </div>
+          <ViewSwitch
+            label="统计周期"
+            value={days}
+            onChange={setDays}
+            options={[7, 30, 90].map((value) => ({ value, label: `近 ${value} 天` }))}
+          />
           <Button
             type="primary"
             aria-label="采集统计"
@@ -604,23 +598,17 @@ export function RepositoryOverview({
             </h3>
             <p>工作区状态与同步信息为当前快照。</p>
           </div>
-          <div className="collection-view-switch" role="group" aria-label="关注仓库筛选">
-            {[
-              ['all', '全部'],
-              ['dirty', '有改动'],
-              ['sync', '待同步'],
-              ['unknown', '未知 / 异常'],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={attention === value}
-                onClick={() => setAttention(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <ViewSwitch
+            label="关注仓库筛选"
+            value={attention}
+            onChange={setAttention}
+            options={[
+              { value: 'all', label: '全部' },
+              { value: 'dirty', label: '有改动' },
+              { value: 'sync', label: '待同步' },
+              { value: 'unknown', label: '未知 / 异常' },
+            ]}
+          />
         </header>
         <RepositoryRows rows={attentionRows} sourceName={sourceName} onRetry={retry} busy={busy} />
       </section>

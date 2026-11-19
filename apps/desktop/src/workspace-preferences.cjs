@@ -57,7 +57,7 @@ function saveWorkspacePreferences(event, contents, origin, preferences, value) {
 function workspaceBackground(value, systemDark) {
   let theme;
   try { theme = JSON.parse(value).state.appearance.theme; } catch {}
-  return (theme === 'dark' || (theme !== 'light' && systemDark)) ? '#151e30' : '#f5f7fb';
+  return (theme === 'dark' || (theme !== 'light' && systemDark)) ? '#211b2b' : '#f8f5fb';
 }
 
 module.exports = { workspaceBackground, createWorkspacePreferences, isTrustedWorkspaceSender, saveWorkspacePreferences };

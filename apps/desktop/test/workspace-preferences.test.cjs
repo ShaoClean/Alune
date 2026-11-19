@@ -69,8 +69,8 @@ test('synchronous workspace IPC save always returns a safe error string', (t) =>
 });
 
 test('workspace background uses explicit theme before system fallback', () => {
-  assert.equal(workspaceBackground(valid, false), '#151e30');
-  assert.equal(workspaceBackground(JSON.stringify({ version: 1, state: { appearance: { theme: 'light' } } }), true), '#f5f7fb');
-  assert.equal(workspaceBackground('{broken', true), '#151e30');
-  assert.equal(workspaceBackground('{}', false), '#f5f7fb');
+  assert.equal(workspaceBackground(valid, false), '#211b2b');
+  assert.equal(workspaceBackground(JSON.stringify({ version: 1, state: { appearance: { theme: 'light' } } }), true), '#f8f5fb');
+  assert.equal(workspaceBackground('{broken', true), '#211b2b');
+  assert.equal(workspaceBackground('{}', false), '#f8f5fb');
 });

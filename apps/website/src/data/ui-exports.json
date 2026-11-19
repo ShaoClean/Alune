@@ -7,6 +7,14 @@
     "source": "packages/ui/src/AluneUIProvider.tsx",
     "type": true
   },
+  "ViewSwitch": {
+    "source": "packages/ui/src/components/ViewSwitch.tsx",
+    "type": false
+  },
+  "ViewSwitchProps": {
+    "source": "packages/ui/src/components/ViewSwitch.tsx",
+    "type": true
+  },
   "CompactTable": {
     "source": "packages/ui/src/components/CompactTable.tsx",
     "type": false

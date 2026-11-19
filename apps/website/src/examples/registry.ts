@@ -4,6 +4,7 @@ export interface ExampleDefinition {
   height: number;
 }
 export const examples: ExampleDefinition[] = [
+  { id: 'view-switch', title: '仓库视图切换', height: 220 },
   { id: 'compact-table', title: '紧凑分组表格', height: 420 },
   {
     id: 'button',

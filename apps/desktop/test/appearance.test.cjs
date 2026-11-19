@@ -6,10 +6,10 @@ test('native first frame follows explicit appearance or system fallback', () => 
     for (const theme of ['light', 'dark', 'system', 'invalid']) {
       const value = JSON.stringify({ state: { appearance: { theme } } });
       const dark = theme === 'dark' || (theme !== 'light' && systemDark);
-      assert.equal(workspaceBackground(value, systemDark), dark ? '#151e30' : '#f5f7fb');
+      assert.equal(workspaceBackground(value, systemDark), dark ? '#211b2b' : '#f8f5fb');
     }
     for (const value of [null, '{broken', '{}']) {
-      assert.equal(workspaceBackground(value, systemDark), systemDark ? '#151e30' : '#f5f7fb');
+      assert.equal(workspaceBackground(value, systemDark), systemDark ? '#211b2b' : '#f8f5fb');
     }
   }
 });

@@ -60,5 +60,6 @@
   "ToolbarButtonVariant": "export type ToolbarButtonVariant = 'nav' | 'action' | 'primary' | 'icon';",
   "ToolbarButtonProps": "export type ToolbarButtonProps = ComponentProps<'button'> & {\n  label: string;\n  tooltip?: string;\n  active?: boolean;\n  variant?: ToolbarButtonVariant;\n  /** Visible text after the icon; omit for icon-only buttons. */\n  text?: ReactNode;\n  /** Trailing count such as commits ahead or behind. */\n  count?: ReactNode;\n  countTone?: ToolbarCountProps['tone'];\n};",
   "ToolbarCountProps": "export type ToolbarCountProps = { tone?: 'behind'; children: ReactNode };",
+  "ViewSwitchProps": "export interface ViewSwitchProps<T extends string | number> {\n  label: string;\n  value: T;\n  options: readonly {\n    value: T;\n    label: string;\n    ariaLabel?: string;\n    icon?: ReactNode;\n    disabled?: boolean;\n  }[];\n  onChange: (value: T) => void;\n}",
   "FeedbackMessageApi": "export type FeedbackMessageApi = ReturnType<typeof useFeedbackMessage>;"
 }

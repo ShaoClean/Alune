@@ -2230,6 +2230,36 @@
       "description": "渲染的子内容。"
     }
   ],
+  "ViewSwitchProps": [
+    {
+      "name": "label",
+      "type": "string",
+      "required": true,
+      "default": "—",
+      "description": "可访问名称或展示文案。"
+    },
+    {
+      "name": "value",
+      "type": "T",
+      "required": true,
+      "default": "—",
+      "description": "受控值。"
+    },
+    {
+      "name": "options",
+      "type": "readonly { value: T; label: string; ariaLabel?: string; icon?: ReactNode; disabled?: boolean; }[]",
+      "required": true,
+      "default": "—",
+      "description": "选项及其标题、说明、图标和可用状态。"
+    },
+    {
+      "name": "onChange",
+      "type": "(value: T) => void",
+      "required": true,
+      "default": "—",
+      "description": "值变化回调，参数与 value/checked 的类型一致。"
+    }
+  ],
   "FeedbackMessageApi": [
     {
       "name": "error",

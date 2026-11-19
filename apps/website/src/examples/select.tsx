@@ -10,6 +10,7 @@ export default function Example() {
         <Select
           id="sample-source"
           aria-label="来源"
+          showSearch={{ optionFilterProp: 'label' }}
           value={value}
           onChange={setValue}
           options={[

@@ -1,5 +1,7 @@
 export { AluneUIProvider } from './AluneUIProvider';
 export type { AluneUIProviderProps } from './AluneUIProvider';
+export { ViewSwitch } from './components/ViewSwitch';
+export type { ViewSwitchProps } from './components/ViewSwitch';
 export { CompactTable } from './components/CompactTable';
 export type {
   CompactTableProps,

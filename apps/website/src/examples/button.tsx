@@ -24,6 +24,8 @@ export default function Example() {
           <Button>默认</Button>
           <Button type="text">文字</Button>
           <Button danger>危险</Button>
+          <Button type="primary" danger>放弃更改</Button>
+          <Button type="primary" loading>正在读取仓库</Button>
           <Button disabled>禁用</Button>
         </Space>
       </section>
@@ -32,6 +34,7 @@ export default function Example() {
         <Space wrap size="middle" align="center">
           <Button size="small">小尺寸</Button>
           <Button>默认尺寸</Button>
+          <Button>重新检查当前工作区中尚未同步的远程仓库配置</Button>
           <Button size="large">大尺寸</Button>
         </Space>
       </section>

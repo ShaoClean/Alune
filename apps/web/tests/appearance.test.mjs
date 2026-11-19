@@ -91,8 +91,13 @@ const css = readFileSync(
   new URL('../../../packages/ui/src/styles/tokens.css', import.meta.url),
   'utf8',
 );
-const palette = (block) =>
-  Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[\da-f]{6})/g)].map((m) => [m[1], m[2]]));
+const palette = (block) => Object.fromEntries(
+  [...block.matchAll(/--([\w-]+):\s*(#[\da-f]{6}|var\(--[\w-]+\));/g)].map((m) => [m[1], m[2]]),
+);
+const resolveColors = (tokens) => Object.fromEntries(Object.entries(tokens).map(([key, value]) => {
+  const ref = /^var\(--([\w-]+)\)$/.exec(value);
+  return [key, ref ? tokens[ref[1]] : value];
+}));
 const darkRule = /:root\[data-theme=['"]dark['"]\]\s*\{([^}]+)\}/.exec(css);
 assert.ok(darkRule, 'dark palette exists');
 const light = palette(css.slice(0, darkRule.index));
@@ -106,9 +111,13 @@ const luminance = (hex) =>
     .reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
 const contrast = (a, b) =>
   (Math.max(luminance(a), luminance(b)) + 0.05) / (Math.min(luminance(a), luminance(b)) + 0.05);
-for (const [name, colors] of Object.entries({ light, dark }))
+for (const [name, colors] of Object.entries({ light: resolveColors(light), dark: resolveColors(dark) }))
   test(`${name} readable text, status and Diff; visible focus and input boundaries`, () => {
     const pairs = [
+      ['brand-on', 'brand-lavender'],
+      ['brand-on', 'brand-rose'],
+      ['brand-on', 'brand-peach'],
+      ['text', 'field-bg'],
       ['text', 'content'],
       ['text-muted', 'content'],
       ['text-muted', 'surface'],

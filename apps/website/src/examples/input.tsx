@@ -22,6 +22,16 @@ export default function Example() {
         说明
         <Input.TextArea aria-label="说明" placeholder="多行说明" rows={3} />
       </label>
+      <label className="example-field">
+        分支名称
+        <Input
+          defaultValue="release candidate"
+          aria-invalid="true"
+          aria-describedby="branch-error"
+          status="error"
+        />
+        <span id="branch-error">分支名称不能包含空格</span>
+      </label>
       <output className="example-status" aria-live="polite">
         当前输入：{value || '尚未填写'}
       </output>

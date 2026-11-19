@@ -15,8 +15,7 @@ export interface AluneUIProviderProps {
   reduceMotion?: boolean;
   children: ReactNode;
 }
-// Moonlight overlay skins (dialogs.css). AluneModal adds the shell and levels;
-// these defaults keep any remaining Ant Design overlay on the same surfaces.
+// Shared overlay surfaces and level-specific dialog styling.
 const modalConfig = {
   centered: true,
   mask: { blur: true },
@@ -45,10 +44,11 @@ function resolveTheme(theme: 'light' | 'dark', reduceMotion: boolean): ThemeConf
   // CSS owns the palette; Ant Design's portals use exactly the same resolved colors.
   const styles = getComputedStyle(document.documentElement);
   const color = (name: string) => styles.getPropertyValue(`--${name}`).trim();
+  const radius = (name: string) => Number.parseFloat(color(name));
   return {
     algorithm: theme === 'dark' ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
     token: {
-      colorPrimary: color('blue'),
+      colorPrimary: color('accent'),
       colorInfo: color('cyan'),
       colorInfoBg: color('cyan-soft'),
       colorInfoBorder: color('cyan-line'),
@@ -64,7 +64,7 @@ function resolveTheme(theme: 'light' | 'dark', reduceMotion: boolean): ThemeConf
       colorBgBase: color('content'),
       colorBgLayout: color('content'),
       colorBgContainer: color('surface'),
-      colorBgElevated: color('surface'),
+      colorBgElevated: color('surface-raised'),
       colorText: color('text'),
       colorTextSecondary: color('text-muted'),
       colorTextTertiary: color('text-muted'),
@@ -81,11 +81,15 @@ function resolveTheme(theme: 'light' | 'dark', reduceMotion: boolean): ThemeConf
       motionDurationMid: '0.16s',
       motionDurationSlow: '0.22s',
       motionEaseInOut: 'cubic-bezier(.2,0,0,1)',
-      borderRadius: 10,
+      borderRadius: radius('radius-control'),
+      borderRadiusSM: radius('radius-compact'),
+      borderRadiusLG: radius('radius-panel'),
       fontFamily: color('font-sans'),
     },
     components: {
-      Button: { controlHeight: 32, borderRadius: 999, primaryColor: color('primary-on') },
+      Button: { controlHeight: 32, primaryColor: color('brand-on') },
+      Tooltip: { colorBgSpotlight: color('text'), colorTextLightSolid: color('surface') },
+      Switch: { colorTextQuaternary: color('sw-off'), handleBg: color('surface-raised') },
       Input: {
         controlHeight: 34,
         activeBorderColor: color('blue'),
@@ -94,13 +98,16 @@ function resolveTheme(theme: 'light' | 'dark', reduceMotion: boolean): ThemeConf
         colorBorder: color('field-ring'),
       },
       Select: {
+        optionSelectedBg: color('selected'),
+        optionSelectedColor: color('text'),
+        optionActiveBg: color('surface-hover'),
         controlHeight: 34,
         activeBorderColor: color('blue'),
         hoverBorderColor: color('field-ring-hover'),
         colorBgContainer: color('field-bg'),
         colorBorder: color('field-ring'),
       },
-      Card: { borderRadiusLG: 12 },
+      Card: { borderRadiusLG: radius('r-card') },
       Tag: { defaultBg: color('chip-bg'), defaultColor: color('text-muted') },
       Segmented: {
         trackBg: color('seg-bg'),
