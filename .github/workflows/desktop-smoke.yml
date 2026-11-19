@@ -86,6 +86,7 @@ jobs:
             scripts
             apps/desktop
             apps/web
+            apps/website/public
             packages/agent
             packages/agent-client
             packages/domain
