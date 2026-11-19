@@ -2,7 +2,7 @@
 // with binary stdin, no system SSH access and no dependency on the workspace build.
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { execSync, execFileSync } from 'node:child_process';
+import { execSync, execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -19,7 +19,7 @@ try {
   const c = bootstrapCommands(process.platform === 'win32', sha, id);
   const run = (step, input) => {
     console.log('bootstrap:', step);
-    return execSync(c[step], {
+    return execSync(step === 'upload' ? c.upload(archive.length) : c[step], {
       cwd: home,
       input,
       stdio: ['pipe', 'pipe', 'inherit'],
@@ -27,7 +27,27 @@ try {
     });
   };
   assert.equal(run('installed').length, 0);
-  run('upload', archive);
+  if (process.platform === 'win32') {
+    // Windows OpenSSH may keep stdin open after delivering the last archive byte.
+    const [powershell, ...args] = c.upload(archive.length).split(' ');
+    const child = spawn(powershell, args, {
+      cwd: home,
+      stdio: ['pipe', 'ignore', 'inherit'],
+      timeout: 30000,
+    });
+    const finished = new Promise((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', resolve);
+    });
+    child.stdin.write(archive);
+    try {
+      assert.equal(await finished, 0);
+    } finally {
+      child.stdin.destroy();
+    }
+  } else {
+    run('upload', archive);
+  }
   assert.equal(run('installed').toString(), 'present');
   run('prepare');
   assert.deepEqual(fs.readFileSync(path.join(home, '.alune-ssh', 'run-' + id, 'asset')), data);

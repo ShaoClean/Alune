@@ -369,15 +369,14 @@ export function hostsKernel(
             (phase) => {
               r.phase = phase;
               r.sshConnected = true;
-              if (phase !== 'downloading') {
+              if (phase !== 'downloading' && phase !== 'installing') {
                 r.progress = { phase };
                 notify(r);
               }
             },
             releaseFetch,
             (progress) => {
-              r.phase = 'downloading';
-              r.progress = { phase: 'downloading', ...progress };
+              r.progress = { phase: r.phase, ...progress };
               notify(r);
             },
           );

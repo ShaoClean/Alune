@@ -55,16 +55,29 @@ export function bootstrapCommands(
       if ($actual -ne '${digest}') { throw 'checksum' }`;
     return {
       installed: ps("if(Test-Path -LiteralPath '" + archive + "'){[Console]::Write('present')}"),
-      upload: ps(
-        `[IO.Directory]::CreateDirectory('${base}') | Out-Null;
+      upload: (size: number) => {
+        if (!Number.isSafeInteger(size) || size <= 0) throw Error('Invalid archive size');
+        return ps(
+          `[IO.Directory]::CreateDirectory('${base}') | Out-Null;
          try {
            $f=[IO.File]::Open('${temp}','CreateNew');
-           try { [Console]::OpenStandardInput().CopyTo($f) } finally { $f.Dispose() }
+           try {
+             $source=[Console]::OpenStandardInput();
+             $buf=New-Object byte[] 65536;
+             $left=${size};
+             while ($left -gt 0) {
+               $n=$source.Read($buf,0,[Math]::Min($left,$buf.Length));
+               if ($n -eq 0) { throw 'Incomplete archive' }
+               $f.Write($buf,0,$n);
+               $left-=$n;
+             }
+           } finally { $f.Dispose() }
            ${check(temp)}
            Move-Item -Force -LiteralPath '${temp}' -Destination '${archive}';
          } finally { if ([IO.File]::Exists('${temp}')) { [IO.File]::Delete('${temp}') } }
          exit 0`,
-      ),
+        );
+      },
       prepare: ps(
         `${check(archive)}
          New-Item -ItemType Directory '${run}' | Out-Null;
@@ -95,20 +108,21 @@ export function bootstrapCommands(
     digest;
   return {
     installed: sh('if test -f ' + archive + '; then printf present; fi'),
-    upload: sh(
-      'set -eu; umask 077; mkdir -p ' +
-        base +
-        '; trap "rm -f ' +
-        temp +
-        '" EXIT; cat > ' +
-        temp +
-        '; ' +
-        hash(temp) +
-        '; mv -f ' +
-        temp +
-        ' ' +
-        archive,
-    ),
+    upload: (_size: number) =>
+      sh(
+        'set -eu; umask 077; mkdir -p ' +
+          base +
+          '; trap "rm -f ' +
+          temp +
+          '" EXIT; cat > ' +
+          temp +
+          '; ' +
+          hash(temp) +
+          '; mv -f ' +
+          temp +
+          ' ' +
+          archive,
+      ),
     prepare: sh(
       'set -eu; umask 077; ' +
         hash(archive) +

@@ -6,6 +6,7 @@ import { connect as tcp, type Socket } from 'node:net';
 import { Client, type ClientChannel } from 'ssh2';
 import { ProtocolError, type OpenHostRoute } from '@alune/protocol';
 import { StdioTransport } from '@alune/agent-client/node';
+import { uploadArchive } from './upload';
 import { SSHChannelQueue } from './channel-queue';
 import { bootstrapCommands, unixProbe, windowsProbe, targetFrom } from './commands';
 import { readBundle, type BundleDownloadProgress } from './bundles';
@@ -142,7 +143,7 @@ export async function connectHost(
         signal,
       ),
     );
-  const command = async (cmd: string, input?: Buffer): Promise<string> => {
+  const command = async (cmd: string): Promise<string> => {
     const ch = await open(cmd);
     return new Promise((resolve, reject) => {
       let output = '',
@@ -162,7 +163,7 @@ export async function connectHost(
       ch.once('close', (n?: number) =>
         (code ?? n) === 0 ? resolve(output) : reject(new Error('SSH bootstrap command failed')),
       );
-      ch.end(input);
+      ch.end();
     });
   };
   signal.throwIfAborted();
@@ -233,7 +234,7 @@ export async function connectHost(
         onProgress?.(progress);
       });
       transition('installing');
-      await command(commands.upload, archive);
+      await uploadArchive(() => open(commands.upload(archive.length)), archive, signal, onProgress);
     } else {
       transition('verifying');
       if ((await command(commands.installed)) !== 'present')
