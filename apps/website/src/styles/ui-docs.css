@@ -70,7 +70,7 @@
   outline-offset: -2px;
 }
 .ui-sidebar nav a[aria-current='page'] {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: var(--selected);
   color: var(--accent);
   font-weight: 600;
 }

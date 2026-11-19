@@ -163,7 +163,7 @@ import { site } from '../data/site';
 </script>
 <style>
   .changes {
-    background: linear-gradient(145deg, var(--halo-indigo), transparent 65%);
+    background: linear-gradient(145deg, var(--dlg-halo-a), transparent 65%);
   }
   .change-layout {
     display: grid;
@@ -193,10 +193,10 @@ import { site } from '../data/site';
     font-size: 13px;
   }
   .gallery-tabs button[aria-selected='true'] {
-    background: var(--surface);
+    background: var(--selected);
     color: var(--ink);
     border-color: var(--hair);
-    box-shadow: 0 2px 5px rgb(30 45 95 / 5%);
+    box-shadow: var(--shadow-sm);
   }
   .gallery-panel + .gallery-panel {
     margin-top: 24px;
