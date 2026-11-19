@@ -23,14 +23,14 @@ npm run website:preview
 
 - `src/sections/`：首屏、工作区、改动、协作、体验和下载的文案及布局。
 - `src/data/site.ts`：导航、文档与公共链接、平台安装包命名。
-- `src/styles/tokens.css`：月光主题、字体、同心圆角、外壳及阴影。组件样式与组件一起维护。
+- `src/styles/tokens.css`：将共享 Peach glow 主题映射到官网的导航、阅读表面与截图外壳。组件样式与组件一起维护。
 - `src/styles/motion.css`：首屏文案分步入场、工作区截图与背景光晕显现、卡片悬停和按钮／链接反馈。
 - `src/scripts/motion.ts`：通过 IntersectionObserver 和 Web Animations API 实现区块首次滚动显现、下载卡片错峰入场与截图切换过渡；不引入动画库或逐帧滚动监听。默认增加展示动效，系统启用减少动态效果时跳过动画，并立即取消正在播放的过渡。内容默认可见，禁用 JS 或动画 API 不可用时仍可阅读。
 - 主题默认跟随系统，可手动选择浅色、深色并在本机保存。`?theme=light` / `?theme=dark` 可用于预览；手动切换后移除预览参数。
 - 无 JavaScript 时，内容、下载、导航、系统主题仍可用，改动、文件与终端截图按顺序展示。
 - Geist / Geist Mono 字体通过 Fontsource 构建并自托管，中文使用系统字体回退；图标来自 Tabler Icons（MIT）。随站点发布的许可文本位于 `public/third-party-licenses.txt`。
 
-视觉参考：[UI-Dialogs 独立 HTML](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-118/dialog-design/ui-design.html)，2026-09-30 基线 SHA-256 `97f51ecebcfceb42cb950cff1a326568827a592ddee2b4542fffeaec3ea34a33`。这是视觉规则的官网适配，参考附件中的弹窗提案不代表已发布产品行为。
+官网与组件文档使用 [Alune UI 主题变量](../../packages/ui/src/styles/tokens.css)，浅深色、主按钮渐变和选中态随组件库同步。
 
 ## 文案、截图与品牌资产
 
