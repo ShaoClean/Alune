@@ -48,14 +48,12 @@ export function PanelToggle({
           strokeWidth="1.5"
           aria-hidden="true"
         >
-          {expanded && (
-            <path
-              d={side === 'left' ? 'M3 3h4v14H3z' : 'M13 3h4v14h-4z'}
-              fill="currentColor"
-              opacity=".12"
-              stroke="none"
-            />
-          )}
+          <path
+            className={`panel-toggle__pane panel-toggle__pane--${side}`}
+            d={side === 'left' ? 'M3 3h4v14H3z' : 'M13 3h4v14h-4z'}
+            fill="currentColor"
+            stroke="none"
+          />
           <rect x="2.5" y="3" width="15" height="14" rx="2" />
           <path d={side === 'left' ? 'M7 3v14' : 'M13 3v14'} />
         </svg>

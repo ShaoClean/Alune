@@ -552,7 +552,19 @@
   pointer-events: none;
 }
 
+/* Keep Ant's size, RTL geometry and pressed-handle deformation. */
+.ant-switch.ant-switch,
+.ant-switch .ant-switch-handle,
+.ant-switch .ant-switch-handle::before,
+.ant-switch .ant-switch-inner,
+.ant-switch .ant-switch-inner :is(.ant-switch-inner-checked, .ant-switch-inner-unchecked) {
+  transition-duration: var(--motion-toggle);
+  transition-timing-function: var(--ease-toggle);
+}
+
 .collection-view-switch {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-self: flex-start;
   flex-wrap: wrap;
@@ -563,7 +575,26 @@
   border-radius: calc(var(--radius-compact) + 4px);
   background: var(--seg-bg);
 }
+.collection-view-switch__thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  border-radius: var(--radius-compact);
+  background: var(--seg-thumb);
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    0 1px 4px var(--focus-soft);
+  transition:
+    transform var(--motion-toggle) var(--ease-toggle),
+    width var(--motion-toggle) var(--ease-toggle),
+    height var(--motion-toggle) var(--ease-toggle);
+}
 .collection-view-switch button {
+  position: relative;
+  transition:
+    color var(--motion-toggle) var(--ease-toggle),
+    background-color var(--t-hover) var(--ease-toggle);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -580,14 +611,17 @@
   overflow-wrap: anywhere;
   cursor: pointer;
 }
-.collection-view-switch button:enabled:hover {
+.collection-view-switch button:enabled:hover:not([aria-pressed='true']) {
   background: var(--surface-hover);
 }
 .collection-view-switch button[aria-pressed='true'] {
   color: var(--accent);
+  font-weight: 600;
+}
+/* Preserve the selected surface in server-rendered markup before measurement. */
+.collection-view-switch:not(:has(.collection-view-switch__thumb)) button[aria-pressed='true'] {
   background: var(--seg-thumb);
   box-shadow: inset 0 0 0 1px var(--accent);
-  font-weight: 600;
 }
 .collection-view-switch button:enabled:active {
   background: var(--selected);
@@ -626,6 +660,26 @@
     color var(--motion-hover) var(--ease-enter),
     background var(--motion-hover) var(--ease-enter),
     box-shadow var(--motion-hover) var(--ease-enter);
+}
+
+.panel-toggle__pane {
+  transform-box: fill-box;
+  transform-origin: var(--pane-origin) center;
+  transform: scaleX(0);
+  opacity: 0;
+  transition:
+    transform var(--motion-toggle) var(--ease-toggle),
+    opacity var(--motion-toggle) var(--ease-toggle);
+}
+.panel-toggle[aria-expanded='true'] .panel-toggle__pane {
+  transform: scaleX(1);
+  opacity: 0.2;
+}
+.panel-toggle__pane--left {
+  --pane-origin: left;
+}
+.panel-toggle__pane--right {
+  --pane-origin: right;
 }
 
 .panel-toggle:not([aria-disabled='true']):hover {

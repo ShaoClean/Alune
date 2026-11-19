@@ -22,4 +22,6 @@ Ant Design Button、Input、Select、Tag 和 Segmented 的配置由 Provider 提
 
 悬停、选择、反馈、面板和等待分别使用表中的 `--motion-*` 时长；弹窗进入、退出使用 `--t-enter` / `--t-exit`。以 transform 与 opacity 表达层级和反馈，阅读内容保持稳定。
 
+开关、视图切换和面板按钮共用 `--motion-toggle`（320ms）和 `--ease-toggle`（三次减速）。开关滑块与底色同步变化，视图高亮滑到所选项并贴合标签宽度，面板图标从对应一侧展开。连续切换时，过渡从当前位置继续。
+
 宿主传入 `reduceMotion`，并考虑系统 `prefers-reduced-motion`。共享 CSS 将可感知动画缩短到 0.01ms、过渡置零，保留浮层库需要的完成事件。焦点应立即清晰显示，不因等待动效而推迟。
