@@ -63,9 +63,12 @@ test('browser first-paint bootstrap handles saved, corrupt, unavailable and desk
     runInNewContext(script, {
       window: {},
       document: { documentElement: { dataset } },
+      sessionStorage: { getItem: () => 'fixture-agent' },
       localStorage: {
-        getItem: () =>
-          JSON.stringify({ version: 1, state: { appearance: { theme, reduceMotion: true } } }),
+        getItem: (key) => {
+          assert.equal(key, 'alune-workspace:fixture-agent');
+          return JSON.stringify({ version: 1, state: { appearance: { theme, reduceMotion: true } } });
+        },
       },
     });
     assert.deepEqual(dataset, { theme, reducedMotion: 'true' });
@@ -76,13 +79,16 @@ test('browser first-paint bootstrap handles saved, corrupt, unavailable and desk
       throw Error('blocked');
     },
   ]) {
-    const dataset = {};
-    runInNewContext(script, {
-      window: {},
-      document: { documentElement: { dataset } },
-      localStorage: { getItem },
-    });
-    assert.deepEqual(dataset, {});
+    for (const dark of [false, true]) {
+      const dataset = {};
+      runInNewContext(script, {
+        window: { matchMedia: () => ({ matches: dark }) },
+        document: { documentElement: { dataset } },
+        sessionStorage: { getItem: () => null },
+        localStorage: { getItem },
+      });
+      assert.deepEqual(dataset, { theme: dark ? 'dark' : 'light' });
+    }
   }
   runInNewContext(script, { window: { aluneWorkspace: {} } });
 });

@@ -27,6 +27,23 @@ module.exports = async ({ window, origin, restore }) => {
   const previous = JSON.parse(await execute('window.aluneWorkspace.load()')).state;
   await window.loadURL(`${origin}/settings/appearance`);
   await wait("document.querySelector('input[value=dark]') !== null");
+  // Exercise the native surface behind the renderer before navigation/restart.
+  const { nativeTheme } = require('electron');
+  const previousSource = nativeTheme.themeSource;
+  const selectTheme = (theme) => execute(`document.querySelector('input[value=${theme}]').click()`);
+  try {
+    await selectTheme('system');
+    for (const [theme, background] of [['light', '#f8f5fb'], ['dark', '#211b2b']]) {
+      nativeTheme.themeSource = theme;
+      await wait(`document.documentElement.dataset.theme === '${theme}'`);
+      assert.equal(window.getBackgroundColor().toLowerCase(), background);
+    }
+    await selectTheme('light');
+    await wait("document.documentElement.dataset.theme === 'light'");
+    assert.equal(window.getBackgroundColor().toLowerCase(), '#f8f5fb');
+  } finally {
+    nativeTheme.themeSource = previousSource;
+  }
   await execute(
     "document.querySelector('input[value=dark]').click(); document.querySelector('[role=switch][aria-label=\"减少动态效果\"]').click()",
   );

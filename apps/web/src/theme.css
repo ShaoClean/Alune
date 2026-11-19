@@ -1,7 +1,5 @@
 /* Shared Peach glow theme. Geometry and code preferences stay independent. */
 
-/* Immediate focus, including native controls outside Ant Design. */
-
 .diff-shell__body,
 .diff-unified-view,
 .diff-split-view,
@@ -121,10 +119,6 @@
   border-start-start-radius: var(--r-card);
   border-start-end-radius: var(--r-card);
 }
-.connection-card::before,
-.repository-card::before {
-  background: linear-gradient(90deg, var(--moon-indigo), var(--moon-cyan), transparent 80%);
-}
 .source-badge {
   border-radius: var(--r-chip);
   color: var(--text-muted);
@@ -132,19 +126,13 @@
   border-color: var(--chip-ring);
 }
 
-/* Native workspace actions share the same paint without changing split-button geometry. */
-
-/* Keep completion events for library overlays while suppressing perceptible motion. */
-
-/* The shell is still empty before hydration; desktop supplies the saved background. */
+/* The browser bootstrap resolves the theme before paint. On desktop the empty
+   document lets the native window background show until workspace hydration. */
+:root[data-theme] {
+  background: var(--content);
+}
 :root:not([data-theme]) body {
   background: transparent;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    color-scheme: dark;
-    --content: #211b2b;
-  }
 }
 
 /* Code preferences are scoped to text surfaces, outside the Diff toolbar/image view. */
@@ -212,6 +200,7 @@
   color: var(--syntax-deleted);
 }
 .code-diff ::selection {
+  color: var(--code-foreground);
   background: var(--code-selection);
 }
 .code-diff .pull-request-patch__selected td {

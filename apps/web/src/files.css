@@ -51,7 +51,7 @@
   color: var(--blue);
   background: var(--blue-soft);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--r-chip);
   font-size: 10px;
   font-weight: 500;
   line-height: 16px;
@@ -514,6 +514,7 @@
 }
 .files-code__content ::selection,
 .files-code__content::selection {
+  color: var(--code-foreground);
   background: var(--code-selection);
 }
 .files-code__content .token.bold {

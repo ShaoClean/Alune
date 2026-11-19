@@ -1,17 +1,19 @@
-// Blocking, same-origin bootstrap: match the saved browser theme before CSS paints.
-// Desktop uses workspace.json and a matching native window background instead.
+// Blocking bootstrap. Electron supplies the native window background until hydration.
 (() => {
   if (window.aluneWorkspace) return;
+  const root = document.documentElement;
+  let theme;
   try {
-    const owner = document.documentElement.dataset.workspaceMode === 'agent' ? sessionStorage.getItem('alune.last-owner') : null;
+    const owner = sessionStorage.getItem('alune.last-owner');
     const key = owner ? 'alune-workspace:' + owner : 'alune-workspace';
     const saved = JSON.parse(localStorage.getItem(key));
     const appearance = saved?.version === 1 ? saved.state?.appearance : null;
-    if (appearance?.theme === 'light' || appearance?.theme === 'dark') {
-      document.documentElement.dataset.theme = appearance.theme;
-    }
-    if (appearance?.reduceMotion === true) document.documentElement.dataset.reducedMotion = 'true';
+    theme = appearance?.theme;
+    if (appearance?.reduceMotion === true) root.dataset.reducedMotion = 'true';
   } catch {
     /* Unavailable or malformed preferences fall back to the system. */
   }
+  root.dataset.theme = theme === 'light' || theme === 'dark'
+    ? theme
+    : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 })();

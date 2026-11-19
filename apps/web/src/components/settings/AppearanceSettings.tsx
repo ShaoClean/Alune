@@ -10,7 +10,7 @@ export function AppearanceSettings() {
     <div className="settings-page-content">
       <h1>外观</h1>
       <p className="settings-lead">调整主题色和动态效果，修改立即生效。</p>
-      <fieldset className="settings-fieldset">
+      <fieldset className="settings-fieldset appearance-preferences">
         <h2 id="appearance-theme-label">主题</h2>
         <p className="settings-field-hint">新装默认跟随系统。切换主题保留工作区布局和提交草稿。</p>
         <Radio.Group
