@@ -79,7 +79,7 @@
   width: 98px;
 }
 .connection-table .collection-table__actions-column {
-  width: 294px;
+  width: 338px;
 }
 .connection-table .collection-table__status-column {
   width: 108px;
@@ -109,4 +109,11 @@
 .collection-table .repository-card__actions,
 .collection-table .connection-card__actions {
   flex-wrap: nowrap;
+}
+.connection-table .connection-card__actions {
+  gap: 6px;
+}
+.connection-table .connection-card__actions > button {
+  flex: none;
+  white-space: nowrap;
 }
