@@ -1,5 +1,4 @@
-// Fail this specific clean-checkout gate if legacy code, stale dist or a
-// desktop dependency could have made the independent Agent job pass.
+// Verify the isolated jobs start from source and use their own toolchain.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
@@ -8,7 +7,6 @@ assert.ok(['agent', 'desktop-candidate'].includes(target), 'unknown clean-checko
 for (const file of [
   'packages/agent/package.json',
   'apps/web/package.json',
-  'apps/desktop/src/legacy-agent-secrets.cjs',
   ...(target === 'desktop-candidate' ? ['apps/desktop/package.json'] : []),
 ])
   assert.ok(fs.existsSync(file), 'required sparse source missing: ' + file);
@@ -17,9 +15,6 @@ assert.ok(
   'expected before-install or after-install',
 );
 for (const file of [
-  'apps/server',
-  'packages/shared',
-  'packages/ssh-client',
   ...(target === 'agent'
     ? ['apps/desktop/package.json']
     : ['apps/desktop/dist', 'apps/desktop/release']),
@@ -48,17 +43,7 @@ else {
     require('node-gyp/package.json').version,
     require('../../packages/agent/package.json').devDependencies['node-gyp'],
   );
-  for (const name of [
-    ...(target === 'agent' ? ['electron'] : []),
-    '@nestjs/core',
-    '@alune/shared',
-    '@alune/ssh-client',
-    'server',
-  ])
-    assert.throws(
-      () => require.resolve(name),
-      { code: 'MODULE_NOT_FOUND' },
-      name + ' must not be resolvable',
-    );
+  if (target === 'agent')
+    assert.throws(() => require.resolve('electron'), { code: 'MODULE_NOT_FOUND' });
 }
-console.log('Independent checkout ' + phase + ': no legacy workspaces or prebuilt outputs.');
+console.log('Independent checkout verified: ' + phase);

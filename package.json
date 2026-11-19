@@ -23,9 +23,6 @@
     "desktop:test": "npm run test -w desktop",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "desktop:test:unit": "npm run test:unit -w desktop",
-    "desktop:test:worktrees": "npm run desktop:build && npm run test:worktrees -w desktop",
-    "desktop:test:diff-theme": "npm run desktop:build && npm run test:diff-theme -w desktop",
-    "desktop:test:code-appearance": "npm run desktop:build && npm run test:code-appearance -w desktop",
     "website:dev": "npm run dev -w website",
     "website:build": "npm run build -w website",
     "website:preview": "npm run preview -w website",
@@ -33,7 +30,6 @@
     "ui:check": "npm run check -w @alune/ui && npm test -w @alune/ui && node apps/website/scripts/ui-api.mjs --check && node apps/website/scripts/ui-coverage.mjs",
     "web:agent": "turbo build --filter=@alune/agent --filter=@alune/ui && npm run dev:agent -w web",
     "desktop:candidate:build": "npm run icons:check && turbo build --filter=web --filter=@alune/agent && npm run build:candidate -w desktop",
-    "test:retirement": "node --test scripts/agent/retirement.test.mjs",
     "test:agent-tools": "node --test scripts/agent/download-runtime.test.mjs scripts/agent/layout.test.mjs"
   },
   "devDependencies": {

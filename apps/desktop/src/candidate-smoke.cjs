@@ -1,12 +1,9 @@
 const assert = require('node:assert/strict');
 const { readFileSync, writeFileSync, mkdirSync } = require('node:fs');
-const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 module.exports = async ({ window, origin, backend, logWindow, updates }) => {
-  const { repo, id, workspace, db, fromRelease, tokenId } = JSON.parse(
-    process.env.ALUNE_CANDIDATE_FIXTURE,
-  );
+  const { repo, id } = JSON.parse(process.env.ALUNE_CANDIDATE_FIXTURE);
   const phase = process.env.ALUNE_SMOKE_PHASE;
   const wait = (contents, test, label = test) =>
     contents.executeJavaScript(`new Promise((resolve,reject)=>{
@@ -29,9 +26,9 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
       .activeId,
     id,
   );
-  if (!fromRelease && phase === 'restore') {
+  if (phase === 'restore') {
     const expected = JSON.parse(readFileSync(path.join(process.env.ALUNE_SMOKE_DIR,'tab-restore-proof.json'),'utf8'));
-    await measure(wc,['UI-041','UI-025'],'restart restores deliberately reordered tabs, exact active repository and real linked working tree',async()=>{
+    await measure(['UI-041','UI-025'],'restart restores deliberately reordered tabs, exact active repository and real linked working tree',async()=>{
       assert.equal(expected.activeId,id);
       const order = JSON.stringify(expected.ids);
       await wait(wc,'location.pathname==='+JSON.stringify('/repositories/'+id)+' && JSON.stringify([...document.querySelectorAll("[data-repository-tab]")].map(e=>e.dataset.repositoryTab))==='+JSON.stringify(order));
@@ -51,7 +48,7 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
   }
   assert.equal(
     execFileSync('git', ['-C', repo, 'show', ':candidate.txt'], { encoding: 'utf8' }),
-    'changed in legacy workspace\n',
+    'changed in the workspace\n',
   );
   assert.equal(
     execFileSync('git', ['-C', repo, 'show', 'HEAD:candidate.txt'], { encoding: 'utf8' }),
@@ -64,42 +61,27 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
       (await wc.capturePage()).toPNG(),
     );
   }
-  if (fromRelease) {
-    await window.loadURL(origin + '/settings/proxy');
-    await wait(wc, "document.querySelector('[aria-label=代理端口]')?.value === '18291'");
-    if (tokenId) {
-      await window.loadURL(origin + '/settings/tokens');
-      await wait(wc, "document.body.innerText.includes('Upgrade fixture token')");
-      assert.equal(
-        await wc.executeJavaScript(
-          "document.body.innerText.includes('isolated-upgrade-test-token')",
-        ),
-        false,
-      );
+  if (phase === 'write') {
+    if (process.env.ALUNE_CANDIDATE_FOCUS === 'updates') {
+      await require('./candidate-update-actions.cjs')({ window, origin, updates, wait, measure });
+      console.log('Candidate focused update UI passed with smoke adapter.');
+      return;
     }
-  } else {
-    if (phase === 'write') {
-      if (process.env.ALUNE_CANDIDATE_FOCUS === 'updates') {
-        await require('./candidate-update-actions.cjs')({ window, origin, updates, wait, measure });
-        console.log('Candidate focused update UI passed with smoke adapter; no native installation tested.');
-        return;
-      }
-      await require('./candidate-workbench.cjs')({ window, origin, id, repo, wait });
-      if (process.env.ALUNE_CANDIDATE_FOCUS) {
-        console.log('Candidate focused acceptance passed; full write/restore was not executed.');
-        return;
-      }
-      await measure(wc,['UI-002','UI-007','UI-016'],'discard dialog: cancel focus, key trapping, destructive acknowledgement and no write on escape',()=>require('./dialogs-smoke.cjs')({window}));
-      await measure(wc,['UI-025','UI-026','UI-040','UI-050','UI-057','UI-059','UI-060','UI-061'],'settings shell: retained DOM, draft, scroll and focus, keyboard, proxy navigation guards',()=>require('./settings-shell-smoke.cjs')({
-        window,
-        origin,
-        repositoryId: id,
-        candidate: true,
-      }));
+    await require('./candidate-workbench.cjs')({ window, origin, id, repo, wait });
+    if (process.env.ALUNE_CANDIDATE_FOCUS) {
+      console.log('Candidate focused acceptance passed.');
+      return;
     }
-    await measure(wc,['UI-001','UI-055','UI-056'],'theme, reduced motion, imported code colors, font and size write/restore',()=>require('./appearance-smoke.cjs')({ window, origin, restore: phase === 'restore' }));
+    await measure(['UI-002','UI-007','UI-016'],'discard dialog: cancel focus, key trapping, destructive acknowledgement and no write on escape',()=>require('./dialogs-smoke.cjs')({window}));
+    await measure(['UI-025','UI-026','UI-040','UI-050','UI-057','UI-059','UI-060','UI-061'],'settings shell: retained DOM, draft, scroll and focus, keyboard, proxy navigation guards',()=>require('./settings-shell-smoke.cjs')({
+      window,
+      origin,
+      repositoryId: id,
+      candidate: true,
+    }));
   }
-  if (!fromRelease && phase === 'restore' && process.env.ALUNE_TEST_FILE_VAULT === '1') {
+  await measure(['UI-001','UI-055','UI-056'],'theme, reduced motion, imported code colors, font and size write/restore',()=>require('./appearance-smoke.cjs')({ window, origin, restore: phase === 'restore' }));
+  if (phase === 'restore' && process.env.ALUNE_TEST_FILE_VAULT === '1') {
     await require('./candidate-token-actions.cjs')({window,origin,id,wait,measure});
   }
   const target = logWindow.open();
@@ -112,46 +94,15 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
     target.webContents,
     'document.body.innerText.includes(' + JSON.stringify(marker) + ')',
   );
-  if (!fromRelease && phase === 'write')
-    await measure(wc, ['UI-066'], 'controlled renderer error and rejection events reach the independent log window with ERROR/web provenance; reporting the same error twice stores it once',
+  if (phase === 'write') {
+    await measure(['UI-066'], 'controlled renderer error and rejection events reach the independent log window with ERROR/web provenance; reporting the same error twice stores it once',
       () => require('./candidate-client-errors.cjs')({contents:wc, logs:target.webContents, wait, marker:'candidate-renderer-report'}));
-  if (!fromRelease && phase === 'write')
-    await measure(target.webContents, ['UI-068'], 'log window: web source filtering and error context expansion, scroll/follow, pause/resume without duplication, keyword/level filters and clear/reload preserving file history',
+    await measure(['UI-068'], 'log window: web source filtering and error context expansion, scroll/follow, pause/resume without duplication, keyword/level filters and clear/reload preserving file history',
       () => require('./candidate-log-actions.cjs')({contents:target.webContents, client:backend.client, wait, marker}));
+  }
   await updates.check();
   assert.equal(updates.getState().status, 'available');
-  for (const [file, expected] of [
-    ['workspace.json', workspace],
-    ['alune.db', db],
-  ])
-    assert.equal(
-      createHash('sha256')
-        .update(readFileSync(path.join(process.env.ALUNE_SMOKE_DIR, file)))
-        .digest('hex'),
-      expected,
-    );
-  if (process.env.ALUNE_CANDIDATE_EVIDENCE) {
-    const collect = (contents) =>
-      contents.executeJavaScript(
-        "Array.from(window.__aluneAudit?.hits??JSON.parse(sessionStorage.getItem('alune.audit.cases')||'[]'))",
-      );
-    const uiCallbacks = [
-      ...new Set([...(await collect(wc)), ...(await collect(target.webContents))]),
-    ].sort();
-    writeFileSync(
-      path.join(process.env.ALUNE_CANDIDATE_EVIDENCE, phase + '-callbacks.json'),
-      JSON.stringify(
-        { phase, platform: process.platform, arch: process.arch, uiCallbacks },
-        null,
-        2,
-      ),
-    );
-  }
-  if (!fromRelease && phase === 'write')
+  if (phase === 'write')
     await require('./candidate-update-actions.cjs')({ window, origin, updates, wait, measure });
-  console.log(
-    'Candidate ' +
-      phase +
-      ': actual Git index, migrated tab, legacy source hashes, native update check and live log window passed.',
-  );
+  console.log(`Desktop smoke ${phase} passed with the standalone Agent.`);
 };

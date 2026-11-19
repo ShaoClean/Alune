@@ -14,7 +14,7 @@ Agent 消息契约和运行时校验；不依赖 Node、Electron、SSH、数据�
 | 1.6      | SSH 主机目录、绑定和转发通道，跨主机工作区移除及代理连通性测试。            |
 | 1.7      | 显式目录授权、列出/读取/写入文本及撤销。授权绑定 Agent 与当前会话。         |
 
-[逐方法清单](../../scripts/agent/protocol-1-capabilities.json)对应普通 `serve` 的本机 stdio 会话。SSH 叶节点和桌面只读日志窗口另有限权，不得用版本号推断它们拥有同样权限。用 `node scripts/agent/test-negotiated-package.mjs PACKAGE_DIRECTORY` 可对安装包逐版本握手，并验证调用被隐藏的方法会在校验参数和执行前返回 `unknown-method`。
+[逐方法清单](../../scripts/agent/protocol-1-capabilities.json)对应普通 `serve` 的本机 stdio 会话。SSH 叶节点和桌面只读日志窗口另有限权。`node scripts/agent/test-packaged.mjs PACKAGE_DIRECTORY` 检查安装包当前协议版本公布的完整能力。
 
 请求 ID 使用 `固定前缀:递增正整数`（整数必须安全且无前导零）。一个会话内前缀不变，序号可跳过但不能倒退或重用；响应仍回显请求 ID。SDK 自动生成。Agent 只保存已接收序号上界，既能拒绝历史重复写，又不因长时间使用而积累无限 tombstone 或强制重连。
 

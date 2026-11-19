@@ -20,7 +20,7 @@ import { RepositoryWorkspaceContext, useRepositoryWorkspace, useWorkspaceLocatio
 
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
 
-test('P0 date and branch formatting retain exact invalid, threshold and literal boundaries', t => {
+test('date and branch formatting retain exact invalid, threshold and literal boundaries', t => {
   const now = Date.UTC(2026, 10, 13, 12); t.mock.method(Date, 'now', () => now);
   assert.equal(formatRelativeDate(), '—'); assert.equal(formatRelativeDate('bad'), '—');
   for (const [seconds, expected] of [[0, '刚刚'], [59, '刚刚'], [60, '1 分钟前'], [3599, '59 分钟前'], [3600, '1 小时前'], [86399, '23 小时前'], [86400, '1 天前'], [604799, '6 天前']])
@@ -31,7 +31,7 @@ test('P0 date and branch formatting retain exact invalid, threshold and literal 
   assert.equal(formatBranchName('literal branch.head topic'), 'literal branch.head topic');
 });
 
-test('P0 signature badges preserve all trust labels, reasons and escaped signer metadata', () => {
+test('signature badges preserve all trust labels, reasons and escaped signer metadata', () => {
   assert.match(render(CommitSignatureBadge, {}), /验证中…/);
   assert.match(render(CommitSignatureBadge, { error: 'missing <key>' }), /验证失败/);
   for (const [status, label] of Object.entries({ valid: '签名有效', invalid: '签名无效', unknown: '未知密钥／信任', unsigned: '未签名' }))
@@ -42,7 +42,7 @@ test('P0 signature badges preserve all trust labels, reasons and escaped signer 
   }
 });
 
-test('P0 PR presentation preserves status, missing branches and escaped literal refs', () => {
+test('PR presentation preserves status, missing branches and escaped literal refs', () => {
   for (const [state, label] of Object.entries({ open: '开放中', closed: '已关闭', merged: '已合并' })) {
     const html = render(PullRequestStatus, { state }); assert(html.includes(label)); assert(html.includes('pull-request-status--' + state));
   }
@@ -51,7 +51,7 @@ test('P0 PR presentation preserves status, missing branches and escaped literal 
   assert(literal.includes('&lt;topic&gt;')); assert(literal.includes('main&amp;next')); assert(!literal.includes('<topic>'));
 });
 
-test('P0 PR remote defaults and discussion merges preserve availability and latest comment identity', () => {
+test('PR remote defaults and discussion merges preserve availability and latest comment identity', () => {
   const origin = { name: 'origin', unavailableReason: 'unavailable' }, other = { name: 'other', provider: 'gitlab' }, plain = { name: 'plain' };
   assert.equal(defaultPullRequestRemote([]), ''); assert.equal(defaultPullRequestRemote([plain, other, origin]), 'other');
   assert.equal(defaultPullRequestRemote([plain, { ...origin, unavailableReason: '' }, other]), 'origin');
@@ -65,7 +65,7 @@ test('P0 PR remote defaults and discussion merges preserve availability and late
   assert.equal(centerListUrl({ ...defaultCenterQuery, search: '中文 & literal', projects: ['b', 'a'] }), '/pull-requests?q=%E4%B8%AD%E6%96%87+%26+literal&project=a&project=b');
 });
 
-test('P0 AI settings accept invalidates pending loads and model selection requires enabled saved identities', async t => {
+test('AI settings accept invalidates pending loads and model selection requires enabled saved identities', async t => {
   const original = useAiSettingsStore.getState(); t.after(() => useAiSettingsStore.setState(original, true));
   let resolve; t.mock.method(aiApi, 'settings', () => new Promise(r => { resolve = r; }));
   const config = { providers: [{ id: 'p', enabled: true, models: [{ id: 'm', enabled: true }] }], commit: { providerId: 'p', modelId: 'm' } };
@@ -81,7 +81,7 @@ test('P0 AI settings accept invalidates pending loads and model selection requir
   assert.equal(useAiSettingsStore.getState().settings, config);
 });
 
-test('P0 terminal removal defaults to refusal and forwards exact scope without swallowing errors', async t => {
+test('terminal removal defaults to refusal and forwards exact scope without swallowing errors', async t => {
   t.after(() => registerTerminalRemovalConfirmation()); registerTerminalRemovalConfirmation();
   const sessions = [{ id: 'a', repositoryId: 'r', state: 'running' }];
   assert.equal(await confirmTerminalRemoval(sessions), false);
@@ -91,7 +91,7 @@ test('P0 terminal removal defaults to refusal and forwards exact scope without s
   registerTerminalRemovalConfirmation(async () => { throw Error('controlled refusal'); }); await assert.rejects(confirmTerminalRemoval(sessions), /controlled refusal/);
 });
 
-test('P0 log viewer dispatch and renderer error listeners retain desktop routing, deduplication and cleanup', async t => {
+test('log viewer dispatch and renderer error listeners retain desktop routing, deduplication and cleanup', async t => {
   const prior = Object.getOwnPropertyDescriptor(globalThis, 'window');
   t.after(() => { if (prior) Object.defineProperty(globalThis, 'window', prior); else delete globalThis.window; });
   delete globalThis.window; assert.equal(logBridge(), undefined);
@@ -109,7 +109,7 @@ test('P0 log viewer dispatch and renderer error listeners retain desktop routing
   assert.match(reports[1][1], /isolated-rejection/); dispose(); assert.equal(listeners.size, 0);
 });
 
-test('P0 workspace context keeps hidden-tab location and exact repository list identity', () => {
+test('workspace context keeps hidden-tab location and exact repository list identity', () => {
   function Probe() { const workspace = useRepositoryWorkspace(); const location = useWorkspaceLocation(); return React.createElement('output', {}, JSON.stringify({ repoId: workspace?.repoId ?? null, path: location.pathname })); }
   const renderProbe = value => renderToStaticMarkup(React.createElement(MemoryRouter, { initialEntries: ['/foreground'] }, React.createElement(RepositoryWorkspaceContext.Provider, { value }, React.createElement(Probe))));
   assert.equal(workspaceListId('repo:中文'), 'workspace-list-repo:中文');
@@ -118,7 +118,7 @@ test('P0 workspace context keeps hidden-tab location and exact repository list i
   assert(hidden.includes('/retained')); assert(hidden.includes('hidden')); assert(!hidden.includes('/foreground'));
 });
 
-test('P0 brand and diff glyphs retain decorative dimensions and explicit class overrides', () => {
+test('brand and diff glyphs retain decorative dimensions and explicit class overrides', () => {
   const brand = render(BrandIcon, {}); assert(brand.includes('width="34"')); assert(brand.includes('height="34"')); assert(brand.includes('draggable="false"')); assert(brand.includes('aria-hidden="true"')); assert(brand.includes('app-brand__mark'));
   assert(render(BrandIcon, { className: 'custom-brand' }).includes('custom-brand'));
   const unified = render(UnifiedViewIcon, {}), split = render(SplitViewIcon, {});

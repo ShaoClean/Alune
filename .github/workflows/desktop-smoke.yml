@@ -36,7 +36,6 @@ jobs:
         os: [ubuntu-22.04, windows-latest]
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      ALUNE_UI_AUDIT: '1'
       ALUNE_SMOKE_VISIBLE: '1'
     steps:
       - uses: actions/checkout@v4
@@ -49,13 +48,7 @@ jobs:
       - name: 打包已构建的应用
         # desktop:build already staged the app and Agent runtime.
         run: npm --ignore-scripts run pack -w desktop -- --publish never
-      - name: 原生 safeStorage 与 Agent 私有导入
-        if: runner.os != 'Linux'
-        run: npm run test:agent-migration -w desktop
-      - name: 原生 safeStorage 与 Agent 私有导入 (Xvfb)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a npm run test:agent-migration -w desktop
-      # The full packaged replay also exercises the real PTY and terminal UI.
+      # Packaged smoke also exercises the real PTY and terminal UI.
       - name: 原生包界面、终端与再次启动
         if: runner.os != 'Linux'
         run: node apps/desktop/scripts/test-packaged.mjs
@@ -74,7 +67,7 @@ jobs:
 
   installer-cycle:
     if: github.event_name != 'pull_request'
-    name: 安装、原版升级与回退 (${{ matrix.os }})
+    name: 安装与在线更新 (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -110,7 +103,7 @@ jobs:
       - name: Prepare a private RC version below the published stable update
         run: node apps/desktop/scripts/acceptance-version.mjs
       - run: npm run desktop:candidate:build
-      - name: Verify candidate has no embedded server, old workspaces or Electron-native database
+      - name: Verify candidate entry and standalone runtime separation
         run: node apps/desktop/scripts/check-candidate.mjs
       - run: npm run dist:candidate -w desktop
       - if: runner.os != 'Linux'

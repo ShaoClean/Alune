@@ -1,10 +1,11 @@
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { randomUUID, createHash } from 'node:crypto';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import { loadIdentity } from '../../../packages/agent/dist/adapters/identity.js';
+import { AgentState } from '../../../packages/agent/dist/adapters/sqlite/state.js';
+import { RepositoryCatalog } from '../../../packages/agent/dist/modules/repositories/catalog.js';
 
-export function legacyFixture(directory) {
+export async function workspaceFixture(directory) {
   const repo = path.join(directory, 'candidate Git 仓库');
   mkdirSync(repo);
   const env = {
@@ -32,39 +33,27 @@ export function legacyFixture(directory) {
   git('-c', 'commit.gpgSign=false', 'commit', '-qm', 'candidate fixture');
   git('tag', 'ui-baseline');
   git('push', '-qu', 'origin', 'main', '--tags');
-  writeFileSync(path.join(repo, 'candidate.txt'), 'changed in legacy workspace\n');
+  writeFileSync(path.join(repo, 'candidate.txt'), 'changed in the workspace\n');
   writeFileSync(path.join(repo, 'unstaged.txt'), 'keep the working tree separate\n');
-  const id = randomUUID(),
-    db = new Database(path.join(directory, 'alune.db'));
+  const agentDirectory = path.join(directory, 'agent');
+  const agentId = await loadIdentity(agentDirectory);
+  const state = await AgentState.open(agentDirectory, agentId);
   try {
-    db.exec(
-      'CREATE TABLE repositories (id TEXT PRIMARY KEY, connection_id TEXT,source TEXT,name TEXT,path TEXT,pinned INTEGER,created_at TEXT,worktree_kind TEXT)',
+    const catalog = new RepositoryCatalog(state.database, agentId);
+    const { id, resource } = catalog.register(repo, path.basename(repo), 'main');
+    catalog.pin(resource, true);
+    writeFileSync(
+      path.join(agentDirectory, 'workspace.json'),
+      JSON.stringify({
+        version: 1,
+        state: {
+          repositorySession: { ids: [id], activeId: id },
+          appearance: { theme: 'dark' },
+        },
+      }),
     );
-    db.prepare(
-      "INSERT INTO repositories (id,connection_id,source,name,path,pinned,created_at,worktree_kind) VALUES (?,NULL,'local',?,?,1,?,'main')",
-    ).run(id, path.basename(repo), repo, new Date().toISOString());
+    return { repo, id };
   } finally {
-    db.close();
+    await state.close();
   }
-  writeFileSync(
-    path.join(directory, 'workspace.json'),
-    JSON.stringify({
-      version: 1,
-      state: {
-        repositorySession: { ids: [id], activeId: id },
-        appearance: { theme: 'dark' },
-      },
-    }),
-  );
-  const hash = (file) =>
-    createHash('sha256')
-      .update(readFileSync(path.join(directory, file)))
-      .digest('hex');
-  return {
-    repo,
-    id,
-    fromRelease: false,
-    db: hash('alune.db'),
-    workspace: hash('workspace.json'),
-  };
 }

@@ -8,14 +8,14 @@ module.exports = async ({ window, origin, updates, wait, measure }) => {
   const button = (label) => textButton(label, '[data-testid="update-panel"] button');
   await window.loadURL(origin + '/settings/updates');
   await wait(wc, 'document.querySelector("[data-testid=update-panel]")');
-  await measure(wc, ['UI-047'], 'mounted settings update check exposes the safe adapter version and sanitized release notes; no installer invoked', async () => {
+  await measure(['UI-047'], 'mounted settings update check exposes the safe adapter version and sanitized release notes; no installer invoked', async () => {
     await click(button('检查更新'));
     await wait(wc, 'document.querySelector("[data-testid=update-panel]")?.textContent.includes("发现新版本")');
     assert.equal(updates.getState().status, 'available');
     assert.ok(await wc.executeJavaScript('Boolean(document.querySelector(".release-notes table")) && !document.querySelector(".release-notes script, .release-notes iframe") && ![...document.querySelectorAll(".release-notes a")].some(a=>a.getAttribute("href")?.startsWith("javascript:"))'));
     assert.equal(updates.adapter.installs, 0);
   });
-  await measure(wc, ['UI-047'], 'mounted update download failure is displayed; retry starts download and explicit cancel aborts it without invoking install', async () => {
+  await measure(['UI-047'], 'mounted update download failure is displayed; retry starts download and explicit cancel aborts it without invoking install', async () => {
     const download = updates.adapter.download;
     updates.adapter.download = async () => { throw new Error('isolated acceptance download failure'); };
     try {
@@ -37,7 +37,7 @@ module.exports = async ({ window, origin, updates, wait, measure }) => {
   });
   // Installation closes the real isolated backend, so this must be the final
   // native write-phase action. The adapter only increments a counter.
-  await measure(wc, ['UI-047'], 'mounted update re-download reaches verified state; restart-install closes the isolated backend and invokes only the smoke installer once (not native installation evidence)', async () => {
+  await measure(['UI-047'], 'mounted update re-download reaches verified state; restart-install closes the isolated backend and invokes only the smoke installer once (not native installation evidence)', async () => {
     await click(button('下载更新'));
     await wait(wc, button('重启安装'));
     assert.equal(updates.getState().status, 'downloaded');

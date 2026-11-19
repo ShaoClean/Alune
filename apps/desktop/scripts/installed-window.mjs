@@ -1,5 +1,4 @@
-// Drive the published binary's own authenticated renderer. This harness is
-// only invoked from the disposable hosted-runner installer cycle.
+// Drive the installed application's renderer on a disposable hosted runner.
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { WebSocket } from 'ws';
@@ -102,8 +101,7 @@ export async function withInstalledWindow(exe, work, env = process.env) {
       await wait();
     return await work(evaluate, { exited });
   } finally {
-    // A killed Chromium process can leave its DPAPI master-key descriptor
-    // unflushed even though SQLite has already committed a protected token.
+    // Give the renderer and its Agent time to close their resources.
     if (ws?.readyState === WebSocket.OPEN && !ended) {
       ws.send(JSON.stringify({ id: ++sequence, method: 'Browser.close' }));
       let grace;
@@ -141,16 +139,4 @@ export async function withInstalledWindow(exe, work, env = process.env) {
     clearTimeout(timer);
     if (child.pid) await exited;
   }
-}
-
-export function oldApi(evaluate, method, route, body) {
-  return evaluate(
-    '(async()=>{const r=await fetch(' +
-      JSON.stringify('/api/' + route) +
-      ',{method:' +
-      JSON.stringify(method) +
-      ",headers:{'Content-Type':'application/json'},body:" +
-      JSON.stringify(JSON.stringify(body)) +
-      "});if(!r.ok)throw Error('Installed API returned '+r.status);return r.json()})()",
-  );
 }

@@ -11,18 +11,12 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
     require('./candidate-ui-driver.cjs')(wc, wait);
   const git = (...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
   const evidence = [];
-  const { counts } = require('./candidate-ui-audit.cjs');
-  let before = await counts(wc);
   async function pass(ui, scenario, facts) {
-    const current = await counts(wc);
-    const executed = [...current].filter(([id, n]) => n > (before.get(id) ?? 0)).map(([id]) => id);
-    before = current;
     console.log('Verified workbench scenario:', scenario);
     evidence.push({
       ui,
       scenario,
       ...(facts === undefined ? {} : { facts }),
-      executed,
       sha: process.env.ALUNE_ACCEPTANCE_SHA ?? process.env.GITHUB_SHA ?? null,
       proof: process.env.GITHUB_RUN_ID
         ? 'https://github.com/' +

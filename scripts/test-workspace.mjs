@@ -1,5 +1,3 @@
-// Ordinary workspace regression is independent of historical P0 replay inputs.
-// Historical P0 suites are excluded from ordinary workspace regression.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,9 +9,9 @@ if (!['agent', 'web'].includes(workspace) || extra.length)
 const directory = path.join(root, workspace === 'agent' ? 'packages/agent' : 'apps/web');
 const extension = workspace === 'agent' ? '.test.cjs' : '.test.mjs';
 const files = fs.readdirSync(path.join(directory, 'tests'))
-  .filter(file => file.endsWith(extension) && !file.startsWith('p0-'))
+  .filter(file => file.endsWith(extension))
   .sort().map(file => path.join('tests', file));
-if (!files.length) throw Error('No workspace regression tests found');
+if (!files.length) throw Error('No workspace tests found');
 const args = workspace === 'web' ? ['--import', './tests/resolve-ts.mjs', '--test'] : ['--test', '--test-concurrency=2', '--test-timeout=300000'];
 const child = spawn(process.execPath, [...args, ...files], { cwd: directory, stdio: 'inherit' });
 child.once('error', error => { console.error(error); process.exitCode = 1; });

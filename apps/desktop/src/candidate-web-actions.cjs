@@ -84,7 +84,6 @@ module.exports = async ({ wait }) => {
       '(()=>{window.__clipboardWrites=[];Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText:async value=>{window.__clipboardWrites.push(value)}}});return true})()',
     );
     await measure(
-      wc,
       ['UI-058'],
       'Web without a desktop bridge copies the actual Agent log directory through the browser clipboard API and leaves the logging draft unchanged',
       async () => {
@@ -96,7 +95,6 @@ module.exports = async ({ wait }) => {
       },
     );
     await measure(
-      wc,
       ['UI-058'],
       'a controlled browser clipboard rejection shows the copy failure, retains the actual Agent directory and does not save logging settings',
       async () => {
@@ -109,7 +107,6 @@ module.exports = async ({ wait }) => {
       },
     );
     await measure(
-      wc,
       ['UI-058', 'UI-068'],
       'the Web log entry opens a live same-origin named log tab and a second click reuses that tab without a desktop bridge',
       async () => {
@@ -129,7 +126,6 @@ module.exports = async ({ wait }) => {
       },
     );
     await measure(
-      wc,
       ['UI-040', 'UI-050'],
       'Web workspace help emits the documented Wiki URL, closes navigation and returns focus; the controlled external target is denied instead of launching another application',
       async () => {
@@ -149,7 +145,6 @@ module.exports = async ({ wait }) => {
       },
     );
     await measure(
-      wc,
       ['UI-050'],
       'the Web status connection entry opens connection management for an empty local workspace without changing its log directory',
       async () => {

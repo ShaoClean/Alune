@@ -10,10 +10,9 @@ const {
   createRecoveryBackup,
   restoreRecoveryBackup,
 } = require('../dist/adapters/migration/recovery');
-const { importLegacyState } = require('../dist/modules/migration/legacy');
 const { openProtectedSecrets } = require('../dist/adapters/secrets/protected');
 const { AccessTokensStore, HostProfilesStore } = require('../dist/modules/accounts');
-const { makeLegacy } = require('./legacy-fixture.cjs');
+const { seedRecoveryState } = require('./recovery-fixture.cjs');
 test(
   'native credential recovery creates a fresh local protection record after the original is lost or damaged',
   { skip: !['darwin', 'win32'].includes(process.platform), timeout: 120000 },
@@ -37,14 +36,13 @@ test(
         created = true;
         security('unlock-keychain', '-p', password, keychain);
       }
-      const legacy = makeLegacy(root),
-        directory = path.join(root, 'agent'),
+      const directory = path.join(root, 'agent'),
         agentId = randomUUID();
       state = await AgentState.open(directory, agentId);
       fs.writeFileSync(path.join(directory, 'identity.json'), JSON.stringify({ agentId }), {
         mode: 0o600,
       });
-      await importLegacyState(state, legacy.source, { secretOptions });
+      const saved = await seedRecoveryState(state, secretOptions);
       const descriptor = state.document('credential-key').read();
       const output = path.join(root, 'native.recovery'),
         phrase = Buffer.from('fixture-native-recovery-passphrase');
@@ -91,16 +89,12 @@ test(
       );
       try {
         assert.equal(
-          new HostProfilesStore(restored.database, cipher).credential(legacy.hostId).password,
+          new HostProfilesStore(restored.database, cipher).credential(saved.hostId).password,
           'fixture-ssh-password',
         );
         assert.equal(
-          new AccessTokensStore(restored.database, cipher).credential(
-            legacy.repoId,
-            legacy.remote,
-            'gitlab',
-          ).token,
-          'fixture-import-token',
+          new AccessTokensStore(restored.database, cipher).credential(saved.repoId, saved.remote, 'gitlab').token,
+          'fixture-recovery-token',
         );
       } finally {
         cipher.close();

@@ -35,6 +35,9 @@ test('workspace preferences save atomically, loads valid data and clears the fil
   assert.equal(preferences.load(), null);
   preferences.save(valid);
   assert.equal(preferences.load(), valid);
+  assert.equal(createWorkspacePreferences(file).load(), valid);
+  assert.throws(() => preferences.save('{broken'));
+  assert.equal(fs.readFileSync(file, 'utf8'), valid);
   // Windows does not expose POSIX owner/group permission bits.
   if (process.platform !== 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   assert.equal(fs.existsSync(file + '.tmp'), false);
@@ -56,6 +59,10 @@ test('synchronous workspace IPC save always returns a safe error string', (t) =>
   const file = tempFile(t);
   const preferences = createWorkspacePreferences(file);
   assert.equal(saveWorkspacePreferences(event, contents, 'http://localhost:5173', preferences, valid), null);
+  assert.equal(createWorkspacePreferences(file).load(), valid);
+  assert.equal(saveWorkspacePreferences(event, contents, 'http://localhost:5173', {
+    save() { throw new Error('disk full'); },
+  }, valid), 'disk full');
   assert.equal(saveWorkspacePreferences({ ...event, senderFrame: { url: 'http://evil.invalid' } }, contents, 'http://localhost:5173', preferences, valid), 'Workspace access denied');
   assert.equal(saveWorkspacePreferences(event, contents, 'http://localhost:5173', preferences, '{broken'), 'Invalid workspace preferences');
   assert.equal(preferences.load(), valid);

@@ -11,8 +11,8 @@ import { createServer } from 'vite';
 import { AgentClient, frameTransport } from '@alune/agent-client';
 import { PROTOCOL_VERSION } from '@alune/protocol';
 
-test('P0 startup development gateway enforces loopback invitation origin host and workspace roles', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'alune-batch07-dev-'));
+test('startup development gateway enforces loopback invitation origin host and workspace roles', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'alune-startup-auth-'));
   const previous = process.env.ALUNE_AGENT_DATA_DIR;
   const previousLegacy = process.env.ALUNE_AGENT_LEGACY_DIR;
   process.env.ALUNE_AGENT_DATA_DIR = join(directory, 'state');
@@ -101,7 +101,7 @@ test('P0 startup development gateway enforces loopback invitation origin host an
       new Promise((resolve, reject) => {
         const sequence = (sequences.get(ws) ?? 0) + 1;
         sequences.set(ws, sequence);
-        const id = 'batch07dev:' + sequence;
+        const id = 'gateway:' + sequence;
         const timer = setTimeout(() => {
           ws.off('message', read);
           reject(Error('Missing raw gateway response'));
@@ -144,7 +144,7 @@ test('P0 startup development gateway enforces loopback invitation origin host an
     const repo = join(directory, 'repo');
     await mkdir(repo);
     execFileSync('git', ['init', '-q', repo]);
-    await writeFile(join(repo, 'proof.txt'), 'batch07');
+    await writeFile(join(repo, 'proof.txt'), 'gateway fixture');
     const { resource } = await a.c.registerRepository(repo);
     const denied = await raw(rawLogs, 'repositories.register', { path: repo });
     assert.equal(denied.error.data.kind, 'unknown-method');

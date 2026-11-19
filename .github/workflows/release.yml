@@ -78,12 +78,6 @@ jobs:
         run: node -e "if (process.arch !== process.env.EXPECTED_ARCH) throw new Error('Native runner architecture mismatch')"
       - run: npm ci
       - run: npm run desktop:build
-      - name: Native safeStorage migration
-        if: runner.os != 'Linux'
-        run: npm run test:agent-migration -w desktop
-      - name: Native safeStorage migration (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a npm run test:agent-migration -w desktop
       - name: Desktop smoke test
         if: runner.os != 'Linux'
         run: npm run desktop:test

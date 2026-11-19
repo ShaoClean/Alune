@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
-import { withInstalledWindow } from './installed-v011.mjs';
+import { withInstalledWindow } from './installed-window.mjs';
 
 // The updater queries the production feed and downloads the signed-off stable
 // asset; it never publishes the test build or installs in a user's desktop.
@@ -77,7 +77,7 @@ export async function verifyLiveUpdate({ exe, candidateFile, target, data, stabl
   // startup after the RC quit. A replaced file or installer exit is not enough.
   const deadline = Date.now() + 150000;
   for (;;) {
-    const dir = path.join(data, 'logs');
+    const dir = path.join(data, 'agent', 'logs');
     const started =
       fs.existsSync(dir) &&
       fs

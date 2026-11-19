@@ -121,7 +121,7 @@ npm run commitlint -- --last --verbose
 
 要让 CI 失败阻止 PR 合并，可在 GitHub 分支保护或 ruleset 中，将 **Commit messages 工作流下的 commitlint 检查**设为必需状态检查。
 
-PR 和推送到 `development` 时会运行 Linux 单元测试。涉及对应源码或构建配置的 PR 还会触发独立 Agent 四目标打包验证和桌面 Linux、Windows 验证。桌面打包回归包含真实终端测试。可在 Actions 的「桌面界面回归」中手动运行四目标安装、升级、回退演练。
+PR 和推送到 `development` 时会运行 Linux 单元测试。涉及对应源码或构建配置的 PR 还会触发独立 Agent 四目标打包验证和桌面 Linux、Windows 验证。桌面打包测试包含真实终端。可在 Actions 的「桌面界面回归」中手动运行四目标安装与在线更新演练。
 
 ## 预览 Release 说明
 
@@ -183,7 +183,7 @@ git push origin "$RELEASE_TAG"
 推送 tag 后，`.github/workflows/release.yml` 按以下顺序执行：
 
 1. 校验版本、公开更新源、hooks 和 Release 说明生成逻辑，运行桌面单元测试。
-2. 验证四个目标的独立 Agent，在原生 runner 上测试并构建桌面安装包。四目标原版升级、回退和在线更新演练也必须通过，才会进入发布任务。
+2. 验证四个目标的独立 Agent，在原生 runner 上测试并构建桌面安装包。四目标安装和在线更新演练通过后进入发布任务。
 3. 汇总附件，校验更新元数据、文件大小和 SHA-512，生成 `SHA256SUMS`。
 4. 获取完整 Git 历史，用 git-cliff 生成当前版本的 `release-notes.md`，附上版本对比链接。
 5. 创建 Release 草稿并写入说明；重跑已有草稿时也更新说明。

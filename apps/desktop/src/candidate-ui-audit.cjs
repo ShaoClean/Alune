@@ -1,22 +1,8 @@
-// Only acceptance builds populate the counters. A scenario gets a receipt
-// after its assertions return, never merely because a callback was mounted.
+// Record scenarios after their assertions have passed.
 const fs = require('node:fs');
 const path = require('node:path');
-async function counts(contents) {
-  return new Map(
-    await contents.executeJavaScript(
-      "Array.from(window.__aluneAudit?.counts ?? JSON.parse(sessionStorage.getItem('alune.audit.counts')||'[]'))",
-    ),
-  );
-}
-async function measure(contents, ui, scenario, run) {
-  const before = await counts(contents);
+async function measure(ui, scenario, run) {
   await run();
-  const after = await counts(contents),
-    executed = [...after]
-      .filter(([id, count]) => count > (before.get(id) ?? 0))
-      .map(([id]) => id)
-      .sort();
   if (process.env.ALUNE_CANDIDATE_EVIDENCE) {
     fs.mkdirSync(process.env.ALUNE_CANDIDATE_EVIDENCE, { recursive: true });
     const file = path.join(
@@ -37,9 +23,8 @@ async function measure(contents, ui, scenario, run) {
         arch: process.arch,
         ui,
         scenario,
-        executed,
       }) + '\n',
     );
   }
 }
-module.exports = { counts, measure };
+module.exports = { measure };

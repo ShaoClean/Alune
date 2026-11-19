@@ -9,30 +9,28 @@ const {
   createRecoveryBackup,
   restoreRecoveryBackup,
 } = require('../dist/adapters/migration/recovery');
-const { importLegacyState } = require('../dist/modules/migration/legacy');
 const { openProtectedSecrets } = require('../dist/adapters/secrets/protected');
 const { HostProfilesStore, AccessTokensStore } = require('../dist/modules/accounts');
 const { AiSettingsStore, ProxySettingsStore } = require('../dist/modules/settings');
-const { makeLegacy } = require('./legacy-fixture.cjs');
+const { seedRecoveryState } = require('./recovery-fixture.cjs');
 const passphrase = Buffer.from('fixture-recovery-passphrase-only');
 async function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-full-recovery-'));
-  const legacy = makeLegacy(root),
-    directory = path.join(root, 'agent'),
+  const directory = path.join(root, 'agent'),
     agentId = randomUUID();
   const state = await AgentState.open(directory, agentId);
-  fs.writeFileSync(path.join(directory, 'identity.json'), JSON.stringify({ agentId }), {
-    mode: 0o600,
-  });
-  await importLegacyState(state, legacy.source, { secretOptions: { backend: 'file' } });
-  const output = path.join(root, 'fixture.alune-recovery');
   t.after(async () => {
     await state.close();
     fs.rmSync(root, { recursive: true, force: true });
   });
-  return { root, legacy, directory, agentId, state, output };
+  fs.writeFileSync(path.join(directory, 'identity.json'), JSON.stringify({ agentId }), {
+    mode: 0o600,
+  });
+  const saved = await seedRecoveryState(state, { backend: 'file' });
+  const output = path.join(root, 'fixture.alune-recovery');
+  return { root, saved, directory, agentId, state, output };
 }
-async function verifyCredentials(state, legacy) {
+async function verifyCredentials(state, saved) {
   const cipher = await openProtectedSecrets(
     state.root,
     state.agentId,
@@ -41,27 +39,23 @@ async function verifyCredentials(state, legacy) {
   );
   try {
     assert.equal(
-      new HostProfilesStore(state.database, cipher).credential(legacy.hostId).password,
+      new HostProfilesStore(state.database, cipher).credential(saved.hostId).password,
       'fixture-ssh-password',
     );
     assert.equal(
-      new AccessTokensStore(state.database, cipher).credential(
-        legacy.repoId,
-        legacy.remote,
-        'gitlab',
-      ).token,
-      'fixture-import-token',
+      new AccessTokensStore(state.database, cipher).credential(saved.repoId, saved.remote, 'gitlab').token,
+      'fixture-recovery-token',
     );
     assert.equal(
       new AiSettingsStore(state.document('ai-settings'), cipher).key('openai'),
-      'fixture-import-ai-key',
+      'fixture-recovery-ai-key',
     );
     assert.equal(
       new ProxySettingsStore(state.document('network-proxy'), cipher).snapshot().credentials
         .password,
-      'fixture-import-proxy-password',
+      'fixture-recovery-proxy-password',
     );
-    assert.deepEqual(state.document('workspace-preferences').read(), legacy.workspace);
+    assert.deepEqual(state.document('workspace-preferences').read(), saved.workspace);
   } finally {
     cipher.close();
   }
@@ -79,9 +73,9 @@ test(
     for (const needle of [
       'SQLite format',
       'fixture-ssh-password',
-      'fixture-import-token',
-      'fixture-import-ai-key',
-      'fixture-import-proxy-password',
+      'fixture-recovery-token',
+      'fixture-recovery-ai-key',
+      'fixture-recovery-proxy-password',
       master.toString('base64'),
     ])
       assert.equal(bytes.includes(Buffer.from(needle)), false);
@@ -103,7 +97,7 @@ test(
     const state = await AgentState.open(f.directory, f.agentId);
     try {
       assert.notEqual(state.document('credential-key').read().keyId, original.keyId);
-      await verifyCredentials(state, f.legacy);
+      await verifyCredentials(state, f.saved);
       assert(
         fs.existsSync(
           path.join(f.directory, 'state/generations', f.state.generation, 'state.sqlite'),
@@ -154,7 +148,7 @@ test(
     assert.deepEqual(fs.readFileSync(path.join(f.directory, 'state/current.json')), before);
     const state = await AgentState.open(f.directory, f.agentId);
     try {
-      await verifyCredentials(state, f.legacy);
+      await verifyCredentials(state, f.saved);
     } finally {
       await state.close();
     }

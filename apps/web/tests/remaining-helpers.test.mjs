@@ -14,7 +14,7 @@ import { remainingConflictBlocks } from '../src/components/ConflictResolver.tsx'
 import { repositoryApi } from '../src/api/index.ts';
 import { EMPTY_DRAFT } from '../src/stores/commitDraftStore.ts';
 
-test('P0 code theme vocabulary, limits, CSS token projection and color validation retain exact boundaries', () => {
+test('code theme vocabulary, limits, CSS token projection and color validation retain exact boundaries', () => {
   assert.deepEqual(themes.TOKEN_GROUPS, ['comment','keyword','string','number','constant','function','type','tag','property','regex','variable','punctuation','operator','inserted','deleted']);
   assert.deepEqual(themes.DIFF_COLOR_KEYS, {
     'diffEditor.insertedLineBackground': 'added', 'diffEditor.removedLineBackground': 'removed',
@@ -33,7 +33,7 @@ test('P0 code theme vocabulary, limits, CSS token projection and color validatio
   assert.equal(themes.prismTokenStyle('comment', ['keyword']).color, 'var(--syntax-comment)');
 });
 
-test('P0 font defaults and malformed, control, length, rounding and clamped inputs are exact', () => {
+test('font defaults and malformed, control, length, rounding and clamped inputs are exact', () => {
   assert.deepEqual([font.DEFAULT_CODE_FONT, font.DEFAULT_CODE_FONT_SIZE, font.MIN_CODE_FONT_SIZE, font.MAX_CODE_FONT_SIZE], ['SFMono-Regular',13,10,32]);
   assert.deepEqual(font.DEFAULT_CODE_APPEARANCE, { lightTheme:'catppuccin-latte',darkTheme:'catppuccin-mocha',fontFamily:'SFMono-Regular',fontSize:13,customThemes:[] });
   for (const value of [null, '', '  ', 'x'.repeat(101), 'bad\u0000font', 'bad\nfont']) assert.equal(font.readCodeFontFamily(value), 'SFMono-Regular');
@@ -43,7 +43,7 @@ test('P0 font defaults and malformed, control, length, rounding and clamped inpu
   assert.deepEqual(EMPTY_DRAFT, { message: '', description: '' });
 });
 
-test('P0 sync progress and completion cannot cross repository ownership', () => {
+test('sync progress and completion cannot cross repository ownership', () => {
   assert.deepEqual(['fetch','pull','push'].map(syncLabel), ['获取','拉取','推送']);
   assert.deepEqual(['fetch','pull','push'].map(op => syncDetail(op)), ['正在从 origin 获取更新…','正在从 origin 拉取…','正在推送到 origin…']);
   assert.equal(syncDetail('push', true), '正在强制推送到 origin…');
@@ -64,7 +64,7 @@ test('P0 sync progress and completion cannot cross repository ownership', () => 
   assert.equal(store.getState().progress, null);
 });
 
-test('P0 repository grouping, session removal and directory expandability preserve exact ownership', () => {
+test('repository grouping, session removal and directory expandability preserve exact ownership', () => {
   assert.equal(LOCAL_GROUP_ID, '@local');
   assert.equal(repositoryGroupId({ source: 'local', connectionId: 'wrong' }), '@local');
   assert.equal(repositoryGroupId({ source: 'ssh', connectionId: 'remote' }), 'remote');
@@ -79,7 +79,7 @@ test('P0 repository grouping, session removal and directory expandability preser
   for (const kind of ['directory','file','symlink','submodule','other']) assert.equal(isExpandable({kind}), kind === 'directory');
 });
 
-test('P0 image sizes, display newlines, commit eligibility and discard outcomes preserve unknown results', () => {
+test('image sizes, display newlines, commit eligibility and discard outcomes preserve unknown results', () => {
   for (const [size, expected] of [[0,'0 B'],[1023,'1023 B'],[1024,'1.0 KB'],[1048575,'1024.0 KB'],[1048576,'1.00 MB'],[1572864,'1.50 MB']]) assert.equal(formatBytes(size),expected);
   for (const [input, expected] of [['',{text:'',lines:1,crlf:false}],['a\r\nb\r\n',{text:'a\nb',lines:2,crlf:true}],['a\rb\n\n',{text:'a\nb\n',lines:3,crlf:false}]]) assert.deepEqual(displayText(input),expected);
   for (const busy of [false,true]) for (const staged of [0,1]) for (const message of ['','  ','x']) assert.equal(commitDisabled(busy,staged,message), busy || staged === 0 || message.trim() === '');
@@ -87,7 +87,7 @@ test('P0 image sizes, display newlines, commit eligibility and discard outcomes 
   assert.equal(discardResultMessage({restored:0,deleted:0,remaining:2,unknown:1}), '已恢复 0 个文件，已删除 0 个未跟踪文件；2 个文件未完成；1 个文件的结果无法确认');
 });
 
-test('P0 remaining conflict blocks counts actual markers and safely handles deleted or unreadable previews', async () => {
+test('remaining conflict blocks counts actual markers and safely handles deleted or unreadable previews', async () => {
   const original = repositoryApi.file;
   const calls = [];
   try {

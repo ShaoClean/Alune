@@ -16,10 +16,7 @@ npm run desktop:dev
 ```sh
 npm run desktop:pack  # 生成当前系统可运行的应用目录
 npm run desktop:dist  # 生成当前系统安装包
-npm run desktop:test  # 构建后执行桌面集成测试
-npm run desktop:test:code-appearance # 构建并验证本地/SSH 代码主题、选区与滚动保留
-npm run desktop:test:worktrees # 构建并在隔离 SSH 环境验证 worktree 标签与操作
-npm run test:repository-session -w desktop # 构建后验证标签跨进程/端口恢复、强杀、删除、断线和列表失败重试
+npm run desktop:test  # 构建后验证当前桌面的工作区、终端和重启恢复
 ```
 
 产物位于 `apps/desktop/release/`。macOS 生成 `.app`、DMG 和 ZIP；Windows 配置 NSIS 安装程序；Linux 配置 AppImage。请在对应系统构建和验证，原生 SQLite 模块需要匹配目标系统和架构。默认生成当前机器架构。
@@ -56,9 +53,9 @@ node apps/desktop/scripts/test-packaged.mjs
 
 Linux CI 的桌面测试使用 `xvfb-run -a`。测试中的模拟更新适配器只在 `--smoke-test` 且提供隔离数据目录时启用，测试不会连接 GitHub，也不会启动安装程序。
 
-PR/MR、AI、命名令牌和多主机协作由 `packages/agent/tests/collaboration.test.cjs`、`settings-rpc.test.cjs`、`hosts.test.cjs` 验证；Web API 与本机网关分别运行 `npm run test:agent-dev -w web`。测试使用临时数据库、Git/SSH 和受控平台响应，不创建真实 PR/MR。旧 HTTP 集成夹具已退役。
+PR/MR、AI、命名令牌和多主机协作由 `packages/agent/tests/collaboration.test.cjs`、`settings-rpc.test.cjs`、`hosts.test.cjs` 验证。`npm run test:agent-dev -w web` 验证 Web API 与本机网关。测试使用临时数据库、Git/SSH 和受控平台响应，不创建真实 PR/MR。
 
-发布前还需使用两个递增版本做实际升级验收：Windows NSIS 和 Linux AppImage 验证下载、用户确认重启、版本提升及原有连接/仓库数据保留；macOS 在两种架构验证 DMG 下载、校验、重启安装、数据保留及安装失败恢复。自动测试不替代正式安装包的这些验收步骤。验收记录应列明版本、操作系统、架构、结果和未验证项；未验证的平台不得标记为已完成自动升级验收。
+发布 CI 在四个原生目标上安装当前候选包，通过实际更新源验证下载、确认安装和稳定版重启。
 
 若本机 npm 配置禁用了安装脚本，首次启动前执行 `node node_modules/electron/install.js` 下载 Electron。SQLite/PTY 只在独立 Agent 内以 Node ABI 构建；桌面 UI 宿主不再携带 Electron ABI 数据库。
 
@@ -84,14 +81,14 @@ npx turbo build --filter=@alune/agent
 npm test -w @alune/agent
 npm test -w @alune/agent-client
 npm test -w web
-npm run test:retirement
+npm run test:agent-dev -w web
 node scripts/agent/check-boundaries.mjs
 npm run desktop:build
 npm run desktop:test
 node apps/desktop/scripts/check-candidate.mjs --default
 ```
 
-36 个原 SSH/Git 回归文件迁入 `packages/agent/tests/git-*.test.cjs`，直接测试 Agent 模块，不再经兼容工作区转发。它们覆盖本地/回环 SSH、部分暂存、放弃、Worktree、签名、子模块/LFS、历史、文件与代理。PTY、背压与退出由 `terminals.test.cjs` 验证。使用临时仓库，不访问用户仓库；缺少工具或非适用平台的 skip 必须单独报告。系统 IME、原生安装和真实升级仍需相应验收。
+`packages/agent/tests/git-*.test.cjs` 直接测试 Agent 的本地与回环 SSH Git 操作，覆盖部分暂存、放弃、Worktree、签名、子模块/LFS、历史、文件与代理。`terminals.test.cjs` 验证 PTY、背压与退出。Web 集成测试验证独立 Agent 下的邀请鉴权、工作区操作和状态恢复。这些测试使用临时目录与仓库。
 
 `npm run desktop:candidate:build`、`npm run dist:candidate -w desktop` 保留为验收产物目录命令；与普通入口使用同一 Agent 执行器，不存在旧版构建分支。
 

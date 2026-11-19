@@ -49,8 +49,7 @@ module.exports = async ({ window, origin, id, wait, measure }) => {
   }
   let reviewUrl;
   await measure(
-    wc,
-    ['UI-054'],
+      ['UI-054'],
     'create a synthetic named token, toggle input visibility, filter results, reopen and verify only the mask is shown',
     async () => {
       await tokens();
@@ -75,8 +74,7 @@ module.exports = async ({ window, origin, id, wait, measure }) => {
     },
   );
   await measure(
-    wc,
-    ['UI-032', 'UI-040', 'UI-070'],
+      ['UI-032', 'UI-040', 'UI-070'],
     'remember the named credential for this exact HTTPS remote and restore the request list without a session token',
     async () => {
       await window.loadURL(origin + '/repositories');
@@ -101,8 +99,7 @@ module.exports = async ({ window, origin, id, wait, measure }) => {
     },
   );
   await measure(
-    wc,
-    ['UI-054', 'UI-032'],
+      ['UI-054', 'UI-032'],
     'inspect the association, rename without exposing or replacing the secret, then explicitly rotate its value and reopen the same repository',
     async () => {
       await tokens();
@@ -131,8 +128,7 @@ module.exports = async ({ window, origin, id, wait, measure }) => {
     },
   );
   await measure(
-    wc,
-    ['UI-054', 'UI-032'],
+      ['UI-054', 'UI-032'],
     'cancel deletion with an association, then confirm it and verify the remembered repository selection is no longer valid',
     async () => {
       await tokens();

@@ -1,6 +1,6 @@
 // Between native smoke phases only: select the file vault in a new, disposable
 // profile. Never open an existing OS credential record or replace any material.
-// Actual OS-vault migration is covered by the installed upgrade/rollback jobs.
+// The smoke run uses an isolated file vault for credential restoration checks.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,8 +16,6 @@ export async function prepareSmokeVault(dataDir) {
   );
   const dir = fs.realpathSync.native(path.join(root, 'agent'));
   assert.equal(path.dirname(dir), root, 'fixture Agent must remain under its test directory');
-  const marker = JSON.parse(fs.readFileSync(path.join(dir, 'desktop-import.json'), 'utf8'));
-  assert.equal(fs.realpathSync.native(marker.source), root);
   assert.ok(fs.existsSync(path.join(dir, 'identity.json')));
   const identity = await require('../../../packages/agent/dist/adapters/identity').loadIdentity(
     dir,

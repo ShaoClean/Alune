@@ -4,11 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 export async function candidateWebFixture(directory) {
   const root = fileURLToPath(new URL('../../web/', import.meta.url));
-  const keys = ['ALUNE_AGENT_DATA_DIR', 'ALUNE_AGENT_LEGACY_DIR', 'ALUNE_UI_AUDIT'];
+  const keys = ['ALUNE_AGENT_DATA_DIR', 'ALUNE_AGENT_LEGACY_DIR'];
   const previous = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
   process.env.ALUNE_AGENT_DATA_DIR = path.join(directory, 'web-agent');
   process.env.ALUNE_AGENT_LEGACY_DIR = path.join(directory, 'absent-web-legacy');
-  process.env.ALUNE_UI_AUDIT = '1';
   let invite = '',
     server;
   const capture = (message) => {

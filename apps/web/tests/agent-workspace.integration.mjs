@@ -6,7 +6,10 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import Database from 'better-sqlite3';
+import { loadIdentity } from '../../../packages/agent/dist/adapters/identity.js';
+import { AgentState } from '../../../packages/agent/dist/adapters/sqlite/state.js';
+import { settingsKernel } from '../../../packages/agent/dist/bootstrap/settings-kernel.js';
+import { RepositoryCatalog } from '../../../packages/agent/dist/modules/repositories/catalog.js';
 import { superviseUiAgent, AgentClient, frameTransport } from '@alune/agent-client/node';
 import { installWorkspaceAgent } from '../src/api/agent-workspace.ts';
 import { repositoryApi, connectionApi, gitApi } from '../src/api/index.ts';
@@ -16,13 +19,11 @@ import { workspaceTopics } from '../src/api/ui-agent.ts';
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 test('UI facade keeps mixed-host analytics, Git writes, Worktree aliases, terminal consent and host deletion consistent', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'alune-ui-ops-')),
-    source = join(dir, 'legacy'),
     state = join(dir, 'state'),
     repo = join(dir, 'repo');
   const entry = join(root, 'packages/agent/bin/alune-agent.cjs');
   let host, client;
   try {
-    mkdirSync(source);
     mkdirSync(repo);
     const git = (...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' });
     git('init', '-qb', 'main');
@@ -33,29 +34,35 @@ test('UI facade keeps mixed-host analytics, Git writes, Worktree aliases, termin
     git('add', 'example.txt');
     git('commit', '-qm', 'base');
     writeFileSync(join(repo, 'example.txt'), 'edited\n');
-    const hostId = randomUUID(),
-      localId = randomUUID(),
-      remoteId = randomUUID(),
-      now = new Date().toISOString();
-    const db = new Database(join(source, 'alune.db'));
+    const agentId = await loadIdentity(state);
+    const agentState = await AgentState.open(state, agentId);
+    let hostId, localId, remoteId;
+    const settings = settingsKernel(agentState, state, agentId);
     try {
-      db.exec(
-        'CREATE TABLE connections(id TEXT PRIMARY KEY,name TEXT,host TEXT,port INTEGER,username TEXT,auth_type TEXT,password TEXT,private_key_path TEXT,passphrase TEXT,created_at TEXT,updated_at TEXT);CREATE TABLE repositories(id TEXT PRIMARY KEY,connection_id TEXT,source TEXT,name TEXT,path TEXT,pinned INTEGER,created_at TEXT,worktree_kind TEXT);',
-      );
-      db.prepare(
-        "INSERT INTO connections VALUES (?,'Offline host','fixture.invalid',22,'fixture','sshAgent',NULL,NULL,NULL,?,?)",
-      ).run(hostId, now, now);
-      const add = db.prepare("INSERT INTO repositories VALUES (?,?,?,?,?,0,?,'main')");
-      add.run(localId, null, 'local', 'Local', repo, now);
-      add.run(remoteId, hostId, 'ssh', 'Remote', '/fixture', now);
+      const { hosts: [offline] } = settings.hosts.save(null, {
+        name: 'Offline host',
+        host: 'fixture.invalid',
+        port: 22,
+        username: 'fixture',
+        authType: 'sshAgent',
+        privateKeyPath: null,
+      }, settings.hosts.list().revision);
+      hostId = offline.id;
+      const catalog = new RepositoryCatalog(agentState.database, agentId);
+      localId = catalog.register(repo, 'Local', 'main').id;
+      const resourceId = randomUUID();
+      remoteId = catalog.bindHost(hostId, {
+        id: resourceId,
+        resource: { agentId: randomUUID(), resourceId },
+        source: 'local',
+        name: 'Remote',
+        path: '/fixture',
+        worktreeKind: 'main',
+      }, false).id;
     } finally {
-      db.close();
+      await settings.close();
+      await agentState.close();
     }
-    execFileSync(
-      process.execPath,
-      [entry, 'legacy-import', '--source', source, '--data-dir', state],
-      { stdio: 'pipe' },
-    );
     host = await superviseUiAgent(
       process.execPath,
       entry,

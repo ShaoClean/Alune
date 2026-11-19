@@ -4,6 +4,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { workspaceFixture } from './candidate-fixture.mjs';
 
 const require = createRequire(import.meta.url);
 const requestedFocus = process.argv[2] === '--focus' ? process.argv[3] : undefined;
@@ -17,16 +18,13 @@ const dataDir = await mkdtemp(path.join(tmpdir(), 'alune-smoke-'));
 const executable = process.env.ALUNE_TEST_EXECUTABLE || require('electron');
 const args = process.env.ALUNE_TEST_EXECUTABLE ? [] : ['dist/app'];
 const env = { ...process.env, ALUNE_SMOKE_DIR: dataDir };
-delete env.ALUNE_DESKTOP_EXECUTOR;
 if (requestedFocus) {
   env.ALUNE_CANDIDATE_FOCUS = requestedFocus;
 } else delete env.ALUNE_CANDIDATE_FOCUS;
 delete env.ELECTRON_RUN_AS_NODE;
 let peer, directories, webFixture;
 try {
-  env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(
-    (await import('./candidate-fixture.mjs')).legacyFixture(dataDir),
-  );
+  env.ALUNE_CANDIDATE_FIXTURE = JSON.stringify(await workspaceFixture(dataDir));
   Object.assign(env, (await import('./signature-failure-fixture.mjs')).signatureFailureFixture(dataDir));
   if (!requestedFocus || requestedFocus === 'reviews') {
     peer = await (await import('./candidate-review-fixture.mjs')).reviewFixture(dataDir);
@@ -38,11 +36,9 @@ try {
     ).directoryAccessFixture(dataDir);
     Object.assign(env, directories.env);
   }
-  if (env.ALUNE_CANDIDATE_FIXTURE) {
-    env.GIT_CONFIG_GLOBAL = path.join(dataDir, 'empty.gitconfig');
-    env.GIT_CONFIG_NOSYSTEM = '1';
-    if (process.platform !== 'win32') env.SHELL = '/bin/sh';
-  }
+  env.GIT_CONFIG_GLOBAL = path.join(dataDir, 'empty.gitconfig');
+  env.GIT_CONFIG_NOSYSTEM = '1';
+  if (process.platform !== 'win32') env.SHELL = '/bin/sh';
   if (!requestedFocus || requestedFocus === 'web') {
     webFixture = await (await import('./candidate-web-fixture.mjs')).candidateWebFixture(dataDir);
     Object.assign(env, webFixture.env);

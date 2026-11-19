@@ -70,7 +70,7 @@ module.exports = async ({
       return;
     }
     let content = 'OK';
-    if (messages.includes('changed in legacy workspace')) {
+    if (messages.includes('changed in the workspace')) {
       if (messages.includes('keep the working tree separate') || body.model !== model) {
         res.writeHead(400).end();
         return;
@@ -206,7 +206,7 @@ module.exports = async ({
       require('node:child_process').execFileSync('git', ['-C', repo, 'show', ':candidate.txt'], {
         encoding: 'utf8',
       }),
-      'changed in legacy workspace\n',
+      'changed in the workspace\n',
     );
     await input(summary, '');
     await input(description, '');

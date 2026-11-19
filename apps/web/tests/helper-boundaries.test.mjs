@@ -9,7 +9,7 @@ import { connectionStatus, connectionStatusLabel } from '../src/stores/connectio
 import { horizontalPlacement, orderedIds, orderItems, canMoveTreeItem, moveBeforeOrAfter } from '../src/stores/sidebarOrder.ts';
 
 // Explicit P0 oracles; modules differ from frozen P0 only in type-only import owners.
-test('P0 layout dimensions and clamp rounding preserve exact frozen boundaries', () => {
+test('layout dimensions and clamp rounding preserve exact boundaries', () => {
   assert.deepEqual([
     layout.SIDEBAR_MIN, layout.SIDEBAR_MAX, layout.CHANGES_MIN, layout.CHANGES_MAX,
     layout.INSPECTOR_MIN, layout.FILES_TREE_MIN, layout.FILES_TREE_MAX,
@@ -19,12 +19,12 @@ test('P0 layout dimensions and clamp rounding preserve exact frozen boundaries',
     assert.equal(layout.clampWidth(value, 184, 320), expected);
 });
 
-test('P0 commit graph dimensions retain exact frozen pixel constants', () => {
+test('commit graph dimensions retain exact pixel constants', () => {
   assert.equal(GRAPH_ROW_HEIGHT, 36);
   assert.equal(GRAPH_LANE_WIDTH, 18);
 });
 
-test('P0 file decorations preserve the complete status badge and label vocabulary', () => {
+test('file decorations preserve the complete status badge and label vocabulary', () => {
   assert.deepEqual(FILE_DECORATIONS, {
     added: { badge: 'A', label: '新增' }, untracked: { badge: 'U', label: '未跟踪' },
     modified: { badge: 'M', label: '已修改' }, deleted: { badge: 'D', label: '已删除' },
@@ -33,7 +33,7 @@ test('P0 file decorations preserve the complete status badge and label vocabular
   });
 });
 
-test('P0 conflict labels hints short hashes and conflict selection preserve exact values', () => {
+test('conflict labels hints short hashes and conflict selection preserve exact values', () => {
   assert.deepEqual(conflictKindLabels, {
     'both-modified': '双方修改', 'both-added': '双方新增', 'both-deleted': '双方删除',
     'added-by-us': '当前新增', 'added-by-them': '传入新增',
@@ -60,7 +60,7 @@ test('P0 conflict labels hints short hashes and conflict selection preserve exac
   assert.deepEqual(conflictedFiles([]), []);
 });
 
-test('P0 terminal and connection labels distinguish live failed unknown and exited states', () => {
+test('terminal and connection labels distinguish live failed unknown and exited states', () => {
   for (const [state, label] of [['connecting', '连接中'], ['running', '运行中'], ['failed', '启动失败'], ['disconnected', '已断开']])
     assert.equal(terminalStateLabel({ state }), label);
   assert.equal(terminalStateLabel({ state: 'exited', exitCode: 0 }), '已退出 · 0');
@@ -75,7 +75,7 @@ test('P0 terminal and connection labels distinguish live failed unknown and exit
   }
 });
 
-test('P0 sidebar placement and ordering preserve host ownership and immutable stable ordering', () => {
+test('sidebar placement and ordering preserve host ownership and immutable stable ordering', () => {
   assert.equal(horizontalPlacement(59, 10, 100), 'before');
   assert.equal(horizontalPlacement(60, 10, 100), 'after');
   assert.equal(horizontalPlacement(110, 10, 100), 'after');

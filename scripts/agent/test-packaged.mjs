@@ -7,6 +7,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { spawnAgent } from '../../packages/agent-client/dist/node.js';
+import { PROTOCOL_VERSION } from '../../packages/protocol/dist/index.js';
+import capabilities from './protocol-1-capabilities.json' with { type: 'json' };
 
 const directory = fs.realpathSync.native(path.resolve(process.argv[2] ?? ''));
 const manifest = JSON.parse(fs.readFileSync(path.join(directory, 'manifest.json'), 'utf8'));
@@ -148,8 +150,10 @@ try {
   });
   children.push(a);
   const first = await a.client.initialize({ name: 'packaged-smoke', version: '1' });
+  assert.deepEqual(first.protocol, PROTOCOL_VERSION);
+  assert.deepEqual([...first.capabilities].sort(), capabilities.flat().sort());
   assert.equal((await a.client.health()).status, 'ok');
-  assert((await a.client.capabilities()).capabilities.includes('events.subscribe'));
+  assert.deepEqual((await a.client.capabilities()).capabilities, first.capabilities);
   await a.client.subscribe(['tasks.changed']);
   assert.deepEqual(await a.client.request('tasks.get', { requestId: 'missing' }), {
     scope: 'session',

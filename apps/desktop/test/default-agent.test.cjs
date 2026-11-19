@@ -8,44 +8,41 @@ const { pathToFileURL } = require('node:url');
 const desktop = path.resolve(__dirname, '..');
 const read = (name) => fs.readFile(path.join(desktop, name), 'utf8');
 
-for (const executor of [undefined, 'agent', 'legacy', 'unknown']) {
-  test(`ordinary main uses only Agent (executor=${executor}) and fails closed`, async () => {
-    const isolated = path.resolve('isolated');
-    const calls = [], paths = { appData: isolated, userData: path.join(isolated, 'Alune') };
-    const app = {
-      setName() {}, setPath: (key, value) => { paths[key] = value; },
-      getPath: (key) => paths[key], requestSingleInstanceLock: () => true,
-      whenReady: () => Promise.resolve(), on() {},
-      dock: { setIcon() {} }, exit: (code) => calls.push(['exit', code]),
-    };
-    const env = executor === undefined ? {} : { ALUNE_DESKTOP_EXECUTOR: executor };
-    const failure = new Error('independent runtime unavailable');
-    const context = {
-      __dirname: desktop, console: { error() {} },
-      process: { env, argv: ['electron', 'dist/app'], platform: 'linux', on() {} },
-      require(name) {
-        if (name === 'electron') return { app, dialog: { showErrorBox() {} } };
-        if (name === 'node:crypto' || name === 'node:path') return require(name);
-        if (name === 'node:fs') return { mkdirSync() {} };
-        if (name === './workspace-preferences.cjs') return {};
-        if (name === './external-links.cjs') return {};
-        if (name === './log-window.cjs') return { createLogWindow: () => ({ contents() {} }) };
-        if (name === './desktop-agent.cjs') return {
-          async startDesktopAgent(options) {
-            calls.push(['agent', options.dataDir]);
-            throw failure;
-          },
-        };
-        throw new Error('Unexpected runtime dependency: ' + name);
-      },
-    };
-    vm.runInNewContext(await read('src/main.cjs'), context);
-    await new Promise(setImmediate);
-    assert.deepEqual(calls, [['agent', path.join(isolated, 'Alune')], ['exit', 1]]);
-  });
-}
+test('desktop startup exits if the standalone Agent is unavailable', async () => {
+  const isolated = path.resolve('isolated');
+  const calls = [], paths = { appData: isolated, userData: path.join(isolated, 'Alune') };
+  const app = {
+    setName() {}, setPath: (key, value) => { paths[key] = value; },
+    getPath: (key) => paths[key], requestSingleInstanceLock: () => true,
+    whenReady: () => Promise.resolve(), on() {},
+    dock: { setIcon() {} }, exit: (code) => calls.push(['exit', code]),
+  };
+  const failure = new Error('independent runtime unavailable');
+  const context = {
+    __dirname: desktop, console: { error() {} },
+    process: { env: {}, argv: ['electron', 'dist/app'], platform: 'linux', on() {} },
+    require(name) {
+      if (name === 'electron') return { app, dialog: { showErrorBox() {} } };
+      if (name === 'node:crypto' || name === 'node:path') return require(name);
+      if (name === 'node:fs') return { mkdirSync() {} };
+      if (name === './workspace-preferences.cjs') return {};
+      if (name === './external-links.cjs') return {};
+      if (name === './log-window.cjs') return { createLogWindow: () => ({ contents() {} }) };
+      if (name === './desktop-agent.cjs') return {
+        async startDesktopAgent(options) {
+          calls.push(['agent', options.dataDir]);
+          throw failure;
+        },
+      };
+      throw new Error('Unexpected runtime dependency: ' + name);
+    },
+  };
+  vm.runInNewContext(await read('src/main.cjs'), context);
+  await new Promise(setImmediate);
+  assert.deepEqual(calls, [['agent', path.join(isolated, 'Alune')], ['exit', 1]]);
+});
 
-test('ordinary and candidate staging remove all retired artifacts without old source workspaces', async (t) => {
+test('desktop staging refreshes application files and preserves the standalone runtime', async (t) => {
   const { stageDesktop } = await import(pathToFileURL(path.join(desktop, 'scripts/stage.mjs')));
   const root = await fs.mkdtemp(path.join(process.env.PI_SCRATCH_DIR || os.tmpdir(), 'alune-stage-test-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
@@ -63,27 +60,20 @@ test('ordinary and candidate staging remove all retired artifacts without old so
     await put(`packages/${name}/dist/index.js`, 'module.exports = {};');
     await put(`packages/${name}/package.json`, JSON.stringify({
       name: '@alune/' + name, version: '1.0.0', main: 'dist/index.js',
-      scripts: { build: 'never execute' }, devDependencies: { retired: '*' },
+      scripts: { build: 'never execute' }, devDependencies: { typescript: '*' },
     }));
   }
-  const retired = [
-    'server/bootstrap.js', 'legacy-backend.cjs', 'smoke.cjs',
-    'packages/shared/package.json', 'packages/ssh-client/package.json', 'packages/agent/package.json',
-    'node_modules/better-sqlite3/package.json', 'node_modules/node-pty/package.json',
-    'node_modules/@alune/shared/package.json', 'node_modules/@alune/ssh-client/package.json',
-    'node_modules/@alune/agent/package.json', 'node_modules/@nestjs/core/package.json',
-    'node_modules/.package-lock.json', 'package-lock.json',
-  ];
+  const stale = ['web/assets/stale.js', 'node_modules/.package-lock.json', 'package-lock.json'];
   await put('apps/desktop/dist/agent-runtime/manifest.json', 'independent Node ABI');
   for (const candidate of [false, true]) {
     const relative = 'apps/desktop/dist/' + (candidate ? 'candidate-app' : 'app');
     // Repeated staging must also clean an existing stage, not only a fresh checkout.
     for (let run = 0; run < 2; run++) {
-      for (const file of retired) await put(relative + '/' + file, 'stale');
+      for (const file of stale) await put(relative + '/' + file, 'stale');
       let installed = 0;
       const target = await stageDesktop(root, { candidate, install: async (directory) => {
         assert.equal(directory, path.join(root, relative));
-        for (const file of retired) await assert.rejects(fs.access(path.join(directory, file)), { code: 'ENOENT' });
+        for (const file of stale) await assert.rejects(fs.access(path.join(directory, file)), { code: 'ENOENT' });
         installed++;
       } });
       assert.equal(installed, 1);
@@ -99,7 +89,6 @@ test('ordinary and candidate staging remove all retired artifacts without old so
         'candidate-smoke.cjs', 'appearance-smoke.cjs', 'code-appearance-smoke.cjs',
         'dialogs-smoke.cjs', 'settings-shell-smoke.cjs', 'smoke-window.cjs', 'smoke-updater.cjs'])
         await fs.access(path.join(target, name));
-      await assert.rejects(fs.access(path.join(target, 'agent-migration-smoke.cjs')), { code: 'ENOENT' });
       for (const name of ['domain', 'protocol', 'agent-client']) {
         const pkg = JSON.parse(await fs.readFile(path.join(target, 'packages', name, 'package.json')));
         assert.equal(pkg.devDependencies, undefined);
@@ -111,9 +100,8 @@ test('ordinary and candidate staging remove all retired artifacts without old so
   await assert.rejects(stageDesktop(root, { install: () => { throw Error('install failed'); } }), /install failed/);
 });
 
-test('build/pack/dist and compatibility commands cannot select the retired executor', async () => {
+test('desktop commands build and launch the standalone Agent application', async () => {
   const pkg = JSON.parse(await read('package.json'));
-  assert.equal(pkg.devDependencies.server, undefined);
   for (const name of ['agent', 'agent-client', 'domain', 'protocol'])
     assert.equal(pkg.devDependencies['@alune/' + name], '*');
   assert.match(pkg.scripts.build, /stage\.mjs.*agent:stage/);
@@ -121,14 +109,9 @@ test('build/pack/dist and compatibility commands cannot select the retired execu
   assert.equal(pkg.scripts.predist, 'npm run build');
   assert.equal(pkg.scripts.start, 'electron dist/app');
   const main = await read('src/main.cjs');
-  assert.doesNotMatch(main, /legacy-backend|startLegacyBackend|ALUNE_DESKTOP_EXECUTOR|\.\/smoke\.cjs/);
   assert.match(main, /'agent', 'workspace\.json'/);
   assert.match(main, /additionalArguments: \['--alune-agent-ui'\]/);
   assert.match(await read('src/log-window.cjs'), /additionalArguments: \['--alune-agent-ui'\]/);
   assert.match(await read('src/candidate-main.cjs'), /require\('\.\/main\.cjs'\)/);
-  assert.match(await read('scripts/smoke.mjs'), /delete env\.ALUNE_DESKTOP_EXECUTOR/);
-  assert.doesNotMatch(await read('src/candidate-main.cjs'), /ALUNE_DESKTOP_EXECUTOR/);
-  assert.doesNotMatch(await read('electron-builder.cjs'), /server\/|node-pty|\.node|packages\/\*\*/);
-  for (const name of ['code-appearance', 'diff-theme', 'notifications', 'repository-session', 'worktrees', 'terminals'])
-    assert.match(await read(`scripts/test-${name}.mjs`), /import(?:\(| )'\.\/smoke\.mjs'/);
+  assert.doesNotMatch(await read('electron-builder.cjs'), /node-pty|\.node|packages\/\*\*/);
 });

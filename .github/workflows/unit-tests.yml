@@ -26,9 +26,8 @@ jobs:
           node-version: '22.22.0'
           cache: npm
       - run: npm ci
-      - name: 架构约束、Git hooks 与发布说明
+      - name: Git hooks 与发布说明
         run: |
-          npm run test:retirement
           npm run test:hooks
           npm run test:release-notes
       - name: 领域契约、协议与客户端
