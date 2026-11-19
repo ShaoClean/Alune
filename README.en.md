@@ -1,8 +1,6 @@
-<p align="center">
-  <img src="apps/desktop/assets/icon.png" width="96" height="96" alt="Alune icon" />
-</p>
-
-<h1 align="center">Alune</h1>
+<h1 align="center">
+  <img src="apps/website/public/alune-lockup.svg" width="228" height="72" alt="Alune" />
+</h1>
 
 <p align="center"><a href="README.md">简体中文</a> · English</p>
 

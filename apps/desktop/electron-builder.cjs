@@ -15,6 +15,7 @@ module.exports = {
     'web/**/*',
     'assets/icon.png',
     'assets/icon-mac.png',
+    'assets/tray*.png',
     'packages/domain/**/*',
     'packages/protocol/**/*',
     'packages/agent-client/**/*',
