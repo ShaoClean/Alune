@@ -3,7 +3,8 @@ import { useFeedbackMessage } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Form, Input } from '@alune/ui';
+import { Button, Form, Input, Progress } from '@alune/ui';
+import type { ConnectionProgress } from '@alune/domain';
 import {
   ApartmentOutlined,
   DeleteOutlined,
@@ -84,6 +85,58 @@ const normalizePort = (value: unknown) => {
     .slice(0, 5);
   return digits ? Number(digits) : undefined;
 };
+
+const PHASE_LABELS: Record<string, string> = {
+  probing: '正在探测主机环境…',
+  forwarding: '正在配置代理转发…',
+  downloading: '正在下载远端 Agent…',
+  installing: '正在上传远端 Agent…',
+  verifying: '正在校验远端 Agent…',
+  unpacking: '正在解压远端 Agent…',
+  starting: '正在启动远端 Agent…',
+  negotiating: '正在建立 Agent 会话…',
+};
+
+const formatSize = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+
+function ConnectionProgressPanel({ progress }: { progress: ConnectionProgress }) {
+  const label = PHASE_LABELS[progress.phase] ?? '正在连接…';
+  if (progress.phase !== 'downloading') {
+    return (
+      <div className="connection-progress" role="status">
+        <span className="connection-progress__label">{label}</span>
+      </div>
+    );
+  }
+  const transferred = progress.transferred ?? 0;
+  const total = progress.total ?? null;
+  const percent =
+    typeof progress.percent === 'number'
+      ? Math.max(0, Math.min(100, Math.floor(progress.percent)))
+      : total && total > 0
+        ? Math.min(100, Math.floor((transferred / total) * 100))
+        : 0;
+  const speed =
+    typeof progress.bytesPerSecond === 'number' && progress.bytesPerSecond > 0
+      ? ` · ${formatSize(progress.bytesPerSecond)}/s`
+      : '';
+  const detail = total
+    ? `${formatSize(transferred)} / ${formatSize(total)}${speed}`
+    : `${formatSize(transferred)}${speed}`;
+  return (
+    <div className="connection-progress" role="status">
+      <div className="connection-progress__header">
+        <span className="connection-progress__label">{label}</span>
+        <span className="connection-progress__meta">
+          {total ? `${percent}% · ` : ''}
+          {detail}
+        </span>
+      </div>
+      <Progress percent={percent} size="small" showInfo={false} />
+    </div>
+  );
+}
 
 export function ConnectionsPage() {
   const message = useFeedbackMessage();
@@ -301,6 +354,12 @@ export function ConnectionsPage() {
                         <span className="collection-text collection-table__mono" title={host}>
                           {host}
                         </span>
+                        {statuses[connection.id]?.status === 'connecting' &&
+                          statuses[connection.id]?.progress && (
+                            <ConnectionProgressPanel
+                              progress={statuses[connection.id].progress!}
+                            />
+                          )}
                         {statuses[connection.id]?.error && (
                           <FeedbackNotice
                             source="connection-status"
@@ -344,6 +403,9 @@ export function ConnectionsPage() {
                   </div>
                 </div>
                 {renderActions(connection)}
+                {info?.status === 'connecting' && info.progress && (
+                  <ConnectionProgressPanel progress={info.progress} />
+                )}
                 {info?.error && (
                   <FeedbackNotice
                     source="connection-status"

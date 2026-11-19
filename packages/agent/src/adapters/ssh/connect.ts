@@ -8,7 +8,7 @@ import { ProtocolError, type OpenHostRoute } from '@alune/protocol';
 import { StdioTransport } from '@alune/agent-client/node';
 import { SSHChannelQueue } from './channel-queue';
 import { bootstrapCommands, unixProbe, windowsProbe, targetFrom } from './commands';
-import { readBundle } from './bundles';
+import { readBundle, type BundleDownloadProgress } from './bundles';
 import {
   connectProxySocket,
   createProxyBridge,
@@ -106,6 +106,7 @@ export async function connectHost(
   priorDigest?: string,
   stage?: (phase: string) => void,
   releaseFetch?: typeof fetch,
+  onProgress?: (progress: BundleDownloadProgress) => void,
 ) {
   let phase = 'authentication';
   const transition = (next: string) => {
@@ -226,13 +227,21 @@ export async function connectHost(
       randomUUID(),
       forwardPort ?? (proxy.enabled ? 'blocked' : undefined),
     );
-    transition(policy.install ? 'installing' : 'verifying');
-    if (policy.install) await command(commands.upload, await bundle.bytes());
-    else if ((await command(commands.installed)) !== 'present')
-      throw new ProtocolError(
-        'unavailable',
-        'SSH bundle is not installed; explicitly install it first',
-      );
+    if (policy.install) {
+      const archive = await bundle.bytes((progress) => {
+        if (phase !== 'downloading') transition('downloading');
+        onProgress?.(progress);
+      });
+      transition('installing');
+      await command(commands.upload, archive);
+    } else {
+      transition('verifying');
+      if ((await command(commands.installed)) !== 'present')
+        throw new ProtocolError(
+          'unavailable',
+          'SSH bundle is not installed; explicitly install it first',
+        );
+    }
     try {
       transition('unpacking');
       await command(commands.prepare);

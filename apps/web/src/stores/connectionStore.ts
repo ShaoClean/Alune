@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import type { ConnectionStatusInfo, ConnectionTestResult } from '@alune/domain';
+import type {
+  ConnectionProgress,
+  ConnectionStatusInfo,
+  ConnectionTestResult,
+} from '@alune/domain';
 import { connectionApi } from '../api';
 import { hydrateWorkspace, useWorkspaceStore } from './workspaceStore';
 
@@ -17,6 +21,7 @@ interface ConnectionState {
     status: ConnectionStatusInfo['status'];
     error?: string;
     updatedAt?: number;
+    progress?: ConnectionProgress;
   }) => void;
 }
 
@@ -26,6 +31,9 @@ const readStatus = (connection: any): ConnectionStatusInfo | null =>
         status: connection.status,
         error: connection.error,
         updatedAt: typeof connection.updatedAt === 'number' ? connection.updatedAt : undefined,
+        ...(connection.status === 'connecting' && connection.progress
+          ? { progress: connection.progress }
+          : {}),
       }
     : null;
 
@@ -115,9 +123,14 @@ export const useConnectionStore = create<ConnectionState>((set) => {
     return result;
   },
 
-  applyConnectionStatus: ({ connectionId, status, error, updatedAt }) => {
+  applyConnectionStatus: ({ connectionId, status, error, updatedAt, progress }) => {
     set((state) => {
-      const next: ConnectionStatusInfo = { status, error, updatedAt: updatedAt ?? Date.now() };
+      const next: ConnectionStatusInfo = {
+        status,
+        error,
+        updatedAt: updatedAt ?? Date.now(),
+        ...(status === 'connecting' && progress ? { progress } : {}),
+      };
       if (!newer(next, state.statuses[connectionId])) return {};
       return { statuses: { ...state.statuses, [connectionId]: next } };
     });

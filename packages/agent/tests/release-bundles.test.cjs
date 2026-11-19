@@ -54,16 +54,34 @@ test('desktop pins gate SSH downloads: no download on reconnect, redirect allowl
             status: 302,
             headers: { location: 'https://release-assets.githubusercontent.com/fixture' },
           })
-        : new Response(bytes);
+        : new Response(bytes, { headers: { 'content-length': String(bytes.length) } });
     });
+    const progressEvents = [];
+    assert.deepEqual(
+      await remoteBundle.bytes((progress) => progressEvents.push(progress)),
+      bytes,
+    );
+    assert.equal(calls.length, 2);
+    assert.ok(progressEvents.length >= 2);
+    assert.equal(progressEvents[0].transferred, 0);
+    assert.equal(progressEvents[0].total, bytes.length);
+    assert.equal(progressEvents.at(-1).transferred, bytes.length);
+    assert.equal(progressEvents.at(-1).percent, 100);
+    // Verified download is cached locally and reused without re-downloading.
     assert.deepEqual(await remoteBundle.bytes(), bytes);
     assert.equal(calls.length, 2);
+    fs.rmSync(path.join(dir, 'ssh-bundles', 'linux-x64', 'agent.tar.gz'));
+    const failed = await readBundle(dir, 'linux-x64', async () => {
+      throw new Error('network reset');
+    });
+    await assert.rejects(failed.bytes(), /SSH release download failed: network reset/);
     const bad = await readBundle(
       dir,
       'linux-x64',
       async () => new Response(Buffer.from('tampered')),
     );
     await assert.rejects(bad.bytes(), /checksum mismatch/);
+    assert.equal(fs.existsSync(path.join(dir, 'ssh-bundles', 'linux-x64', 'agent.tar.gz')), false);
     const redirect = await readBundle(
       dir,
       'linux-x64',

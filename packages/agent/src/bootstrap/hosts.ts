@@ -1,4 +1,4 @@
-import { sshTerminalEnvironment } from '@alune/domain';
+import { sshTerminalEnvironment, type ConnectionProgress } from '@alune/domain';
 import type { HostRepositoryReads } from '../ports/host-repository-reads';
 import type { SnapshotRequest } from '../modules/hosts/snapshot';
 import { randomUUID } from 'node:crypto';
@@ -48,6 +48,7 @@ type Connection = {
   notify?: () => void;
   sshConnected?: boolean;
   failurePhase?: string;
+  progress?: ConnectionProgress;
 };
 export function hostsKernel(
   directory: string,
@@ -146,6 +147,7 @@ export function hostsKernel(
     r.phase = 'offline';
     r.sshConnected = false;
     r.fresh = false;
+    r.progress = undefined;
   }
   function catalog() {
     const profiles = settings.hosts.list().hosts;
@@ -163,6 +165,8 @@ export function hostsKernel(
         hostKey: s?.hostKey ?? null,
         state: r?.phase ?? 'offline',
         reason: r?.reason ?? null,
+        progress:
+          r && r.phase !== 'ready' && r.phase !== 'offline' ? (r.progress ?? null) : null,
         sshConnected: r?.sshConnected ?? false,
         failurePhase: r?.failurePhase ?? null,
         proxyRevision: r?.appliedProxy?.revision ?? null,
@@ -334,6 +338,9 @@ export function hostsKernel(
                     : 'disconnected'
                   : 'connecting',
             ...(r.reason ? { error: r.reason } : {}),
+            ...(r.phase !== 'ready' && r.phase !== 'offline' && r.progress
+              ? { progress: r.progress as unknown as JsonValue }
+              : {}),
           });
         live.set(p.hostId, r);
         notify(r);
@@ -341,7 +348,6 @@ export function hostsKernel(
           r.controller.signal,
           c.signal,
           c.sessionSignal,
-          AbortSignal.timeout(180000),
         ]);
         try {
           if (profile.hasPassword || profile.hasPassphrase || settings.proxy.read().authEnabled)
@@ -363,8 +369,17 @@ export function hostsKernel(
             (phase) => {
               r.phase = phase;
               r.sshConnected = true;
+              if (phase !== 'downloading') {
+                r.progress = { phase };
+                notify(r);
+              }
             },
             releaseFetch,
+            (progress) => {
+              r.phase = 'downloading';
+              r.progress = { phase: 'downloading', ...progress };
+              notify(r);
+            },
           );
           try {
             signal.throwIfAborted();
@@ -400,6 +415,7 @@ export function hostsKernel(
               });
               clearTimeout(timer);
               r.phase = 'ready';
+              r.progress = undefined;
               notify(r);
             },
             (rows) => {
@@ -414,6 +430,7 @@ export function hostsKernel(
               r.sshConnected = false;
               clearTimeout(timer);
               r.phase = 'offline';
+              r.progress = undefined;
               r.fresh = false;
               notify(r);
               conn.close();

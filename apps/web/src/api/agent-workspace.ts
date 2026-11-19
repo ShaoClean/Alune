@@ -23,6 +23,7 @@ import { createAgentCollaboration } from './agent-collaboration';
 import { workspaceTopics } from './ui-agent';
 import { hostConsent } from '../features/connections/HostConsent';
 import { fileAccessApi } from './file-access';
+import type { ConnectionProgress } from '@alune/domain';
 import type { DirectoryGrant } from '@alune/protocol';
 
 type Binding = { localId: string; resource: ResourceRef };
@@ -32,6 +33,7 @@ type Host = {
   terminalEnvironment?: string;
   state: string;
   reason: string | null;
+  progress?: ConnectionProgress | null;
   gitProxy: string | null;
   proxyRevision: string | null;
   activeTasks: number;
@@ -335,6 +337,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
                     : 'connecting',
           updatedAt: route?.updatedAt ?? 0,
           error: route?.reason,
+          ...(route?.progress ? { progress: route.progress } : {}),
         };
       });
     },

@@ -52,10 +52,17 @@ test('列表返回的实际连接状态直接进入 store，未建连时保持�
 
 test('打开仓库触发的推送事件无需测试连接即可更新状态', () => {
   const apply = connections.getState().applyConnectionStatus;
-  apply({ connectionId: 'dev', status: 'connecting', updatedAt: 1 });
+  apply({
+    connectionId: 'dev',
+    status: 'connecting',
+    updatedAt: 1,
+    progress: { phase: 'downloading', transferred: 512, total: 1024, percent: 50, bytesPerSecond: 256 },
+  });
   assert.equal(connections.getState().statuses.dev.status, 'connecting');
+  assert.equal(connections.getState().statuses.dev.progress?.percent, 50);
   apply({ connectionId: 'dev', status: 'connected', updatedAt: 2 });
   assert.equal(connections.getState().statuses.dev.status, 'connected');
+  assert.equal(connections.getState().statuses.dev.progress, undefined);
 });
 
 test('过期的事件与列表响应都不能覆盖更新的状态', async () => {

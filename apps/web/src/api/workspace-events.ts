@@ -67,6 +67,20 @@ export function subscribeWorkspaceEvents(
       events.connect?.();
     if (event.type === workspaceEventSuccessors['connection:status']) {
       const p = event.payload;
+      const validProgress = (value: unknown) => {
+        if (value === undefined || value === null) return true;
+        if (!isRecord(value) || typeof value.phase !== 'string') return false;
+        const okNum = (v: unknown) =>
+          v === undefined || (typeof v === 'number' && Number.isFinite(v));
+        const okNullableNum = (v: unknown) =>
+          v === undefined || v === null || (typeof v === 'number' && Number.isFinite(v));
+        return (
+          okNum(value.transferred) &&
+          okNullableNum(value.total) &&
+          okNullableNum(value.percent) &&
+          okNum(value.bytesPerSecond)
+        );
+      };
       if (
         isRecord(p) &&
         validId(p.hostId) &&
@@ -74,7 +88,8 @@ export function subscribeWorkspaceEvents(
         ['connected', 'disconnected', 'connecting', 'error'].includes(p.status) &&
         typeof p.updatedAt === 'number' &&
         Number.isFinite(p.updatedAt) &&
-        (p.error === undefined || typeof p.error === 'string')
+        (p.error === undefined || typeof p.error === 'string') &&
+        validProgress(p.progress)
       )
         events['connection:status']?.({ ...p, connectionId: p.hostId });
     }

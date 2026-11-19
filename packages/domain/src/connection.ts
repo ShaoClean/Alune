@@ -16,11 +16,20 @@ export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'er
 // A connection the server has never attempted yet; the UI shows it as untested.
 export type ConnectionActivityStatus = ConnectionStatus | 'unknown';
 
+export interface ConnectionProgress {
+  phase: string;
+  transferred?: number;
+  total?: number | null;
+  percent?: number | null;
+  bytesPerSecond?: number;
+}
+
 export interface ConnectionStatusInfo {
   status: ConnectionActivityStatus;
   error?: string;
   // Server clock, so a late list response cannot overwrite a newer pushed event.
   updatedAt?: number;
+  progress?: ConnectionProgress;
 }
 
 export interface ConnectionTestResult {

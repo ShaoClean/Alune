@@ -76,7 +76,7 @@ import type { MessageTransport } from './transport';
 
 export interface RequestOptions {
   signal?: AbortSignal;
-  timeoutMs?: number;
+  timeoutMs?: number | null;
 }
 export interface RequestHandle {
   requestId: string;
@@ -691,8 +691,11 @@ export class AgentClient {
       return Promise.reject(new ProtocolError('cancelled', 'Cancelled before send'));
     if (this.pending.size >= 128)
       return Promise.reject(new ProtocolError('overloaded', 'Too many pending requests'));
-    const timeoutMs = options.timeoutMs ?? 30000;
-    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647)
+    const timeoutMs = options.timeoutMs === undefined ? 30000 : options.timeoutMs;
+    if (
+      timeoutMs !== null &&
+      (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647)
+    )
       return Promise.reject(new ProtocolError('invalid-params', 'Invalid request timeout'));
     const request: RpcRequest = {
       jsonrpc: '2.0',
@@ -717,19 +720,22 @@ export class AgentClient {
             ),
           );
       };
-      const timer = setTimeout(() => {
-        cancel();
-        this.settle(
-          id,
-          new ProtocolError(
-            'timeout',
-            'Request deadline exceeded; outcome may be unknown',
-            'unknown',
-          ),
-        );
-      }, timeoutMs);
+      const timer =
+        timeoutMs === null
+          ? undefined
+          : setTimeout(() => {
+              cancel();
+              this.settle(
+                id,
+                new ProtocolError(
+                  'timeout',
+                  'Request deadline exceeded; outcome may be unknown',
+                  'unknown',
+                ),
+              );
+            }, timeoutMs);
       const cleanup = () => {
-        clearTimeout(timer);
+        if (timer !== undefined) clearTimeout(timer);
         options.signal?.removeEventListener('abort', cancel);
       };
       this.pending.set(id, { resolve, reject, cleanup });

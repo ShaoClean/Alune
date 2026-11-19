@@ -70,7 +70,7 @@ export async function openRemoteAgent(
 ) {
   validateOpenHost(policy);
   const result = await local.request('hosts.open', policy as unknown as JsonValue, {
-    timeoutMs: 190000,
+    timeoutMs: null,
     ...options,
   });
   if (!isRecord(result) || !validId(result.routeId))

@@ -83,6 +83,10 @@ test('pre-cancel never sends; timeout cancels once and never replays the request
     assert.equal(transport.sent.filter((m) => m.method === '$/cancelRequest').length, 1);
     transport.receive({ jsonrpc: '2.0', id: request.requestId, result: 'late' });
     assert.equal(client.state, 'ready');
+    const unlimited = client.startRequest('echo', {}, { timeoutMs: null });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    transport.receive({ jsonrpc: '2.0', id: unlimited.requestId, result: 'ok' });
+    assert.equal(await unlimited.result, 'ok');
   } finally {
     client.close();
   }

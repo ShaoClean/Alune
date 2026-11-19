@@ -797,6 +797,34 @@ button {
   gap: 7px;
   flex-wrap: wrap;
 }
+.connection-progress {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.connection-progress__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.connection-progress__label {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.connection-progress__meta {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.connection-progress .ant-progress {
+  margin: 0;
+  line-height: 1;
+}
 .repository-card__path {
   margin: 12px 0 15px;
   color: var(--text-muted);
