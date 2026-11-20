@@ -46,7 +46,8 @@ module.exports = async ({ window, origin, wait, pass }) => {
       await click(element('.a-dlg-shell input[type=checkbox]'));
     } else assert.equal(await ev('(' + button('SSH 主机公钥 SHA-256 指纹') + ').value'), hostKey);
     await click(primary(first ? '信任并连接' : '连接'));
-    await wait(wc, '(' + row + ')?.innerText.includes("在线")');
+    // The first SSH connection installs and unpacks the packaged Agent.
+    await wait(wc, '(' + row + ')?.innerText.includes("在线")', 'SSH fixture online', 120_000);
     await dismiss();
   }
   await connect(true);
