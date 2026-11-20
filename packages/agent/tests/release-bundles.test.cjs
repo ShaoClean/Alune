@@ -90,6 +90,22 @@ test('desktop pins gate SSH downloads: no download on reconnect, redirect allowl
     );
     await assert.rejects(redirect.bytes(), /redirect/);
     await assert.rejects(readBundle(dir, 'win32-x64'), /catalog/);
+
+    // Idle timeout fires when the download stream stalls without delivering bytes.
+    const stalled = await readBundle(
+      dir,
+      'linux-x64',
+      async () =>
+        new Response(
+          new ReadableStream({
+            start() {},
+          }),
+          { status: 200, headers: { 'content-length': '1024' } },
+        ),
+      undefined,
+      50,
+    );
+    await assert.rejects(stalled.bytes(), { kind: 'timeout' });
   } finally {
     if (previous === undefined) delete process.env.ALUNE_AGENT_RELEASE_CATALOG;
     else process.env.ALUNE_AGENT_RELEASE_CATALOG = previous;

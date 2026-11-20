@@ -2,7 +2,7 @@
 // Repository paths, profile fields, credentials and user input never enter a remote command.
 const sh = (s: string) => "sh -c '" + s.replaceAll("'", "'\\''") + "'";
 const ps = (s: string) =>
-  'powershell.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand ' +
+  'powershell.exe -NoLogo -NoProfile -NonInteractive -InputFormat None -OutputFormat Text -EncodedCommand ' +
   Buffer.from(
     "$ErrorActionPreference='Stop';[Environment]::CurrentDirectory=(Get-Location).ProviderPath;" +
       s,
@@ -42,7 +42,14 @@ export function bootstrapCommands(
   const base = '.alune-ssh',
     run = base + '/run-' + nonce,
     archive = base + '/' + digest + '.tar.gz',
+    part = base + '/upload-' + digest + '.part',
     temp = base + '/upload-' + nonce;
+  const paths = { base, archive, part, temp };
+  const sourceFile = (source: 'part' | 'temp') => {
+    if (source === 'part') return part;
+    if (source === 'temp') return temp;
+    throw Error('Invalid upload source');
+  };
   const arg = ' serve-remote' + (forwardPort ? ' --git-proxy-port ' + forwardPort : '');
   if (windows) {
     // Get-FileHash is an optional PowerShell module (often missing from
@@ -53,8 +60,37 @@ export function bootstrapCommands(
       try { $actual=[BitConverter]::ToString($sha.ComputeHash($reader)).Replace('-','').ToLowerInvariant() }
       finally { $reader.Dispose(); $sha.Dispose() }
       if ($actual -ne '${digest}') { throw 'checksum' }`;
+    const pruneStale = `
+      Get-ChildItem -LiteralPath '${base}' -Force -ErrorAction SilentlyContinue |
+        Where-Object { -not $_.PSIsContainer -and (($_.Name -like '*.tar.gz' -and $_.Name -ne '${digest}.tar.gz') -or $_.Name -like 'upload-*') } |
+        ForEach-Object { Remove-Item -Force -LiteralPath $_.FullName -ErrorAction SilentlyContinue }`;
     return {
+      paths,
       installed: ps("if(Test-Path -LiteralPath '" + archive + "'){[Console]::Write('present')}"),
+      verified: ps(
+        `if (Test-Path -LiteralPath '${archive}') {
+           try {
+             ${check(archive)}
+             [Console]::Write('verified')
+           } catch {
+             if ([IO.File]::Exists('${archive}')) { [IO.File]::Delete('${archive}') }
+           }
+         }`,
+      ),
+      commit: (source: 'part' | 'temp') => {
+        const file = sourceFile(source);
+        return ps(
+          `try {
+             if (-not [IO.File]::Exists('${file}')) { throw 'missing' }
+             ${check(file)}
+             Move-Item -Force -LiteralPath '${file}' -Destination '${archive}';
+             ${pruneStale}
+           } finally { if ([IO.File]::Exists('${file}')) { [IO.File]::Delete('${file}') } }
+           exit 0`,
+        );
+      },
+      // Pure ASCII Base64 lines terminated by an explicit END line so fallback
+      // upload works even when Windows OpenSSH DefaultShell is PowerShell 5.1.
       upload: (size: number) => {
         if (!Number.isSafeInteger(size) || size <= 0) throw Error('Invalid archive size');
         return ps(
@@ -62,18 +98,23 @@ export function bootstrapCommands(
          try {
            $f=[IO.File]::Open('${temp}','CreateNew');
            try {
-             $source=[Console]::OpenStandardInput();
-             $buf=New-Object byte[] 65536;
-             $left=${size};
-             while ($left -gt 0) {
-               $n=$source.Read($buf,0,[Math]::Min($left,$buf.Length));
-               if ($n -eq 0) { throw 'Incomplete archive' }
-               $f.Write($buf,0,$n);
-               $left-=$n;
+             $written=[int64]0;
+             while ($true) {
+               $line=[Console]::In.ReadLine();
+               if ($null -eq $line) { throw 'Incomplete archive' }
+               $trimmed=$line.Trim();
+               if ($trimmed -eq 'END') { break }
+               if ($trimmed.Length -eq 0) { continue }
+               $bytes=[Convert]::FromBase64String($trimmed);
+               $f.Write($bytes,0,$bytes.Length);
+               $written+=$bytes.Length;
+               if ($written -gt ${size}) { throw 'Archive exceeds expected size' }
              }
+             if ($written -ne ${size}) { throw 'Incomplete archive' }
            } finally { $f.Dispose() }
            ${check(temp)}
            Move-Item -Force -LiteralPath '${temp}' -Destination '${archive}';
+           ${pruneStale}
          } finally { if ([IO.File]::Exists('${temp}')) { [IO.File]::Delete('${temp}') } }
          exit 0`,
         );
@@ -106,8 +147,43 @@ export function bootstrapCommands(
     file +
     '); fi; test "${h%% *}" = ' +
     digest;
+  const pruneStale =
+    'for f in ' +
+    base +
+    '/*.tar.gz ' +
+    base +
+    '/upload-*; do [ -f "$f" ] || continue; [ "$f" = "' +
+    archive +
+    '" ] && continue; rm -f "$f" || :; done';
   return {
+    paths,
     installed: sh('if test -f ' + archive + '; then printf present; fi'),
+    verified: sh(
+      'if test -f ' +
+        archive +
+        '; then if (' +
+        hash(archive) +
+        ') 2>/dev/null; then printf verified; else rm -f ' +
+        archive +
+        ' || :; fi; fi',
+    ),
+    commit: (source: 'part' | 'temp') => {
+      const file = sourceFile(source);
+      return sh(
+        'set -eu; umask 077; trap "rm -f ' +
+          file +
+          '" EXIT; test -f ' +
+          file +
+          '; ' +
+          hash(file) +
+          '; mv -f ' +
+          file +
+          ' ' +
+          archive +
+          '; ' +
+          pruneStale,
+      );
+    },
     upload: (_size: number) =>
       sh(
         'set -eu; umask 077; mkdir -p ' +
@@ -121,7 +197,9 @@ export function bootstrapCommands(
           '; mv -f ' +
           temp +
           ' ' +
-          archive,
+          archive +
+          '; ' +
+          pruneStale,
       ),
     prepare: sh(
       'set -eu; umask 077; ' +

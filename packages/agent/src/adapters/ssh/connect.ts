@@ -3,10 +3,10 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { connect as tcp, type Socket } from 'node:net';
-import { Client, type ClientChannel } from 'ssh2';
+import { Client, type ClientChannel, type SFTPWrapper } from 'ssh2';
 import { ProtocolError, type OpenHostRoute } from '@alune/protocol';
 import { StdioTransport } from '@alune/agent-client/node';
-import { uploadArchive } from './upload';
+import { SftpUnavailableError, uploadArchive, uploadArchiveViaSftp } from './upload';
 import { SSHChannelQueue } from './channel-queue';
 import { bootstrapCommands, unixProbe, windowsProbe, targetFrom } from './commands';
 import { readBundle, type BundleDownloadProgress } from './bundles';
@@ -143,26 +143,65 @@ export async function connectHost(
         signal,
       ),
     );
-  const command = async (cmd: string): Promise<string> => {
+  const openSftp = (): Promise<SFTPWrapper> =>
+    new Promise((resolve, reject) =>
+      queue.open<SFTPWrapper>(
+        (cb) => ssh.sftp((err, sftp) => cb(err ?? undefined, sftp)),
+        (sftp) => sftp.end(),
+        (err, sftp) => (err || !sftp ? reject(err ?? lost) : resolve(sftp)),
+        signal,
+      ),
+    );
+  const command = async (cmd: string, timeoutMs = 30_000): Promise<string> => {
     const ch = await open(cmd);
     return new Promise((resolve, reject) => {
       let output = '',
-        code: number | undefined;
+        stderr = '',
+        code: number | undefined,
+        settled = false;
+      const finish = (err?: Error, value?: string) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (err) reject(err);
+        else resolve(value ?? '');
+      };
+      const timer = setTimeout(() => {
+        ch.close();
+        finish(
+          new ProtocolError(
+            'timeout',
+            `远端命令执行超时（${Math.round(timeoutMs / 1000)} 秒），阶段：${phase}`,
+          ),
+        );
+      }, timeoutMs);
       ch.on('data', (b: Buffer) => {
         output += b.toString();
         if (output.length > 8192) {
           ch.close();
-          reject(new Error('SSH probe output limit'));
+          finish(new Error('SSH probe output limit'));
         }
       });
-      ch.stderr.resume();
-      ch.on('error', reject);
+      ch.stderr.on('data', (b: Buffer) => {
+        if (stderr.length < 4096) {
+          stderr += b.toString('utf8', 0, 4096 - stderr.length);
+        }
+      });
+      ch.on('error', (err: Error) => finish(err));
       ch.once('exit', (n: number) => {
         code = n;
       });
-      ch.once('close', (n?: number) =>
-        (code ?? n) === 0 ? resolve(output) : reject(new Error('SSH bootstrap command failed')),
-      );
+      ch.once('close', (n?: number) => {
+        if ((code ?? n) === 0) return finish(undefined, output);
+        const detail = stderr.replace(/\s+/g, ' ').trim().slice(0, 240);
+        finish(
+          new Error(
+            detail
+              ? `SSH bootstrap command failed: ${detail}`
+              : 'SSH bootstrap command failed',
+          ),
+        );
+      });
       ch.end();
     });
   };
@@ -172,8 +211,8 @@ export async function connectHost(
     const authenticated = await authenticate(ssh, profile, policy.hostKey, proxy, signal);
     sock = authenticated.socket;
     transition('probing');
-    let detected = targetFrom(await command(unixProbe).catch(() => ''));
-    if (!detected.target) detected = targetFrom(await command(windowsProbe).catch(() => ''));
+    let detected = targetFrom(await command(unixProbe, 20_000).catch(() => ''));
+    if (!detected.target) detected = targetFrom(await command(windowsProbe, 20_000).catch(() => ''));
     const bundle = await readBundle(directory, detected.target, releaseFetch, signal);
     if (priorDigest && priorDigest !== bundle.sha256 && !policy.install)
       throw new ProtocolError(
@@ -222,22 +261,63 @@ export async function connectHost(
         bridge = undefined;
       }
     }
+    const isWindows = detected.target === 'win32-x64';
     const commands = bootstrapCommands(
-      detected.target === 'win32-x64',
+      isWindows,
       bundle.sha256,
       randomUUID(),
       forwardPort ?? (proxy.enabled ? 'blocked' : undefined),
     );
     if (policy.install) {
-      const archive = await bundle.bytes((progress) => {
-        if (phase !== 'downloading') transition('downloading');
-        onProgress?.(progress);
-      });
-      transition('installing');
-      await uploadArchive(() => open(commands.upload(archive.length)), archive, signal, onProgress);
+      transition('verifying');
+      const alreadyVerified =
+        (await command(commands.verified, 120_000).catch(() => '')).trim() === 'verified';
+      if (!alreadyVerified) {
+        const archive = await bundle.bytes((progress) => {
+          if (phase !== 'downloading') transition('downloading');
+          onProgress?.(progress);
+        });
+        const deliver = async (allowResume: boolean): Promise<void> => {
+          transition('installing');
+          let sftpResult: { resumed: boolean; resumedFrom: number } | undefined;
+          try {
+            sftpResult = await uploadArchiveViaSftp(
+              openSftp,
+              commands.paths.base,
+              commands.paths.part,
+              archive,
+              signal,
+              onProgress,
+              { resume: allowResume },
+            );
+          } catch (error) {
+            if (!(error instanceof SftpUnavailableError)) throw error;
+            await uploadArchive(
+              () => open(commands.upload(archive.length)),
+              archive,
+              signal,
+              onProgress,
+              { encoding: isWindows ? 'base64-lines' : 'binary' },
+            );
+            return;
+          }
+          transition('verifying');
+          try {
+            await command(commands.commit('part'), 120_000);
+          } catch (error) {
+            if (sftpResult.resumed && !closed && !signal.aborted) {
+              // commit removes the corrupted .part file; retry once from scratch.
+              await deliver(false);
+              return;
+            }
+            throw error;
+          }
+        };
+        await deliver(true);
+      }
     } else {
       transition('verifying');
-      if ((await command(commands.installed)) !== 'present')
+      if ((await command(commands.installed, 20_000)) !== 'present')
         throw new ProtocolError(
           'unavailable',
           'SSH bundle is not installed; explicitly install it first',
@@ -245,12 +325,12 @@ export async function connectHost(
     }
     try {
       transition('unpacking');
-      await command(commands.prepare);
+      await command(commands.prepare, 120_000);
       signal.throwIfAborted();
       transition('starting');
       channel = await open(commands.serve);
     } catch (error) {
-      if (!closed) await command(commands.clean).catch(() => {});
+      if (!closed) await command(commands.clean, 20_000).catch(() => {});
       throw error;
     }
     channel.stderr.resume();
@@ -271,7 +351,14 @@ export async function connectHost(
     bridge?.close();
     signal.throwIfAborted();
     if (error instanceof ProtocolError) throw error;
-    throw new ProtocolError('unavailable', 'SSH Agent ' + phase + ' failed');
+    const detail =
+      error instanceof Error && error.message.startsWith('SSH bootstrap command failed: ')
+        ? error.message.slice('SSH bootstrap command failed: '.length)
+        : '';
+    throw new ProtocolError(
+      'unavailable',
+      detail ? `SSH Agent ${phase} failed: ${detail}` : 'SSH Agent ' + phase + ' failed',
+    );
   } finally {
     signal.removeEventListener('abort', abort);
   }

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { ProtocolError, PROTOCOL_VERSION } from '@alune/protocol';
 const targets = ['linux-x64', 'darwin-arm64', 'darwin-x64', 'win32-x64'];
 const limit = 256 * 1024 * 1024;
+export const DEFAULT_DOWNLOAD_IDLE_TIMEOUT_MS = 45_000;
 const unavailable = (reason: string) => new ProtocolError('unavailable', reason);
 
 export interface BundleDownloadProgress {
@@ -13,22 +14,76 @@ export interface BundleDownloadProgress {
   bytesPerSecond: number;
 }
 
+async function readChunkWithIdleTimeout(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  idleTimeoutMs: number,
+  signal?: AbortSignal,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  signal?.throwIfAborted();
+  let timer: NodeJS.Timeout | undefined;
+  let onAbort: (() => void) | undefined;
+  try {
+    return await new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
+      timer = setTimeout(() => {
+        reject(
+          new ProtocolError(
+            'timeout',
+            `远端 Agent 下载超时，${Math.round(idleTimeoutMs / 1000)} 秒内未收到数据进展。请检查网络后重试。`,
+          ),
+        );
+      }, idleTimeoutMs);
+      if (signal) {
+        onAbort = () => reject(signal.reason);
+        signal.addEventListener('abort', onAbort, { once: true });
+      }
+      reader.read().then(resolve, reject);
+    });
+  } finally {
+    clearTimeout(timer);
+    if (signal && onAbort) signal.removeEventListener('abort', onAbort);
+  }
+}
+
 async function download(
   url: string,
   send: typeof fetch,
   signal?: AbortSignal,
   onProgress?: (progress: BundleDownloadProgress) => void,
+  idleTimeoutMs = DEFAULT_DOWNLOAD_IDLE_TIMEOUT_MS,
 ) {
   for (let n = 0; n < 5; n++) {
     let response: Response;
+    const requestController = new AbortController();
+    let headerTimedOut = false;
+    const onRequestAbort = () => requestController.abort(signal?.reason);
+    if (signal?.aborted) throw signal.reason;
+    signal?.addEventListener('abort', onRequestAbort, { once: true });
+    const headerTimer = setTimeout(() => {
+      headerTimedOut = true;
+      requestController.abort(
+        new ProtocolError(
+          'timeout',
+          `远端 Agent 下载响应超时（${Math.round(idleTimeoutMs / 1000)} 秒），请检查网络连接或代理配置。`,
+        ),
+      );
+    }, idleTimeoutMs);
     try {
-      response = await send(url, { redirect: 'manual', signal });
+      response = await send(url, { redirect: 'manual', signal: requestController.signal });
     } catch (error) {
       signal?.throwIfAborted();
+      if (headerTimedOut) {
+        throw new ProtocolError(
+          'timeout',
+          `远端 Agent 下载响应超时（${Math.round(idleTimeoutMs / 1000)} 秒），请检查网络连接或代理配置。`,
+        );
+      }
       if (error instanceof ProtocolError) throw error;
       throw unavailable(
         'SSH release download failed: ' + (error instanceof Error ? error.message : String(error)),
       );
+    } finally {
+      clearTimeout(headerTimer);
+      signal?.removeEventListener('abort', onRequestAbort);
     }
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       await response.body?.cancel();
@@ -69,7 +124,7 @@ async function download(
     });
     try {
       for (;;) {
-        const { done, value } = await reader.read();
+        const { done, value } = await readChunkWithIdleTimeout(reader, idleTimeoutMs, signal);
         if (done) break;
         length += value.byteLength;
         if (length > limit) throw unavailable('SSH bundle exceeds size limit');
@@ -114,6 +169,7 @@ export async function readBundle(
   target: string,
   send?: typeof fetch,
   signal?: AbortSignal,
+  idleTimeoutMs = DEFAULT_DOWNLOAD_IDLE_TIMEOUT_MS,
 ) {
   if (!targets.includes(target)) throw unavailable('Unsupported SSH target');
   const version: string = require('../../version.json').version;
@@ -188,6 +244,7 @@ export async function readBundle(
             send,
             signal,
             onProgress,
+            idleTimeoutMs,
           );
           downloaded = true;
         } else {
