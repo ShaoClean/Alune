@@ -25,22 +25,11 @@ export async function uploadArchive(
       bytesPerSecond: Math.round((transferred * 1000) / Math.max(1, now - started)),
     });
   };
-  let timer: NodeJS.Timeout | undefined;
   let abort: (() => void) | undefined;
   try {
     await new Promise<void>((resolve, reject) => {
       abort = () => reject(signal.reason);
       signal.addEventListener('abort', abort, { once: true });
-      timer = setTimeout(
-        () =>
-          reject(
-            new ProtocolError(
-              'timeout',
-              '远端 Agent 上传超时，60 秒内未收到传输进展或远端完成确认。请重新测试连接。',
-            ),
-          ),
-        60_000,
-      );
       report();
       open()
         .then((ch) => {
@@ -73,7 +62,6 @@ export async function uploadArchive(
               if (!active) return;
               if (error) return reject(error);
               transferred += chunk.length;
-              timer?.refresh();
               report();
               write();
             });
@@ -84,7 +72,6 @@ export async function uploadArchive(
     });
   } finally {
     active = false;
-    clearTimeout(timer);
     if (abort) signal.removeEventListener('abort', abort);
     // connectHost tears down the SSH session on any bootstrap failure.
   }

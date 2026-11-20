@@ -36,7 +36,7 @@ test(
 );
 
 for (const stage of ['open', 'write', 'confirmation']) {
-  test('stalled upload times out during ' + stage, async (t) => {
+  test('stalled upload remains cancellable during ' + stage, async (t) => {
     t.mock.timers.enable({ apis: ['setTimeout'] });
     const ch = Object.assign(new EventEmitter(), {
       resume() {},
@@ -47,9 +47,11 @@ for (const stage of ['open', 'write', 'confirmation']) {
       },
     });
     const open = () => (stage === 'open' ? new Promise(() => {}) : Promise.resolve(ch));
-    const waiting = uploadArchive(open, Buffer.from('archive'), new AbortController().signal);
+    const controller = new AbortController();
+    const waiting = uploadArchive(open, Buffer.from('archive'), controller.signal);
     await Promise.resolve();
-    t.mock.timers.tick(60_000);
-    await assert.rejects(waiting, { kind: 'timeout' });
+    t.mock.timers.tick(120_000);
+    controller.abort();
+    await assert.rejects(waiting, { name: 'AbortError' });
   });
 }
