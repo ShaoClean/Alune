@@ -1,11 +1,22 @@
-import { FeedbackAlert, OrbButton } from '@alune/ui';
-import { FeedbackNotice } from '@alune/ui';
-import { Button, Progress, Space, Spin, Typography } from '@alune/ui';
-import { CloudDownloadOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+  AluneModal,
+  Button,
+  DialogCard,
+  DialogHints,
+  DialogIcon,
+  DialogNote,
+  DialogProgress,
+  DialogStat,
+  DialogStats,
+  FeedbackNotice,
+  Kbd,
+  MoonLoader,
+  OrbButton,
+} from '@alune/ui';
+import { ReloadOutlined } from '@ant-design/icons';
 import type { DesktopUpdates, UpdateState } from '../types/desktop-updates';
+import { BrandIcon } from './BrandIcon';
 import { ReleaseNotes } from './ReleaseNotes';
-import { AluneModal, DialogHints, Kbd } from '@alune/ui';
-import { DialogCard, DialogNote, DialogProgress, DialogStat, DialogStats } from '@alune/ui';
 
 const labels: Record<UpdateState['status'], string> = {
   idle: '检查是否有新版本',
@@ -251,6 +262,26 @@ export function UpdatePanel({
   );
 }
 
+const platformLabel = (platform: string) =>
+  ({ darwin: 'macOS', win32: 'Windows', linux: 'Linux' })[platform] || platform;
+
+const statusTone = (state: UpdateState): 'neutral' | 'accent' | 'success' | 'danger' | 'warn' => {
+  if (!state.supported) return 'warn';
+  if (state.status === 'downloaded' || state.status === 'not-available') return 'success';
+  if (state.status === 'error') return 'danger';
+  if (['available', 'downloading', 'checking', 'installing'].includes(state.status)) {
+    return 'accent';
+  }
+  return 'neutral';
+};
+
+const notesBadgeLabel = (status: UpdateState['status']) => {
+  if (status === 'downloaded') return '已校验就绪';
+  if (status === 'downloading') return '下载中';
+  if (status === 'installing') return '准备安装';
+  return '新版本说明';
+};
+
 export function UpdatePanelContent({
   state,
   error,
@@ -261,88 +292,235 @@ export function UpdatePanelContent({
   invoke: Invoke;
 }) {
   const { busy, ready, canDownload } = updateActions(state);
+  const downloading = state?.status === 'downloading';
+  const hasLatest = Boolean(state?.latestVersion && state.status !== 'not-available');
+  const tone = state ? statusTone(state) : 'neutral';
+  const percent = state?.progress ? Math.min(100, Math.max(0, Math.floor(state.progress.percent))) : 0;
+
   return (
     <div className="update-panel" data-testid="update-panel">
-      {error && <Typography.Paragraph type="danger">{error}</Typography.Paragraph>}
+      {error && (
+        <div className="update-callout" data-tone="danger" role="alert">
+          <DialogIcon name="warning" className="update-callout__icon" />
+          <div className="update-callout__body">
+            <p className="update-callout__title">无法连接桌面更新服务</p>
+            <p className="update-callout__desc">{error}</p>
+          </div>
+          <Button size="small" onClick={() => void invoke('getState')}>
+            重新连接
+          </Button>
+        </div>
+      )}
+
       {!state ? (
-        <Spin tip="正在读取版本信息">
-          <div style={{ minHeight: 80 }} />
-        </Spin>
+        <section className="update-hero update-hero--loading" data-tone="neutral">
+          <div className="update-hero__loading" role="status">
+            <MoonLoader />
+            <span>正在读取版本信息…</span>
+          </div>
+        </section>
       ) : (
         <>
-          <div className="update-panel__versions">
-            <div>
-              <Typography.Text type="secondary">当前版本</Typography.Text>
-              <strong>v{state.currentVersion}</strong>
+          <section className="update-hero" data-tone={tone}>
+            <div className="update-hero__top">
+              <div className="update-hero__identity">
+                <div className="update-hero__mascot">
+                  <BrandIcon className="update-hero__mascot-img" />
+                </div>
+                <div className="update-hero__summary">
+                  <div className="update-hero__status-row">
+                    <span className="update-status-pill" data-tone={tone} role="status">
+                      <span
+                        className={`update-status-pill__dot${busy ? ' is-pulsing' : ''}`}
+                        aria-hidden="true"
+                      />
+                      {!state.supported ? '当前运行方式不支持更新' : labels[state.status]}
+                    </span>
+                  </div>
+                  <div className="update-hero__versions">
+                    <span className="update-hero__current">Alune v{state.currentVersion}</span>
+                    {hasLatest && state.latestVersion && (
+                      <>
+                        <span className="update-hero__arrow" aria-hidden="true">
+                          <DialogIcon name="arrow-right" />
+                        </span>
+                        <span className={`update-hero__target${ready ? ' is-ready' : ''}`}>
+                          v{state.latestVersion}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="update-hero__actions">
+                {downloading ? (
+                  <Button onClick={() => void invoke('cancel')}>取消下载</Button>
+                ) : ready ? (
+                  <OrbButton icon="refresh" onClick={() => void invoke('install')}>
+                    重启安装
+                  </OrbButton>
+                ) : canDownload ? (
+                  <>
+                    <Button
+                      icon={<ReloadOutlined />}
+                      disabled={!state.supported || busy}
+                      onClick={() => void invoke('check')}
+                    >
+                      检查更新
+                    </Button>
+                    <OrbButton
+                      icon={state.error ? 'refresh' : 'download'}
+                      onClick={() => void invoke('download')}
+                    >
+                      {state.error ? '重新下载' : '下载更新'}
+                    </OrbButton>
+                  </>
+                ) : state.supported && !busy ? (
+                  <OrbButton icon="refresh" onClick={() => void invoke('check')}>
+                    检查更新
+                  </OrbButton>
+                ) : (
+                  <Button
+                    icon={<ReloadOutlined />}
+                    loading={state.status === 'checking'}
+                    disabled={!state.supported || busy}
+                    onClick={() => void invoke('check')}
+                  >
+                    {state.status === 'checking' ? '正在检查…' : '检查更新'}
+                  </Button>
+                )}
+              </div>
             </div>
-            {state.latestVersion && (
-              <div>
-                <Typography.Text type="secondary">最新版本</Typography.Text>
-                <strong>v{state.latestVersion}</strong>
+
+            {state.progress ? (
+              <div className="update-hero__progress">
+                <div className="update-hero__progress-head">
+                  <span className="update-hero__progress-title">
+                    正在下载 Alune{state.latestVersion ? ` v${state.latestVersion}` : ''} ·{' '}
+                    {percent}%
+                  </span>
+                  <span className="update-hero__progress-stats">
+                    {bytes(state.progress.transferred)} / {bytes(state.progress.total)} ·{' '}
+                    {bytes(state.progress.bytesPerSecond)}/s
+                  </span>
+                </div>
+                <div
+                  className="update-progress-track"
+                  role="progressbar"
+                  aria-valuenow={percent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div className="update-progress-bar" style={{ width: `${percent}%` }} />
+                </div>
+              </div>
+            ) : state.status === 'checking' || state.status === 'installing' ? (
+              <div className="update-hero__progress">
+                <div className="update-hero__progress-head">
+                  <span className="update-hero__progress-title">
+                    {state.status === 'checking'
+                      ? '正在连接 GitHub Releases 获取最新版本信息…'
+                      : '正在校验并准备重启安装新版本…'}
+                  </span>
+                  <span className="update-hero__progress-stats">
+                    {state.status === 'checking' ? '检测中' : '请勿强制退出'}
+                  </span>
+                </div>
+                <div className="update-progress-track" role="progressbar" aria-busy="true">
+                  <div className="update-progress-bar is-indeterminate" />
+                </div>
+              </div>
+            ) : (
+              <div className="update-hero__ribbon">
+                <div className="update-ribbon-cell">
+                  <span className="update-ribbon-cell__label">当前版本</span>
+                  <span className="update-ribbon-cell__value is-mono">v{state.currentVersion}</span>
+                </div>
+                <div className="update-ribbon-cell">
+                  <span className="update-ribbon-cell__label">最新版本</span>
+                  <span className="update-ribbon-cell__value is-mono">
+                    {hasLatest && state.latestVersion
+                      ? `v${state.latestVersion}`
+                      : state.status === 'not-available'
+                        ? `v${state.currentVersion}（一致）`
+                        : '未检查'}
+                  </span>
+                </div>
+                <div className="update-ribbon-cell">
+                  <span className="update-ribbon-cell__label">运行平台</span>
+                  <span className="update-ribbon-cell__value">{platformLabel(state.platform)}</span>
+                </div>
+                <div className="update-ribbon-cell">
+                  <span className="update-ribbon-cell__label">安装方式</span>
+                  <span className="update-ribbon-cell__value">下载校验后重启安装</span>
+                </div>
               </div>
             )}
-          </div>
-          <Typography.Text type="secondary" role="status">
-            {labels[state.status]}
-          </Typography.Text>
+          </section>
+
           {!state.supported && (
-            <FeedbackAlert
-              source="UpdatePanel-1"
-              type="info"
-              title="当前运行方式不支持更新"
-              description="请使用已安装的正式桌面应用。Linux 需要运行 AppImage；开发环境不连接更新源。"
-            />
-          )}
-          {state.progress && (
-            <div>
-              <Progress percent={Math.floor(state.progress.percent)} />
-              <Typography.Text type="secondary">
-                {bytes(state.progress.transferred)} / {bytes(state.progress.total)} ·{' '}
-                {bytes(state.progress.bytesPerSecond)}/s
-              </Typography.Text>
+            <div className="update-callout" data-tone="info" role="status">
+              <DialogIcon name="info" className="update-callout__icon" />
+              <div className="update-callout__body">
+                <p className="update-callout__title">当前运行方式不支持更新</p>
+                <p className="update-callout__desc">
+                  请使用已安装的正式桌面应用。Linux 需要运行 AppImage；开发环境不连接更新源。
+                </p>
+              </div>
             </div>
           )}
-          {state.latestVersion && (
-            <div className="update-panel__notes">
-              <Typography.Text strong>更新说明</Typography.Text>
-              <ReleaseNotes notes={state.releaseNotes} />
+
+          {state.error && (
+            <div className="update-callout" data-tone="danger" role="alert">
+              <DialogIcon name="warning" className="update-callout__icon" />
+              <div className="update-callout__body">
+                <p className="update-callout__title">版本更新未完成</p>
+                <p className="update-callout__desc">{state.error.message}</p>
+              </div>
             </div>
           )}
-          <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-            下载完成后，点击“重启安装”将关闭当前 SSH
-            连接，安装新版本并重新打开应用。普通退出不会自动安装。
-          </Typography.Paragraph>
-          <Space wrap>
-            <Button
-              icon={<ReloadOutlined />}
-              loading={state.status === 'checking'}
-              disabled={!state.supported || busy || ready}
-              onClick={() => void invoke('check')}
-            >
-              检查更新
-            </Button>
-            {canDownload && (
-              <Button
-                type="primary"
-                icon={<CloudDownloadOutlined />}
-                onClick={() => void invoke('download')}
-              >
-                {state.error ? '重新下载' : '下载更新'}
-              </Button>
-            )}
-            {state.status === 'downloading' && (
-              <Button onClick={() => void invoke('cancel')}>取消下载</Button>
-            )}
-            {ready && (
-              <Button
-                type="primary"
-                icon={<ReloadOutlined />}
-                onClick={() => void invoke('install')}
-              >
-                重启安装
-              </Button>
-            )}
-          </Space>
+
+          {hasLatest && state.latestVersion ? (
+            <section className="update-notes-card">
+              <div className="update-notes-card__head">
+                <div className="update-notes-card__title">
+                  <span>更新说明</span>
+                  <span className="update-chip">v{state.latestVersion}</span>
+                </div>
+                <span className="update-chip">{notesBadgeLabel(state.status)}</span>
+              </div>
+              <div className="update-notes-card__body">
+                <div className="update-notes-card__prose">
+                  <ReleaseNotes notes={state.releaseNotes} />
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="update-quiet-card">
+              <div className="update-quiet-card__icon" aria-hidden="true">
+                <DialogIcon name={state.status === 'not-available' ? 'check' : 'download'} />
+              </div>
+              <strong>
+                {state.status === 'not-available'
+                  ? '当前已是最新稳定版本'
+                  : '准备就绪，随时检查新版本'}
+              </strong>
+              <span>
+                {state.status === 'not-available'
+                  ? `你的 Alune v${state.currentVersion} 与 GitHub Releases 最新稳定版一致。新版本发布后，更新说明会直接展示在这里。`
+                  : '点击右上角「检查更新」获取最新稳定版和完整更新说明。下载过程支持后台持续进行。'}
+              </span>
+            </section>
+          )}
+
+          <div className="update-footnote">
+            <DialogIcon name="info" className="update-footnote__icon" />
+            <span>
+              下载完成后，点击“重启安装”将关闭当前 SSH
+              连接，安装新版本并重新打开应用。普通退出不会自动安装。
+            </span>
+          </div>
         </>
       )}
     </div>

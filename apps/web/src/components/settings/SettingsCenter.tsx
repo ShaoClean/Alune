@@ -103,9 +103,14 @@ export function SettingsCenter({
           <LayoutSettingsContent />
         </div>
       ) : category.id === 'updates' ? (
-        <div className="settings-page-content">
-          <h1>版本更新</h1>
-          <p className="settings-lead">检查与安装 Alune 的新版本。离开设置后下载会继续。</p>
+        <div className="settings-page-content settings-page-content--updates">
+          <div className="update-page-header">
+            <div>
+              <h1>版本更新</h1>
+              <p className="settings-lead">检查与安装 Alune 的新版本。离开设置后下载会继续。</p>
+            </div>
+            <span className="update-source-chip">GitHub Releases</span>
+          </div>
           {updates.isDesktop ? (
             <UpdatePanelContent
               state={updates.state}
@@ -113,12 +118,20 @@ export function SettingsCenter({
               invoke={updates.invoke}
             />
           ) : (
-            <FeedbackAlert
-              source="SettingsCenter-1"
-              type="info"
-              title="当前运行方式不支持更新"
-              description="请使用已安装的正式桌面应用。Linux 需要运行 AppImage；开发环境不连接更新源。"
-            />
+            <div className="update-callout" data-tone="info" role="status">
+              <div className="update-callout__body">
+                <p className="update-callout__title">当前运行方式不支持更新</p>
+                <p className="update-callout__desc">
+                  请使用已安装的正式桌面应用。Linux 需要运行 AppImage；开发环境不连接更新源。
+                </p>
+              </div>
+              <FeedbackAlert
+                source="SettingsCenter-1"
+                type="info"
+                title="当前运行方式不支持更新"
+                description="请使用已安装的正式桌面应用。Linux 需要运行 AppImage；开发环境不连接更新源。"
+              />
+            </div>
           )}
         </div>
       ) : (
