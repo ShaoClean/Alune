@@ -9,7 +9,7 @@ import {
   DownOutlined,
   PlusOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { gitApi } from '../api';
 import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { useBranchSwitch } from '../hooks/useBranchSwitch';

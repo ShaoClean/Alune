@@ -14,7 +14,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import type { AiModel, AiProvider, AiSettings, SaveAiProvider } from '@alune/protocol';
 import { aiApi, aiError } from '../../api/ai';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';

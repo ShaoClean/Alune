@@ -11,7 +11,7 @@ import {
   KeyOutlined,
   GlobalOutlined,
   ProfileOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
 import type { useDesktopUpdates } from '../../hooks/useDesktopUpdates';
 import { ProviderSettings } from './ProviderSettings';

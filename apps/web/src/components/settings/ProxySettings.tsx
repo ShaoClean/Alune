@@ -11,7 +11,7 @@ import {
   ReloadOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { useBlocker, useNavigate } from 'react-router-dom';
 import type {
   NetworkProxyConfig,

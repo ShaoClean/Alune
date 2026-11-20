@@ -1,14 +1,14 @@
 :root {
   color-scheme: light;
   --content: #f8f5fb;
-  --surface: #fffdfd;
+  --surface: #ffffff;
   --surface-raised: #ffffff;
-  --surface-muted: #f5f0f7;
-  --surface-hover: #f1e6f5;
-  --text: #382c47;
-  --text-muted: #695a75;
+  --surface-muted: #f8f5fb;
+  --surface-hover: #efe6f6;
+  --text: #2d213a;
+  --text-muted: #625372;
   --text-faint: var(--text-muted);
-  --line: #e6ddea;
+  --line: #e9e0ef;
   --line-strong: #86758f;
   --accent: #7549a3;
   --selected: #ebdff9;
@@ -21,6 +21,7 @@
   --brand-lavender: #c7adf9;
   --brand-rose: #edacd5;
   --brand-peach: #ffc099;
+  --icon-duo-fill: color-mix(in srgb, var(--brand-lavender) 34%, var(--brand-peach) 22%);
   --green: #296b52;
   --green-soft: #e9f7ef;
   --green-line: #a5cdbb;
@@ -52,24 +53,27 @@
   --diff-add: #e9f7ef;
   --diff-remove: #fcecef;
   --diff-meta: #eaf0fc;
-  --scrollbar: var(--line-strong);
+  --scrollbar: var(--hair-strong);
   --overlay: rgb(43 28 54 / 48%);
   --highlight: rgb(255 255 255 / 80%);
   --shadow-color: rgb(74 45 90 / 10%);
   --focus-soft: color-mix(in srgb, var(--focus) 18%, transparent);
   --shadow-sm: 0 1px 2px var(--shadow-color);
-  --shadow-md: 0 8px 24px var(--shadow-color);
+  --shadow-md: 0 8px 24px -8px var(--shadow-color);
   --shadow-card: var(--shadow-sm);
+  --shadow-island: 0 1px 2px rgb(45 33 58 / 4%), 0 10px 28px -14px rgb(68 42 92 / 12%);
+  --shell-bg: var(--sidebar-bg);
+  --island-bg: var(--surface);
   --graph-1: var(--accent);
   --graph-2: var(--purple);
   --graph-3: var(--green);
   --graph-4: var(--orange);
   --graph-5: var(--red);
   --graph-6: var(--cyan);
-  --radius-control: 14px;
+  --radius-control: 8px;
   --radius-compact: 8px;
   --radius-row: 6px;
-  --radius-panel: 16px;
+  --radius-panel: 12px;
   --space-control-gap: 8px;
   --motion-hover: 140ms;
   --motion-select: 160ms;
@@ -86,10 +90,10 @@
   --dlg-font-mono: var(--font-mono);
   --moon-indigo: var(--brand-lavender);
   --moon-cyan: var(--brand-peach);
-  --hair: color-mix(in srgb, var(--text) 10%, transparent);
-  --hair-strong: color-mix(in srgb, var(--text) 20%, transparent);
+  --hair: color-mix(in srgb, var(--text) 8.5%, transparent);
+  --hair-strong: color-mix(in srgb, var(--text) 16%, transparent);
   --dlg-scrim: rgb(48 31 58 / 28%);
-  --dlg-halo-a: color-mix(in srgb, var(--brand-lavender) 24%, transparent);
+  --dlg-halo-a: color-mix(in srgb, var(--brand-lavender) 20%, transparent);
   --dlg-halo-b: color-mix(in srgb, var(--brand-peach) 16%, transparent);
   --dlg-shell-bg: rgb(255 250 254 / 68%);
   --dlg-shell-ring: var(--hair);
@@ -101,46 +105,47 @@
   --dlg-shadow: 0 2px 4px var(--shadow-color), 0 24px 64px -22px rgb(68 39 82 / 38%);
   --pop-shadow: 0 2px 4px var(--shadow-color), 0 12px 32px -12px rgb(68 39 82 / 28%);
   --tone-rim-default: color-mix(in srgb, var(--accent) 60%, transparent);
-  --field-bg: #faf7fc;
-  --field-ring: var(--line-strong);
+  --field-bg: #faf8fc;
+  --field-ring: var(--hair-strong);
   --field-ring-hover: var(--accent);
-  --field-inset: var(--shadow-color);
+  --field-inset: rgb(45 33 58 / 3%);
   --chip-bg: var(--surface-muted);
-  --chip-ring: var(--line);
+  --chip-ring: var(--hair);
   --kbd-bg: var(--surface-raised);
   --kbd-ring: var(--hair-strong);
   --seg-bg: var(--surface-muted);
-  --seg-thumb: var(--selected);
+  --seg-thumb: var(--surface);
   --card-shell: var(--surface-muted);
   --card-core: var(--surface-raised);
-  --hover-veil: color-mix(in srgb, var(--accent) 8%, transparent);
-  --btn-ghost-ring: var(--line-strong);
+  --hover-veil: color-mix(in srgb, var(--accent) 7%, transparent);
+  --btn-ghost-ring: var(--hair-strong);
   --btn-primary-bg: linear-gradient(
-    110deg,
+    112deg,
     var(--brand-lavender),
-    var(--brand-rose) 56%,
+    var(--brand-rose) 54%,
     var(--brand-peach)
   );
-  --btn-primary-hover: linear-gradient(110deg, #d3bafb, #f6bade 56%, #ffcfaf);
+  --btn-primary-hover: linear-gradient(112deg, #d1b7fb, #f4b6dc 54%, #ffcca9);
   /* Progress fills use the same dusk palette on both reading surfaces. */
   --progress-fill: linear-gradient(90deg, #b99be3, #efb38e);
   --progress-stroke: #d0a5f4;
   --progress-success: #81b89f;
   --progress-error: #cf8e9e;
-  --btn-primary-shadow: 0 2px 6px var(--shadow-color);
+  --btn-primary-shadow:
+    0 2px 8px -2px rgb(178 114 168 / 42%), inset 0 1px 0 rgb(255 255 255 / 48%);
   --btn-danger-bg: linear-gradient(180deg, #ad4259, #94334c);
   --btn-danger-hover: linear-gradient(180deg, #a13a50, #872d43);
   --btn-danger-on: #ffffff;
-  --btn-danger-shadow: var(--btn-primary-shadow);
+  --btn-danger-shadow: 0 2px 6px var(--shadow-color);
   --orb-bg: rgb(255 255 255 / 24%);
   --orb-ring: rgb(73 40 81 / 24%);
   --sw-off: var(--line-strong);
   --shell-pad: 6px;
   --r-shell: 22px;
-  --r-core: var(--radius-panel);
+  --r-core: 16px;
   --r-card: 12px;
   --r-field: var(--radius-control);
-  --r-chip: 7px;
+  --r-chip: 6px;
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-orbit: cubic-bezier(0.55, 0.12, 0.45, 0.88);
@@ -171,6 +176,7 @@
   --brand-lavender: #b99be3;
   --brand-rose: #dea0c6;
   --brand-peach: #efb38e;
+  --icon-duo-fill: color-mix(in srgb, var(--brand-lavender) 32%, var(--brand-peach) 22%);
   --green: #94d5b8;
   --green-soft: #203629;
   --green-line: #47765e;
@@ -193,8 +199,14 @@
   --diff-remove: #431d27;
   --diff-meta: #253654;
   --overlay: rgb(15 9 21 / 65%);
-  --highlight: rgb(255 227 244 / 13%);
+  --highlight: rgb(255 232 246 / 8%);
   --shadow-color: rgb(10 6 16 / 30%);
+  --shadow-island: 0 1px 2px rgb(0 0 0 / 30%), 0 16px 40px -18px rgb(0 0 0 / 60%);
+  --shell-bg: var(--content);
+  --island-bg: var(--surface);
+  --seg-thumb: var(--selected);
+  --btn-primary-shadow:
+    0 2px 10px -2px rgb(10 5 18 / 55%), inset 0 1px 0 rgb(255 255 255 / 32%);
   --dlg-scrim: rgb(16 10 23 / 58%);
   --dlg-shell-bg: rgb(68 53 78 / 85%);
   --dlg-shadow: 0 2px 4px var(--shadow-color), 0 24px 64px -22px rgb(10 5 14 / 75%);

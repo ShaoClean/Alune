@@ -18,7 +18,7 @@ import {
   PauseOutlined,
   CaretRightOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { LOG_LEVELS, LOGGING_LIMITS, type LogEntry, type LogLevel } from '@alune/protocol';
 import { logBridge, loggingApi, loggingError } from '../api/logging';
 import '../logs.css';

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LaptopOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
+import { LaptopOutlined, CloudServerOutlined, SyncOutlined } from '@alune/ui/icons';
 import type { Repository } from '@alune/domain';
 import { useNavigate } from 'react-router-dom';
 import { useConnectionStore } from '../stores/connectionStore';
@@ -7,7 +7,7 @@ import { connectionStatus, connectionStatusLabel } from '../stores/connectionSta
 import { RepositorySwitcher } from './RepositorySwitcher';
 import { FeedbackStatusButton, StatusButton } from '@alune/ui';
 import { useSyncStatusStore } from '../stores/syncStatusStore';
-import { CodeOutlined } from '@ant-design/icons';
+import { CodeOutlined } from '@alune/ui/icons';
 import { useTerminalStore } from '../stores/terminalState';
 
 export function WorkspaceStatusBar({

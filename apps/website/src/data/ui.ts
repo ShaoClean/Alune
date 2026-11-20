@@ -220,6 +220,17 @@ export const documents: UIDocument[] = [
     keywords: ['FolderIcon', '文件夹图标', 'UI', 'FolderIcon', 'FolderIconProps'],
   },
   {
+    slug: 'alune-icon',
+    title: 'AluneIcon',
+    subtitle: '月光双色图标',
+    description: '对齐 Peach glow 小月兽视觉基因的 24px 柔角双色图标系统，支持旋转与单色模式。',
+    exports: ['AluneIcon', 'AluneIconProps', 'AluneIconName'],
+    source: 'packages/ui/src/components/AluneIcons.tsx',
+    examples: ['icons'],
+    category: 'Alune 组件',
+    keywords: ['AluneIcon', '月光双色图标', '图标', 'UI', 'AluneIconProps', 'AluneIconName'],
+  },
+  {
     slug: 'dialog-icon',
     title: 'DialogIcon',
     subtitle: '弹窗图标',

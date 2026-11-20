@@ -14,7 +14,7 @@ import {
   PlusOutlined,
   SearchOutlined,
   BranchesOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { RepositoryTabs } from './RepositoryTabs';
@@ -34,6 +34,7 @@ import { DesktopUpdateFeedback } from './UpdatePanel';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { RepositoryWorkspaceHost } from '../pages/RepositoryDetailPage';
 import { workspaceListId } from '../hooks/useRepositoryWorkspace';
+import { BrandIcon } from './BrandIcon';
 
 const navItems = [
   { key: '/connections', label: '连接', icon: <ApartmentOutlined /> },
@@ -442,7 +443,14 @@ export function Layout() {
           inert={!sidebarVisible}
         >
           <div className="app-sidebar__header">
-            <strong>{isSettings ? '设置' : '工作区'}</strong>
+            {isSettings ? (
+              <strong>设置</strong>
+            ) : (
+              <div className="app-sidebar__brand">
+                <BrandIcon className="app-sidebar__brand-mark" />
+                <strong>Alune</strong>
+              </div>
+            )}
             <div className="app-sidebar__header-actions">
               {isSettings ? (
                 <Button

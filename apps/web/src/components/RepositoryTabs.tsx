@@ -7,7 +7,7 @@ import {
   CloudServerOutlined,
   LaptopOutlined,
   PlusOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import type { Repository } from '@alune/domain';
 import { RepositoryIdentity, RepositoryIdentityTooltip } from './RepositoryIdentity';
 import { repositoryAccessibleName } from '../stores/repositoryLabels';

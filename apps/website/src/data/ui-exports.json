@@ -107,6 +107,18 @@
     "source": "packages/ui/src/components/AlunePopconfirm.tsx",
     "type": true
   },
+  "AluneIcon": {
+    "source": "packages/ui/src/components/AluneIcons.tsx",
+    "type": false
+  },
+  "AluneIconName": {
+    "source": "packages/ui/src/components/AluneIcons.tsx",
+    "type": true
+  },
+  "AluneIconProps": {
+    "source": "packages/ui/src/components/AluneIcons.tsx",
+    "type": true
+  },
   "DialogIcon": {
     "source": "packages/ui/src/components/DialogIcons.tsx",
     "type": false

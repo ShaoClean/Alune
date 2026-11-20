@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AimOutlined, CloseOutlined, CheckOutlined } from '@ant-design/icons';
+import { AimOutlined, CloseOutlined, CheckOutlined } from '@alune/ui/icons';
 import { AlunePopconfirm, Button, useAluneConfirm, useFeedbackMessage } from '@alune/ui';
 import { parseConflictMarkers } from '@alune/domain';
 import type {

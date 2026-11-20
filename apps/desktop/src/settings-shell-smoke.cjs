@@ -271,7 +271,11 @@ module.exports = async ({ window, origin, repositoryId, candidate = false }) => 
       await wait("!document.querySelector('.feedback-dialog[open]')");
     }
     assert.equal(
-      await execute("document.querySelector('.proxy-savebar').getBoundingClientRect().bottom"),
+      await execute(`(() => {
+        const savebar = document.querySelector('.proxy-savebar');
+        const panel = savebar.closest('.app-main');
+        return savebar.getBoundingClientRect().bottom + parseFloat(getComputedStyle(panel).borderBottomWidth);
+      })()`),
       await execute("document.querySelector('.status-bar').getBoundingClientRect().top"),
     );
     await fill('[aria-label="代理服务器地址"]', 'draft.example.invalid');

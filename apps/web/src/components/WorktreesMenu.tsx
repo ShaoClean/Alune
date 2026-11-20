@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Popover } from '@alune/ui';
-import { ClusterOutlined } from '@ant-design/icons';
+import { ClusterOutlined } from '@alune/ui/icons';
 import { ToolbarButton } from '@alune/ui';
 import { WorktreesPanel } from './WorktreesPanel';
 import { useMenuAlign } from '../hooks/useMenuAlign';

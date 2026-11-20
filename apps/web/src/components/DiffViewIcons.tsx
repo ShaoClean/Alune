@@ -10,12 +10,13 @@ function ViewIcon({ children }: { children: ReactNode }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <rect className="alune-ic__duo" x="3.5" y="4.5" width="17" height="15" rx="3.5" />
+      <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
       {children}
     </svg>
   );

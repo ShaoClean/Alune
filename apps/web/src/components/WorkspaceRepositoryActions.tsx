@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CopyOutlined, DeleteOutlined, MoreOutlined } from '@ant-design/icons';
+import { CopyOutlined, DeleteOutlined, MoreOutlined } from '@alune/ui/icons';
 import { Popover, useFeedbackMessage } from '@alune/ui';
 import type { Repository } from '@alune/domain';
 import { RemoveRepositoryConfirm } from './AlunePopconfirm';

@@ -10,7 +10,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
   SwapOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { gitApi } from '../api';
 import { useBranchSwitch } from '../hooks/useBranchSwitch';

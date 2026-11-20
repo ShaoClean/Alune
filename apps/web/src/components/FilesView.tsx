@@ -15,7 +15,7 @@ import {
   LockOutlined,
   MinusSquareOutlined,
   RightOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { DIFF_IMAGE_MAX_BYTES, REPOSITORY_TREE_MAX_ENTRIES } from '@alune/domain';
 import type { FileStatus, RepositoryFilePreview, RepositoryTreeEntry } from '@alune/domain';
 import { repositoryApi } from '../api';

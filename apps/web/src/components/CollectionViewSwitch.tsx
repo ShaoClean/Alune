@@ -1,4 +1,4 @@
-import { AppstoreOutlined, UnorderedListOutlined, BarChartOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, UnorderedListOutlined, BarChartOutlined } from '@alune/ui/icons';
 import { ViewSwitch } from '@alune/ui';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import type { CollectionPage } from '../stores/workspaceStore';

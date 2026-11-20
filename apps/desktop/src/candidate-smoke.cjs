@@ -5,9 +5,9 @@ const path = require('node:path');
 module.exports = async ({ window, origin, backend, logWindow, updates }) => {
   const { repo, id } = JSON.parse(process.env.ALUNE_CANDIDATE_FIXTURE);
   const phase = process.env.ALUNE_SMOKE_PHASE;
-  const wait = (contents, test, label = test) =>
+  const wait = (contents, test, label = test, timeoutMs = 20_000) =>
     contents.executeJavaScript(`new Promise((resolve,reject)=>{
-      const until=Date.now()+20000;
+      const until=Date.now()+${timeoutMs};
       async function poll(){
         try{
           if(await (${test}))return resolve(true);

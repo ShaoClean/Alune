@@ -5,7 +5,7 @@ import {
   FolderOpenOutlined,
   ProfileOutlined,
   RollbackOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import {
   LOG_LEVELS,
   LOGGING_LIMITS,

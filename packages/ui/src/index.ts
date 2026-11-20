@@ -31,6 +31,8 @@ export type {
 } from './components/AluneModal';
 export { AlunePopconfirm } from './components/AlunePopconfirm';
 export type { AlunePopconfirmProps } from './components/AlunePopconfirm';
+export { AluneIcon } from './components/AluneIcons';
+export type { AluneIconName, AluneIconProps } from './components/AluneIcons';
 export { DialogIcon } from './components/DialogIcons';
 export {
   DialogField,

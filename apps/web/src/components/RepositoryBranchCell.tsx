@@ -1,4 +1,4 @@
-import { BranchesOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { BranchesOutlined, DisconnectOutlined } from '@alune/ui/icons';
 import { MoonLoader, Tooltip } from '@alune/ui';
 import { useRepositoryVisibility } from '../hooks/useRepositoryStatus';
 import type { RepositoryBranchSummary } from '../stores/repositoryBranchOverview';

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Button, Dropdown, FeedbackAlert, Tooltip } from '@alune/ui';
 import type { MenuProps } from 'antd';
-import { EllipsisOutlined, SelectOutlined } from '@ant-design/icons';
+import { EllipsisOutlined, SelectOutlined } from '@alune/ui/icons';
 import { parsePatchHunks } from '@alune/domain';
 import type { PartialDiffAction, PartialDiffSelection } from '@alune/domain';
 import { gitApi } from '../api';

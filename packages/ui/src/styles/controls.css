@@ -1,6 +1,6 @@
 .ant-btn {
   border-radius: var(--radius-control);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
   box-shadow: none;
   transition:
@@ -107,19 +107,19 @@
 
 .ant-form-item-label > label {
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .ant-select-dropdown {
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  box-shadow: var(--shadow-md);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-card);
+  box-shadow: var(--pop-shadow);
 }
 
 .ant-tag {
-  border-radius: 6px;
-  font-size: 10px;
+  border-radius: var(--r-chip);
+  font-size: 11px;
 }
 
 .status-badge__dot {
@@ -155,8 +155,8 @@
   height: 30px;
   color: var(--blue);
   background: var(--blue-soft);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-compact);
   box-shadow: inset 0 1px var(--highlight);
 }
 
@@ -172,7 +172,7 @@
 .panel-header__title-wrap .ant-typography {
   display: block;
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .panel-header__actions {
@@ -188,10 +188,10 @@
   height: 20px;
   padding: 0 6px;
   color: var(--text-muted);
-  background: var(--content);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  font-size: 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -227,12 +227,12 @@
   align-items: center;
   gap: 6px;
   width: max-content;
-  padding: 4px 8px;
+  padding: 3px 9px;
   color: var(--text-muted);
   background: var(--surface-muted);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  font-size: 10px;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  font-size: 11.5px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -559,8 +559,8 @@
   max-width: 100%;
   gap: 2px;
   padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: calc(var(--radius-compact) + 4px);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-control);
   background: var(--seg-bg);
 }
 .collection-view-switch button {
@@ -574,19 +574,23 @@
   color: var(--text-muted);
   background: transparent;
   border: 0;
-  border-radius: var(--radius-compact);
+  border-radius: var(--radius-row);
   font: inherit;
   font-size: 12px;
+  font-weight: 500;
   overflow-wrap: anywhere;
   cursor: pointer;
 }
 .collection-view-switch button:enabled:hover {
-  background: var(--surface-hover);
+  color: var(--text);
+  background: var(--hover-veil);
 }
 .collection-view-switch button[aria-pressed='true'] {
   color: var(--accent);
   background: var(--seg-thumb);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 0 0 1px var(--hair);
   font-weight: 600;
 }
 .collection-view-switch button:enabled:active {
@@ -652,15 +656,15 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  gap: 4px;
-  height: 28px;
-  min-width: 28px;
-  padding: 0 6px;
+  gap: 5px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 7px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-row);
   color: var(--text-muted);
   background: transparent;
-  font-size: 11px;
+  font-size: 11.5px;
   white-space: nowrap;
   transition:
     color 140ms ease,
@@ -709,14 +713,15 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 28px;
-  min-width: 28px;
-  padding: 0 8px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 9px;
   color: var(--text-muted);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: var(--radius-row);
+  font-size: 12.5px;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -739,15 +744,15 @@
 .toolbar-count {
   display: inline-flex;
   align-items: center;
-  height: 16px;
+  height: 17px;
   padding: 0 5px;
-  color: var(--text-muted);
-  background: var(--blue-soft);
-  border-radius: var(--radius-panel);
+  color: var(--accent);
+  background: var(--surface);
+  border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .toolbar-count--behind {
@@ -757,8 +762,8 @@
 
 .toolbar-button:hover,
 .toolbar-button[aria-expanded='true'] {
-  color: var(--blue);
-  background: var(--blue-soft);
+  color: var(--text);
+  background: var(--hover-veil);
 }
 
 .toolbar-button:focus-visible {
@@ -773,22 +778,24 @@
 }
 
 .toolbar-button--nav.toolbar-button--active {
-  color: var(--blue);
+  color: var(--accent);
   background: var(--blue-soft);
-  border-color: var(--line);
+  border-color: transparent;
+  font-weight: 600;
 }
 
 .toolbar-button--action {
-  color: var(--text-muted);
-  border-color: var(--line);
+  color: var(--text);
+  border-color: var(--hair-strong);
   background: var(--surface);
+  border-radius: var(--radius-control);
 }
 
 .toolbar-button--action:hover,
 .toolbar-button--action[aria-expanded='true'] {
-  color: var(--blue);
-  background: var(--blue-soft);
-  border-color: var(--line);
+  color: var(--text);
+  background: var(--hover-veil);
+  border-color: var(--hair-strong);
 }
 
 .toolbar-button--primary {
@@ -833,6 +840,54 @@
 
 .ant-message-notice-content {
   animation: moonlight-content var(--motion-result) var(--ease-enter);
+}
+
+@keyframes alune-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.alune-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  vertical-align: -0.125em;
+  color: inherit;
+  flex: none;
+}
+
+.alune-icon > svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.alune-ic__duo {
+  fill: var(--icon-duo-fill);
+  stroke: none;
+}
+
+.alune-icon--monoline .alune-ic__duo,
+:is(.status-button, .files-tree__twisty, .ant-btn-sm) .alune-ic__duo {
+  fill-opacity: 0.45;
+}
+
+:is(.ant-btn-primary, .ant-btn-dangerous) .alune-ic__duo {
+  fill: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.alune-icon--spin > svg {
+  animation: alune-icon-spin var(--motion-wait) linear infinite;
 }
 
 .anticon-spin {
@@ -961,7 +1016,9 @@
   color: var(--brand-on);
   background: var(--btn-primary-bg);
   border-color: transparent;
-  box-shadow: none;
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  box-shadow: var(--btn-primary-shadow);
 }
 
 .toolbar-button--primary:not(:disabled):not([aria-disabled='true']):is(
@@ -975,25 +1032,24 @@
 
 .toolbar-button--primary .toolbar-count {
   color: inherit;
-  background: transparent;
+  background: rgb(255 255 255 / 34%);
 }
 
 .toolbar-button--primary:is(:disabled, [aria-disabled='true']) {
   color: var(--text-muted);
   background: var(--surface-hover);
-  border-color: var(--line);
+  border-color: var(--hair);
   box-shadow: none;
 }
 
 :is(
   .ant-btn.ant-btn-sm,
   .ant-btn.ant-btn-icon-only,
-  .toolbar-button,
   .icon-button,
   .panel-toggle,
   .status-button
 ) {
-  border-radius: var(--radius-compact);
+  border-radius: var(--radius-row);
 }
 .ant-input-outlined:not(.ant-input-disabled),
 .ant-input-affix-wrapper:not(.ant-input-affix-wrapper-disabled) {

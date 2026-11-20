@@ -4,7 +4,7 @@
   --settings-wide-width: 1180px;
   container: settings / inline-size;
   color: var(--text);
-  background: var(--content);
+  background: transparent;
   font-size: 13px;
 }
 .app-content.settings-main--providers {
@@ -14,10 +14,10 @@
   padding-bottom: 0;
 }
 .settings-main h1 {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.4;
-  letter-spacing: -0.6px;
+  font-size: 21px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 .settings-main h2 {
@@ -53,7 +53,7 @@
   max-width: var(--settings-wide-width);
 }
 .settings-lead {
-  font-size: 12px;
+  font-size: 13px;
   margin: 8px 0 24px;
 }
 .settings-category-nav section {

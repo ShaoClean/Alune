@@ -15,7 +15,7 @@ import {
   ExpandOutlined,
   AimOutlined,
   FileTextOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import {
   getDiffChangeSegments,

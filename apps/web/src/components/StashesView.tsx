@@ -1,7 +1,7 @@
 import { useFeedbackMessage, DialogField, DialogBadge, DialogBadges } from '@alune/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input } from '@alune/ui';
-import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, InboxOutlined, PlusOutlined, ReloadOutlined } from '@alune/ui/icons';
 import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { gitApi } from '../api';
 import { AlunePopconfirm } from '@alune/ui';

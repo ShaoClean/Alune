@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Button, Pagination, CountBadge, ViewSwitch } from '@alune/ui';
-import { ArrowRightOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ArrowRightOutlined, ReloadOutlined } from '@alune/ui/icons';
 import type { Repository } from '@alune/domain';
 import { useNavigate } from 'react-router-dom';
 import { useRepositoryStore } from '../stores/repositoryStore';

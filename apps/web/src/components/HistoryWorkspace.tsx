@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties } from 'react';
 import type { CommitFile, GraphCommit } from '@alune/domain';
 import { Button } from '@alune/ui';
-import { ArrowLeftOutlined, CloseOutlined, TagOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CloseOutlined, TagOutlined } from '@alune/ui/icons';
 import { HistoryReference, HistoryView } from './HistoryView';
 import { repositoryApi } from '../api';
 import { DiffViewer } from './DiffViewer';

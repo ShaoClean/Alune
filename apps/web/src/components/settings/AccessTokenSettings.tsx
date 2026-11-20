@@ -11,7 +11,7 @@ import {
 import { FeedbackNotice } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import { Button, Input, Spin } from '@alune/ui';
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@alune/ui/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { AccessToken } from '@alune/protocol';
 import { accessTokenApi } from '../../api';

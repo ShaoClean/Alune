@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Button, Input, Segmented, Switch } from '@alune/ui';
-import { FileOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
+import { FileOutlined, SearchOutlined, UserOutlined } from '@alune/ui/icons';
 import {
   historyFilterActive,
   useRepositoryStore,

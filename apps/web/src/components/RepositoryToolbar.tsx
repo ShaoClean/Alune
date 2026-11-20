@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactElement, WheelEvent } from 'react';
 import { SigningSettingsDialog } from './SigningSettingsDialog';
-import { SafetyCertificateOutlined } from '@ant-design/icons';
+import { SafetyCertificateOutlined } from '@alune/ui/icons';
 import { Dropdown, MoonLoader } from '@alune/ui';
 import {
   BranchesOutlined,
@@ -18,11 +18,11 @@ import {
   WarningOutlined,
   DownloadOutlined,
   UploadOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import type { RepositoryStatus } from '@alune/domain';
 import { ToolbarButton } from '@alune/ui';
 import { WorktreesMenu } from './WorktreesMenu';
-import { CodeOutlined } from '@ant-design/icons';
+import { CodeOutlined } from '@alune/ui/icons';
 import { useTerminalStore } from '../stores/terminalState';
 import { BranchPicker } from './BranchPicker';
 import { useToolbarTier } from '../hooks/useToolbarTier';
