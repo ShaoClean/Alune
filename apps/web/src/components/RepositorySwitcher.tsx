@@ -372,7 +372,19 @@ export function RepositorySwitcher({
         onKeyDown={openFromKeyboard}
       >
         <span className="repository-switcher__icon" aria-hidden="true">
-          <BrandIcon className="repository-switcher__icon-mark" />
+          <svg
+            className="repository-switcher__moon-glyph"
+            viewBox="0 0 24 24"
+            width={14}
+            height={14}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.65}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M18 14.5A6.5 6.5 0 0 1 9.5 6a6.5 6.5 0 1 0 8.5 8.5Z" />
+          </svg>
         </span>
         <span className="repository-switcher__context">
           {repository ? (
