@@ -23,7 +23,7 @@
   <a href="https://github.com/users/ShaoClean/projects/1">Public TODO</a>
 </p>
 
-![Alune 0.10.0 light workspace: local and SSH repository tabs, syntax-themed diff with change navigation, staged files and the commit panel](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/workspace-light.png)
+![Light workspace](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/workspace-light.png)
 
 <p align="center">From file diff to staging and commit, all in one Git workspace.</p>
 
@@ -60,39 +60,31 @@ The workspace is laid out as **tab bar → repository toolbar → content area �
 <details>
 <summary><strong>Dark workspace, file reading and commit history</strong></summary>
 
-![Alune 0.10.0 dark workspace: syntax-themed diff, unstaged and staged groups, commit summary and description](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/workspace-dark.png)
+![Dark workspace](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/workspace-dark.png)
 
-![Alune file reading: Git-status tree, Catppuccin Mocha code theme and the find bar](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/files.png)
+![Branch overview](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/branches.png)
 
-![Alune commit history: real branch graph, files and diff of the selected commit with change navigation](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/history.png)
+![Commit history](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/history.png)
 
 </details>
 
 <details>
 <summary><strong>Repository terminal, PR/MR review and repository overview</strong></summary>
 
-![Alune repository terminal: running Git in the demo repository alongside the diff and commit panel](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/terminal.png)
+![PR/MR center](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/pr-center.png)
 
-![Alune PR/MR center: requests from all added repositories, filtered by account, platform and state](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/pull-request-center.png)
-
-![Alune PR/MR review: request details, file changes and discussion inside the app](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/pull-requests.png)
-
-![Alune repository list: local and SSH sources, paths and status](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/repositories.png)
-
-![Alune repository overview: status breakdown, commit activity and language statistics](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/overview.png)
+![Repositories](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/repositories.png)
 
 </details>
 
 <details>
 <summary><strong>Code theme and network proxy settings</strong></summary>
 
-![Alune code reading settings: code theme, font, size and live preview, also applied to text diffs](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/code-appearance.png)
-
-![Alune network proxy settings: configuration, scope and connection tests](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/network-proxy.png)
+![Appearance settings](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/settings-light.png)
 
 </details>
 
-Screenshots match **v0.10.0** and were taken from that version's real web UI with temporary Git repositories, a local test SSH server and demo data; PR/MR hosting responses are test fixtures. The terminal screenshot comes from an authenticated isolated server, with the command actually run in the demo repository. Desktop window chrome and system dialogs depend on your platform. [Screenshot baseline and capture notes](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.10.0) (Chinese)
+Screenshots show the Peach glow desktop workspace with a demo repository.
 
 ## Download
 

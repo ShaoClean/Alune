@@ -23,7 +23,7 @@
   <a href="https://github.com/users/ShaoClean/projects/1">公开 TODO</a>
 </p>
 
-![Alune 0.10.0 浅色工作区：本机与 SSH 仓库标签、代码主题 Diff、改动导航、暂存文件与提交区](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/workspace-light.png)
+![浅色工作区](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/workspace-light.png)
 
 <p align="center">从文件差异到暂存与提交，在同一个 Git 工作区完成。</p>
 
@@ -57,39 +57,31 @@
 <details>
 <summary><strong>查看深色工作区、文件阅读与提交历史</strong></summary>
 
-![Alune 0.10.0 深色工作区：代码主题 Diff、未暂存与已暂存分组、提交摘要和描述](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/workspace-dark.png)
+![深色工作区](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/workspace-dark.png)
 
-![Alune 文件阅读：Git 状态目录树、Catppuccin Mocha 代码主题与内容查找栏](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/files.png)
+![分支总览](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/branches.png)
 
-![Alune 提交历史：真实分支图、所选提交的文件与差异及改动导航](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/history.png)
+![提交历史](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/history.png)
 
 </details>
 
 <details>
 <summary><strong>查看仓库终端、PR/MR 审阅与仓库总览</strong></summary>
 
-![Alune 仓库终端：在演示仓库中执行 Git 命令，与 Diff 和提交区同时显示](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/terminal.png)
+![PR/MR 中心](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/pr-center.png)
 
-![Alune PR/MR 中心：汇总已添加仓库的请求，按账号、平台与状态筛选](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/pull-request-center.png)
-
-![Alune PR/MR 审阅：应用内阅读合并请求详情、文件差异与讨论](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/pull-requests.png)
-
-![Alune 仓库列表：本机与 SSH 来源、仓库路径与状态](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/repositories.png)
-
-![Alune 仓库总览：状态分布、提交活动和语言统计](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/overview.png)
+![仓库列表](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/repositories.png)
 
 </details>
 
 <details>
 <summary><strong>查看代码主题与网络代理设置</strong></summary>
 
-![Alune 代码阅读设置：代码主题、字体、字号及实时预览，同样应用于文本 Diff](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/code-appearance.png)
-
-![Alune 网络代理设置：配置、生效范围及连接测试入口](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/network-proxy.png)
+![外观设置](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/settings-light.png)
 
 </details>
 
-截图与操作说明按 **v0.10.0** 更新，使用该版本的真实网页界面、临时 Git 仓库、本机测试 SSH 服务与演示数据；PR/MR 的托管平台响应为测试数据。终端截图来自启用认证的隔离服务，命令在演示仓库实际执行。桌面窗口边框、系统对话框以实际平台为准。[截图基线与采集说明](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.10.0)
+截图取自 Alune 桌面端的 Peach glow 工作区，使用演示仓库。
 
 ## 下载安装
 
