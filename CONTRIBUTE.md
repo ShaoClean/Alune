@@ -182,8 +182,8 @@ git push origin "$RELEASE_TAG"
 
 推送 tag 后，`.github/workflows/release.yml` 按以下顺序执行：
 
-1. 校验版本、公开更新源、hooks 和 Release 说明生成逻辑，运行桌面单元测试。
-2. 验证四个目标的独立 Agent，在原生 runner 上测试并构建桌面安装包。四目标安装和在线更新演练通过后进入发布任务。
+1. 校验版本与公开更新源。hooks、Release 说明和单元测试已在 PR 与 `development` 推送时运行，这里不再重复。
+2. 在四个目标的原生 runner 上打包并验证独立 Agent，再构建桌面安装包。源码测试已在 PR 中跑过四个目标，这里不再重复。安装包冒烟测试：macOS 跑完整界面套件；Linux 与 Windows 已在 PR 中跑过完整套件，这里只验证终端场景（Agent、Git 写入与原生 PTY）。四目标安装和在线更新演练通过后进入发布任务。因此发版前的代码改动应先经过 PR。
 3. 汇总附件，校验更新元数据、文件大小和 SHA-512，生成 `SHA256SUMS`。
 4. 获取完整 Git 历史，用 git-cliff 生成当前版本的 `release-notes.md`，附上版本对比链接。
 5. 创建 Release 草稿并写入说明；重跑已有草稿时也更新说明。

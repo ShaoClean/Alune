@@ -20,9 +20,10 @@ jobs:
         with:
           node-version: '22.22.0'
           cache: npm
-      - run: npm ci
-      - run: npm run test:hooks
-      - run: npm run test:release-notes
+      # Hooks, release-note and desktop unit tests already ran on the PR and on the
+      # development push. Only the tag check is release-specific; release.mjs
+      # still needs js-yaml, so install packages without lifecycle downloads.
+      - run: npm ci --ignore-scripts
       - name: Validate version tag and public update source
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -33,11 +34,14 @@ jobs:
             echo "The GitHub update source must be public before publishing a desktop release."
             exit 1
           fi
-      - run: npm run desktop:test:unit
 
   agent-artifacts:
     needs: validate
     uses: ./.github/workflows/agent-tests.yml
+    with:
+      # The tagged code passed these source tests on all four targets in its PR.
+      # Release runs still package and verify the shipped Agent on each target.
+      skip_source_tests: true
 
   installer-cycle:
     needs: validate
@@ -78,8 +82,6 @@ jobs:
         run: node -e "if (process.arch !== process.env.EXPECTED_ARCH) throw new Error('Native runner architecture mismatch')"
       - run: npm ci
       - run: npm run desktop:build
-      # test-packaged.mjs runs the full write/restore suite against this platform's executable.
-      - run: npm run desktop:test:unit
       - uses: actions/download-artifact@v4
         with:
           name: verified-agent-catalog
@@ -89,12 +91,19 @@ jobs:
           ALUNE_STAGE_RELEASE_CATALOG: ${{ runner.temp }}/agent-release/agent-catalog.json
         # desktop:build already staged the app and Agent runtime.
         run: npm --ignore-scripts run dist -w desktop -- --publish never
-      - name: Packaged application smoke test
-        if: runner.os != 'Linux'
+      # The PR already ran the full write/restore suite on Linux and Windows
+      # (desktop-smoke.yml). Those targets check the shipped executable with the
+      # terminals focus: Agent runtime, Git write and the native PTY. macOS has no
+      # PR coverage, so it keeps the full suite here.
+      - name: Packaged application smoke test (full suite)
+        if: runner.os == 'macOS'
         run: node apps/desktop/scripts/test-packaged.mjs
-      - name: Packaged application smoke test (Linux)
+      - name: Packaged application smoke test (terminals focus)
+        if: runner.os == 'Windows'
+        run: node apps/desktop/scripts/test-packaged.mjs --focus terminals
+      - name: Packaged application smoke test (terminals focus, Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a node apps/desktop/scripts/test-packaged.mjs
+        run: xvfb-run -a node apps/desktop/scripts/test-packaged.mjs --focus terminals
       - name: Collect platform release assets
         env:
           RELEASE_TARGET: ${{ matrix.target }}

@@ -2,6 +2,11 @@ name: 独立 Agent
 
 on:
   workflow_call:
+    inputs:
+      skip_source_tests:
+        description: Package and verify the Agent without rerunning source tests already run on the PR.
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'apps/web/**'
@@ -68,20 +73,21 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: node scripts/agent/check-clean-checkout.mjs after-install
       - run: node --test scripts/agent/download-runtime.test.mjs scripts/agent/layout.test.mjs
-      # Linux PR source tests already run in unit-tests.yml. The sparse
-      # checkout still builds and verifies the actual runtime and Web gateway.
-      - name: 构建 Linux PR 的独立 Agent
-        if: runner.os == 'Linux' && github.event_name == 'pull_request'
+      # Linux PR source tests already run in unit-tests.yml, and releases reuse
+      # the source tests their PR ran on every target. The sparse checkout
+      # still builds and verifies the actual runtime and Web gateway.
+      - name: 构建独立 Agent（源码测试已在别处运行）
+        if: inputs.skip_source_tests || (runner.os == 'Linux' && github.event_name == 'pull_request')
         run: npm run build -w @alune/agent
       - name: 运行协议、客户端与 Agent 源码测试
-        if: runner.os != 'Linux' || github.event_name != 'pull_request'
+        if: "!inputs.skip_source_tests && (runner.os != 'Linux' || github.event_name != 'pull_request')"
         shell: bash
         run: |
           npm test -w @alune/protocol
           npm test -w @alune/agent-client
           npm test -w @alune/agent
       - run: npm run build -w web
-      - if: runner.os != 'Linux' || github.event_name != 'pull_request'
+      - if: "!inputs.skip_source_tests && (runner.os != 'Linux' || github.event_name != 'pull_request')"
         run: npm test -w web
       - if: runner.os == 'Linux'
         run: bash scripts/agent/test-web-gateway-linux.sh
