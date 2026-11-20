@@ -33,7 +33,7 @@ import {
   SettingOutlined,
   EyeInvisibleOutlined,
   ExportOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { useRepositoryStatusData, useRepositoryStore } from '../stores/repositoryStore';
 import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { gitApi } from '../api';

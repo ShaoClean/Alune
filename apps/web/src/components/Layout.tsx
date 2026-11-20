@@ -14,7 +14,7 @@ import {
   PlusOutlined,
   SearchOutlined,
   BranchesOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { RepositoryTabs } from './RepositoryTabs';

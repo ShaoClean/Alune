@@ -101,9 +101,17 @@
   flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.35;
+  stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+.dlg-ic .alune-ic__duo {
+  fill: var(--icon-duo-fill);
+  stroke: none;
+}
+[data-tone] .dlg-ic .alune-ic__duo,
+[data-tone] .alune-icon .alune-ic__duo {
+  fill: color-mix(in srgb, currentColor 20%, transparent);
 }
 :is(.a-dlg, .a-pop, .feedback-dialog) code,
 .dlg-mono {

@@ -42,22 +42,26 @@ export function PanelToggle({
         <svg
           width="17"
           height="17"
-          viewBox="0 0 20 20"
+          viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           aria-hidden="true"
         >
           {expanded && (
             <path
-              d={side === 'left' ? 'M3 3h4v14H3z' : 'M13 3h4v14h-4z'}
-              fill="currentColor"
-              opacity=".12"
-              stroke="none"
+              d={
+                side === 'left'
+                  ? 'M6.5 4.5h2.7v15H6.5a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3Z'
+                  : 'M14.8 4.5h2.7a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-2.7v-15Z'
+              }
+              className="alune-ic__duo"
             />
           )}
-          <rect x="2.5" y="3" width="15" height="14" rx="2" />
-          <path d={side === 'left' ? 'M7 3v14' : 'M13 3v14'} />
+          <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
+          <path d={side === 'left' ? 'M9.2 4.5v15' : 'M14.8 4.5v15'} />
         </svg>
       </button>
     </Tooltip>

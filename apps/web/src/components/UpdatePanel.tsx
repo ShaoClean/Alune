@@ -13,7 +13,7 @@ import {
   MoonLoader,
   OrbButton,
 } from '@alune/ui';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined } from '@alune/ui/icons';
 import type { DesktopUpdates, UpdateState } from '../types/desktop-updates';
 import { BrandIcon } from './BrandIcon';
 import { ReleaseNotes } from './ReleaseNotes';

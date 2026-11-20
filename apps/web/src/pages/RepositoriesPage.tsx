@@ -16,7 +16,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
 import { EmptyState, ErrorState, LoadingState } from '@alune/ui';

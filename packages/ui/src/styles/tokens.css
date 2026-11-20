@@ -21,6 +21,7 @@
   --brand-lavender: #c7adf9;
   --brand-rose: #edacd5;
   --brand-peach: #ffc099;
+  --icon-duo-fill: color-mix(in srgb, var(--brand-lavender) 34%, var(--brand-peach) 22%);
   --green: #296b52;
   --green-soft: #e9f7ef;
   --green-line: #a5cdbb;
@@ -175,6 +176,7 @@
   --brand-lavender: #b99be3;
   --brand-rose: #dea0c6;
   --brand-peach: #efb38e;
+  --icon-duo-fill: color-mix(in srgb, var(--brand-lavender) 32%, var(--brand-peach) 22%);
   --green: #94d5b8;
   --green-soft: #203629;
   --green-line: #47765e;

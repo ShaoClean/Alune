@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AluneModal, Input, Select, useFeedbackMessage, DialogField } from '@alune/ui';
-import { TagOutlined } from '@ant-design/icons';
+import { TagOutlined } from '@alune/ui/icons';
 import { gitApi } from '../api';
 import { useRepositoryStore } from '../stores/repositoryStore';
 

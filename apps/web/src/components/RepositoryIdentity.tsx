@@ -1,6 +1,6 @@
 import { cloneElement, useEffect, useState } from 'react';
 import type { MouseEventHandler, ReactElement } from 'react';
-import { ApartmentOutlined, FolderOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, FolderOutlined } from '@alune/ui/icons';
 import { Tooltip } from '@alune/ui';
 import type { Repository } from '@alune/domain';
 import { worktreeKindLabel } from '../stores/repositoryLabels';

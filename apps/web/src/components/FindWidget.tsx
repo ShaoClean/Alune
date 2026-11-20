@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from 'react';
-import { ArrowDownOutlined, ArrowUpOutlined, CloseOutlined } from '@ant-design/icons';
+import { ArrowDownOutlined, ArrowUpOutlined, CloseOutlined } from '@alune/ui/icons';
 import { FIND_MATCH_LIMIT } from './find-in-content';
 import type { FindOptions } from './find-in-content';
 import { useFindInContent } from './useFindInContent';

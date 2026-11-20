@@ -1,4 +1,4 @@
-import { FileIcon, FolderIcon, DialogIcon } from '@alune/ui';
+import { AluneIcon, FileIcon, FolderIcon, DialogIcon } from '@alune/ui';
 
 export default function Example() {
   return (
@@ -38,7 +38,20 @@ export default function Example() {
         </div>
       </section>
       <section className="example-group">
-        <h2 className="example-title">操作图标</h2>
+        <h2 className="example-title">月光双色图标（AluneIcon）</h2>
+        <div className="example-icon-grid">
+          {(['branch', 'pr', 'commit', 'terminal', 'server', 'shield', 'sparkle'] as const).map(
+            (name) => (
+              <div key={name} className="example-icon-item">
+                <AluneIcon name={name} style={{ fontSize: 18 }} />
+                <span>{name}</span>
+              </div>
+            ),
+          )}
+        </div>
+      </section>
+      <section className="example-group">
+        <h2 className="example-title">操作图标（DialogIcon）</h2>
         <div className="example-icon-grid">
           {(['folder', 'clock', 'check', 'x', 'refresh'] as const).map((name) => (
             <div key={name} className="example-icon-item">

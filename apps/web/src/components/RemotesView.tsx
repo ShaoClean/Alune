@@ -3,7 +3,7 @@ import { gitApi } from '../api';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Space, Typography } from '@alune/ui';
 import type { InputRef } from 'antd';
-import { PlusOutlined, CopyOutlined, LinkOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, CopyOutlined, LinkOutlined, ReloadOutlined } from '@alune/ui/icons';
 import { useRepositoryStore, useWorkspaceData } from '../stores/repositoryStore';
 import { useConnectionStore } from '../stores/connectionStore';
 import { AluneModal } from '@alune/ui';

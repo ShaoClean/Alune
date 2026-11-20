@@ -1,0 +1,87 @@
+import { AluneIcon, type AluneIconName, type AluneIconProps } from './components/AluneIcons';
+
+export type IconComponentProps = Omit<AluneIconProps, 'name'>;
+
+function createIcon(name: AluneIconName, displayName: string) {
+  function IconComponent(props: IconComponentProps) {
+    return <AluneIcon name={name} {...props} />;
+  }
+  IconComponent.displayName = displayName;
+  return IconComponent;
+}
+
+export const AimOutlined = createIcon('aim', 'AimOutlined');
+export const ApartmentOutlined = createIcon('apartment', 'ApartmentOutlined');
+export const ApiOutlined = createIcon('plug', 'ApiOutlined');
+export const AppstoreOutlined = createIcon('appstore', 'AppstoreOutlined');
+export const ArrowDownOutlined = createIcon('arrow-down', 'ArrowDownOutlined');
+export const ArrowLeftOutlined = createIcon('arrow-left', 'ArrowLeftOutlined');
+export const ArrowRightOutlined = createIcon('arrow-right', 'ArrowRightOutlined');
+export const ArrowUpOutlined = createIcon('arrow-up', 'ArrowUpOutlined');
+export const BarChartOutlined = createIcon('bar-chart', 'BarChartOutlined');
+export const BranchesOutlined = createIcon('branch', 'BranchesOutlined');
+export const CaretRightOutlined = createIcon('caret-right', 'CaretRightOutlined');
+export const CheckCircleOutlined = createIcon('check-circle', 'CheckCircleOutlined');
+export const CheckOutlined = createIcon('check', 'CheckOutlined');
+export const ClearOutlined = createIcon('clear', 'ClearOutlined');
+export const ClockCircleOutlined = createIcon('clock', 'ClockCircleOutlined');
+export const CloseOutlined = createIcon('x', 'CloseOutlined');
+export const CloudDownloadOutlined = createIcon('cloud-down', 'CloudDownloadOutlined');
+export const CloudServerOutlined = createIcon('server', 'CloudServerOutlined');
+export const ClusterOutlined = createIcon('tree', 'ClusterOutlined');
+export const CodeOutlined = createIcon('terminal', 'CodeOutlined');
+export const CompressOutlined = createIcon('compress', 'CompressOutlined');
+export const CopyOutlined = createIcon('copy', 'CopyOutlined');
+export const DeleteOutlined = createIcon('trash', 'DeleteOutlined');
+export const DiffOutlined = createIcon('diff', 'DiffOutlined');
+export const DisconnectOutlined = createIcon('disconnect', 'DisconnectOutlined');
+export const DownOutlined = createIcon('down', 'DownOutlined');
+export const DownloadOutlined = createIcon('download', 'DownloadOutlined');
+export const EditOutlined = createIcon('pencil', 'EditOutlined');
+export const EllipsisOutlined = createIcon('dots', 'EllipsisOutlined');
+export const ExpandOutlined = createIcon('expand', 'ExpandOutlined');
+export const ExportOutlined = createIcon('export', 'ExportOutlined');
+export const EyeInvisibleOutlined = createIcon('eye-off', 'EyeInvisibleOutlined');
+export const EyeOutlined = createIcon('eye', 'EyeOutlined');
+export const FileAddOutlined = createIcon('file-plus', 'FileAddOutlined');
+export const FileExclamationOutlined = createIcon('file-exclamation', 'FileExclamationOutlined');
+export const FileOutlined = createIcon('file', 'FileOutlined');
+export const FileSearchOutlined = createIcon('file-search', 'FileSearchOutlined');
+export const FileTextOutlined = createIcon('file-text', 'FileTextOutlined');
+export const FolderOpenOutlined = createIcon('folder-open', 'FolderOpenOutlined');
+export const FolderOutlined = createIcon('folder', 'FolderOutlined');
+export const GlobalOutlined = createIcon('globe', 'GlobalOutlined');
+export const HistoryOutlined = createIcon('history', 'HistoryOutlined');
+export const HolderOutlined = createIcon('holder', 'HolderOutlined');
+export const InboxOutlined = createIcon('inbox', 'InboxOutlined');
+export const KeyOutlined = createIcon('key', 'KeyOutlined');
+export const LaptopOutlined = createIcon('laptop', 'LaptopOutlined');
+export const LayoutOutlined = createIcon('layout', 'LayoutOutlined');
+export const LinkOutlined = createIcon('link', 'LinkOutlined');
+export const LockOutlined = createIcon('lock', 'LockOutlined');
+export const MergeCellsOutlined = createIcon('merge', 'MergeCellsOutlined');
+export const MinusOutlined = createIcon('minus', 'MinusOutlined');
+export const MinusSquareOutlined = createIcon('minus-square', 'MinusSquareOutlined');
+export const MoreOutlined = createIcon('more', 'MoreOutlined');
+export const PauseOutlined = createIcon('pause', 'PauseOutlined');
+export const PlusOutlined = createIcon('plus', 'PlusOutlined');
+export const ProfileOutlined = createIcon('profile', 'ProfileOutlined');
+export const PullRequestOutlined = createIcon('pr', 'PullRequestOutlined');
+export const QuestionCircleOutlined = createIcon('question-circle', 'QuestionCircleOutlined');
+export const ReloadOutlined = createIcon('refresh', 'ReloadOutlined');
+export const RightOutlined = createIcon('right', 'RightOutlined');
+export const RollbackOutlined = createIcon('rollback', 'RollbackOutlined');
+export const SafetyCertificateOutlined = createIcon('shield', 'SafetyCertificateOutlined');
+export const SearchOutlined = createIcon('search', 'SearchOutlined');
+export const SelectOutlined = createIcon('select', 'SelectOutlined');
+export const SettingOutlined = createIcon('settings', 'SettingOutlined');
+export const SkinOutlined = createIcon('skin', 'SkinOutlined');
+export const SwapOutlined = createIcon('swap', 'SwapOutlined');
+export const SyncOutlined = createIcon('sync', 'SyncOutlined');
+export const TagOutlined = createIcon('tag', 'TagOutlined');
+export const UndoOutlined = createIcon('undo', 'UndoOutlined');
+export const UnorderedListOutlined = createIcon('unordered-list', 'UnorderedListOutlined');
+export const UpOutlined = createIcon('up', 'UpOutlined');
+export const UploadOutlined = createIcon('upload', 'UploadOutlined');
+export const UserOutlined = createIcon('user', 'UserOutlined');
+export const WarningOutlined = createIcon('warning', 'WarningOutlined');

@@ -371,10 +371,47 @@
       "description": "执行当前动作，等待时锁定；成功移除，失败保留并支持重试。"
     }
   ],
+  "AluneIconProps": [
+    {
+      "name": "name",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-left\" | \"arrow-up\" | \"arrow-down\" | \"arrow-up-right\" | \"caret\" | \"down\" | \"up\" | \"right\" | \"caret-right\" | \"check\" | \"check-circle\" | \"question-circle\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"diff\" | \"history\" | \"tag\" | \"archive\" | \"inbox\" | \"sync\" | \"refresh\" | \"undo\" | \"rollback\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"file-text\" | \"file-exclamation\" | \"file-search\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"disconnect\" | \"apartment\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"minus\" | \"minus-square\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"upload\" | \"export\" | \"expand\" | \"compress\" | \"clear\" | \"pause\" | \"aim\" | \"select\" | \"settings\" | \"sliders\" | \"columns\" | \"layout\" | \"appstore\" | \"unordered-list\" | \"bar-chart\" | \"profile\" | \"skin\" | \"chat\" | \"dots\" | \"more\" | \"holder\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
+      "required": true,
+      "default": "—",
+      "description": "展示名称。"
+    },
+    {
+      "name": "spin",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": ""
+    },
+    {
+      "name": "rotate",
+      "type": "number",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "monoline",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": ""
+    },
+    {
+      "name": "svgProps",
+      "type": "Omit<SVGProps<SVGSVGElement>, \"children\">",
+      "required": false,
+      "default": "—",
+      "description": ""
+    }
+  ],
   "DialogIconProps": [
     {
       "name": "name",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": true,
       "default": "—",
       "description": "展示名称。"
@@ -508,7 +545,7 @@
     },
     {
       "name": "icon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": false,
       "default": "—",
       "description": "图标内容或图标名。"
@@ -561,7 +598,7 @@
   "DialogListItemProps": [
     {
       "name": "icon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": false,
       "default": "—",
       "description": "图标内容或图标名。"
@@ -698,7 +735,7 @@
     },
     {
       "name": "okIcon",
-      "type": "false | \"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "false | \"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": false,
       "default": "'arrow-right'",
       "description": "确认按钮图标，false 隐藏。"
@@ -804,6 +841,13 @@
       "description": "取消回调，宿主更新受控状态。"
     },
     {
+      "name": "title",
+      "type": "ReactNode",
+      "required": true,
+      "default": "—",
+      "description": "标题或主文案。"
+    },
+    {
       "name": "body",
       "type": "\"default\" | \"flush\" | \"tight\" | \"scroll\"",
       "required": false,
@@ -816,13 +860,6 @@
       "required": false,
       "default": "—",
       "description": "替换操作行，null 移除整个页脚。"
-    },
-    {
-      "name": "title",
-      "type": "ReactNode",
-      "required": true,
-      "default": "—",
-      "description": "标题或主文案。"
     },
     {
       "name": "danger",
@@ -896,7 +933,7 @@
     },
     {
       "name": "okIcon",
-      "type": "false | \"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "false | \"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": false,
       "default": "—",
       "description": "确认按钮图标，false 隐藏。"
@@ -1199,14 +1236,14 @@
     },
     {
       "name": "icon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": false,
       "default": "—",
       "description": "图标内容或图标名。"
     },
     {
       "name": "actionIcon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": false,
       "default": "—",
       "description": "主动作图标。"
@@ -1549,7 +1586,7 @@
     },
     {
       "name": "icon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": true,
       "default": "—",
       "description": "图标内容或图标名。"
@@ -1656,7 +1693,7 @@
     },
     {
       "name": "align",
-      "type": "\"center\" | \"left\" | \"right\"",
+      "type": "\"right\" | \"center\" | \"left\"",
       "required": false,
       "default": "—",
       "description": ""
@@ -1781,7 +1818,7 @@
   "LedgerItem": [
     {
       "name": "icon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": true,
       "default": "—",
       "description": "图标内容或图标名。"
@@ -1818,7 +1855,7 @@
     },
     {
       "name": "icon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": false,
       "default": "—",
       "description": "图标内容或图标名。"
@@ -1901,7 +1938,7 @@
     },
     {
       "name": "icon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": false,
       "default": "'folder'",
       "description": "图标内容或图标名。"
@@ -1993,7 +2030,7 @@
     },
     {
       "name": "icon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": false,
       "default": "—",
       "description": "旧兼容属性，当前静态说明不绘制图标。"
@@ -2106,7 +2143,7 @@
   "OrbButtonProps": [
     {
       "name": "icon",
-      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"check\" | \"caret\" | \"trash\" | \"lock\" | \"key\" | \"server\" | \"folder\" | \"folder-open\" | \"branch\" | \"merge\" | \"pr\" | \"archive\" | \"cloud-up\" | \"cloud-down\" | \"globe\" | \"user\" | \"mail\" | \"terminal\" | \"laptop\" | \"search\" | \"bell\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"sparkle\" | \"sliders\" | \"columns\" | \"download\" | \"moon\" | \"sun\" | \"wave\" | \"file\" | \"file-plus\" | \"refresh\" | \"plus\" | \"pencil\" | \"swap\" | \"shield\" | \"plug\" | \"tree\" | \"commit\" | \"chat\" | \"dots\" | \"clock\" | \"undo\"",
+      "type": "\"warning\" | \"info\" | \"x\" | \"arrow-right\" | \"arrow-up-right\" | \"caret\" | \"check\" | \"bell\" | \"sparkle\" | \"branch\" | \"merge\" | \"pr\" | \"commit\" | \"tree\" | \"archive\" | \"refresh\" | \"undo\" | \"folder\" | \"folder-open\" | \"file\" | \"file-plus\" | \"server\" | \"laptop\" | \"terminal\" | \"globe\" | \"cloud-up\" | \"cloud-down\" | \"plug\" | \"lock\" | \"key\" | \"shield\" | \"user\" | \"mail\" | \"plus\" | \"search\" | \"trash\" | \"pencil\" | \"copy\" | \"eye\" | \"eye-off\" | \"link\" | \"swap\" | \"download\" | \"sliders\" | \"columns\" | \"chat\" | \"dots\" | \"clock\" | \"moon\" | \"sun\" | \"wave\"",
       "required": true,
       "default": "—",
       "description": "图标内容或图标名。"
@@ -2122,7 +2159,7 @@
   "PanelToggleProps": [
     {
       "name": "side",
-      "type": "\"left\" | \"right\"",
+      "type": "\"right\" | \"left\"",
       "required": true,
       "default": "—",
       "description": "面板所在方向。"
@@ -2288,6 +2325,36 @@
       "required": true,
       "default": "—",
       "description": "发布成功；高频常规操作应保持克制。"
+    }
+  ],
+  "IconComponentProps": [
+    {
+      "name": "rotate",
+      "type": "number",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "spin",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "monoline",
+      "type": "boolean",
+      "required": false,
+      "default": "—",
+      "description": ""
+    },
+    {
+      "name": "svgProps",
+      "type": "Omit<SVGProps<SVGSVGElement>, \"children\">",
+      "required": false,
+      "default": "—",
+      "description": ""
     }
   ],
   "ButtonProps": [

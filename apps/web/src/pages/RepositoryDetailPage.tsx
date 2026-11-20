@@ -18,7 +18,7 @@ import { AluneModal, DialogHints, Kbd, useAluneConfirm } from '@alune/ui';
 import { DialogIcon } from '@alune/ui';
 import { DialogCard, DialogNote, RepoRow } from '@alune/ui';
 import { FeedbackNotice, FeedbackScope } from '@alune/ui';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined } from '@alune/ui/icons';
 import { gitApi, repositoryApi } from '../api';
 import {
   useRepositoryStatusData,

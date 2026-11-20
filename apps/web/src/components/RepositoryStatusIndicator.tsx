@@ -3,7 +3,7 @@ import {
   ClockCircleOutlined,
   QuestionCircleOutlined,
   WarningOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import { useRepositoryStatus, useRepositoryVisibility } from '../hooks/useRepositoryStatus';
 import { MoonLoader, StatusBadge } from '@alune/ui';
 

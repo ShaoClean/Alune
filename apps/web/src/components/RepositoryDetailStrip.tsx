@@ -1,4 +1,4 @@
-import { FolderOpenOutlined, ReloadOutlined } from '@ant-design/icons';
+import { FolderOpenOutlined, ReloadOutlined } from '@alune/ui/icons';
 import { Button, Tooltip } from '@alune/ui';
 import type { Repository } from '@alune/domain';
 import type { RepositoryBranchSummary } from '../stores/repositoryBranchOverview';

@@ -14,7 +14,7 @@ import {
   SearchOutlined,
   SettingOutlined,
   UpOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import type { ConnectionStatusInfo, Repository } from '@alune/domain';
 import { connectionStatus, connectionStatusLabel } from '../stores/connectionStatus';
 import { BrandIcon } from './BrandIcon';
@@ -375,15 +375,19 @@ export function RepositorySwitcher({
           <svg
             className="repository-switcher__moon-glyph"
             viewBox="0 0 24 24"
-            width={14}
-            height={14}
+            width={15}
+            height={15}
             fill="none"
             stroke="currentColor"
-            strokeWidth={1.65}
+            strokeWidth={1.75}
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <path d="M18 14.5A6.5 6.5 0 0 1 9.5 6a6.5 6.5 0 1 0 8.5 8.5Z" />
+            <path
+              className="alune-ic__duo"
+              d="M19.2 14.4A7.6 7.6 0 0 1 9.6 4.8a7.6 7.6 0 1 0 9.6 9.6Z"
+            />
+            <path d="M19.2 14.4A7.6 7.6 0 0 1 9.6 4.8a7.6 7.6 0 1 0 9.6 9.6Z" />
           </svg>
         </span>
         <span className="repository-switcher__context">

@@ -5,7 +5,7 @@ import {
   LaptopOutlined,
   ReloadOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import {
   Button,
   CompactTable,

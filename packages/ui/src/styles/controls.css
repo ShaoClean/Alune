@@ -842,6 +842,54 @@
   animation: moonlight-content var(--motion-result) var(--ease-enter);
 }
 
+@keyframes alune-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.alune-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  vertical-align: -0.125em;
+  color: inherit;
+  flex: none;
+}
+
+.alune-icon > svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.alune-ic__duo {
+  fill: var(--icon-duo-fill);
+  stroke: none;
+}
+
+.alune-icon--monoline .alune-ic__duo,
+:is(.status-button, .files-tree__twisty, .ant-btn-sm) .alune-ic__duo {
+  fill-opacity: 0.45;
+}
+
+:is(.ant-btn-primary, .ant-btn-dangerous) .alune-ic__duo {
+  fill: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.alune-icon--spin > svg {
+  animation: alune-icon-spin var(--motion-wait) linear infinite;
+}
+
 .anticon-spin {
   animation-duration: var(--motion-wait);
 }

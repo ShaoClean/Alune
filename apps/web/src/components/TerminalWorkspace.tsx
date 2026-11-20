@@ -15,7 +15,7 @@ import {
   CheckCircleOutlined,
   WarningOutlined,
   EllipsisOutlined,
-} from '@ant-design/icons';
+} from '@alune/ui/icons';
 import type { Repository, TerminalSession } from '@alune/domain';
 import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/domain';
 import {
