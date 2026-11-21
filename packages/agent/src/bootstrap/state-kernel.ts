@@ -174,6 +174,7 @@ export async function openStateKernel(
       }
     return {
       state,
+      activeTerminals: () => repositories.terminals.registry.impact({}).map(({ id, repositoryName }) => ({ id, repositoryName })),
       hasActiveTerminals: () => repositories.terminals.registry.impact({}).length > 0,
       desktopHandlers: {
         'desktop.log': {

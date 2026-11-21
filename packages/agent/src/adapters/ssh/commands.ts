@@ -1,3 +1,4 @@
+import type { DaemonAction } from '../../bootstrap/daemon';
 import { gzipSync } from 'node:zlib';
 import { PROTOCOL_VERSION } from '@alune/protocol';
 import type { readBundle } from './bundles';
@@ -60,6 +61,13 @@ export function runtimeCommands(bundle: Bundle, nonce: string, proxy?: number | 
     protocol: PROTOCOL_VERSION,
     proxy,
   };
+  const actionArgs = (pid?: number, action?: DaemonAction) => {
+    if (action && !['logs', 'versions', 'clean', 'restart', 'stop'].includes(action))
+      throw Error('Invalid action');
+    if (pid !== undefined && (!Number.isSafeInteger(pid) || pid < 1))
+      throw Error('Invalid daemon PID');
+    return action ? 'daemon ' + action : 'ensure-daemon' + (pid ? ' ' + pid : '');
+  };
   const args = ' serve-remote' + (proxy ? ' --git-proxy-port ' + proxy : '');
   if (target === 'win32-x64') {
     const entry = `(Join-Path $env:USERPROFILE '${relative}/bin/alune-agent.cmd')`;
@@ -72,9 +80,15 @@ export function runtimeCommands(bundle: Bundle, nonce: string, proxy?: number | 
       install: ps(
         `$ms=New-Object IO.MemoryStream(,[Convert]::FromBase64String('${compressed}')); $gz=New-Object IO.Compression.GZipStream($ms,[IO.Compression.CompressionMode]::Decompress); & ([scriptblock]::Create((New-Object IO.StreamReader($gz)).ReadToEnd()))`,
       ),
-      serve: (system?: string) => {
+      serve: (system?: string, daemon = false, pid?: number, action?: DaemonAction) => {
         if (system && (!/^[A-Za-z]:[\\/]/.test(system) || /[\r\n\x00'"‘’“”]/.test(system)))
           throw Error('Invalid system Agent path');
+        if (daemon)
+          return ps(`$dir=Join-Path $env:USERPROFILE '.alune-ssh/daemon'
+          [IO.Directory]::CreateDirectory($dir) | Out-Null
+          $deadline=[DateTime]::UtcNow.AddSeconds(30)
+          while (!$lock) {try {$lock=[IO.File]::Open("$dir/launch.lock",'OpenOrCreate','ReadWrite','None')} catch [IO.IOException] {if ([DateTime]::UtcNow -gt $deadline) {throw 'Daemon launch lock timed out'}; Start-Sleep -Milliseconds 100}}
+          try { & ${system ? "'" + system + "'" : entry} ${actionArgs(pid, action)}; exit $LASTEXITCODE } finally {$lock.Dispose()}`);
         // Inherit the SSH byte streams directly, including under Windows PowerShell 5.1.
         return ps(`$info=New-Object Diagnostics.ProcessStartInfo;
           $info.UseShellExecute=$false;
@@ -92,7 +106,7 @@ export function runtimeCommands(bundle: Bundle, nonce: string, proxy?: number | 
     ),
     cache: sh(`${unixCache(spec)}; if valid; then printf present; fi`),
     install: sh(unixInstall(spec)),
-    serve: (system?: string, daemon = false) => {
+    serve: (system?: string, daemon = false, confirmedPid?: number, action?: DaemonAction) => {
       if (system && (!system.startsWith('/') || /[\r\n\x00]/.test(system)))
         throw Error('Invalid system Agent path');
       const executable = system ? "'" + system.replaceAll("'", "'\\''") + "'" : entry;
@@ -118,7 +132,7 @@ owner="$lock/pid-$$"
 trap 'rm -f "$owner"; rmdir "$lock" || :' EXIT
 trap 'exit 1' HUP INT TERM
 date +%s > "$owner"
-${executable} ensure-daemon`);
+${executable} ${actionArgs(confirmedPid, action)}`);
     },
   };
 }

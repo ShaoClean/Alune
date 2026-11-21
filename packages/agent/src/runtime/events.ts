@@ -39,7 +39,8 @@ export class EventQueue {
     },
     private hostSequence?: { value: number },
   ) {
-    this.resync = !!hostSequence?.value;
+    this.sequence = hostSequence?.value ?? 0;
+    this.resync = this.sequence > 0;
     if (limits.bytes < 2048 || limits.messages < 2 || limits.ackMs <= 0)
       throw new Error('Event queue limits are too small');
   }
@@ -188,7 +189,8 @@ export class EventQueue {
       this.lastWasResync = false;
     }
     if (!item) return;
-    const sequence = this.hostSequence ? ++this.hostSequence.value : ++this.sequence;
+    const sequence = ++this.sequence;
+    if (this.hostSequence) this.hostSequence.value = Math.max(this.hostSequence.value, sequence);
     this.inFlight = Object.assign(item, { sequence });
     this.timer = setTimeout(
       () => this.fail(new ProtocolError('timeout', 'Event acknowledgement timed out', 'unknown')),

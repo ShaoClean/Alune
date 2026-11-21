@@ -86,6 +86,7 @@
     "hosts.catalog",
     "hosts.disconnect",
     "hosts.legacyPath",
+    "hosts.manage",
     "hosts.open",
     "hosts.receive",
     "hosts.send",

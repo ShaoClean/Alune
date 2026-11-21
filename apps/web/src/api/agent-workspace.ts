@@ -52,6 +52,7 @@ export type Target = {
   alias: RepositoryResource;
   terminalEnvironment?: string;
 };
+export let manageHost: ((id: string, action: string) => Promise<string>) | undefined;
 export let repositoryTarget: (id: string) => Promise<Target>;
 export const remoteTerminalHosts = new WeakMap<AgentClient, Host>();
 export const agentOwners = new Set<AgentClient>();
@@ -99,6 +100,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
     },
   } satisfies typeof loggingApi);
   if (logsOnly) return;
+  manageHost = async (hostId, action) => String(await local.request('hosts.manage', {hostId, action}, {timeoutMs: 120000}));
   addOwner(local);
   const catalog = async () =>
     (await local.request('hosts.catalog', {})) as unknown as { hosts: Host[] };
@@ -120,10 +122,18 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
             host.hostKey,
           )
         : { hostKey: host.hostKey! };
-      const client = await openRemoteAgent(local, {
+      const open = (confirmedUpgradePid?: number) => openRemoteAgent(local, {
+        ...(confirmedUpgradePid ? { confirmedUpgradePid } : {}),
         hostId: id,
         ...policy,
         ...(reconnectRevision ? { reconnectRevision } : {}),
+      });
+      const client = await open().catch(async error => {
+        if (!(error instanceof ProtocolError) || !isRecord(error.details) || error.details.code !== 'UPGRADE_REQUIRED') throw error;
+        const detail = String(error.details.activity);
+        if (!interactive) throw new Error('请在主机管理页测试连接并确认升级。' + detail);
+        await hostConsent((await local.listHostProfiles()).hosts.find(h => h.id === id)?.name ?? id, host.hostKey, 'upgrade', detail);
+        return open(Number(error.details.pid));
       });
       try {
         await client.subscribe([...workspaceTopics, 'tasks.reconciled']);
@@ -132,7 +142,18 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         throw e;
       }
       clients.set(id, client);
+      const latest = (await catalog()).hosts.find(h => h.hostId === id);
+      if (latest) host.bindings = latest.bindings;
       remoteTerminalHosts.set(client, host);
+      client.onEvent(async event => {
+        if (event.type !== 'repositories.changed' || !event.resource || client.state !== 'ready') return;
+        const rows = await client.listRepositories();
+        const repo = rows.find(r => r.id === event.resource!.resourceId);
+        if (repo) {
+          const alias = validateRepositoryResource(await local.request('hosts.bindRepository', {resource:{...repo.resource}}));
+          if (!host.bindings.some(b => b.localId === alias.id)) host.bindings.push({localId:alias.id,resource:repo.resource});
+        }
+      });
       addOwner(client);
       client.onClose(() => {
         if (clients.get(id) === client) clients.delete(id);

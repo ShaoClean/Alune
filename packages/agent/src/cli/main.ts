@@ -53,9 +53,16 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     process.stdout.write(JSON.stringify(await legacyCiphertextHashes(resolve(args[2]))) + '\n');
     return 0;
   }
+  if (command === 'daemon') {
+    const { daemonActions, manageDaemon, daemonControl } = await import('../bootstrap/daemon');
+    const action = daemonActions.find(action => action === args[1]);
+    if (!action) throw Error('Expected daemon logs|versions|clean|restart|stop');
+    process.stdout.write(JSON.stringify(await daemonControl(() => manageDaemon(action, version))));
+    return 0;
+  }
   if (command === 'ensure-daemon' || command === 'serve-daemon') {
-    const { ensureDaemon, serveDaemon } = await import('../bootstrap/daemon');
-    if (command === 'ensure-daemon') process.stdout.write(JSON.stringify(await ensureDaemon(version)));
+    const { ensureDaemon, serveDaemon, daemonControl } = await import('../bootstrap/daemon');
+    if (command === 'ensure-daemon') process.stdout.write(JSON.stringify(await daemonControl(() => ensureDaemon(version, Number(args[1])))));
     else {
       const directory = resolve(defaultDataDirectory());
       await serveDaemon(directory, await stateIdentity(directory), version);
@@ -117,6 +124,9 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     const stop = () => controller.abort();
     process.once('SIGTERM', stop);
     process.once('SIGINT', stop);
+    const releaseVersion = command === 'serve-remote'
+      ? (await import('../bootstrap/daemon')).trackStdioVersion(version)
+      : undefined;
     let kernel: Awaited<ReturnType<typeof openStateKernel>> | undefined;
     try {
       if (command === 'recovery-restore') {
@@ -222,11 +232,11 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     } finally {
       process.off('SIGTERM', stop);
       process.off('SIGINT', stop);
-      await kernel?.close();
+      try { await kernel?.close(); } finally { releaseVersion?.(); }
     }
   }
   process.stdout.write(
-    'Usage: alune-agent version | doctor | serve | state-backup | state-restore --backup DIRECTORY | legacy-import --source DIRECTORY | recovery-backup --output FILE | recovery-restore --input FILE [--data-dir DIRECTORY]\nRecovery passphrases are read from stdin.\n',
+    'Usage: alune-agent version | doctor | daemon logs|versions|clean|restart|stop | serve | state-backup | state-restore --backup DIRECTORY | legacy-import --source DIRECTORY | recovery-backup --output FILE | recovery-restore --input FILE [--data-dir DIRECTORY]\nRecovery passphrases are read from stdin.\n',
   );
   return command === 'help' || command === '--help' ? 0 : 1;
 }

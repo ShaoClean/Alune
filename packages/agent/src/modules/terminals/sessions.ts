@@ -24,20 +24,23 @@ export interface TerminalOwner {
   fail?(error: Error): void;
   emit(event: string, payload: unknown): unknown;
 }
-interface Session {
+interface Delivery {
   info: TerminalSession;
   owner: TerminalOwner;
+  pending: string[];
+  pendingBytes: number;
+  inFlight?: number;
+  sequence: number;
+  ackTimer?: NodeJS.Timeout;
+}
+interface Session extends Delivery {
+  viewers: Map<string, Delivery>;
   controller: AbortController;
   transport?: TerminalTransport;
   starting?: Promise<void>;
   stopping?: Promise<void>;
   history: string[];
   historyBytes: number;
-  pending: string[];
-  pendingBytes: number;
-  inFlight?: number;
-  sequence: number;
-  ackTimer?: NodeJS.Timeout;
   startTimer?: NodeJS.Timeout;
   inputBudget: number;
   inputAt: number;
@@ -95,6 +98,7 @@ export class TerminalSessions {
       info,
       owner,
       controller: new AbortController(),
+      viewers: new Map(),
       history: [],
       historyBytes: 0,
       pending: [],
@@ -158,8 +162,9 @@ export class TerminalSessions {
   }
 
   private state(entry: Session) {
-    if (this.sessions.get(entry.info.id) === entry && entry.owner.connected)
-      entry.owner.emit('terminal:state', { ...entry.info });
+    if (this.sessions.get(entry.info.id) !== entry) return;
+    const publisher = entry.owner.connected ? entry.owner : entry.viewers.values().next().value?.owner;
+    publisher?.emit('terminal:state', { ...entry.info });
   }
 
   private output(entry: Session, data: string) {
@@ -197,13 +202,22 @@ export class TerminalSessions {
         entry.pending.push(chunk);
         entry.pendingBytes += bytes;
       }
+      for (const viewer of entry.viewers.values()) {
+        viewer.pending.push(chunk);
+        viewer.pendingBytes += bytes;
+        if (viewer.pendingBytes > TERMINAL_LIMITS.pendingBytes) {
+          viewer.owner.fail?.(new Error('Terminal viewer output delivery interrupted'));
+          this.disconnect(viewer.owner);
+        }
+      }
       index = end;
     }
     if (entry.pendingBytes >= TERMINAL_LIMITS.windowBytes) entry.transport?.pause();
     this.pump(entry);
+    for (const viewer of entry.viewers.values()) this.pump(viewer);
   }
 
-  private pump(entry: Session) {
+  private pump(entry: Delivery) {
     if (entry.inFlight !== undefined || !entry.owner.connected) return;
     let data: string = entry.pending.shift() ?? '';
     if (!data) return;
@@ -227,7 +241,9 @@ export class TerminalSessions {
       } else {
         entry.pending = [];
         entry.pendingBytes = 0;
-        this.finish(entry, 'disconnected', '终端输出确认超时，已停止会话；请显式新建。');
+        const session = this.sessions.get(entry.info.id);
+        if (session)
+          this.finish(session, 'disconnected', '终端输出确认超时，已停止会话；请显式新建。');
       }
     }, 30_000);
     const packet: TerminalOutput = { sessionId: entry.info.id, sequence, data };
@@ -235,13 +251,15 @@ export class TerminalSessions {
   }
 
   ack(owner: TerminalOwner, body: any) {
-    const entry = this.owned(owner, body?.sessionId);
+    const session = this.sessions.get(body?.sessionId);
+    const entry = session?.viewers.get(owner.id) ?? this.owned(owner, body?.sessionId);
     if (entry.inFlight === undefined || body?.sequence !== entry.inFlight)
       throw new Error('无效的终端输出确认。');
     clearTimeout(entry.ackTimer);
     entry.inFlight = undefined;
     this.pump(entry);
-    if (entry.pendingBytes < TERMINAL_LIMITS.windowBytes / 2) entry.transport?.resume();
+    if (session === entry && entry.pendingBytes < TERMINAL_LIMITS.windowBytes / 2)
+      session.transport?.resume();
   }
 
   input(owner: TerminalOwner, body: any) {
@@ -284,6 +302,22 @@ export class TerminalSessions {
     const entry = this.sessions.get(id);
     if (!this.persistent || !entry || entry.finished || !owner.connected)
       throw new Error('远端终端已结束。');
+    if (entry.owner.connected && entry.owner.id !== owner.id) {
+      if (!entry.viewers.has(owner.id)) {
+        const viewer = {
+          info: entry.info,
+          owner,
+          sequence: 0,
+          pending: [...entry.history],
+          pendingBytes: entry.historyBytes,
+        };
+        entry.viewers.set(owner.id, viewer);
+        this.pump(viewer);
+      }
+      return { ...entry.info, readOnly: true };
+    }
+    clearTimeout(entry.viewers.get(owner.id)?.ackTimer);
+    entry.viewers.delete(owner.id);
     clearTimeout(entry.ackTimer);
     entry.inFlight = undefined;
     entry.owner = owner;
@@ -296,6 +330,7 @@ export class TerminalSessions {
   }
   private owned(owner: TerminalOwner, id: unknown, running = false) {
     const entry = typeof id === 'string' ? this.sessions.get(id) : undefined;
+    if (entry?.viewers.has(owner.id)) throw new Error('当前窗口只读，输入与尺寸由控制窗口管理。');
     if (!entry || entry.owner.id !== owner.id || !owner.connected)
       throw new Error('终端不存在或不属于当前窗口。');
     if (running && (entry.info.state !== 'running' || !entry.transport))
@@ -318,6 +353,9 @@ export class TerminalSessions {
 
   private remove(entry: Session) {
     entry.finished = true;
+    const publisher = entry.owner.connected ? entry.owner : entry.viewers.values().next().value?.owner;
+    for (const viewer of entry.viewers.values()) clearTimeout(viewer.ackTimer);
+    entry.viewers.clear();
     this.sessions.delete(entry.info.id);
     this.registry.entries.delete(entry.info.id);
     this.activityChanged();
@@ -327,12 +365,14 @@ export class TerminalSessions {
     if (entry.transport) entry.stopping = this.dispose(entry.transport);
     entry.pending = [];
     entry.pendingBytes = 0;
-    if (entry.owner.connected) entry.owner.emit('terminal:removed', { sessionId: entry.info.id });
+    publisher?.emit('terminal:removed', { sessionId: entry.info.id });
     return Promise.all([entry.starting, entry.stopping]).then(() => {});
   }
 
   disconnect(owner: Pick<TerminalOwner, 'id'> & Partial<TerminalOwner>) {
     for (const entry of this.sessions.values()) {
+      clearTimeout(entry.viewers.get(owner.id)?.ackTimer);
+      entry.viewers.delete(owner.id);
       if (entry.owner.id !== owner.id) continue;
       if (!this.persistent || entry.finished) {
         void this.remove(entry);

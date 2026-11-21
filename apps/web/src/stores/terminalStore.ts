@@ -80,8 +80,8 @@ const stateEvent = (info: TerminalSession) => {
   patch(info.id, info);
   const runtime = ensureRuntime(info.id);
   applyTerminalHostOptions(runtime.terminal, info);
-  runtime.terminal.options.disableStdin = info.state !== 'running';
-  if (info.state === 'running')
+  runtime.terminal.options.disableStdin = info.state !== 'running' || !!info.readOnly;
+  if (info.state === 'running' && !info.readOnly)
     synchronizeTerminalSize(runtime.terminal, () => fitTerminal(info.id), (cols, rows) => {
       void request('terminal:resize', { sessionId: info.id, cols, rows }).catch(report);
     });
@@ -177,7 +177,7 @@ async function restoreTerminals(client: AgentClient) {
     }));
     try {
       const attached = await client.attachTerminal(shell.id);
-      if (owners.get(shell.id) === client) stateEvent({ ...view, state: attached.state });
+      if (owners.get(shell.id) === client) stateEvent({ ...view, state: attached.state, readOnly: attached.readOnly });
     } catch (error) {
       if (owners.get(shell.id) === client) {
         owners.delete(shell.id);
@@ -237,12 +237,16 @@ export function connectTerminals(notice?: (text: string) => void) {
           event.type === 'terminal:state'
             ? info.id
             : (event.payload as { sessionId?: string })?.sessionId;
+        if (id && !owners.has(id) && event.type === 'terminal:state' && remoteTerminalHosts.has(client)) {
+          void restoreTerminals(client).catch(report);
+        }
         if (!id || owners.get(id) !== client) return;
         if (event.type === 'terminal:state') {
           const original = useTerminalStore.getState().sessions.find((s) => s.id === id);
           if (original)
             stateEvent({
               ...info,
+              readOnly: original.readOnly,
               repositoryId: original.repositoryId,
               source: original.source,
               connectionId: original.connectionId,
@@ -340,7 +344,7 @@ function ensureRuntime(id: string): Runtime {
   });
   terminal.onResize(({ cols, rows }) => {
     if (
-      useTerminalStore.getState().sessions.find((session) => session.id === id)?.state === 'running'
+      useTerminalStore.getState().sessions.some(session => session.id === id && session.state === 'running' && !session.readOnly)
     )
       void request('terminal:resize', { sessionId: id, cols, rows }).catch(report);
   });

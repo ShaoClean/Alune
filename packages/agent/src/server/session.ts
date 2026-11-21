@@ -299,7 +299,7 @@ export class ClientConnection {
         this.options.host?.checkTaskCapacity();
         this.options.taskJournal.start(admitted, operationId);
         journalActive = true;
-        finishBackground = this.options.host?.start(controller, admitted);
+        finishBackground = this.options.host?.start(controller, admitted, this.sessionId);
       }
       task = admitted;
       this.tasks.set(message.id, { info: task, controller, journaled: journalActive });
@@ -310,12 +310,16 @@ export class ClientConnection {
         sessionSignal: finishBackground ? controller.signal : this.lifecycle.signal,
         taskId: task.taskId,
         signal: controller.signal,
-        events: finishBackground
+        events: this.options.host
           ? {
               subscribed: (type) => !this.closing && this.events.subscribed(type),
-              notifyState: (...args) => this.options.host?.events?.notifyState(...args),
+              notifyState: (...args) => this.options.host?.notifyState(...args),
               failStream: (error) => this.events.failStream(error),
               write: async (...args) => {
+                if (args[0] === 'terminal:state' || args[0] === 'terminal:removed') {
+                  this.options.host?.broadcast(args[0], args[1], args[2]);
+                  return;
+                }
                 if (this.closing) return;
                 try {
                   await this.events.write(...args);
@@ -385,7 +389,12 @@ export class ClientConnection {
     }
   }
   private taskEvent(task: TaskInfo): void {
-    (this.options.host?.events ?? this.events).notifyState('tasks.changed', { ...task });
+    (this.options.host ?? this.events).notifyState('tasks.changed', { ...task });
+  }
+  runningTasks() {
+    return [...this.tasks.values()]
+      .filter(({ info }) => info.state === 'running')
+      .map(({ info }) => info);
   }
   private pruneTasks(): void {
     for (const [id, task] of this.tasks) {
