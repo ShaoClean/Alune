@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -16,10 +18,26 @@ export async function directoryAccessFixture(directory) {
   const peer = await fixtures.forwardingSSH({
     cwd: login,
     environment: {
+      HOME: login,
+      USERPROFILE: login,
       ALUNE_AGENT_DATA_DIR: path.join(directory, 'directory remote agent'),
       GIT_CONFIG_NOSYSTEM: '1',
       GIT_CONFIG_GLOBAL: path.join(directory, 'empty.gitconfig'),
     },
+  });
+  const target = process.platform + '-' + process.arch;
+  const bundle = path.join(directory, 'agent', 'ssh-bundles', target);
+  let downloads = 0;
+  const mirror = createServer((request, response) => {
+    const { version } = JSON.parse(fs.readFileSync(path.join(bundle, 'release.json'), 'utf8'));
+    if (request.url !== `/alune-agent-${version}-${target}.tar.gz`) {
+      response.writeHead(404).end();
+      return;
+    }
+    downloads++;
+    const archive = path.join(bundle, 'agent.tar.gz');
+    response.setHeader('Content-Length', fs.statSync(archive).size);
+    fs.createReadStream(archive).pipe(response);
   });
   try {
     execFileSync(
@@ -31,12 +49,15 @@ export async function directoryAccessFixture(directory) {
       ],
       { stdio: 'pipe' },
     );
+    mirror.listen(0, '127.0.0.1');
+    await once(mirror, 'listening');
   } catch (e) {
     peer.close();
     throw e;
   }
   return {
     env: {
+      ALUNE_AGENT_RELEASE_MIRROR: `http://127.0.0.1:${mirror.address().port}/`,
       ALUNE_TEST_DIRECTORY_ACCESS: JSON.stringify({
         port: peer.port,
         hostKey: createHash('sha256').update(Buffer.from(peer.publicKey, 'base64')).digest('hex'),
@@ -44,9 +65,11 @@ export async function directoryAccessFixture(directory) {
       }),
     },
     verify() {
+      assert.equal(downloads, 1, 'The remote fixture installs once and reconnects from cache');
       assert.equal(fs.readFileSync(path.join(notes, 'note.txt'), 'utf8'), 'keep outside bytes\n');
     },
     close() {
+      mirror.close();
       peer.close();
     },
   };
