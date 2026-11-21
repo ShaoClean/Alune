@@ -244,10 +244,8 @@ try {
   assert.equal(catalog.hosts[0].repositories.length, 1);
   assert.equal(catalog.hosts[0].gitAvailable, true);
   const firstPid = catalog.hosts[0].daemonPid;
-  if (catalog.hosts[0].mode === 'stdio') {
-    assert(windows);
-    assert.match(catalog.hosts[0].fallbackReason, /WMI/);
-  } else assert.ok(firstPid > 0);
+  assert.equal(catalog.hosts[0].mode, 'daemon', catalog.hosts[0].fallbackReason);
+  assert.ok(Number.isSafeInteger(firstPid) && firstPid > 0, 'expected a resident daemon PID');
   const versions = await local.request('hosts.manage', {hostId:host.id,action:'versions'});
   assert(versions.includes(pinInfo.version));
   secondPeer = await fixtures.forwardingSSH({
@@ -578,6 +576,8 @@ try {
   fs.writeFileSync(marker, 'damage');
   remote = await openRemoteAgent(local, policy);
   assert.equal(JSON.parse(fs.readFileSync(marker)).sha256, pin.sha256);
+  const repairedHost = (await local.request('hosts.catalog')).hosts.find((row) => row.hostId === host.id);
+  assert.equal(repairedHost.daemonPid, firstPid, 'cache repair must preserve the resident daemon');
   remote.close();
   await waitOffline();
   const packaged = path.join(pkg, 'bin', windows ? 'alune-agent.cmd' : 'alune-agent');
@@ -608,6 +608,7 @@ try {
         'offline catalog',
         'reconnect receipt',
         'damaged marker repaired',
+        'daemon PID reused after cache repair',
       ],
     }),
   );
