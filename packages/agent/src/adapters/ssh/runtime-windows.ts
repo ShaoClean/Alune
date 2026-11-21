@@ -59,10 +59,15 @@ try {
   [Console]::WriteLine('ready'); [Console]::Out.Flush()
   if ([Console]::ReadLine() -cne 'publish') { throw 'Installation cancelled' }
   [IO.File]::WriteAllText("$stage/package/.install-complete",'${marker}')
+  $retired="$dest.retired-${nonce}"
   if ([IO.Directory]::Exists($dest)) {
-    try { [IO.Directory]::Move($dest,"$stage/invalid") } catch { throw 'Close active connections to this Agent version and retry' }
+    try { [IO.Directory]::Move($dest,$retired) } catch { throw 'Close active connections to this Agent version and retry' }
   }
-  [IO.Directory]::Move("$stage/package",$dest)
+  try { [IO.Directory]::Move("$stage/package",$dest) }
+  catch {
+    if ([IO.Directory]::Exists($retired)) { [IO.Directory]::Move($retired,$dest) }
+    throw
+  }
 } finally {
   try { if (Test-Path $stage) { Remove-Item -Force -Recurse -LiteralPath $stage } } finally { $lock.Dispose() }
 }`;

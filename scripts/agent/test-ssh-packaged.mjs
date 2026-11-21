@@ -578,6 +578,10 @@ try {
   fs.writeFileSync(marker, 'damage');
   remote = await openRemoteAgent(local, policy);
   assert.equal(JSON.parse(fs.readFileSync(marker)).sha256, pin.sha256);
+  if (firstPid) {
+    const repairedHost = (await local.request('hosts.catalog')).hosts.find((row) => row.hostId === host.id);
+    assert.equal(repairedHost.daemonPid, firstPid, 'cache repair must preserve the resident daemon');
+  }
   remote.close();
   await waitOffline();
   const packaged = path.join(pkg, 'bin', windows ? 'alune-agent.cmd' : 'alune-agent');

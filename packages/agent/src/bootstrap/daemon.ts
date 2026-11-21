@@ -231,6 +231,24 @@ export async function manageDaemon(action: DaemonAction, version: string) {
       // Only remove completed installations. Preserve installers and staging siblings.
       for (const target of fs.readdirSync(dir, { withFileTypes: true })) {
         const path = join(dir, target.name);
+        // A repaired Windows install can still have native modules mapped from its old tree.
+        if (
+          process.platform === 'win32' &&
+          target.isDirectory() &&
+          /^win32-x64\.retired-[0-9a-f-]{36}$/.test(target.name)
+        ) {
+          // Serialize with publication: its rollback may still need the retired tree.
+          const command = `$ErrorActionPreference='Stop'
+            try { $lock=[IO.File]::Open($env:ALUNE_GC_LOCK,'OpenOrCreate','ReadWrite','None') }
+            catch [IO.IOException] { exit 0 }
+            try { if ([IO.Directory]::Exists($env:ALUNE_GC_PATH)) { [IO.Directory]::Delete($env:ALUNE_GC_PATH,$true) } }
+            catch [IO.IOException] {} catch [UnauthorizedAccessException] {} finally { $lock.Dispose() }`;
+          execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
+            env: { ...process.env, ALUNE_GC_PATH: path, ALUNE_GC_LOCK: join(dir, 'win32-x64.lock') },
+            windowsHide: true,
+          });
+          continue;
+        }
         if (
           target.isDirectory() &&
           ['win32-x64', 'linux-x64', 'darwin-arm64', 'darwin-x64'].includes(target.name) &&
