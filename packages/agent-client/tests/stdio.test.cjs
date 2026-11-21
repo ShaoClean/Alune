@@ -102,3 +102,30 @@ test('closing an owned Agent sends EOF while draining its last pending output', 
     await proc.close();
   }
 });
+
+test('socket auth precedes RPC frames and carries the current proxy policy', async () => {
+  const { Duplex } = require('node:stream');
+  const { SocketTransport, socketPreface } = require('../dist/node');
+  const token = 'a'.repeat(64);
+  const writes = [];
+  const stream = new Duplex({
+    read() {},
+    write(chunk, encoding, done) {
+      writes.push(Buffer.from(chunk));
+      done();
+    },
+  });
+  const transport = new SocketTransport(stream, { token, port: 42 });
+  const message = { jsonrpc: '2.0', method: 'ping' };
+  await transport.send(message);
+  assert.equal(writes[0].toString(), token + '00042');
+  assert.equal(writes[1].readUInt32BE(), writes[1].length - 4);
+  const received = [];
+  transport.onMessage((message) => received.push(message));
+  for (const byte of writes[1]) stream.push(Buffer.from([byte]));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(received, [message]);
+  assert.equal(socketPreface(token, 'blocked'), token + 'block');
+  assert.throws(() => socketPreface(token, 65536));
+  transport.close();
+});

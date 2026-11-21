@@ -30,6 +30,9 @@ type Binding = { localId: string; resource: ResourceRef };
 type Host = {
   hostId: string;
   hostKey: string | null;
+  mode?: string;
+  daemonPid?: number;
+  fallbackReason?: string;
   actualVersion?: string;
   targetVersion?: string;
   source?: string;
@@ -327,6 +330,9 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         const route = c.hosts.find((r) => r.hostId === h.id);
         return {
           ...h,
+          mode: route?.mode,
+          daemonPid: route?.daemonPid,
+          fallbackReason: route?.fallbackReason,
           actualVersion: route?.actualVersion,
           targetVersion: route?.targetVersion,
           source: route?.source,

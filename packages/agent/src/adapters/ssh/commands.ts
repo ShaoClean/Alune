@@ -9,7 +9,8 @@ const ps = (s: string) =>
   'powershell.exe -NoLogo -NoProfile -NonInteractive -InputFormat None -OutputFormat Text -EncodedCommand ' +
   Buffer.from(
     "$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';[Environment]::CurrentDirectory=(Get-Location).ProviderPath;try {" +
-      s + "\n} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }",
+      s +
+      '\n} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }',
     'utf16le',
   ).toString('base64');
 export const unixProbe = sh('uname -s && uname -m; git --version || :');
@@ -91,10 +92,33 @@ export function runtimeCommands(bundle: Bundle, nonce: string, proxy?: number | 
     ),
     cache: sh(`${unixCache(spec)}; if valid; then printf present; fi`),
     install: sh(unixInstall(spec)),
-    serve: (system?: string) => {
+    serve: (system?: string, daemon = false) => {
       if (system && (!system.startsWith('/') || /[\r\n\x00]/.test(system)))
         throw Error('Invalid system Agent path');
-      return sh('exec ' + (system ? "'" + system.replaceAll("'", "'\\''") + "'" : entry) + args);
+      const executable = system ? "'" + system.replaceAll("'", "'\\''") + "'" : entry;
+      if (!daemon) return sh('exec ' + executable + args);
+      return sh(`set -eu
+umask 077
+dir="$HOME/.alune-ssh/daemon"
+mkdir -p "$dir"
+chmod 700 "$dir"
+lock="$dir/.launch.lock"
+deadline=$(( $(date +%s) + 30 ))
+while ! mkdir "$lock" 2>/dev/null; do
+  for owner in "$lock"/pid-*; do
+    [ -f "$owner" ] || continue
+    pid=\${owner##*-}
+    if ! kill -0 "$pid" 2>/dev/null && rm "$owner" 2>/dev/null; then rmdir "$lock" 2>/dev/null || :; fi
+  done
+  if find "$lock" -prune -mmin +1 2>/dev/null | grep -q .; then rmdir "$lock" 2>/dev/null || :; fi
+  [ "$(date +%s)" -lt "$deadline" ] || { echo 'Daemon launch lock timed out' >&2; exit 1; }
+  sleep 1
+done
+owner="$lock/pid-$$"
+trap 'rm -f "$owner"; rmdir "$lock" || :' EXIT
+trap 'exit 1' HUP INT TERM
+date +%s > "$owner"
+${executable} ensure-daemon`);
     },
   };
 }

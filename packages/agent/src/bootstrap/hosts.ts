@@ -41,6 +41,9 @@ type Connection = {
   relay?: HostRelay;
   phase: string;
   gitAvailable: boolean;
+  mode?: string;
+  daemonPid?: number;
+  fallbackReason?: string;
   gitProxy?: string;
   appliedProxy?: import('../adapters/network/proxy-transport').ProxySnapshot;
   fresh: boolean;
@@ -180,6 +183,9 @@ export function hostsKernel(
           r?.phase === 'ready'
             ? (r.relay?.activeTasks ?? 0) + (r.relay?.terminalImpact.length ?? 0)
             : 0,
+        mode: r?.phase === 'ready' ? r.mode : null,
+        daemonPid: r?.phase === 'ready' ? r.daemonPid ?? null : null,
+        fallbackReason: r?.phase === 'ready' ? r.fallbackReason ?? null : null,
         gitProxy: r?.phase === 'ready' ? r.gitProxy : null,
         stale: !r?.fresh,
         repositories: s?.repositories ?? [],
@@ -386,6 +392,9 @@ export function hostsKernel(
           r.progress = { phase: r.phase };
           notify(r);
           r.gitAvailable = conn.gitAvailable;
+          r.mode = conn.mode;
+          r.daemonPid = conn.daemonPid;
+          r.fallbackReason = conn.fallbackReason;
           r.gitProxy = conn.gitProxy;
           const timer = setTimeout(() => stop(r), 30000);
           timer.unref();

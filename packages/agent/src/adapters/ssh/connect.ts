@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { connect as tcp, type Socket } from 'node:net';
 import { Client, type ClientChannel } from 'ssh2';
 import { PROTOCOL_VERSION, ProtocolError, type OpenHostRoute } from '@alune/protocol';
-import { StdioTransport } from '@alune/agent-client/node';
+import { SocketTransport, StdioTransport } from '@alune/agent-client/node';
 import { SSHChannelQueue } from './channel-queue';
 import { runtimeCommands, unixProbe, windowsProbe, targetFrom } from './commands';
 import { readBundle } from './bundles';
@@ -113,6 +113,7 @@ export async function connectHost(
   const ssh = new Client(),
     queue = new SSHChannelQueue();
   const sockets = new Set<Socket>();
+  let tunnel: import('node:stream').Duplex | undefined;
   let bridge: Awaited<ReturnType<typeof createProxyBridge>> | undefined;
   let sock: Socket | undefined,
     channel: ClientChannel | undefined,
@@ -122,6 +123,7 @@ export async function connectHost(
     if (closed) return;
     closed = true;
     queue.close(lost);
+    tunnel?.destroy();
     channel?.destroy();
     ssh.destroy();
     sock?.destroy();
@@ -264,20 +266,77 @@ export async function connectHost(
         /* Missing or incompatible system installation. */
       }
     }
-    if (!system) {
+    const ensureManaged = async () => {
       transition('verifying');
       if ((await command(commands.cache).catch(() => '')) !== 'present') {
         transition('downloading');
         await command(commands.install, 900_000, true);
       }
-    }
+    };
+    if (!system) await ensureManaged();
     signal.throwIfAborted();
     transition('starting');
-    channel = await open(commands.serve(system));
-    channel.stderr.resume();
-    const transport = new StdioTransport(channel, channel);
+    let transport: StdioTransport | undefined;
+    let daemonPid: number | undefined;
+    let fallbackReason: string | undefined;
+    if (bundle.target !== 'win32-x64') {
+      const launch = async () => JSON.parse(await command(commands.serve(system, true), 60_000));
+      let record;
+      try {
+        record = await launch();
+      } catch (error) {
+        if (!system || signal.aborted) throw error;
+        system = undefined;
+        await ensureManaged();
+        transition('starting');
+        record = await launch();
+      }
+      if (
+        !Number.isInteger(record.port) ||
+        record.port < 1 ||
+        record.port > 65535 ||
+        !Number.isSafeInteger(record.pid) ||
+        record.pid < 1 ||
+        record.version !== bundle.version ||
+        !/^[a-f0-9]{64}$/.test(record.token)
+      )
+        throw Error('Invalid daemon runtime');
+      try {
+        tunnel = await new Promise<import('node:stream').Duplex>((resolve, reject) => {
+          const deadline = setTimeout(() => {
+            close();
+            reject(new ProtocolError('timeout', 'SSH daemon tunnel timed out'));
+          }, 15000);
+          ssh.forwardOut('127.0.0.1', 0, '127.0.0.1', record.port, (err, stream) => {
+            clearTimeout(deadline);
+            if (err) reject(err);
+            else if (closed) {
+              stream.destroy();
+              reject(lost);
+            } else resolve(stream);
+          });
+        });
+        signal.throwIfAborted();
+        transport = new SocketTransport(tunnel, {
+          token: record.token,
+          port: forwardPort ?? (proxy.enabled ? 'blocked' : undefined),
+        });
+        daemonPid = record.pid;
+      } catch (error) {
+        if (![1, 2].includes((error as { reason?: number }).reason ?? 0)) throw error;
+        fallbackReason = 'SSH 服务器拒绝端口转发，已降级为 stdio';
+      }
+    }
+    if (!transport) {
+      channel = await open(commands.serve(system));
+      channel.stderr.resume();
+      transport = new StdioTransport(channel, channel);
+    }
     transport.onClose(close);
     return {
+      daemonPid,
+      fallbackReason,
+      mode: daemonPid ? 'daemon' : 'stdio',
       source: system ? 'system' : 'managed',
       transport,
       close,

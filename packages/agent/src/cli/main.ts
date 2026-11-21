@@ -53,6 +53,15 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     process.stdout.write(JSON.stringify(await legacyCiphertextHashes(resolve(args[2]))) + '\n');
     return 0;
   }
+  if (command === 'ensure-daemon' || command === 'serve-daemon') {
+    const { ensureDaemon, serveDaemon } = await import('../bootstrap/daemon');
+    if (command === 'ensure-daemon') process.stdout.write(JSON.stringify(await ensureDaemon(version)));
+    else {
+      const directory = resolve(defaultDataDirectory());
+      await serveDaemon(directory, await stateIdentity(directory), version);
+    }
+    return 0;
+  }
   if (command === 'doctor') {
     const result = await doctor();
     process.stdout.write(JSON.stringify(result) + '\n');
