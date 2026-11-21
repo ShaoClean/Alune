@@ -92,9 +92,31 @@ test(
       if (originalShell === undefined) delete process.env.SHELL;
       else process.env.SHELL = originalShell;
     }
+    const viewer = await connect();
+    let mirrored = '';
+    viewer.onEvent(({ type, payload }) => {
+      if (type === 'terminal:output') {
+        mirrored += payload.data;
+        void viewer
+          .request('terminals.ack', { sessionId: id, sequence: payload.sequence })
+          .catch(() => {});
+      }
+    });
+    assert.equal((await viewer.attachTerminal(id)).readOnly, true);
+    await assert.rejects(
+      viewer.request('terminals.resize', { sessionId: id, cols: 70, rows: 20 }),
+      (e) => e.kind === 'conflict',
+    );
+    await assert.rejects(
+      viewer.request('terminals.input', { sessionId: id, data: 'x' }),
+      (e) => e.kind === 'conflict',
+    );
+    assert.equal((await client.listTerminals())[0].cols, 90);
     client.close();
     fs.writeFileSync(path.join(repo, 'allow-output'), '');
     await until(() => fs.existsSync(path.join(repo, 'output-finished')), 'offline job finished');
+    await until(() => mirrored.includes('offline-marker-'), 'viewer receives independent output');
+    viewer.close();
     await delay(200);
     assert.equal(idle, false);
     client = await connect();

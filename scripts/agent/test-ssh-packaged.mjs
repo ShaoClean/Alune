@@ -244,8 +244,12 @@ try {
   assert.equal(catalog.hosts[0].repositories.length, 1);
   assert.equal(catalog.hosts[0].gitAvailable, true);
   const firstPid = catalog.hosts[0].daemonPid;
-  assert.equal(catalog.hosts[0].mode, windows ? 'stdio' : 'daemon');
-  if (!windows) assert.ok(firstPid > 0);
+  if (catalog.hosts[0].mode === 'stdio') {
+    assert(windows);
+    assert.match(catalog.hosts[0].fallbackReason, /WMI/);
+  } else assert.ok(firstPid > 0);
+  const versions = await local.request('hosts.manage', {hostId:host.id,action:'versions'});
+  assert(versions.includes(pinInfo.version));
   secondPeer = await fixtures.forwardingSSH({
     deny: true,
     password: sshPassword,

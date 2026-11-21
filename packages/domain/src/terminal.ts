@@ -11,6 +11,7 @@ export const TERMINAL_LIMITS = {
 export type TerminalState = 'connecting' | 'running' | 'exited' | 'disconnected' | 'failed';
 
 export interface TerminalSession {
+  readOnly?: boolean;
   id: string;
   requestId: string;
   repositoryId: string;

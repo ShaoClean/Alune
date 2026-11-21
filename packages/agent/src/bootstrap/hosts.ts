@@ -153,7 +153,10 @@ export function hostsKernel(
     r.fresh = false;
     r.progress = undefined;
   }
-  function catalog() {
+  const routeFor = (id: string, session?: string) =>
+    [...live.values()].find(r => r.hostId === id && (!session || r.session === session) && r.phase !== 'offline') ??
+    [...live.values()].find(r => r.hostId === id && (!session || r.session === session));
+  function catalog(session?: string) {
     const profiles = settings.hosts.list().hosts;
     const localList = local.list();
     const aliases = localList
@@ -161,7 +164,7 @@ export function hostsKernel(
       .map((r) => ({ id: r.id, binding: local.hostBinding(r.id) }));
     const hosts = profiles.map((p) => {
       const s = saved.get(p.id),
-        r = live.get(p.id);
+        r = routeFor(p.id, session);
       return {
         hostId: p.id,
         targetVersion: require('../version.json').version,
@@ -212,7 +215,7 @@ export function hostsKernel(
   }
   function pinned(repo: RepositoryResource) {
     const binding = local.hostBinding(repo.id);
-    const host = binding && live.get(binding.hostId);
+    const host = binding && routeFor(binding.hostId);
     if (
       !binding ||
       !host?.relay ||
@@ -280,7 +283,7 @@ export function hostsKernel(
     },
   };
   const handlers: Record<string, Handler> = {
-    'hosts.catalog': method(validateEmpty, catalog),
+    'hosts.catalog': method(validateEmpty, (_, c) => catalog(c.sessionId)),
     'hosts.bindRepository': method(
       (p) => {
         if (!isRecord(p)) throw new ProtocolError('invalid-params', 'Expected remote resource');
@@ -288,7 +291,7 @@ export function hostsKernel(
       },
       (p, c) => {
         const host = [...saved.values()].find((s) => s.agentId === p.resource.agentId);
-        const liveHost = host && live.get(host.hostId);
+        const liveHost = host && routeFor(host.hostId, c.sessionId);
         const repo = host?.repositories.find((r) => r.id === p.resource.resourceId);
         if (
           !host ||
@@ -298,16 +301,29 @@ export function hostsKernel(
           liveHost.phase !== 'ready'
         )
           throw new ProtocolError('unavailable', 'Refresh the selected SSH catalog before binding');
-        return local.bindHost(host.hostId, repo, host.target === 'win32-x64');
+        const alias = local.bindHost(host.hostId, repo, host.target === 'win32-x64');
+        c.events.notifyState('repositories.changed', {}, alias.resource);
+        return alias;
       },
       'mutation',
     ),
+    'hosts.manage': method(
+      p => {
+        if (!isRecord(p) || !validId(p.hostId) || !['logs','versions','clean','restart','stop'].includes(String(p.action))) throw new ProtocolError('invalid-params', 'Invalid daemon action');
+      },
+      async (p, c) => {
+        const hostKey = saved.get(p.hostId)?.hostKey;
+        if (!hostKey) throw new ProtocolError('permission-denied', '请先连接并核对主机指纹。');
+        await settings.readyCredentials(c.signal);
+        const {manageHost} = await import('../adapters/ssh/connect');
+        return manageHost(p.action, directory, settings.hosts.credential(p.hostId), {hostId:p.hostId,hostKey}, settings.proxy.snapshot(), c.signal);
+      }, 'mutation'),
     'hosts.open': method(
       validateOpenHost,
       async (p: OpenHostRoute, c) => {
         const profile = settings.hosts.list().hosts.find((h) => h.id === p.hostId);
         if (!profile) throw new ProtocolError('not-found', 'Unknown host profile');
-        const prev = live.get(p.hostId),
+        const prev = routeFor(p.hostId, c.sessionId),
           prior = saved.get(p.hostId);
         if (prior && p.hostKey !== null && prior.hostKey !== p.hostKey)
           throw new ProtocolError('permission-denied', 'Pinned SSH host key changed');
@@ -352,7 +368,8 @@ export function hostsKernel(
               ? { progress: r.progress as unknown as JsonValue }
               : {}),
           });
-        live.set(p.hostId, r);
+        if (prev) live.delete(prev.routeId);
+        live.set(r.routeId, r);
         notify(r);
         const signal = AbortSignal.any([
           r.controller.signal,
@@ -534,7 +551,7 @@ export function hostsKernel(
       sessionId: string,
       signal: AbortSignal,
     ) {
-      const r = live.get(id);
+      const r = routeFor(id, sessionId);
       if (
         !r?.relay ||
         r.phase !== 'ready' ||
@@ -553,6 +570,7 @@ export function hostsKernel(
     disconnect(sessionId: string) {
       for (const r of live.values())
         if (r.session === sessionId) {
+          live.delete(r.routeId);
           r.appliedProxy = undefined;
           stop(r);
         }
@@ -574,9 +592,7 @@ export function hostsKernel(
         }
     },
     forget(hostId: string) {
-      const route = live.get(hostId);
-      if (route) stop(route);
-      live.delete(hostId);
+      for (const route of live.values()) if (route.hostId === hostId) { stop(route); live.delete(route.routeId); }
       if (saved.delete(hostId)) document.write([...saved.values()]);
     },
   };

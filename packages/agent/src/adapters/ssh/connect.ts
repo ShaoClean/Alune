@@ -97,7 +97,32 @@ export async function probeAuthentication(
     socket?.destroy();
   }
 }
-export async function connectHost(
+type ConnectArgs = [
+  directory: string,
+  profile: Profile,
+  policy: OpenHostRoute,
+  proxy: ProxySnapshot,
+  signal: AbortSignal,
+  stage?: (phase: string) => void,
+];
+export async function connectHost(...args: ConnectArgs) {
+  const result = await sshSession(undefined, ...args);
+  if (typeof result === 'string') throw Error('Expected SSH transport');
+  return result;
+}
+export async function manageHost(
+  action: import('../../bootstrap/daemon').DaemonAction,
+  ...args: ConnectArgs
+) {
+  const result = await sshSession(action, ...args);
+  if (typeof result !== 'string') {
+    result.close();
+    throw Error('Expected management response');
+  }
+  return result;
+}
+async function sshSession(
+  action: import('../../bootstrap/daemon').DaemonAction | undefined,
   directory: string,
   profile: ReturnType<HostProfilesStore['credential']>,
   policy: OpenHostRoute,
@@ -169,7 +194,7 @@ export async function connectHost(
         if (install && output.trim() === 'ready' && !signal.aborted && !ch.writableEnded) {
           ch.end('publish\n');
         }
-        if (output.length > 8192) {
+        if (output.length > (phase === 'starting' ? 131072 : 8192)) {
           ch.close();
           finish(new Error('SSH probe output limit'));
         }
@@ -278,9 +303,28 @@ export async function connectHost(
     transition('starting');
     let transport: StdioTransport | undefined;
     let daemonPid: number | undefined;
+    if (action) {
+      const response: unknown = JSON.parse(
+        await command(commands.serve(system, true, undefined, action), 60000),
+      );
+      close();
+      if (typeof response !== 'string') throw Error('Invalid daemon management response');
+      return response;
+    }
     let fallbackReason: string | undefined;
-    if (bundle.target !== 'win32-x64') {
-      const launch = async () => JSON.parse(await command(commands.serve(system, true), 60_000));
+    {
+      const launch = async () => {
+        try {
+          return JSON.parse(
+            await command(commands.serve(system, true, policy.confirmedUpgradePid), 60_000),
+          );
+        } catch (error) {
+          if (bundle.target !== 'win32-x64' || !String(error).includes('WMI_UNAVAILABLE'))
+            throw error;
+          fallbackReason = 'Windows 未授予 WMI 创建进程权限，已使用 stdio；断开连接将关闭终端';
+          return null;
+        }
+      };
       let record;
       try {
         record = await launch();
@@ -291,40 +335,48 @@ export async function connectHost(
         transition('starting');
         record = await launch();
       }
-      if (
-        !Number.isInteger(record.port) ||
-        record.port < 1 ||
-        record.port > 65535 ||
-        !Number.isSafeInteger(record.pid) ||
-        record.pid < 1 ||
-        record.version !== bundle.version ||
-        !/^[a-f0-9]{64}$/.test(record.token)
-      )
-        throw Error('Invalid daemon runtime');
-      try {
-        tunnel = await new Promise<import('node:stream').Duplex>((resolve, reject) => {
-          const deadline = setTimeout(() => {
-            close();
-            reject(new ProtocolError('timeout', 'SSH daemon tunnel timed out'));
-          }, 15000);
-          ssh.forwardOut('127.0.0.1', 0, '127.0.0.1', record.port, (err, stream) => {
-            clearTimeout(deadline);
-            if (err) reject(err);
-            else if (closed) {
-              stream.destroy();
-              reject(lost);
-            } else resolve(stream);
+      if (!fallbackReason) {
+        if (Number.isSafeInteger(record.upgradeRequired) && record.upgradeRequired > 0)
+          throw new ProtocolError('conflict', '远端 Agent 升级需要确认', 'not-started', {
+            pid: record.upgradeRequired,
+            activity: String(record.activity),
+            code: 'UPGRADE_REQUIRED',
           });
-        });
-        signal.throwIfAborted();
-        transport = new SocketTransport(tunnel, {
-          token: record.token,
-          port: forwardPort ?? (proxy.enabled ? 'blocked' : undefined),
-        });
-        daemonPid = record.pid;
-      } catch (error) {
-        if (![1, 2].includes((error as { reason?: number }).reason ?? 0)) throw error;
-        fallbackReason = 'SSH 服务器拒绝端口转发，已降级为 stdio';
+        if (
+          !Number.isInteger(record.port) ||
+          record.port < 1 ||
+          record.port > 65535 ||
+          !Number.isSafeInteger(record.pid) ||
+          record.pid < 1 ||
+          record.version !== bundle.version ||
+          !/^[a-f0-9]{64}$/.test(record.token)
+        )
+          throw Error('Invalid daemon runtime');
+        try {
+          tunnel = await new Promise<import('node:stream').Duplex>((resolve, reject) => {
+            const deadline = setTimeout(() => {
+              close();
+              reject(new ProtocolError('timeout', 'SSH daemon tunnel timed out'));
+            }, 15000);
+            ssh.forwardOut('127.0.0.1', 0, '127.0.0.1', record.port, (err, stream) => {
+              clearTimeout(deadline);
+              if (err) reject(err);
+              else if (closed) {
+                stream.destroy();
+                reject(lost);
+              } else resolve(stream);
+            });
+          });
+          signal.throwIfAborted();
+          transport = new SocketTransport(tunnel, {
+            token: record.token,
+            port: forwardPort ?? (proxy.enabled ? 'blocked' : undefined),
+          });
+          daemonPid = record.pid;
+        } catch (error) {
+          if (![1, 2].includes((error as { reason?: number }).reason ?? 0)) throw error;
+          fallbackReason = 'SSH 服务器拒绝端口转发，已降级为 stdio';
+        }
       }
     }
     if (!transport) {

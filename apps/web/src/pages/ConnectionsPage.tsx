@@ -1,5 +1,6 @@
+import { manageHost } from '../api/agent-workspace';
 import { FeedbackNotice, DialogField, DialogFieldRow, DialogBadges, DialogBadge } from '@alune/ui';
-import { useFeedbackMessage } from '@alune/ui';
+import { useAluneConfirm, useFeedbackMessage } from '@alune/ui';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -162,6 +163,7 @@ function ConnectionProgressPanel({ progress }: { progress: ConnectionProgress })
 
 export function ConnectionsPage() {
   const message = useFeedbackMessage();
+  const confirm = useAluneConfirm();
   const navigate = useNavigate();
   const view = useWorkspaceStore((state) => state.collectionViews.connections);
   const {
@@ -173,6 +175,16 @@ export function ConnectionsPage() {
     deleteConnection,
     testConnection,
   } = useConnectionStore();
+  const [maintenance, setMaintenance] = useState<{id:string;name:string} | null>(null);
+  const [result, setResult] = useState('');
+  const [working, setWorking] = useState(false);
+  const administer = async (action: string) => {
+    if (!maintenance || !manageHost) return;
+    setWorking(true);
+    try { setResult(await manageHost(maintenance.id, action)); await fetchConnections(); }
+    catch(error) { setResult(error instanceof Error ? error.message : '操作失败'); }
+    finally {setWorking(false);}
+  };
   const [modalVisible, setModalVisible] = useState(false);
   const [directoryConnection, setDirectoryConnection] = useState<{
     id: string;
@@ -254,6 +266,7 @@ export function ConnectionsPage() {
       >
         查看仓库
       </Button>
+      {manageHost && <Button size="small" onClick={() => {setResult('');setMaintenance(connection);}}>远端运维</Button>}
       <DeleteConnectionConfirm
         connection={connection}
         onConfirm={() => handleDelete(connection.id)}
@@ -275,6 +288,14 @@ export function ConnectionsPage() {
 
   return (
     <div>
+      {maintenance && <AluneModal open title={maintenance.name + ' · 远端运维'} onCancel={() => {if (!working) setMaintenance(null);}} onOk={() => {if (!working) setMaintenance(null);}} okText="关闭">
+        {([['logs','查看日志'],['versions','查看缓存'],['clean','清理旧缓存'],['restart','重启 Agent'],['stop','停止 Agent']] as const).map(([key,label]) =>
+          <Button key={key} disabled={working} onClick={async () => {
+            if (['restart','stop','clean'].includes(key) && !(await confirm({level: 1, title: label, description: key === 'clean' ? '清理非当前版本的缓存。' : '此操作将中断远端终端和任务。',okText:label}))) return;
+            void administer(key);
+          }}>{label}</Button>)}
+        <pre aria-live="polite" style={{maxHeight:320,overflow:'auto',whiteSpace:'pre-wrap'}}>{working ? '处理中…' : result}</pre>
+      </AluneModal>}
       {directoryConnection && (
         <DirectoryAccessDialog
           connection={directoryConnection}

@@ -4,7 +4,8 @@ import { Input, AluneModal } from '@alune/ui';
 
 type Policy = { hostKey: string | null };
 type Request = {
-  purpose: 'connect' | 'proxy-test';
+  purpose: 'connect' | 'proxy-test' | 'upgrade';
+  activity?: string;
   name: string;
   pinned: string | null;
   finish: (p: Policy | null) => void;
@@ -18,6 +19,7 @@ export function hostConsent(
   name: string,
   pinned: string | null,
   purpose: Request['purpose'] = 'connect',
+  activity?: string,
 ): Promise<Policy> {
   if (request) return Promise.reject(new Error('请先完成当前主机的连接确认。'));
   return new Promise((resolve, reject) => {
@@ -25,6 +27,7 @@ export function hostConsent(
       name,
       pinned,
       purpose,
+      activity,
       finish(policy) {
         request = null;
         notify();
@@ -37,6 +40,11 @@ export function hostConsent(
 }
 function Consent({ item }: { item: Request }) {
   const [fingerprint, setFingerprint] = useState(item.pinned ?? '');
+  if (item.purpose === 'upgrade') return <AluneModal open level={1} title={'升级远端 Agent · ' + item.name}
+    description="立即重启将中断受影响的终端和任务。" okText="立即重启升级" cancelText="稍后再说"
+    onOk={() => item.finish({hostKey:item.pinned})} onCancel={() => item.finish(null)}>
+    <pre style={{whiteSpace:'pre-wrap', overflow:'auto',maxHeight:320}}>{item.activity}</pre>
+  </AluneModal>;
   const allowInstall = item.purpose === 'connect';
   const firstConnection = allowInstall && item.pinned === null;
   const key = firstConnection ? null : hostFingerprint(fingerprint);
