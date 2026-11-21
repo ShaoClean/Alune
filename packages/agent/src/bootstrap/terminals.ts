@@ -6,25 +6,35 @@ import { TerminalRegistry, TerminalSessions } from '../modules/terminals';
 import type { RepositoryCatalog } from '../modules/repositories/catalog';
 import { supervisedTerminal } from '../adapters/pty/supervised';
 
-export function terminalsKernel(catalog: RepositoryCatalog) {
+export function terminalsKernel(catalog: RepositoryCatalog, activityChanged?: () => void) {
   const registry = new TerminalRegistry((message) => new ProtocolError('conflict', message));
   registry.enabled = true;
-  const sessions = new TerminalSessions(async (resourceId) => {
-    const repo = catalog.get({ agentId: catalog.agentId, resourceId });
-    return {
-      repositoryName: repo.name,
-      // Git reports Windows drive roots with POSIX separators; show the same
-      // native path as the shell and the original terminal details.
-      initialPath: normalize(repo.path),
-      source: 'local',
-      ...(process.platform === 'win32'
-        ? { windowsPty: { backend: 'conpty' as const, buildNumber: Number(release().split('.')[2]) } }
-        : {}),
-      environment: `Alune 服务主机 · ${hostname()}`,
-      open: (cols, rows, signal, callbacks) =>
-        supervisedTerminal(repo.path, cols, rows, signal, callbacks),
-    };
-  }, registry);
+  const sessions = new TerminalSessions(
+    async (resourceId) => {
+      const repo = catalog.get({ agentId: catalog.agentId, resourceId });
+      return {
+        repositoryName: repo.name,
+        // Git reports Windows drive roots with POSIX separators; show the same
+        // native path as the shell and the original terminal details.
+        initialPath: normalize(repo.path),
+        source: 'local',
+        ...(process.platform === 'win32'
+          ? {
+              windowsPty: {
+                backend: 'conpty' as const,
+                buildNumber: Number(release().split('.')[2]),
+              },
+            }
+          : {}),
+        environment: `Alune 服务主机 · ${hostname()}`,
+        open: (cols, rows, signal, callbacks) =>
+          supervisedTerminal(repo.path, cols, rows, signal, callbacks),
+      };
+    },
+    registry,
+    !!activityChanged,
+    activityChanged,
+  );
   return {
     handlers: terminalHandlers(sessions, (r) => catalog.get(r)),
     registry,

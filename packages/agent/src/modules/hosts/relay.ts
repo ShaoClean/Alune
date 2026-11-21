@@ -1,6 +1,7 @@
 import {
   ProtocolError,
   validateTerminalCommand,
+  validateTaskResult,
   isRecord,
   validateInitialized,
   validateRepositoryResource,
@@ -36,8 +37,15 @@ export class HostRelay {
   get terminalImpact() {
     return [...this.shells.values()];
   }
+  private recovered = new Map<string, string>();
+  private trackReceipt(value: JsonValue) {
+    const task = validateTaskResult({ scope: 'agent', task: value }).task;
+    if (!task) throw disconnected();
+    if (task.state === 'running') this.recovered.set(task.requestId, task.method);
+    else this.recovered.delete(task.requestId);
+  }
   get pendingWrites() {
-    return [...this.pending]
+    return [...this.pending, ...this.recovered]
       .filter(([, method]) =>
         ['repositories.write', 'files.write', 'reviews.create', 'reviews.mutate'].includes(method),
       )
@@ -46,6 +54,7 @@ export class HostRelay {
   get activeTasks() {
     return (
       this.reads.size +
+      this.recovered.size +
       [...this.pending.values()].filter(
         (m) => !['events.ack', 'repositories.operation', 'agent.health'].includes(m),
       ).length
@@ -162,6 +171,7 @@ export class HostRelay {
         e.sessionId !== this.identity.sessionId
       )
         throw new ProtocolError('conflict', 'Remote event owner changed');
+      if (e.type === 'tasks.reconciled') this.trackReceipt(e.payload);
       if (
         e.type === 'terminal:removed' &&
         isRecord(e.payload) &&
@@ -224,6 +234,22 @@ export class HostRelay {
           );
         this.onIdentity(id);
         this.identity = id;
+      }
+      if (method === 'tasks.reconcile' && 'result' in m && Array.isArray(m.result)) {
+        this.recovered.clear();
+        for (const task of m.result) this.trackReceipt(task);
+      }
+      if (method === 'terminals.list' && 'result' in m && Array.isArray(m.result)) {
+        this.shells.clear();
+        for (const row of m.result) {
+          if (
+            isRecord(row) &&
+            typeof row.id === 'string' &&
+            typeof row.repositoryId === 'string' &&
+            ['connecting', 'running'].includes(String(row.state))
+          )
+            this.shells.set(row.id, { requestId: row.id, repositoryId: row.repositoryId });
+        }
       }
       if (method === 'repositories.list' && 'result' in m && m.id === this.lastList) {
         if (!Array.isArray(m.result)) throw disconnected();

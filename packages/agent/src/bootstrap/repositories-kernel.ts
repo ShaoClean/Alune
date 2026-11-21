@@ -36,9 +36,10 @@ export function repositoriesKernel(
   db: SqlDatabase,
   agentId: string,
   connection: (signal: AbortSignal, write?: boolean) => Promise<RepositoryTransport>,
+  activityChanged?: () => void,
 ) {
   const catalog = new RepositoryCatalog(db, agentId);
-  const terminals = terminalsKernel(catalog);
+  const terminals = terminalsKernel(catalog, activityChanged);
   const reads = new RepositoryReads();
   const snapshots = new Map<string, Snapshot>();
   function prune() {

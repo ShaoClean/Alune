@@ -37,7 +37,9 @@ export class EventQueue {
       messages: MAX_EVENT_QUEUE_LENGTH,
       ackMs: 30000,
     },
+    private hostSequence?: { value: number },
   ) {
+    this.resync = !!hostSequence?.value;
     if (limits.bytes < 2048 || limits.messages < 2 || limits.ackMs <= 0)
       throw new Error('Event queue limits are too small');
   }
@@ -186,7 +188,7 @@ export class EventQueue {
       this.lastWasResync = false;
     }
     if (!item) return;
-    const sequence = ++this.sequence;
+    const sequence = this.hostSequence ? ++this.hostSequence.value : ++this.sequence;
     this.inFlight = Object.assign(item, { sequence });
     this.timer = setTimeout(
       () => this.fail(new ProtocolError('timeout', 'Event acknowledgement timed out', 'unknown')),

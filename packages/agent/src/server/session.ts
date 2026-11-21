@@ -22,6 +22,7 @@ import { EventQueue } from '../runtime/events';
 import type { TaskJournal } from '../ports/task-journal';
 
 export interface SessionOptions {
+  host?: import('./host').AgentHost;
   agentId: string;
   version: string;
   sshSnapshotChannel?: boolean;
@@ -31,7 +32,7 @@ export interface SessionOptions {
   shutdownMs?: number;
   eventLimits?: { bytes: number; messages: number; ackMs: number };
 }
-export class AgentSession {
+export class ClientConnection {
   readonly sessionId = randomUUID();
   readonly events: EventQueue;
   readonly closed: Promise<void>;
@@ -49,7 +50,7 @@ export class AgentSession {
     string,
     { info: TaskInfo; controller: AbortController; journaled: boolean }
   >();
-  private running = new Set<Promise<void>>();
+  private running = new Map<Promise<void>, string | undefined>();
   private capabilities: string[];
   private disposers: Array<() => void> = [];
   shutdownTimedOut = false;
@@ -87,6 +88,7 @@ export class AgentSession {
         void this.close(error);
       },
       options.eventLimits,
+      options.host?.sequence,
     );
     this.disposers.push(
       transport.onMessage((message) => {
@@ -94,7 +96,7 @@ export class AgentSession {
         const operation = this.handle(message).catch((error) => {
           void this.close(error);
         });
-        this.running.add(operation);
+        this.running.set(operation, 'id' in message ? (message.id ?? undefined) : undefined);
         void operation.finally(() => this.running.delete(operation));
       }),
       transport.onClose((error) => {
@@ -175,6 +177,7 @@ export class AgentSession {
     this.requestBytes += bytes;
     let task: TaskInfo | undefined;
     let journalActive = false;
+    let finishBackground: (() => void) | undefined;
     try {
       if (message.method === 'initialize') {
         if (this.initialized)
@@ -293,8 +296,10 @@ export class AgentSession {
         startedAt: Date.now(),
       };
       if (handler.effect === 'mutation' && handler.durable !== false && this.options.taskJournal) {
+        this.options.host?.checkTaskCapacity();
         this.options.taskJournal.start(admitted, operationId);
         journalActive = true;
+        finishBackground = this.options.host?.start(controller, admitted);
       }
       task = admitted;
       this.tasks.set(message.id, { info: task, controller, journaled: journalActive });
@@ -302,10 +307,24 @@ export class AgentSession {
       const value = await handler.run(message.params, {
         agentId: this.options.agentId,
         sessionId: this.sessionId,
-        sessionSignal: this.lifecycle.signal,
+        sessionSignal: finishBackground ? controller.signal : this.lifecycle.signal,
         taskId: task.taskId,
         signal: controller.signal,
-        events: this.events,
+        events: finishBackground
+          ? {
+              subscribed: (type) => !this.closing && this.events.subscribed(type),
+              notifyState: (...args) => this.options.host?.events?.notifyState(...args),
+              failStream: (error) => this.events.failStream(error),
+              write: async (...args) => {
+                if (this.closing) return;
+                try {
+                  await this.events.write(...args);
+                } catch (error) {
+                  if (!this.closing) throw error;
+                }
+              },
+            }
+          : this.events,
       });
       task.state = 'succeeded';
       task.outcome = 'completed';
@@ -316,7 +335,10 @@ export class AgentSession {
       }
       this.taskEvent(task);
       this.pruneTasks();
-      if (!this.closing) await this.result(message, value);
+      if (!this.closing)
+        await this.result(message, value).catch((error) => {
+          void this.close(error);
+        });
     } catch (error) {
       const cancelled = error instanceof Error && error.name === 'AbortError';
       let failure =
@@ -357,12 +379,13 @@ export class AgentSession {
       }
       if (!this.closing) await this.error(message, failure);
     } finally {
+      finishBackground?.();
       this.activeRequests--;
       this.requestBytes -= bytes;
     }
   }
   private taskEvent(task: TaskInfo): void {
-    this.events.notifyState('tasks.changed', { ...task });
+    (this.options.host?.events ?? this.events).notifyState('tasks.changed', { ...task });
   }
   private pruneTasks(): void {
     for (const [id, task] of this.tasks) {
@@ -392,13 +415,16 @@ export class AgentSession {
       this.lifecycle.abort();
       this.events.close(error);
       for (const task of this.tasks.values())
-        if (task.info.state === 'running') task.controller.abort();
+        if (task.info.state === 'running' && !(this.options.host && task.journaled))
+          task.controller.abort();
       this.transport.close(error);
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([
           Promise.allSettled([
-            ...this.running,
+            ...Array.from(this.running)
+              .filter(([, id]) => !(this.options.host && id && this.tasks.get(id)?.journaled))
+              .map(([work]) => work),
             Promise.resolve()
               .then(() => this.options.onDispose?.())
               .catch(() => {
@@ -413,7 +439,8 @@ export class AgentSession {
           }),
         ]);
         for (const task of this.tasks.values())
-          if (task.info.state === 'running') task.info.state = 'unknown';
+          if (task.info.state === 'running' && !(this.options.host && task.journaled))
+            task.info.state = 'unknown';
       } finally {
         clearTimeout(timer);
         this.resolveClosed();
@@ -422,3 +449,5 @@ export class AgentSession {
     return this.closing;
   }
 }
+
+export { ClientConnection as AgentSession };

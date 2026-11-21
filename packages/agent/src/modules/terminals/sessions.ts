@@ -21,6 +21,7 @@ export interface TerminalOwner {
   readonly protocolSession?: true;
   id: string;
   connected: boolean;
+  fail?(error: Error): void;
   emit(event: string, payload: unknown): unknown;
 }
 interface Session {
@@ -30,6 +31,8 @@ interface Session {
   transport?: TerminalTransport;
   starting?: Promise<void>;
   stopping?: Promise<void>;
+  history: string[];
+  historyBytes: number;
   pending: string[];
   pendingBytes: number;
   inFlight?: number;
@@ -58,6 +61,8 @@ export class TerminalSessions {
   constructor(
     private target: (id: string, owner: TerminalOwner) => Promise<TerminalTarget>,
     private registry: TerminalRegistry,
+    readonly persistent = false,
+    private activityChanged = () => {},
   ) {}
 
   create(owner: TerminalOwner, body: any): TerminalSession {
@@ -69,8 +74,8 @@ export class TerminalSessions {
     this.registry.assertAvailable(body.repositoryId);
     if (this.sessions.has(body.requestId)) throw new Error('终端创建请求不能重复。');
     if (
-      [...this.sessions.values()].filter((entry) => entry.owner.id === owner.id).length >=
-      TERMINAL_LIMITS.sessions
+      [...this.sessions.values()].filter((entry) => this.persistent || entry.owner.id === owner.id)
+        .length >= TERMINAL_LIMITS.sessions
     )
       throw new Error('每个窗口最多保留 8 个终端，请先关闭不需要的会话。');
     const info: TerminalSession = {
@@ -82,12 +87,16 @@ export class TerminalSessions {
       environment: '',
       initialPath: '',
       state: 'connecting',
+      cols: body.cols,
+      rows: body.rows,
       createdAt: Date.now(),
     };
     const entry: Session = {
       info,
       owner,
       controller: new AbortController(),
+      history: [],
+      historyBytes: 0,
       pending: [],
       pendingBytes: 0,
       sequence: 0,
@@ -100,6 +109,7 @@ export class TerminalSessions {
       info,
       close: () => this.remove(entry),
     });
+    this.activityChanged();
     entry.startTimer = setTimeout(() => this.finish(entry, 'failed', '终端启动超时。'), 35_000);
     const start = this.start(entry, body.cols, body.rows);
     entry.starting = start;
@@ -126,7 +136,11 @@ export class TerminalSessions {
         disconnect: (message: string) => this.finish(entry, 'disconnected', message),
       };
       const transport = await open(cols, rows, signal, callbacks);
-      if (signal.aborted || !entry.owner.connected || this.sessions.get(entry.info.id) !== entry) {
+      if (
+        signal.aborted ||
+        (!this.persistent && !entry.owner.connected) ||
+        this.sessions.get(entry.info.id) !== entry
+      ) {
         await this.dispose(transport);
         return;
       }
@@ -150,19 +164,39 @@ export class TerminalSessions {
 
   private output(entry: Session, data: string) {
     if (entry.finished || !data || this.sessions.get(entry.info.id) !== entry) return;
-    if (entry.pendingBytes + Buffer.byteLength(data) > TERMINAL_LIMITS.pendingBytes) {
-      entry.pending = [];
-      entry.pendingBytes = 0;
-      this.finish(entry, 'disconnected', '终端输出超过传输上限，已停止会话；部分输出未送达。');
-      return;
+    if (
+      entry.owner.connected &&
+      entry.pendingBytes + Buffer.byteLength(data) > TERMINAL_LIMITS.pendingBytes
+    ) {
+      if (this.persistent && entry.owner.fail) {
+        entry.owner.fail(new Error('Terminal output delivery interrupted'));
+        this.disconnect(entry.owner);
+      } else {
+        entry.pending = [];
+        entry.pendingBytes = 0;
+        this.finish(entry, 'disconnected', '终端输出超过传输上限，已停止会话；部分输出未送达。');
+        return;
+      }
     }
     // Keep UTF-16 surrogate pairs together; each packet is <= 16 KiB in UTF-8.
     for (let index = 0; index < data.length; ) {
       let end = Math.min(index + 4096, data.length);
       if (end < data.length && /[\uD800-\uDBFF]/.test(data[end - 1])) end--;
       const chunk = data.slice(index, end);
-      entry.pending.push(chunk);
-      entry.pendingBytes += Buffer.byteLength(chunk);
+      const bytes = Buffer.byteLength(chunk);
+      if (this.persistent) {
+        const last = entry.history.length - 1;
+        if (last >= 0 && entry.history[last].length + chunk.length <= 4096)
+          entry.history[last] += chunk;
+        else entry.history.push(chunk);
+        entry.historyBytes += bytes;
+        while (entry.historyBytes > 128 * 1024)
+          entry.historyBytes -= Buffer.byteLength(entry.history.shift()!);
+      }
+      if (entry.owner.connected) {
+        entry.pending.push(chunk);
+        entry.pendingBytes += bytes;
+      }
       index = end;
     }
     if (entry.pendingBytes >= TERMINAL_LIMITS.windowBytes) entry.transport?.pause();
@@ -187,9 +221,14 @@ export class TerminalSessions {
     const sequence = ++entry.sequence;
     entry.inFlight = sequence;
     entry.ackTimer = setTimeout(() => {
-      entry.pending = [];
-      entry.pendingBytes = 0;
-      this.finish(entry, 'disconnected', '终端输出确认超时，已停止会话；请显式新建。');
+      if (this.persistent && entry.owner.fail) {
+        entry.owner.fail(new Error('Terminal output delivery interrupted'));
+        this.disconnect(entry.owner);
+      } else {
+        entry.pending = [];
+        entry.pendingBytes = 0;
+        this.finish(entry, 'disconnected', '终端输出确认超时，已停止会话；请显式新建。');
+      }
     }, 30_000);
     const packet: TerminalOutput = { sessionId: entry.info.id, sequence, data };
     entry.owner.emit('terminal:output', packet);
@@ -226,6 +265,7 @@ export class TerminalSessions {
     const entry = this.owned(owner, body?.sessionId, true);
     dimensions(body.cols, body.rows);
     entry.transport!.resize(body.cols, body.rows);
+    Object.assign(entry.info, { cols: body.cols, rows: body.rows });
   }
 
   close(owner: TerminalOwner, body: any) {
@@ -237,8 +277,22 @@ export class TerminalSessions {
 
   list(owner: TerminalOwner) {
     return [...this.sessions.values()]
-      .filter((e) => e.owner.id === owner.id)
+      .filter((e) => (this.persistent ? !e.finished : e.owner.id === owner.id))
       .map((e) => ({ ...e.info }));
+  }
+  attach(owner: TerminalOwner, id: string) {
+    const entry = this.sessions.get(id);
+    if (!this.persistent || !entry || entry.finished || !owner.connected)
+      throw new Error('远端终端已结束。');
+    clearTimeout(entry.ackTimer);
+    entry.inFlight = undefined;
+    entry.owner = owner;
+    entry.pending = [...entry.history];
+    entry.pendingBytes = entry.historyBytes;
+    this.pump(entry);
+    if (entry.pendingBytes < TERMINAL_LIMITS.windowBytes) entry.transport?.resume();
+    else entry.transport?.pause();
+    return { ...entry.info };
   }
   private owned(owner: TerminalOwner, id: unknown, running = false) {
     const entry = typeof id === 'string' ? this.sessions.get(id) : undefined;
@@ -258,12 +312,15 @@ export class TerminalSessions {
     entry.transport = undefined;
     Object.assign(entry.info, { state, error });
     this.state(entry);
+    if (this.persistent && !entry.owner.connected) void this.remove(entry);
+    this.activityChanged();
   }
 
   private remove(entry: Session) {
     entry.finished = true;
     this.sessions.delete(entry.info.id);
     this.registry.entries.delete(entry.info.id);
+    this.activityChanged();
     clearTimeout(entry.startTimer);
     clearTimeout(entry.ackTimer);
     entry.controller.abort();
@@ -275,7 +332,19 @@ export class TerminalSessions {
   }
 
   disconnect(owner: Pick<TerminalOwner, 'id'> & Partial<TerminalOwner>) {
-    for (const entry of this.sessions.values()) if (entry.owner.id === owner.id) this.remove(entry);
+    for (const entry of this.sessions.values()) {
+      if (entry.owner.id !== owner.id) continue;
+      if (!this.persistent || entry.finished) {
+        void this.remove(entry);
+        continue;
+      }
+      clearTimeout(entry.ackTimer);
+      entry.inFlight = undefined;
+      entry.owner = { id: '', connected: false, emit() {} };
+      entry.pending = [];
+      entry.pendingBytes = 0;
+      entry.transport?.resume();
+    }
   }
   private dispose(transport: TerminalTransport) {
     const promise = transport.dispose();

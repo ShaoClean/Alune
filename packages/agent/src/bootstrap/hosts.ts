@@ -122,9 +122,9 @@ export function hostsKernel(
     r.updatedAt = lastChange = Math.max(Date.now(), lastChange + 1);
     r.notify?.();
   }
-  function remoteTerminals() {
+  function remoteTerminals(sessionScopedOnly = false) {
     return [...live.values()].flatMap((r) =>
-      r.phase === 'ready' && r.relay
+      r.phase === 'ready' && r.relay && (!sessionScopedOnly || r.mode !== 'daemon')
         ? r.relay.terminalImpact.map((t) => {
             const repo = saved
               .get(r.hostId)
@@ -508,7 +508,7 @@ export function hostsKernel(
       ),
     closeShellRoutes() {
       for (const r of live.values())
-        if (r.phase === 'ready' && r.relay?.terminalImpact.length) stop(r);
+        if (r.phase === 'ready' && r.mode !== 'daemon' && r.relay?.terminalImpact.length) stop(r);
     },
     close() {
       for (const r of live.values()) stop(r);

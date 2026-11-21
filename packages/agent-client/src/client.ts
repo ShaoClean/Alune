@@ -64,6 +64,7 @@ import {
   validateSubscription,
   validateTaskQuery,
   validateTaskResult,
+  validateTerminalSession,
   validateUpdaterBridge,
   validateVersion,
   type RepositoryQueryKind,
@@ -220,6 +221,21 @@ export class AgentClient {
         throw new ProtocolError('invalid-request', 'Subscription belongs to another session');
       return result;
     });
+  }
+  async interruptedTasks() {
+    const result = await this.request('tasks.reconcile', {});
+    if (!Array.isArray(result)) throw new ProtocolError('invalid-request', 'Invalid task list');
+    return result.map((task) => validateTaskResult({ scope: 'agent', task }).task!);
+  }
+  async listTerminals() {
+    const result = await this.request('terminals.list', {});
+    if (!Array.isArray(result)) throw new ProtocolError('invalid-request', 'Invalid terminal list');
+    return result.map(validateTerminalSession);
+  }
+  async attachTerminal(sessionId: string) {
+    const shell = validateTerminalSession(await this.request('terminals.attach', { sessionId }));
+    if (shell.id !== sessionId) throw new ProtocolError('conflict', 'Terminal identity changed');
+    return shell;
   }
   getTask(query: TaskQuery): Promise<TaskResult> {
     try {

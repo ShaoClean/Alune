@@ -24,7 +24,7 @@ export async function openStateKernel(
   agentId: string,
   signal?: AbortSignal,
   secretOptions: Pick<ProtectedSecretOptions, 'backend' | 'keychain'> = {},
-  remote?: { gitProxyPort?: number | 'blocked' },
+  remote?: { gitProxyPort?: number | 'blocked'; activityChanged?: () => void },
 ) {
   const state = await AgentState.open(directory, agentId, signal);
   // Every successfully acquired resource belongs to this kernel, including
@@ -80,7 +80,12 @@ export async function openStateKernel(
           } // Corrupt policy is not permission to go direct.
         },
       );
-    const repositories = repositoriesKernel(state.database, agentId, connect);
+    const repositories = repositoriesKernel(
+      state.database,
+      agentId,
+      connect,
+      remote?.activityChanged,
+    );
     resources.push(() => repositories.close());
     const files = fileAccessKernel(agentId);
     resources.push(() => files.close());
@@ -88,12 +93,7 @@ export async function openStateKernel(
     resources.push(() => network.close());
     const hosts = remote
       ? undefined
-      : hostsKernel(
-          directory,
-          repositories.catalog,
-          settings,
-          state.document('ssh-routes'),
-        );
+      : hostsKernel(directory, repositories.catalog, settings, state.document('ssh-routes'));
     if (hosts) resources.push(() => hosts.close());
     const collaboration = collaborationKernel(
       repositories.catalog,
@@ -174,6 +174,7 @@ export async function openStateKernel(
       }
     return {
       state,
+      hasActiveTerminals: () => repositories.terminals.registry.impact({}).length > 0,
       desktopHandlers: {
         'desktop.log': {
           effect: 'mutation',
@@ -217,7 +218,7 @@ export async function openStateKernel(
                 ...repositories.terminals.registry
                   .impact({})
                   .map((session) => ({ ...session, environment: '本机' })),
-                ...(hosts?.remoteTerminals() ?? []),
+                ...(hosts?.remoteTerminals(true) ?? []),
               ]),
             ),
         },
@@ -233,7 +234,9 @@ export async function openStateKernel(
               throw new ProtocolError('invalid-params', 'Invalid terminal confirmation');
           },
           run(ids) {
-            if (hosts?.remoteTerminals().some((t) => !Array.isArray(ids) || !ids.includes(t.id)))
+            if (
+              hosts?.remoteTerminals(true).some((t) => !Array.isArray(ids) || !ids.includes(t.id))
+            )
               throw new ProtocolError('conflict', '远程终端会话发生了变化，请重新确认。');
             repositories.terminals.registry.remove({}, ids);
             hosts?.closeShellRoutes();

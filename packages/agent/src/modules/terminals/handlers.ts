@@ -13,7 +13,8 @@ export function terminalHandlers(
   checkResource?: (resource: ResourceRef) => void,
 ) {
   const handlers: Record<string, Handler> = {};
-  for (const command of ['create', 'list', 'input', 'resize', 'ack', 'close'] as const) {
+  for (const command of ['create', 'attach', 'list', 'input', 'resize', 'ack', 'close'] as const) {
+    if (command === 'attach' && !sessions.persistent) continue;
     handlers['terminals.' + command] = {
       minimumProtocolMinor: 4,
       effect: command === 'list' ? 'query' : 'mutation',
@@ -30,9 +31,16 @@ export function terminalHandlers(
             return !c.sessionSignal.aborted;
           },
           emit() {},
+          fail: (error) => c.events.failStream(error),
         };
-        if (command === 'create') {
-          const body = validateTerminalCommand('create', p);
+        if (command === 'create' || command === 'attach') {
+          const attachId =
+            command === 'attach' ? validateTerminalCommand('attach', p).sessionId : undefined;
+          const session = attachId && sessions.list(owner).find((s) => s.id === attachId);
+          if (attachId && !session) throw new ProtocolError('not-found', 'Terminal ended');
+          const body = session
+            ? { resource: { agentId: c.agentId, resourceId: session.repositoryId } }
+            : validateTerminalCommand('create', p);
           if (body.resource.agentId !== c.agentId)
             throw new ProtocolError('not-found', 'Foreign Agent resource');
           checkResource?.(body.resource);
@@ -55,6 +63,7 @@ export function terminalHandlers(
               )
               .catch((error) => c.events.failStream(error));
           };
+          if (attachId) return wire(invoke(() => sessions.attach(owner, attachId)));
           return wire(
             invoke(() =>
               sessions.create(owner, { ...body, repositoryId: body.resource.resourceId }),
