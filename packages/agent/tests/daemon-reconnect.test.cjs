@@ -18,16 +18,6 @@ test(
   },
   async (t) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-reconnect-'));
-    let idle = false;
-    const host = new AgentHost(
-      path.join(root, 'state'),
-      randomUUID(),
-      'test',
-      () => {
-        idle = true;
-      },
-      150,
-    );
     const gate = path.join(root, 'release');
     t.after(async () => {
       fs.writeFileSync(gate, '');
@@ -54,6 +44,16 @@ test(
     git('config', 'user.name', 'Fixture');
     git('config', 'user.email', 'fixture@example.invalid');
     git('config', 'commit.gpgsign', 'false');
+    let idle = false;
+    const host = new AgentHost(
+      path.join(root, 'state'),
+      randomUUID(),
+      'test',
+      () => {
+        idle = true;
+      },
+      150,
+    );
     let client = await connect();
     const { resource } = await client.registerRepository(repo);
     const id = randomUUID();
@@ -61,14 +61,39 @@ test(
     client.onEvent(({ type, payload }) => {
       if (type === 'terminal:state' && payload.state === 'running') running = true;
     });
-    await client.request('terminals.create', { requestId: id, resource, cols: 90, rows: 32 });
-    await until(() => running, 'PTY ready');
+    // A deterministic shell entry point lets the test observe the foreground
+    // job before dropping the connection, independently of runner login files.
+    const shellPath = path.join(repo, 'output.sh');
+    fs.writeFileSync(path.join(repo, 'output-data'), 'x'.repeat(180000));
     fs.writeFileSync(
-      path.join(repo, 'output.sh'),
-      'sleep 0.4; echo evicted-marker; head -c 180000 /dev/zero | tr "\\000" x; echo "offline-marker-$$"; touch output-finished\n',
+      shellPath,
+      [
+        '#!/bin/sh',
+        'touch output-started',
+        'while [ ! -f allow-output ]; do sleep 0.05; done',
+        'echo evicted-marker',
+        'cat output-data',
+        'echo "offline-marker-$$"',
+        'touch output-finished',
+        'exec /bin/sh -i',
+        '',
+      ].join('\n'),
+      { mode: 0o755 },
     );
-    await client.request('terminals.input', { sessionId: id, data: '. ./output.sh\r' });
+    const originalShell = process.env.SHELL;
+    process.env.SHELL = shellPath;
+    try {
+      await client.request('terminals.create', { requestId: id, resource, cols: 90, rows: 32 });
+      await until(
+        () => running && fs.existsSync(path.join(repo, 'output-started')),
+        'PTY job ready',
+      );
+    } finally {
+      if (originalShell === undefined) delete process.env.SHELL;
+      else process.env.SHELL = originalShell;
+    }
     client.close();
+    fs.writeFileSync(path.join(repo, 'allow-output'), '');
     await until(() => fs.existsSync(path.join(repo, 'output-finished')), 'offline job finished');
     await delay(200);
     assert.equal(idle, false);
