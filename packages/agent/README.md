@@ -175,10 +175,13 @@ Web 的显式适配器支持选择测试资源；未选择资源继续走原入�
 
 1. 在目标平台用 `scripts/agent/package.mjs` 构建独立包。在本机运行 `node scripts/agent/ssh-bundle.mjs PACKAGED_AGENT LOCAL_AGENT_DATA_DIR`，将可信构建登记到对应平台。不要从远程主机接收信任清单。
 2. 通过 `accounts.hosts.save` 保存主机配置。调用 SDK 时，`hostKey` 可传预先核实的 SHA-256 指纹（64 位小写十六进制），或传 `null` 明确信任首次连接的主机密钥。已有保存指纹时始终使用该指纹校验。
-3. 通过 SDK 选择该主机。首次安装或升级传 `install: true`；普通连接使用 `false`。每次启动前在目标上重新校验归档，解压到独立运行目录。失败保留已有版本，绝不启动旧包代为执行请求。
+3. 连接时先检查系统 `alune-agent --version`。名称、发行版本和协议匹配时使用系统入口，其他情况使用用户目录中的受管包。升级和回退按目标版本自动切换。
+4. 首次安装从 GitHub Release 下载并核对本机 catalog 的 SHA-256。启用本机代理时，远端下载通过 SSH 回环反向转发；若被 sshd 禁止，预装匹配版本或允许转发后重试。
+5. 内网或未发版开发环境可在本机 Agent 进程设置 `ALUNE_AGENT_RELEASE_MIRROR` 为远端可访问的 HTTP(S) 静态目录。将上一步生成的 `agent.tar.gz` 以 `alune-agent-<version>-<target>.tar.gz` 发布到该目录，或把完整独立包解压并将其 bin 目录加入远端 PATH。
+6. 已验证的受管包缓存在 `~/.alune-ssh/runtime/versions/<version>/<target>/`（Windows 根目录为用户配置文件夹）。缓存命中可离线启动。确认该版本的连接均已结束后，可手动删除相应版本目录释放磁盘。
 
 ```ts
-const remote = await openRemoteAgent(local, {hostId, hostKey, install: false});
+const remote = await openRemoteAgent(local, {hostId, hostKey});
 const repo = await remote.registerRepository(pathOnRemote);
 const status = await remote.readRepository(repo.resource, 'status', {});
 await remote.listRepositories(); // 刷新该主机在本机保存的目录快照

@@ -65,8 +65,6 @@ jobs:
           cache: npm
       - name: 核对原生目标架构
         run: node -e "if (process.platform + '-' + process.arch !== '${{ matrix.target }}') throw new Error('Runner architecture mismatch')"
-      - name: 用目标平台 shell 验证二进制部署引导
-        run: node --experimental-strip-types scripts/agent/test-bootstrap.mjs
       - run: node scripts/agent/check-clean-checkout.mjs before-install
       - run: npm ci --workspace=@alune/agent --workspace=@alune/agent-client --workspace=@alune/domain --workspace=@alune/protocol --workspace=@alune/ui --workspace=web --include-workspace-root=false
         env:
@@ -86,6 +84,8 @@ jobs:
           npm test -w @alune/protocol
           npm test -w @alune/agent-client
           npm test -w @alune/agent
+      - name: 验证目标平台并发安装与离线复用
+        run: node scripts/agent/test-bootstrap.mjs
       - run: npm run build -w web
       - if: "!inputs.skip_source_tests && (runner.os != 'Linux' || github.event_name != 'pull_request')"
         run: npm test -w web

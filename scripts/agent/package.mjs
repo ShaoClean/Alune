@@ -170,6 +170,30 @@ try {
       '#!/bin/sh\nalune_root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$alune_root/runtime/bin/node" "$alune_root/node_modules/@alune/agent/bin/alune-agent.cjs" "$@"\n',
       { mode: 0o755 },
     );
+  fs.mkdirSync(path.join(output, 'bin'), { recursive: true });
+  const windows = process.platform === 'win32';
+  const wrapper = windows ? 'alune-agent.cmd' : 'alune-agent';
+  const launcher = path.join(output, 'bin', wrapper);
+  fs.writeFileSync(
+    launcher,
+    windows
+      ? '@echo off\r\n@"%~dp0..\\alune-agent.cmd" %*\r\n'
+      : '#!/bin/sh\nexec "${0%/*}/../alune-agent" "$@"\n',
+    { mode: 0o755 },
+  );
+  const probe = JSON.parse(
+    execFileSync(
+      windows ? 'cmd.exe' : launcher,
+      windows ? ['/d', '/c', 'bin\\alune-agent.cmd --version'] : ['--version'],
+      { cwd: output, encoding: 'utf8' },
+    ),
+  );
+  if (
+    probe.name !== 'alune-agent' ||
+    probe.version !== JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version ||
+    !probe.protocol
+  )
+    throw Error('Packaged launcher version mismatch');
   const entry = path.join(output, 'node_modules/@alune/agent/bin/alune-agent.cjs');
   const diagnostic = JSON.parse(
     execFileSync(nodePath, [entry, 'doctor'], {

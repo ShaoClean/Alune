@@ -28,6 +28,8 @@ interface Saved {
   agentId: string;
   digest: string;
   target: string;
+  actualVersion?: string;
+  source?: string;
   repositories: RepositoryResource[];
 }
 type Connection = {
@@ -55,7 +57,6 @@ export function hostsKernel(
   local: RepositoryCatalog,
   settings: ReturnType<typeof settingsKernel>,
   document: JsonDocument,
-  releaseFetch?: typeof fetch,
 ) {
   const records = document.read() ?? [];
   if (
@@ -160,6 +161,9 @@ export function hostsKernel(
         r = live.get(p.id);
       return {
         hostId: p.id,
+        targetVersion: require('../version.json').version,
+        actualVersion: s?.actualVersion ?? null,
+        source: s?.source ?? null,
         terminalEnvironment: r?.terminalEnvironment ?? sshTerminalEnvironment(p),
         agentId: s?.agentId ?? null,
         hostKey: s?.hostKey ?? null,
@@ -365,18 +369,10 @@ export function hostsKernel(
             { ...p, hostKey: prior?.hostKey ?? p.hostKey },
             r.appliedProxy,
             signal,
-            prior?.digest,
             (phase) => {
               r.phase = phase;
               r.sshConnected = true;
-              if (phase !== 'downloading' && phase !== 'installing') {
-                r.progress = { phase };
-                notify(r);
-              }
-            },
-            releaseFetch,
-            (progress) => {
-              r.progress = { phase: r.phase, ...progress };
+              r.progress = { phase };
               notify(r);
             },
           );
@@ -387,6 +383,8 @@ export function hostsKernel(
             throw e;
           }
           r.phase = 'negotiating';
+          r.progress = { phase: r.phase };
+          notify(r);
           r.gitAvailable = conn.gitAvailable;
           r.gitProxy = conn.gitProxy;
           const timer = setTimeout(() => stop(r), 30000);
@@ -410,6 +408,8 @@ export function hostsKernel(
                 agentId: id.agentId,
                 digest: conn.digest,
                 target: conn.target,
+                actualVersion: id.implementation.version,
+                source: conn.source,
                 repositories: prior?.repositories ?? [],
               });
               clearTimeout(timer);
@@ -438,7 +438,7 @@ export function hostsKernel(
               r.fresh = false;
             },
           );
-          return { routeId: r.routeId, target: conn.target, gitAvailable: conn.gitAvailable };
+          return { routeId: r.routeId, target: conn.target, source: conn.source, hostKey: conn.hostKey, gitAvailable: conn.gitAvailable };
         } catch (e) {
           r.failurePhase = r.phase;
           stop(r);

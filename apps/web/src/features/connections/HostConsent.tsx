@@ -2,7 +2,7 @@ import { useSyncExternalStore, useState } from 'react';
 import { hostFingerprint } from './fingerprint';
 import { Input, AluneModal } from '@alune/ui';
 
-type Policy = { hostKey: string | null; install: boolean };
+type Policy = { hostKey: string | null };
 type Request = {
   purpose: 'connect' | 'proxy-test';
   name: string;
@@ -36,8 +36,7 @@ export function hostConsent(
   });
 }
 function Consent({ item }: { item: Request }) {
-  const [fingerprint, setFingerprint] = useState(item.pinned ?? ''),
-    [install, setInstall] = useState(false);
+  const [fingerprint, setFingerprint] = useState(item.pinned ?? '');
   const allowInstall = item.purpose === 'connect';
   const firstConnection = allowInstall && item.pinned === null;
   const key = firstConnection ? null : hostFingerprint(fingerprint);
@@ -54,7 +53,7 @@ function Consent({ item }: { item: Request }) {
       description={description}
       okText={firstConnection ? '信任并连接' : '连接'}
       okDisabled={key === undefined}
-      onOk={() => key !== undefined && item.finish({ hostKey: key, install })}
+      onOk={() => key !== undefined && item.finish({ hostKey: key })}
       onCancel={() => item.finish(null)}
     >
       {!firstConnection && (
@@ -66,12 +65,7 @@ function Consent({ item }: { item: Request }) {
           onChange={(e) => setFingerprint(e.target.value)}
         />
       )}
-      {allowInstall && (
-        <label>
-          <input type="checkbox" checked={install} onChange={(e) => setInstall(e.target.checked)} />
-          允许在这台服务器上安装或升级 Alune 运行包
-        </label>
-      )}
+      {allowInstall && <p>连接时会自动准备与当前 Alune 匹配的远端 Agent。</p>}
     </AluneModal>
   );
 }

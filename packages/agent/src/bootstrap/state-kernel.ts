@@ -93,7 +93,6 @@ export async function openStateKernel(
           repositories.catalog,
           settings,
           state.document('ssh-routes'),
-          network.fetch,
         );
     if (hosts) resources.push(() => hosts.close());
     const collaboration = collaborationKernel(

@@ -1,117 +1,105 @@
-// Exercise the generated wire commands under the platform's native login shell,
-// including Windows PowerShell 5.1 nested DefaultShell wrapping, no system SSH
-// access and no dependency on the workspace build.
 import assert from 'node:assert/strict';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { execSync, execFileSync, spawn } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import { execFileSync, exec } from 'node:child_process';
+import { once } from 'node:events';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { bootstrapCommands } from '../../packages/agent/src/adapters/ssh/commands.ts';
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-bootstrap-')),
-  home = path.join(root, 'SSH login 中文');
-fs.mkdirSync(home);
+import { promisify } from 'node:util';
+import { runtimeCommands } from '../../packages/agent/dist/adapters/ssh/commands.js';
+import { PROTOCOL_VERSION } from '../../packages/protocol/dist/index.js';
+
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'agent bootstrap 中文 '));
+const pkg = path.join(home, 'package');
+const win = process.platform === 'win32';
+const target = process.platform + '-' + process.arch;
+const run = (cmd, publish = true) => {
+  const result = promisify(exec)(cmd, {
+    cwd: home,
+    env: { ...process.env, HOME: home, USERPROFILE: home, no_proxy: '*', NO_PROXY: '*' },
+    timeout: 30000,
+  });
+  result.child.stdin.on('error', () => {});
+  // The SSH client keeps stdin open during native tar and launcher probes.
+  let output = '';
+  result.child.stdout.on('data', chunk => {
+    output += chunk;
+    if (output.trim() === 'ready' && !result.child.stdin.writableEnded)
+      result.child.stdin.end(publish ? 'publish\n' : '');
+  });
+  return result;
+};
+let downloads = 0;
+let archive;
+const server = http.createServer((_req, res) => {
+  downloads++;
+  res.end(archive);
+});
+server.listen(0, '127.0.0.1');
+await once(server, 'listening');
 try {
-  const data = randomBytes(1 << 20);
-  fs.writeFileSync(path.join(root, 'asset'), data);
-  const archive = execFileSync('tar', ['-czf', '-', 'asset'], { cwd: root, maxBuffer: 2 << 20 });
-  const id = randomUUID(),
-    sha = createHash('sha256').update(archive).digest('hex');
-  const c = bootstrapCommands(process.platform === 'win32', sha, id);
-  const run = (cmd, input) =>
-    execSync(cmd, {
-      cwd: home,
-      input,
-      stdio: ['pipe', 'pipe', 'inherit'],
-      timeout: 30000,
-    });
-  const runFallbackUpload = async (usePsWrapper) => {
-    if (process.platform === 'win32') {
-      // Simulate Windows OpenSSH keeping stdin open after delivering the final line,
-      // both directly and wrapped inside an outer PowerShell 5.1 DefaultShell.
-      const wire = c.upload(archive.length);
-      const child = usePsWrapper
-        ? spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-Command', wire], {
-            cwd: home,
-            stdio: ['pipe', 'ignore', 'inherit'],
-            timeout: 30000,
-          })
-        : (() => {
-            const [powershell, ...args] = wire.split(' ');
-            return spawn(powershell, args, {
-              cwd: home,
-              stdio: ['pipe', 'ignore', 'inherit'],
-              timeout: 30000,
-            });
-          })();
-      const finished = new Promise((resolve, reject) => {
-        child.once('error', reject);
-        child.once('exit', resolve);
-      });
-      for (let i = 0; i < archive.length; i += 48 * 1024) {
-        child.stdin.write(archive.subarray(i, i + 48 * 1024).toString('base64') + '\n');
-      }
-      child.stdin.write('END\n');
-      try {
-        assert.equal(await finished, 0);
-      } finally {
-        child.stdin.destroy();
-      }
-    } else {
-      run(c.upload(archive.length), archive);
-    }
-  };
-
-  console.log('bootstrap: installed (empty)');
-  assert.equal(run(c.installed).length, 0);
-  assert.equal(run(c.verified).length, 0);
-
-  // Exercise SFTP-style staging + commit + stale artifact pruning.
-  console.log('bootstrap: commit part + prune stale');
-  const baseDir = path.join(home, c.paths.base);
-  fs.mkdirSync(baseDir, { recursive: true });
-  fs.writeFileSync(path.join(baseDir, '0'.repeat(64) + '.tar.gz'), Buffer.from('stale'));
-  fs.writeFileSync(path.join(baseDir, 'upload-stale.part'), Buffer.from('stale-part'));
-  fs.writeFileSync(path.join(home, c.paths.part), archive);
-  run(c.commit('part'));
-  assert.equal(run(c.installed).toString(), 'present');
-  assert.equal(run(c.verified).toString(), 'verified');
-  assert.equal(fs.existsSync(path.join(baseDir, '0'.repeat(64) + '.tar.gz')), false);
-  assert.equal(fs.existsSync(path.join(baseDir, 'upload-stale.part')), false);
-
-  // Exercise exec fallback upload (including nested PS 5.1 DefaultShell on Windows).
-  console.log('bootstrap: upload fallback');
-  fs.rmSync(path.join(home, c.paths.archive));
-  await runFallbackUpload(false);
-  assert.equal(run(c.verified).toString(), 'verified');
-  if (process.platform === 'win32') {
-    console.log('bootstrap: upload fallback (nested PS 5.1)');
-    fs.rmSync(path.join(home, c.paths.archive));
-    await runFallbackUpload(true);
-    assert.equal(run(c.verified).toString(), 'verified');
+  fs.mkdirSync(path.join(pkg, 'bin'), { recursive: true });
+  fs.mkdirSync(path.join(pkg, 'runtime/bin'), { recursive: true });
+  if (!win) fs.symlinkSync(process.execPath, path.join(pkg, 'runtime/bin/node'));
+  function release(version) {
+    const entry = path.join(pkg, 'bin', win ? 'alune-agent.cmd' : 'alune-agent');
+    const json = JSON.stringify({ name: 'alune-agent', version, protocol: PROTOCOL_VERSION });
+    fs.writeFileSync(
+      entry,
+      win ? '@echo off\r\necho ' + json + '\r\nexit /b 0\r\n' : "#!/bin/sh\nprintf '%s\\n' '" + json + "'\n",
+      { mode: 0o755 },
+    );
+    archive = execFileSync('tar', ['-czf', '-', 'bin', 'runtime'], { cwd: pkg });
+    const bundle = {
+      version,
+      target,
+      sha256: createHash('sha256').update(archive).digest('hex'),
+      url: 'http://127.0.0.1:' + server.address().port + '/archive',
+    };
+    return (proxy) => runtimeCommands(bundle, randomUUID(), proxy);
   }
-
-  console.log('bootstrap: prepare');
-  run(c.prepare);
-  assert.deepEqual(fs.readFileSync(path.join(home, '.alune-ssh', 'run-' + id, 'asset')), data);
-  const folder = path.join(home, '.alune-ssh', 'run-' + id);
-  const node = path.join(
-    folder,
-    process.platform === 'win32' ? 'runtime/node.exe' : 'runtime/bin/node',
+  const first = release('1.0.0');
+  await assert.rejects(run(first('blocked').install), /forwarding blocked/);
+  assert.equal(downloads, 0);
+  const installers = await Promise.allSettled([run(first().install), run(first().install)]);
+  for (const result of installers) if (result.status === 'rejected') throw result.reason;
+  assert.equal(downloads, 1);
+  assert.equal((await run(first().cache)).stdout.trim(), 'present');
+  await run(first('blocked').install);
+  assert.equal(downloads, 1);
+  const second = release('1.1.0-beta.2');
+  await run(second().install);
+  assert.equal(downloads, 2);
+  await run(first().install);
+  assert.equal(downloads, 2);
+  const marker = path.join(
+    home,
+    '.alune-ssh/runtime/versions/1.1.0-beta.2',
+    target,
+    '.install-complete',
   );
-  fs.mkdirSync(path.dirname(node), { recursive: true });
-  if (process.platform === 'win32') fs.copyFileSync(process.execPath, node);
-  else fs.symlinkSync(process.execPath, node);
-  const entry = path.join(folder, 'node_modules/@alune/agent/bin/alune-agent.cjs');
-  fs.mkdirSync(path.dirname(entry), { recursive: true });
-  fs.writeFileSync(entry, 'process.stdin.pipe(process.stdout)');
-  const frame = Buffer.from('{"jsonrpc":"2.0","id":"test:1","result":"中文"}\n');
-  console.log('bootstrap: serve');
-  assert.deepEqual(run(c.serve, frame), frame);
-  assert.equal(fs.existsSync(folder), false);
-  run(c.prepare);
-  console.log('bootstrap: clean');
-  run(c.clean);
+  fs.writeFileSync(marker, 'corrupt');
+  const good = archive;
+  archive = Buffer.from('broken');
+  await assert.rejects(run(second().install), /checksum mismatch/);
+  archive = good;
+  await assert.rejects(run(second().install, false), /cancelled/);
+  assert.equal(fs.readFileSync(marker, 'utf8'), 'corrupt');
+  await run(second().install);
+  assert.equal(JSON.parse(fs.readFileSync(marker)).target, target);
+  // Keep the valid marker and break only the launcher.
+  const executable = path.join(
+    path.dirname(marker),
+    'bin',
+    win ? 'alune-agent.cmd' : 'alune-agent',
+  );
+  fs.writeFileSync(executable, win ? '@exit /b 1\r\n' : '#!/bin/sh\nexit 1\n');
+  assert.equal((await run(second().cache)).stdout.trim(), '');
+  await run(second().install);
+  assert.equal((await run(second().cache)).stdout.trim(), 'present');
+  console.log(target + ' concurrent install, proxy denial, offline rollback and repair passed.');
 } finally {
-  fs.rmSync(root, { recursive: true, force: true, maxRetries: 4 });
+  server.close();
+  await fs.promises.rm(home, { recursive: true, force: true, maxRetries: 6, retryDelay: 200 });
 }

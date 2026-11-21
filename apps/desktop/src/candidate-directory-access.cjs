@@ -43,7 +43,7 @@ module.exports = async ({ window, origin, wait, pass }) => {
     await wait(wc, primary(first ? '信任并连接' : '连接'));
     if (first) {
       assert.equal(await ev('Boolean(' + button('SSH 主机公钥 SHA-256 指纹') + ')'), false);
-      await click(element('.a-dlg-shell input[type=checkbox]'));
+      assert.equal(await ev('Boolean(' + element('.a-dlg-shell input[type=checkbox]') + ')'), false);
     } else assert.equal(await ev('(' + button('SSH 主机公钥 SHA-256 指纹') + ').value'), hostKey);
     await click(primary(first ? '信任并连接' : '连接'));
     // The first SSH connection installs and unpacks the packaged Agent.
