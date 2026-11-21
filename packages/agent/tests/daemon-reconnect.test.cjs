@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const net = require('node:net');
+const { once } = require('node:events');
 const { randomUUID } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const { setTimeout: delay } = require('node:timers/promises');
@@ -24,8 +26,14 @@ test(
       await host.close();
       fs.rmSync(root, { recursive: true, force: true });
     });
+    const listener = net.createServer();
+    listener.listen(0, '127.0.0.1');
+    await once(listener, 'listening');
+    t.after(() => listener.close());
     const connect = async () => {
-      const [server, socket] = require('node:stream').duplexPair();
+      const accepted = once(listener, 'connection');
+      const socket = net.connect(listener.address().port, '127.0.0.1');
+      const [server] = await accepted;
       await host.connect(
         () => new SocketTransport(server),
         undefined,
