@@ -49,8 +49,11 @@ try {
   $sha=[Security.Cryptography.SHA256]::Create(); $f=[IO.File]::OpenRead("$stage/archive")
   try { $hash=[BitConverter]::ToString($sha.ComputeHash($f)).Replace('-','') } finally { $f.Dispose(); $sha.Dispose() }
   if ($hash -ne '${sha256}') { throw 'SSH archive checksum mismatch' }
-  & "$env:SystemRoot/System32/tar.exe" -xzf "$stage/archive" -C "$stage/package"
-  if ($LASTEXITCODE) { throw 'Archive extraction failed; check permissions and free space' }
+  Push-Location -LiteralPath "$stage/package"
+  try {
+    & "$env:SystemRoot/System32/tar.exe" -xzf ../archive
+    if ($LASTEXITCODE) { throw 'Archive extraction failed; check permissions and free space' }
+  } finally { Pop-Location }
   $p=(& "$stage/package/bin/alune-agent.cmd" --version | ConvertFrom-Json)
   if ($LASTEXITCODE -or $p.name -cne 'alune-agent' -or $p.version -cne '${version}' -or $p.protocol.major -ne ${protocol.major} -or $p.protocol.minor -ne ${protocol.minor}) { throw 'Agent version mismatch' }
   [Console]::WriteLine('ready'); [Console]::Out.Flush()
