@@ -7,7 +7,7 @@ const fs = require('node:fs'),
 const { readBundle } = require('../dist/adapters/ssh/bundles');
 const { version } = require('../dist/version.json'),
   { PROTOCOL_VERSION } = require('@alune/protocol');
-test('desktop pins gate SSH downloads: no download on reconnect, redirect allowlist, checksum before upload', async () => {
+test('desktop catalog resolves immutable remote assets and rejects missing targets', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-release-pins-')),
     file = path.join(dir, 'catalog.json'),
     previous = process.env.ALUNE_AGENT_RELEASE_CATALOG;
@@ -28,84 +28,22 @@ test('desktop pins gate SSH downloads: no download on reconnect, redirect allowl
     fs.mkdirSync(path.join(dir, 'ssh-bundles', 'linux-x64'), { recursive: true });
     fs.writeFileSync(
       path.join(dir, 'ssh-bundles', 'linux-x64', 'release.json'),
-      JSON.stringify({ target: 'linux-x64', version, protocol: PROTOCOL_VERSION, sha256: sum, manifestSha256: '0'.repeat(64) }),
+      JSON.stringify({
+        target: 'linux-x64',
+        version,
+        protocol: PROTOCOL_VERSION,
+        sha256: sum,
+        manifestSha256: '0'.repeat(64),
+      }),
     );
     fs.writeFileSync(path.join(dir, 'ssh-bundles', 'linux-x64', 'agent.tar.gz'), bytes);
-    const calls = [];
-    const bundle = await readBundle(dir, 'linux-x64', async (url, options) => {
-      calls.push(url);
-      assert.equal(options.redirect, 'manual');
-      return calls.length === 1
-        ? new Response(null, {
-            status: 302,
-            headers: { location: 'https://release-assets.githubusercontent.com/fixture' },
-          })
-        : new Response(bytes);
-    });
+    const bundle = await readBundle(dir, 'linux-x64');
     assert.equal(bundle.sha256, sum);
-    assert.deepEqual(await bundle.bytes(), bytes);
-    assert.equal(calls.length, 0);
-    fs.rmSync(path.join(dir, 'ssh-bundles', 'linux-x64', 'agent.tar.gz'));
-    const remoteBundle = await readBundle(dir, 'linux-x64', async (url, options) => {
-      calls.push(url);
-      assert.equal(options.redirect, 'manual');
-      return calls.length === 1
-        ? new Response(null, {
-            status: 302,
-            headers: { location: 'https://release-assets.githubusercontent.com/fixture' },
-          })
-        : new Response(bytes, { headers: { 'content-length': String(bytes.length) } });
-    });
-    const progressEvents = [];
-    assert.deepEqual(
-      await remoteBundle.bytes((progress) => progressEvents.push(progress)),
-      bytes,
+    assert.equal(
+      bundle.url,
+      `https://github.com/ShaoClean/Alune/releases/download/v${version}/alune-agent-${version}-linux-x64.tar.gz`,
     );
-    assert.equal(calls.length, 2);
-    assert.ok(progressEvents.length >= 2);
-    assert.equal(progressEvents[0].transferred, 0);
-    assert.equal(progressEvents[0].total, bytes.length);
-    assert.equal(progressEvents.at(-1).transferred, bytes.length);
-    assert.equal(progressEvents.at(-1).percent, 100);
-    // Verified download is cached locally and reused without re-downloading.
-    assert.deepEqual(await remoteBundle.bytes(), bytes);
-    assert.equal(calls.length, 2);
-    fs.rmSync(path.join(dir, 'ssh-bundles', 'linux-x64', 'agent.tar.gz'));
-    const failed = await readBundle(dir, 'linux-x64', async () => {
-      throw new Error('network reset');
-    });
-    await assert.rejects(failed.bytes(), /SSH release download failed: network reset/);
-    const bad = await readBundle(
-      dir,
-      'linux-x64',
-      async () => new Response(Buffer.from('tampered')),
-    );
-    await assert.rejects(bad.bytes(), /checksum mismatch/);
-    assert.equal(fs.existsSync(path.join(dir, 'ssh-bundles', 'linux-x64', 'agent.tar.gz')), false);
-    const redirect = await readBundle(
-      dir,
-      'linux-x64',
-      async () =>
-        new Response(null, { status: 302, headers: { location: 'http://127.0.0.1/private' } }),
-    );
-    await assert.rejects(redirect.bytes(), /redirect/);
     await assert.rejects(readBundle(dir, 'win32-x64'), /catalog/);
-
-    // Idle timeout fires when the download stream stalls without delivering bytes.
-    const stalled = await readBundle(
-      dir,
-      'linux-x64',
-      async () =>
-        new Response(
-          new ReadableStream({
-            start() {},
-          }),
-          { status: 200, headers: { 'content-length': '1024' } },
-        ),
-      undefined,
-      50,
-    );
-    await assert.rejects(stalled.bytes(), { kind: 'timeout' });
   } finally {
     if (previous === undefined) delete process.env.ALUNE_AGENT_RELEASE_CATALOG;
     else process.env.ALUNE_AGENT_RELEASE_CATALOG = previous;

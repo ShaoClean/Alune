@@ -220,7 +220,7 @@ export class HostRelay {
         )
           throw new ProtocolError(
             'incompatible-version',
-            'Unexpected remote Agent version or capabilities',
+            `Expected alune-agent ${this.version} protocol ${PROTOCOL_VERSION.major}.${PROTOCOL_VERSION.minor} with remote capabilities; received ${id.implementation.name} ${id.implementation.version} protocol ${id.protocol.major}.${id.protocol.minor}`,
           );
         this.onIdentity(id);
         this.identity = id;

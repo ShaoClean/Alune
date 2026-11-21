@@ -16,7 +16,9 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 const [source, data] = process.argv.slice(2);
 if (!source || !data) throw new Error('Usage: ssh-bundle.mjs PACKAGED_AGENT LOCAL_AGENT_DATA_DIR');
-const bytes = readFileSync(join(source, 'manifest.json'));
+const manifestPath = join(source, 'manifest.json');
+if (!lstatSync(manifestPath).isFile()) throw Error('Unsafe manifest');
+const bytes = readFileSync(manifestPath);
 const manifest = JSON.parse(bytes);
 const digest = (b) => createHash('sha256').update(b).digest('hex');
 if (!['darwin-arm64', 'darwin-x64', 'linux-x64', 'win32-x64'].includes(manifest.target))
@@ -26,6 +28,7 @@ const root = realpathSync(source),
 for (const name of names) {
   if (
     !name ||
+    name === 'manifest.json' ||
     name.startsWith('-') ||
     /[\r\n\\:]/.test(name) ||
     name.split('/').some((part) => ['', '.', '..'].includes(part))
@@ -34,6 +37,7 @@ for (const name of names) {
   const file = join(root, name);
   if (
     !lstatSync(file).isFile() ||
+    lstatSync(file).nlink !== 1 ||
     relative(root, realpathSync(file)).split('\\').join('/') !== name
   )
     throw Error('Package member must be an ordinary file inside the bundle: ' + name);
@@ -50,10 +54,10 @@ try {
   // piping tar's binary stdout into an fd also avoids buffering the archive.
   const output = openSync(file, 'wx', 0o600);
   try {
-    execFileSync('tar', ['-czf', '-', '-T', '-'], {
+    execFileSync('tar', ['-czf', '-', '--null', '-T', '-'], {
       cwd: source,
       stdio: ['pipe', output, 'pipe'],
-      input: ['manifest.json', ...names].join('\n') + '\n',
+      input: ['manifest.json', ...names].join('\0') + '\0',
     });
   } finally {
     closeSync(output);

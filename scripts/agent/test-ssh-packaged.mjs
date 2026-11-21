@@ -24,8 +24,13 @@ const localDir = path.join(root, 'local'),
 const repo = path.join(root, 'project'),
   linked = path.join(root, 'linked');
 for (const dir of [login, repo]) fs.mkdirSync(dir);
+const fixtureBin = path.join(login, 'system bin');
+fs.mkdirSync(fixtureBin);
 const env = {
   ...process.env,
+  PATH: fixtureBin + path.delimiter + process.env.PATH,
+  HOME: login,
+  USERPROFILE: login,
   GIT_CONFIG_NOSYSTEM: '1',
   GIT_CONFIG_GLOBAL: path.join(root, 'gitconfig'),
   GIT_TERMINAL_PROMPT: '0',
@@ -79,6 +84,21 @@ const proxy = await fixtures.httpProxy({
           : port,
   }),
 });
+const targetName = process.platform + '-' + process.arch;
+const fixturePin = path.join(localDir, 'ssh-bundles', targetName, 'release.json');
+const mirror = http.createServer((req, res) => {
+  const pin = JSON.parse(fs.readFileSync(fixturePin));
+  if (req.url !== `/alune-agent-${pin.version}-${targetName}.tar.gz`) {
+    res.writeHead(404).end();
+    return;
+  }
+  const file = path.join(path.dirname(fixturePin), 'agent.tar.gz');
+  res.setHeader('Content-Length', fs.statSync(file).size);
+  fs.createReadStream(file).pipe(res);
+});
+mirror.listen(0, '127.0.0.1');
+await once(mirror, 'listening');
+env.ALUNE_AGENT_RELEASE_MIRROR = 'http://alune-mirror.test:' + mirror.address().port;
 const localProc = spawnAgent(
   process.execPath,
   [
@@ -90,6 +110,13 @@ const localProc = spawnAgent(
   { env: { ...env, ALUNE_P6_FIXTURE: root } },
 );
 const local = localProc.client;
+async function waitOffline() {
+  const deadline = Date.now() + 15000;
+  while ((await local.request('hosts.catalog')).hosts[0].state !== 'offline') {
+    if (Date.now() > deadline) throw Error('SSH route did not close');
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
 let remote, secondPeer, other;
 try {
   await local.initialize();
@@ -114,7 +141,6 @@ try {
   const policy = {
     hostId: host.id,
     hostKey: createHash('sha256').update(Buffer.from(ssh.publicKey, 'base64')).digest('hex'),
-    install: true,
   };
   const config = await local.getProxySettings();
   await local.saveProxySettings({
@@ -124,11 +150,33 @@ try {
   });
   await assert.rejects(openRemoteAgent(local, { ...policy, hostKey: '0'.repeat(64) }));
   const firstTrust = { ...policy, hostKey: null };
-  await assert.rejects(openRemoteAgent(local, { ...firstTrust, install: false }), /install/i);
   assert.equal((await local.request('hosts.catalog')).hosts[0].hostKey, null);
   const workspace = new HostWorkspace(local);
+  // A matching --version must still pass initialize before any business RPC.
+  const windows = process.platform === 'win32';
+  const shim = path.join(fixtureBin, windows ? 'alune-agent.cmd' : 'alune-agent');
+  const pinInfo = JSON.parse(fs.readFileSync(fixturePin));
+  const probe = JSON.stringify({
+    name: 'alune-agent',
+    version: pinInfo.version,
+    protocol: pinInfo.protocol,
+  });
+  fs.writeFileSync(
+    shim,
+    windows
+      ? '@echo off\r\nif "%1"=="--version" (echo ' +
+          probe +
+          ' & exit /b 0)\r\necho failed> "%USERPROFILE%/system-attempt"\r\nexit /b 1\r\n'
+      : '#!/bin/sh\nif [ "$1" = --version ]; then echo \'' +
+          probe +
+          '\'; exit 0; fi\necho failed > "$HOME/system-attempt"\nexit 1\n',
+    { mode: 0o755 },
+  );
   remote = await workspace.connect(firstTrust);
   assert.equal((await local.request('hosts.catalog')).hosts[0].hostKey, policy.hostKey);
+  assert(fs.existsSync(path.join(login, 'system-attempt')));
+  assert.equal((await local.request('hosts.catalog')).hosts[0].source, 'managed');
+  fs.unlinkSync(shim);
   const owner = remote.initialized.agentId;
   assert.notEqual(owner, local.initialized.agentId);
   const notes = path.join(root, 'outside repository notes');
@@ -219,7 +267,6 @@ try {
   other = await workspace.connect({
     hostId: profile2.id,
     hostKey: createHash('sha256').update(Buffer.from(secondPeer.publicKey, 'base64')).digest('hex'),
-    install: false,
   });
   await assert.rejects(
     other.request('files.read', { grant, path: 'note.txt' }),
@@ -421,7 +468,7 @@ try {
     oldPolicy.revision,
   );
   await assert.rejects(
-    openRemoteAgent(local, { ...policy, install: false, reconnectRevision: newPolicy.revision }),
+    openRemoteAgent(local, { ...policy, reconnectRevision: newPolicy.revision }),
     (e) => e.kind === 'busy',
   );
   const authTest = await local.request('network.testProxy', {
@@ -451,13 +498,10 @@ try {
   assert.equal(catalog.hosts.find((h) => h.hostId === host.id).repositories[0].id, target.id);
   other.close();
   // Do not retry a write. Wait for the old Agent to release its state and connect explicitly.
-  await terminal.until(
-    () => !fs.readdirSync(path.join(login, '.alune-ssh')).some((s) => s.startsWith('run-')),
-    'remote process disposal',
-  );
+  await waitOffline();
   alternateSshPort = secondPeer.port;
   await assert.rejects(
-    openRemoteAgent(local, { ...firstTrust, install: false }),
+    openRemoteAgent(local, { ...firstTrust }),
     (e) => e.kind === 'permission-denied' && e.message.includes('指纹与预期不一致'),
   );
   alternateSshPort = undefined;
@@ -465,7 +509,7 @@ try {
     (await local.request('hosts.catalog')).hosts.find((r) => r.hostId === host.id).hostKey,
     policy.hostKey,
   );
-  remote = await openRemoteAgent(local, { ...policy, install: false });
+  remote = await openRemoteAgent(local, { ...policy });
   assert.equal(remote.initialized.agentId, owner);
   assert.deepEqual(await remote.getTask({ taskId: commit.operationId }), receipt);
   assert.equal(
@@ -489,13 +533,9 @@ try {
   const closed = new Promise((resolve) => remote.onClose(resolve));
   remote.close();
   await closed;
-  await terminal.until(
-    () => !fs.readdirSync(path.join(login, '.alune-ssh')).some((s) => s.startsWith('run-')),
-    'second process disposal',
-  );
+  await waitOffline();
   remote = await openRemoteAgent(local, {
     ...policy,
-    install: false,
     reconnectRevision: newPolicy.revision,
   });
   assert.equal(
@@ -503,22 +543,38 @@ try {
     newPolicy.revision,
   );
   remote.close();
-  await terminal.until(
-    () => !fs.readdirSync(path.join(login, '.alune-ssh')).some((s) => s.startsWith('run-')),
-    'explicit reconnect retired',
-  );
+  await waitOffline();
   fs.writeFileSync(release, JSON.stringify({ ...JSON.parse(original), version: 'unknown' }));
   await assert.rejects(
-    openRemoteAgent(local, { ...policy, install: false }),
+    openRemoteAgent(local, { ...policy }),
     (e) => e.kind === 'incompatible-version',
   );
   fs.writeFileSync(release, JSON.stringify({ ...JSON.parse(original), sha256: 'a'.repeat(64) }));
-  await assert.rejects(openRemoteAgent(local, { ...policy, install: false }), /explicit upgrade/);
   await assert.rejects(openRemoteAgent(local, policy), /checksum mismatch/);
   fs.writeFileSync(release, original);
-  const archive = fs.readdirSync(path.join(login, '.alune-ssh')).find((s) => s.endsWith('.tar.gz'));
-  fs.appendFileSync(path.join(login, '.alune-ssh', archive), 'damage');
-  await assert.rejects(openRemoteAgent(local, { ...policy, install: false }));
+  const pin = JSON.parse(original);
+  const marker = path.join(
+    login,
+    '.alune-ssh/runtime/versions',
+    pin.version,
+    pin.target,
+    '.install-complete',
+  );
+  fs.writeFileSync(marker, 'damage');
+  remote = await openRemoteAgent(local, policy);
+  assert.equal(JSON.parse(fs.readFileSync(marker)).sha256, pin.sha256);
+  remote.close();
+  await waitOffline();
+  const packaged = path.join(pkg, 'bin', windows ? 'alune-agent.cmd' : 'alune-agent');
+  fs.writeFileSync(
+    shim,
+    windows
+      ? '@echo off\r\n@"' + packaged + '" %*\r\n'
+      : '#!/bin/sh\nexec "' + packaged + '" "$@"\n',
+    { mode: 0o755 },
+  );
+  remote = await openRemoteAgent(local, policy);
+  assert.equal((await local.request('hosts.catalog')).hosts[0].source, 'system');
   console.log(
     JSON.stringify({
       target: process.platform + '-' + process.arch,
@@ -536,7 +592,7 @@ try {
         'unknown version and damaged upgrade',
         'offline catalog',
         'reconnect receipt',
-        'damaged archive refused',
+        'damaged marker repaired',
       ],
     }),
   );
@@ -553,6 +609,7 @@ try {
   await localProc.close();
   secondPeer?.close();
   ssh.close();
+  mirror.close();
   proxy.close();
   gitEndpoint.close();
   fs.rmSync(root, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });

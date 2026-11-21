@@ -52,13 +52,14 @@ class HostTransport implements MessageTransport {
       this.close(e as Error);
     }
   }
+  disconnected?: Promise<unknown>;
   close(error: Error = new ProtocolError('disconnected', 'SSH route closed', 'unknown')) {
     if (this.stop.signal.aborted) return;
     this.stop.abort();
     for (const f of this.closures) f(error);
     this.messages.clear();
     this.closures.clear();
-    void this.local
+    this.disconnected = this.local
       .request('hosts.disconnect', { routeId: this.routeId }, { timeoutMs: 5000 })
       .catch(() => {});
   }
@@ -67,7 +68,7 @@ export async function openRemoteAgent(
   local: AgentClient,
   policy: OpenHostRoute,
   options: RequestOptions = {},
-) {
+): Promise<AgentClient> {
   validateOpenHost(policy);
   const result = await local.request('hosts.open', policy as unknown as JsonValue, {
     timeoutMs: null,
@@ -82,7 +83,25 @@ export async function openRemoteAgent(
   try {
     options.signal?.throwIfAborted();
     void wire.read();
-    await client.initialize();
+    try {
+      await client.initialize();
+    } catch (error) {
+      client.close();
+      await wire.disconnected;
+      options.signal?.throwIfAborted();
+      if (
+        policy.managedOnly ||
+        result.source !== 'system' ||
+        typeof result.hostKey !== 'string' ||
+        (error instanceof ProtocolError && error.kind === 'conflict')
+      )
+        throw error;
+      return openRemoteAgent(
+        local,
+        { ...policy, managedOnly: true, hostKey: result.hostKey },
+        options,
+      );
+    }
     await client.listRepositories(options); // atomically replace only this owner's stale snapshot
     return client;
   } catch (e) {

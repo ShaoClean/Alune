@@ -34,7 +34,7 @@ async function httpProxy({ secure = false, credentials, map = (_host, port) => (
     upstream.on('error', () => socket.destroy());
     socket.on('error', () => upstream.destroy());
     socket.on('close', () => upstream.destroy());
-    upstream.on('close', () => socket.destroy());
+    upstream.on('close', () => socket.end());
   });
   return { ...await listen(server), records };
 }
@@ -75,7 +75,7 @@ async function socksProxy({ credentials, map = (_host, port) => ({ host: '127.0.
         });
         upstream.on('error', () => socket.destroy());
         socket.on('close', () => upstream.destroy());
-        upstream.on('close', () => socket.destroy());
+        upstream.on('close', () => socket.end());
       }
     };
     socket.on('data', read);
@@ -103,7 +103,7 @@ async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, 
         client.forwardOut(info.bindAddr, listener.address().port, originator ?? socket.remoteAddress.replace(/^::ffff:/, ''), socket.remotePort, (error, channel) => {
           if (error) return socket.destroy();
           socket.on('error', () => channel.destroy()); channel.on('error', () => socket.destroy());
-          socket.on('close', () => channel.destroy()); channel.on('close', () => socket.destroy());
+          socket.on('close', () => channel.end()); channel.on('close', () => socket.end());
           socket.pipe(channel).pipe(socket);
         });
       });

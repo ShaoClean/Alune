@@ -90,7 +90,7 @@ const PHASE_LABELS: Record<string, string> = {
   probing: '正在探测主机环境…',
   forwarding: '正在配置代理转发…',
   downloading: '正在下载远端 Agent…',
-  installing: '正在上传远端 Agent…',
+  installing: '正在安装远端 Agent…',
   verifying: '正在校验远端 Agent…',
   unpacking: '正在解压远端 Agent…',
   starting: '正在启动远端 Agent…',
@@ -100,9 +100,14 @@ const PHASE_LABELS: Record<string, string> = {
 const formatSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 
+function RuntimeVersion({ connection }: { connection: { targetVersion?: string; actualVersion?: string; source?: string } }) {
+  if (!connection.targetVersion) return null;
+  return <small>Agent 目标 {connection.targetVersion}{connection.actualVersion && ` · 上次连接 ${connection.actualVersion}（${connection.source === 'system' ? '系统' : '受管'}）`}</small>;
+}
+
 function ConnectionProgressPanel({ progress }: { progress: ConnectionProgress }) {
   const label = PHASE_LABELS[progress.phase] ?? '正在连接…';
-  if (progress.phase !== 'downloading' && progress.phase !== 'installing') {
+  if (progress.transferred === undefined || (progress.phase !== 'downloading' && progress.phase !== 'installing')) {
     return (
       <div className="connection-progress" role="status">
         <span className="connection-progress__label">{label}</span>
@@ -183,6 +188,7 @@ export function ConnectionsPage() {
     setTestLoading(id);
     try {
       await testConnection(id);
+      await fetchConnections();
     } catch (err: any) {
       message.error(err.message || '连接失败');
     } finally {
@@ -354,6 +360,7 @@ export function ConnectionsPage() {
                         <span className="collection-text collection-table__mono" title={host}>
                           {host}
                         </span>
+                        <RuntimeVersion connection={connection} />
                         {statuses[connection.id]?.status === 'connecting' &&
                           statuses[connection.id]?.progress && (
                             <ConnectionProgressPanel
@@ -403,6 +410,7 @@ export function ConnectionsPage() {
                   </div>
                 </div>
                 {renderActions(connection)}
+                <RuntimeVersion connection={connection} />
                 {info?.status === 'connecting' && info.progress && (
                   <ConnectionProgressPanel progress={info.progress} />
                 )}

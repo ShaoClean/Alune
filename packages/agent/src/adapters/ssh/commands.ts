@@ -1,5 +1,9 @@
-// Shell snippets contain only fixed program text, a validated digest, UUID and numeric port.
-// Repository paths, profile fields, credentials and user input never enter a remote command.
+import { gzipSync } from 'node:zlib';
+import { PROTOCOL_VERSION } from '@alune/protocol';
+import type { readBundle } from './bundles';
+import { unixCache, unixInstall } from './runtime-unix';
+import { windowsCache, windowsInstall } from './runtime-windows';
+
 const sh = (s: string) => "sh -c '" + s.replaceAll("'", "'\\''") + "'";
 const ps = (s: string) =>
   'powershell.exe -NoLogo -NoProfile -NonInteractive -InputFormat None -OutputFormat Text -EncodedCommand ' +
@@ -25,202 +29,72 @@ export function targetFrom(output: string) {
   return { target, gitAvailable: !!git?.startsWith('git version ') };
 }
 
-export function bootstrapCommands(
-  windows: boolean,
-  digest: string,
-  nonce: string,
-  forwardPort?: number | 'blocked',
-) {
+type Bundle = Awaited<ReturnType<typeof readBundle>>;
+export type RuntimeSpec = Bundle & {
+  relative: string;
+  marker: string;
+  nonce: string;
+  protocol: typeof PROTOCOL_VERSION;
+  proxy?: number | 'blocked';
+};
+
+export function runtimeCommands(bundle: Bundle, nonce: string, proxy?: number | 'blocked') {
+  const { version, target, sha256 } = bundle;
   if (
-    !/^[a-f0-9]{64}$/.test(digest) ||
+    !/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.+-]+)?$/.test(version) ||
+    !['darwin-arm64', 'darwin-x64', 'linux-x64', 'win32-x64'].includes(target) ||
+    !/^[a-f0-9]{64}$/.test(sha256) ||
     !/^[a-f0-9-]{36}$/.test(nonce) ||
-    (forwardPort !== undefined &&
-      forwardPort !== 'blocked' &&
-      (!Number.isSafeInteger(forwardPort) || forwardPort < 1 || forwardPort > 65535))
+    (typeof proxy === 'number' && (!Number.isInteger(proxy) || proxy < 1 || proxy > 65535))
   )
-    throw Error('Invalid bootstrap identifiers');
-  const base = '.alune-ssh',
-    run = base + '/run-' + nonce,
-    archive = base + '/' + digest + '.tar.gz',
-    part = base + '/upload-' + digest + '.part',
-    temp = base + '/upload-' + nonce;
-  const paths = { base, archive, part, temp };
-  const sourceFile = (source: 'part' | 'temp') => {
-    if (source === 'part') return part;
-    if (source === 'temp') return temp;
-    throw Error('Invalid upload source');
+    throw Error('Invalid runtime identifiers');
+  const relative = `.alune-ssh/runtime/versions/${version}/${target}`;
+  const marker = JSON.stringify({ version, target, sha256 });
+  const spec = {
+    ...bundle,
+    url: bundle.url.replaceAll("'", '%27'),
+    relative,
+    marker,
+    nonce,
+    protocol: PROTOCOL_VERSION,
+    proxy,
   };
-  const arg = ' serve-remote' + (forwardPort ? ' --git-proxy-port ' + forwardPort : '');
-  if (windows) {
-    // Get-FileHash is an optional PowerShell module (often missing from
-    // noninteractive OpenSSH environments). Hash the file as bytes in .NET.
-    const check = (file: string) => `
-      $sha=[Security.Cryptography.SHA256]::Create();
-      $reader=[IO.File]::OpenRead('${file}');
-      try { $actual=[BitConverter]::ToString($sha.ComputeHash($reader)).Replace('-','').ToLowerInvariant() }
-      finally { $reader.Dispose(); $sha.Dispose() }
-      if ($actual -ne '${digest}') { throw 'checksum' }`;
-    const pruneStale = `
-      Get-ChildItem -LiteralPath '${base}' -Force -ErrorAction SilentlyContinue |
-        Where-Object { -not $_.PSIsContainer -and (($_.Name -like '*.tar.gz' -and $_.Name -ne '${digest}.tar.gz') -or $_.Name -like 'upload-*') } |
-        ForEach-Object { Remove-Item -Force -LiteralPath $_.FullName -ErrorAction SilentlyContinue }`;
+  const args = ' serve-remote' + (proxy ? ' --git-proxy-port ' + proxy : '');
+  if (target === 'win32-x64') {
+    const entry = `(Join-Path $env:USERPROFILE '${relative}/bin/alune-agent.cmd')`;
+    const compressed = gzipSync(windowsInstall(spec)).toString('base64');
     return {
-      paths,
-      installed: ps("if(Test-Path -LiteralPath '" + archive + "'){[Console]::Write('present')}"),
-      verified: ps(
-        `if (Test-Path -LiteralPath '${archive}') {
-           try {
-             ${check(archive)}
-             [Console]::Write('verified')
-           } catch {
-             if ([IO.File]::Exists('${archive}')) { [IO.File]::Delete('${archive}') }
-           }
-         }`,
+      probe: ps(
+        '[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); $exe=(Get-Command alune-agent -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source; [Console]::WriteLine($exe); & $exe --version; exit $LASTEXITCODE',
       ),
-      commit: (source: 'part' | 'temp') => {
-        const file = sourceFile(source);
-        return ps(
-          `try {
-             if (-not [IO.File]::Exists('${file}')) { throw 'missing' }
-             ${check(file)}
-             Move-Item -Force -LiteralPath '${file}' -Destination '${archive}';
-             ${pruneStale}
-           } finally { if ([IO.File]::Exists('${file}')) { [IO.File]::Delete('${file}') } }
-           exit 0`,
-        );
+      cache: ps(`${windowsCache(spec)}; if (Valid) { [Console]::Write('present') }`),
+      install: ps(
+        `$ms=New-Object IO.MemoryStream(,[Convert]::FromBase64String('${compressed}')); $gz=New-Object IO.Compression.GZipStream($ms,[IO.Compression.CompressionMode]::Decompress); & ([scriptblock]::Create((New-Object IO.StreamReader($gz)).ReadToEnd()))`,
+      ),
+      serve: (system?: string) => {
+        if (system && (!/^[A-Za-z]:[\\/]/.test(system) || /[\r\n\x00'"‘’“”]/.test(system)))
+          throw Error('Invalid system Agent path');
+        // Inherit the SSH byte streams directly, including under Windows PowerShell 5.1.
+        return ps(`$info=New-Object Diagnostics.ProcessStartInfo;
+          $info.UseShellExecute=$false;
+          $info.FileName=$env:ComSpec;
+          $info.EnvironmentVariables['ALUNE_REMOTE_ENTRY']=${system ? "'" + system + "'" : entry};
+          $info.Arguments='/d /v:off /s /c ""%ALUNE_REMOTE_ENTRY%"${args}"';
+          $child=[Diagnostics.Process]::Start($info); $child.WaitForExit(); exit $child.ExitCode`);
       },
-      // Pure ASCII Base64 lines terminated by an explicit END line so fallback
-      // upload works even when Windows OpenSSH DefaultShell is PowerShell 5.1.
-      upload: (size: number) => {
-        if (!Number.isSafeInteger(size) || size <= 0) throw Error('Invalid archive size');
-        return ps(
-          `[IO.Directory]::CreateDirectory('${base}') | Out-Null;
-         try {
-           $f=[IO.File]::Open('${temp}','CreateNew');
-           try {
-             $written=[int64]0;
-             while ($true) {
-               $line=[Console]::In.ReadLine();
-               if ($null -eq $line) { throw 'Incomplete archive' }
-               $trimmed=$line.Trim();
-               if ($trimmed -eq 'END') { break }
-               if ($trimmed.Length -eq 0) { continue }
-               $bytes=[Convert]::FromBase64String($trimmed);
-               $f.Write($bytes,0,$bytes.Length);
-               $written+=$bytes.Length;
-               if ($written -gt ${size}) { throw 'Archive exceeds expected size' }
-             }
-             if ($written -ne ${size}) { throw 'Incomplete archive' }
-           } finally { $f.Dispose() }
-           ${check(temp)}
-           Move-Item -Force -LiteralPath '${temp}' -Destination '${archive}';
-           ${pruneStale}
-         } finally { if ([IO.File]::Exists('${temp}')) { [IO.File]::Delete('${temp}') } }
-         exit 0`,
-        );
-      },
-      prepare: ps(
-        `${check(archive)}
-         New-Item -ItemType Directory '${run}' | Out-Null;
-         & (Join-Path $env:SystemRoot 'System32/tar.exe') -xzf '${archive}' -C '${run}';
-         exit $LASTEXITCODE`,
-      ),
-      clean: ps(
-        "Remove-Item -Force -Recurse -LiteralPath '" + run + "' -ErrorAction SilentlyContinue",
-      ),
-      serve:
-        'cmd.exe /d /c "' +
-        run.replaceAll('/', '\\') +
-        '\\runtime\\node.exe ' +
-        run.replaceAll('/', '\\') +
-        '\\node_modules\\@alune\\agent\\bin\\alune-agent.cjs' +
-        arg +
-        ' & rmdir /s /q ' +
-        run.replaceAll('/', '\\') +
-        '"',
     };
   }
-  const hash = (file: string) =>
-    'if command -v sha256sum >/dev/null; then h=$(sha256sum ' +
-    file +
-    '); else h=$(shasum -a 256 ' +
-    file +
-    '); fi; test "${h%% *}" = ' +
-    digest;
-  const pruneStale =
-    'for f in ' +
-    base +
-    '/*.tar.gz ' +
-    base +
-    '/upload-*; do [ -f "$f" ] || continue; [ "$f" = "' +
-    archive +
-    '" ] && continue; rm -f "$f" || :; done';
+  const entry = `"$HOME/${relative}/bin/alune-agent"`;
   return {
-    paths,
-    installed: sh('if test -f ' + archive + '; then printf present; fi'),
-    verified: sh(
-      'if test -f ' +
-        archive +
-        '; then if (' +
-        hash(archive) +
-        ') 2>/dev/null; then printf verified; else rm -f ' +
-        archive +
-        ' || :; fi; fi',
+    probe: sh(
+      'PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin"; export PATH; p=$(command -v alune-agent) || exit 1; case "$p" in /*) printf "%s\\n" "$p"; "$p" --version;; *) exit 1;; esac',
     ),
-    commit: (source: 'part' | 'temp') => {
-      const file = sourceFile(source);
-      return sh(
-        'set -eu; umask 077; trap "rm -f ' +
-          file +
-          '" EXIT; test -f ' +
-          file +
-          '; ' +
-          hash(file) +
-          '; mv -f ' +
-          file +
-          ' ' +
-          archive +
-          '; ' +
-          pruneStale,
-      );
+    cache: sh(`${unixCache(spec)}; if valid; then printf present; fi`),
+    install: sh(unixInstall(spec)),
+    serve: (system?: string) => {
+      if (system && (!system.startsWith('/') || /[\r\n\x00]/.test(system)))
+        throw Error('Invalid system Agent path');
+      return sh('exec ' + (system ? "'" + system.replaceAll("'", "'\\''") + "'" : entry) + args);
     },
-    upload: (_size: number) =>
-      sh(
-        'set -eu; umask 077; mkdir -p ' +
-          base +
-          '; trap "rm -f ' +
-          temp +
-          '" EXIT; cat > ' +
-          temp +
-          '; ' +
-          hash(temp) +
-          '; mv -f ' +
-          temp +
-          ' ' +
-          archive +
-          '; ' +
-          pruneStale,
-      ),
-    prepare: sh(
-      'set -eu; umask 077; ' +
-        hash(archive) +
-        '; mkdir ' +
-        run +
-        '; tar -xzf ' +
-        archive +
-        ' -C ' +
-        run,
-    ),
-    clean: sh('rm -rf ' + run),
-    serve: sh(
-      'trap "rm -rf ' +
-        run +
-        '" EXIT; ' +
-        run +
-        '/runtime/bin/node ' +
-        run +
-        '/node_modules/@alune/agent/bin/alune-agent.cjs' +
-        arg,
-    ),
   };
 }

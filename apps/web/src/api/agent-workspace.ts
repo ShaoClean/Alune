@@ -30,6 +30,9 @@ type Binding = { localId: string; resource: ResourceRef };
 type Host = {
   hostId: string;
   hostKey: string | null;
+  actualVersion?: string;
+  targetVersion?: string;
+  source?: string;
   terminalEnvironment?: string;
   state: string;
   reason: string | null;
@@ -112,7 +115,7 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
             (await local.listHostProfiles()).hosts.find((h) => h.id === id)!.name,
             host.hostKey,
           )
-        : { hostKey: host.hostKey!, install: false };
+        : { hostKey: host.hostKey! };
       const client = await openRemoteAgent(local, {
         hostId: id,
         ...policy,
@@ -324,6 +327,9 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         const route = c.hosts.find((r) => r.hostId === h.id);
         return {
           ...h,
+          actualVersion: route?.actualVersion,
+          targetVersion: route?.targetVersion,
+          source: route?.source,
           hasAuth: h.hasPassword || h.hasPassphrase,
           status:
             route?.state === 'ready'
