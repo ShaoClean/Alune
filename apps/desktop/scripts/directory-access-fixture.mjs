@@ -25,6 +25,7 @@ export async function directoryAccessFixture(directory) {
       GIT_CONFIG_GLOBAL: path.join(directory, 'empty.gitconfig'),
     },
   });
+  const runtime = path.join(desktop, 'dist/agent-runtime');
   const target = process.platform + '-' + process.arch;
   const bundle = path.join(directory, 'agent', 'ssh-bundles', target);
   let downloads = 0;
@@ -44,7 +45,7 @@ export async function directoryAccessFixture(directory) {
       process.execPath,
       [
         path.resolve(desktop, '../../scripts/agent/ssh-bundle.mjs'),
-        path.join(desktop, 'dist/agent-runtime'),
+        runtime,
         path.join(directory, 'agent'),
       ],
       { stdio: 'pipe' },
@@ -71,6 +72,13 @@ export async function directoryAccessFixture(directory) {
     close() {
       mirror.close();
       peer.close();
+      // Release the installed executable and database before deleting the fixture on Windows.
+      if (fs.existsSync(path.join(login, '.alune-ssh/daemon/server-runtime.json'))) {
+        const manifest = JSON.parse(fs.readFileSync(path.join(runtime, 'manifest.json'), 'utf8'));
+        execFileSync(path.join(runtime, manifest.node.executable), [
+          path.join(runtime, 'node_modules/@alune/agent/bin/alune-agent.cjs'), 'daemon', 'stop',
+        ], { env: { ...process.env, HOME: login, USERPROFILE: login }, timeout: 15000 });
+      }
     },
   };
 }
