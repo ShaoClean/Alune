@@ -8,8 +8,8 @@ const sh = (s: string) => "sh -c '" + s.replaceAll("'", "'\\''") + "'";
 const ps = (s: string) =>
   'powershell.exe -NoLogo -NoProfile -NonInteractive -InputFormat None -OutputFormat Text -EncodedCommand ' +
   Buffer.from(
-    "$ErrorActionPreference='Stop';[Environment]::CurrentDirectory=(Get-Location).ProviderPath;" +
-      s,
+    "$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';[Environment]::CurrentDirectory=(Get-Location).ProviderPath;try {" +
+      s + "\n} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }",
     'utf16le',
   ).toString('base64');
 export const unixProbe = sh('uname -s && uname -m; git --version || :');
