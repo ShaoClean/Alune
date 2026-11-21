@@ -2,7 +2,7 @@ import { sshTerminalEnvironment } from '@alune/domain';
 import type { AgentClient } from '@alune/agent-client';
 import type { JsonValue } from '@alune/protocol';
 import { uiAgent } from '../api/ui-agent';
-import { observeOwners, repositoryTarget } from '../api/agent-workspace';
+import { observeOwners, remoteTerminalHosts, repositoryTarget } from '../api/agent-workspace';
 import { useTerminalStore } from './terminalState';
 import type { ViewSession } from './terminalState';
 export { useTerminalStore, terminalStateLabel } from './terminalState';
@@ -138,14 +138,100 @@ const outputEvent = (packet: TerminalOutput) => {
       });
   });
 };
-export function connectTerminals() {
+async function restoreTerminals(client: AgentClient) {
+  const host = remoteTerminalHosts.get(client);
+  if (!host || !client.initialized?.capabilities.includes('terminals.attach')) return;
+  const sessions = await client.listTerminals();
+  if (client.state !== 'ready') return;
+  for (const old of useTerminalStore.getState().sessions) {
+    if (
+      old.connectionId === host.hostId &&
+      old.state === 'disconnected' &&
+      !sessions.some((s) => s.id === old.id)
+    )
+      patch(old.id, { state: 'exited', error: '终端已在断线期间结束。' });
+  }
+  for (const shell of sessions) {
+    const binding = host.bindings.find(
+      (b) =>
+        b.resource.agentId === client.initialized?.agentId &&
+        b.resource.resourceId === shell.repositoryId,
+    );
+    if (!binding || owners.has(shell.id) || client.state !== 'ready') continue;
+    const view = {
+      ...shell,
+      repositoryId: binding.localId,
+      connectionId: host.hostId,
+      source: 'ssh' as const,
+      environment: host.terminalEnvironment || 'SSH',
+    };
+    removeLocal(shell.id);
+    owners.set(shell.id, client);
+    ensureRuntime(shell.id);
+    useTerminalStore.setState((state) => ({
+      sessions: [...state.sessions, view],
+      selected: {
+        ...state.selected,
+        [binding.localId]: state.selected[binding.localId] ?? shell.id,
+      },
+    }));
+    try {
+      const attached = await client.attachTerminal(shell.id);
+      if (owners.get(shell.id) === client) stateEvent({ ...view, state: attached.state });
+    } catch (error) {
+      if (owners.get(shell.id) === client) {
+        owners.delete(shell.id);
+        patch(shell.id, { state: 'disconnected', error: String(error) });
+      }
+    }
+  }
+}
+const reportedTasks = new Map<string, string>();
+export function connectTerminals(notice?: (text: string) => void) {
   references++;
   if (uiAgent && !workspaceEnd) {
     const disposers = new Set<() => void>();
     const detach = observeOwners((client) => {
       if (client.state !== 'ready') return;
       if (client === uiAgent) useTerminalStore.setState({ connected: true, error: '' });
+      const recovering = new Set<string>();
+      const reportTask = (task: import('@alune/protocol').TaskInfo) => {
+        const key = client.initialized!.agentId + ':' + task.taskId;
+        if (reportedTasks.get(key) === task.state) return;
+        reportedTasks.set(key, task.state);
+        if (reportedTasks.size > 1024) reportedTasks.delete(reportedTasks.keys().next().value!);
+        const label = {
+          running: '进行中',
+          succeeded: '已完成',
+          failed: '失败',
+          cancelled: '已取消',
+          unknown: '结果未知',
+        };
+        notice?.(`远端任务 ${task.method}（${task.taskId}）${label[task.state]}`);
+      };
+      if (client.initialized?.capabilities.includes('tasks.reconcile'))
+        void client
+          .interruptedTasks()
+          .then(async (tasks) => {
+            for (const task of tasks) {
+              if (client.state !== 'ready') return;
+              recovering.add(task.taskId);
+              const latest =
+                task.state === 'running'
+                  ? (await client.getTask({ taskId: task.taskId })).task
+                  : task;
+              if (latest && client.state === 'ready') reportTask(latest);
+            }
+          })
+          .catch((error) => {
+            if (client.state === 'ready') report(error);
+          });
       const off = client.onEvent((event) => {
+        if (event.type === 'tasks.reconciled') {
+          const task = event.payload as unknown as import('@alune/protocol').TaskInfo;
+          if (recovering.has(task.taskId)) reportTask(task);
+          return;
+        }
         const info = event.payload as unknown as TerminalSession;
         const id =
           event.type === 'terminal:state'
@@ -169,6 +255,7 @@ export function connectTerminals() {
           outputEvent(event.payload as unknown as TerminalOutput);
         else if (event.type === 'terminal:removed') removeLocal(id);
       });
+      void restoreTerminals(client).catch(report);
       const close = client.onClose(() => {
         if (client === uiAgent) useTerminalStore.setState({ connected: false });
         for (const [id, owner] of owners)
@@ -176,7 +263,12 @@ export function connectTerminals() {
             owners.delete(id);
             const session = useTerminalStore.getState().sessions.find((s) => s.id === id);
             if (session && terminalNeedsConfirmation(session))
-              patch(id, { state: 'disconnected', error: '连接已断开，请显式新建会话。' });
+              patch(id, {
+                state: 'disconnected',
+                error: client.initialized?.capabilities.includes('terminals.attach')
+                  ? '等待重新接管远端终端。'
+                  : '连接已断开。',
+              });
             const runtime = runtimes.get(id);
             if (runtime) runtime.terminal.options.disableStdin = true;
           }

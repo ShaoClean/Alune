@@ -23,6 +23,8 @@ export interface TerminalSession {
   windowsPty?: { backend: 'conpty'; buildNumber: number };
   state: TerminalState;
   createdAt: number;
+  cols?: number;
+  rows?: number;
   exitCode?: number;
   signal?: number | string;
   error?: string;

@@ -155,7 +155,9 @@ Web 的显式适配器支持选择测试资源；未选择资源继续走原入�
 
 订阅 `terminal:state`、`terminal:output`、`terminal:removed` 后，调用 `terminals.create({resource, requestId, cols, rows})`。resource 必须指向本 Agent 已登记的仓库；客户端不能指定 cwd、shell 或窗口身份。每个协议会话最多保留 8 个终端，包括已退出但未关闭的终端。通过 `terminals.list({})` 查询本窗口，`input/resize/close` 使用 sessionId；运行中的会话必须显式确认关闭。协议 1.3 及以前不公布这些方法。
 
-协议事件 ACK 负责通道交付，`terminals.ack({sessionId, sequence})` 在 xterm 解析完对应包后发送。每个终端独立等待解析 ACK，等待期间仍可操作其他终端；缓冲达 64 KiB 暂停读取，超过 256 KiB 或 30 秒无解析确认则停止该终端。视图挂载和标签切换不决定 PTY 寿命。stdio EOF、窗口通道断开和 Agent 退出会清理所属会话；重启后必须显式新建。独立 PTY worker 监测父进程 IPC，Agent 被强制终止时也会回收 shell 和前台任务。终端输入、输出和会话均不持久化。
+协议事件 ACK 确认通道交付。xterm 解析完输出包后再发送 `terminals.ack({sessionId, sequence})`。每个终端独立等待解析 ACK，待发送输出达到 64 KiB 时暂停读取。stdio 和窗口会话在通道关闭时回收所属终端。
+
+SSH daemon 在进程内保留 PTY 和每个终端最近约 128 KiB 输出。重新连接并订阅终端事件后，`terminals.list({})` 返回活跃终端及尺寸，`terminals.attach({sessionId})` 在同一输出流中依次交付历史与实时数据。断线期间已受理的持久写入继续执行；`tasks.reconcile({})` 返回受断线影响的任务，`tasks.get` 可按任务或请求 ID 查询回执。最后一个客户端断开且所有终端和任务结束后，daemon 开始 30 分钟空闲倒计时。重启远端 daemon 会丢失 PTY 和内存中的历史。
 
 桌面可在已认证的仓库页面用 `?terminalExecutor=agent` 选择终端 RPC，复用已有仓库目录、SSH 通道和退出确认。独立 Agent 只运行本机仓库终端；SSH 远程 Agent 路由留给 P7。
 

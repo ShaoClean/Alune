@@ -6,8 +6,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { SocketTransport, socketPreface, type ProxyPort } from '@alune/agent-client/node';
-import { AgentSession } from '../server/session';
-import { openStateKernel } from './state-kernel';
+import { AgentHost } from '../server/host';
 
 const root = join(homedir(), '.alune-ssh', 'daemon');
 const runtime = join(root, 'server-runtime.json');
@@ -120,7 +119,7 @@ export async function ensureDaemon(version: string) {
 export async function serveDaemon(directory: string, agentId: string, version: string) {
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
   const token = randomBytes(32).toString('hex');
-  let session: AgentSession | undefined;
+
   let binding = Promise.resolve();
   const sockets = new Set<Socket>();
   let stopping = false;
@@ -129,7 +128,7 @@ export async function serveDaemon(directory: string, agentId: string, version: s
     server.close();
     for (const socket of sockets) socket.destroy();
   };
-  const idle = setTimeout(stop, 20 * 60_000);
+  const host = new AgentHost(directory, agentId, version, stop);
   const server = createServer((socket) => {
     sockets.add(socket);
     socket.once('close', () => sockets.delete(socket));
@@ -164,31 +163,11 @@ export async function serveDaemon(directory: string, agentId: string, version: s
       binding = binding
         .then(async () => {
           if (socket.destroyed || stopping) return;
-          await session?.close();
-          const kernel = await openStateKernel(
-            directory,
-            agentId,
-            new AbortController().signal,
-            {},
-            { gitProxyPort },
+          await host.connect(
+            () => new SocketTransport(socket),
+            gitProxyPort,
+            () => !socket.destroyed && !stopping,
           );
-          if (socket.destroyed || stopping) {
-            await kernel.close();
-            return;
-          }
-          const current = new AgentSession(new SocketTransport(socket), {
-            agentId,
-            version,
-            sshSnapshotChannel: true,
-            handlers: kernel.handlers,
-            taskJournal: kernel.taskJournal,
-            onDispose: kernel.close,
-          });
-          session = current;
-          clearTimeout(idleTimer);
-          void current.closed.then(() => {
-            if (current === session && !stopping) idleTimer = setTimeout(stop, 20 * 60_000);
-          });
           socket.resume();
         })
         .catch(() => {
@@ -197,7 +176,7 @@ export async function serveDaemon(directory: string, agentId: string, version: s
     };
     socket.on('readable', authenticate);
   });
-  let idleTimer = idle;
+
   await new Promise<void>((resolve, reject) =>
     server.once('error', reject).listen(0, loopback, resolve),
   );
@@ -220,9 +199,8 @@ export async function serveDaemon(directory: string, agentId: string, version: s
   try {
     await new Promise<void>((resolve) => server.once('close', resolve));
     await binding;
-    await session?.close();
+    await host.close();
   } finally {
-    clearTimeout(idleTimer);
     process.off('SIGTERM', stop).off('SIGINT', stop);
     if (readRuntime()?.token === token) fs.unlinkSync(runtime);
   }

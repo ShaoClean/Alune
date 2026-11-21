@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Button, Tooltip, Dropdown, AluneModal, MoonLoader, useAluneConfirm } from '@alune/ui';
+import { Button, Tooltip, Dropdown, AluneModal, MoonLoader, useFeedbackMessage, useAluneConfirm } from '@alune/ui';
 import {
   CodeOutlined,
   PlusOutlined,
@@ -50,7 +50,8 @@ export function TerminalWorkspace({
   const store = useTerminalStore();
   const confirm = useAluneConfirm();
   const navigate = useNavigate();
-  useEffect(connectTerminals, []);
+  const feedback = useFeedbackMessage();
+  useEffect(() => connectTerminals(feedback.info), [feedback]);
   useEffect(
     () =>
       window.aluneTerminal?.onShutdownRequested(async ({ requestId, sessions }) => {

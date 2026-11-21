@@ -1,4 +1,4 @@
-import type { ResourceRef } from '@alune/domain';
+import type { ResourceRef, TerminalSession } from '@alune/domain';
 import { TERMINAL_LIMITS } from '@alune/domain';
 import { ProtocolError, isRecord } from './messages';
 import { validateResource } from './repositories';
@@ -10,6 +10,7 @@ export interface TerminalCommands {
   resize: { sessionId: string; cols: number; rows: number };
   ack: { sessionId: string; sequence: number };
   close: { sessionId: string; confirmed: boolean };
+  attach: { sessionId: string };
   list: {};
 }
 export type TerminalCommand = keyof TerminalCommands;
@@ -19,6 +20,7 @@ const keys: Record<TerminalCommand, string[]> = {
   resize: ['sessionId', 'cols', 'rows'],
   ack: ['sessionId', 'sequence'],
   close: ['sessionId', 'confirmed'],
+  attach: ['sessionId'],
   list: [],
 };
 export const validTerminalId = (id: unknown): id is string =>
@@ -57,4 +59,21 @@ export function validateTerminalCommand<K extends TerminalCommand>(
     throw bad();
   if (command === 'close' && typeof value.confirmed !== 'boolean') throw bad();
   return value as unknown as TerminalCommands[K];
+}
+
+export function validateTerminalSession(value: unknown): TerminalSession {
+  if (
+    !isRecord(value) ||
+    !validTerminalId(value.id) ||
+    value.requestId !== value.id ||
+    !validTerminalId(value.repositoryId) ||
+    typeof value.repositoryName !== 'string' ||
+    typeof value.initialPath !== 'string' ||
+    typeof value.environment !== 'string' ||
+    !['local', 'ssh'].includes(String(value.source)) ||
+    !['connecting', 'running', 'exited', 'disconnected', 'failed'].includes(String(value.state)) ||
+    !Number.isSafeInteger(value.createdAt)
+  )
+    throw new ProtocolError('invalid-request', 'Invalid terminal session');
+  return value as unknown as TerminalSession;
 }

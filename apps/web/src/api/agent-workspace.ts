@@ -53,6 +53,7 @@ export type Target = {
   terminalEnvironment?: string;
 };
 export let repositoryTarget: (id: string) => Promise<Target>;
+export const remoteTerminalHosts = new WeakMap<AgentClient, Host>();
 export const agentOwners = new Set<AgentClient>();
 const ownerListeners = new Set<(client: AgentClient) => void>();
 export function observeOwners(listener: (client: AgentClient) => void) {
@@ -125,12 +126,13 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         ...(reconnectRevision ? { reconnectRevision } : {}),
       });
       try {
-        await client.subscribe(workspaceTopics);
+        await client.subscribe([...workspaceTopics, 'tasks.reconciled']);
       } catch (e) {
         client.close();
         throw e;
       }
       clients.set(id, client);
+      remoteTerminalHosts.set(client, host);
       addOwner(client);
       client.onClose(() => {
         if (clients.get(id) === client) clients.delete(id);
@@ -188,12 +190,11 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
       const sessions = error.details
         .sessions as unknown as import('@alune/domain').TerminalSession[];
       if (!(await confirmTerminalRemoval(sessions))) throw new Error('已取消移除。');
-      if (kind === 'repository')
-        for (const session of sessions.filter((s) => s.source === 'ssh')) {
-          const owner = clients.get(session.connectionId!);
-          if (!owner) throw new Error('请在拥有该会话的窗口关闭终端。');
-          await owner.request('terminals.close', { sessionId: session.requestId, confirmed: true });
-        }
+      for (const session of sessions.filter((s) => s.source === 'ssh')) {
+        const owner = clients.get(session.connectionId!);
+        if (!owner) throw new Error('请在拥有该会话的窗口关闭终端。');
+        await owner.request('terminals.close', { sessionId: session.requestId, confirmed: true });
+      }
       return submit(sessions.map((s) => s.id));
     }
   }
