@@ -86,6 +86,12 @@ jobs:
         with:
           name: verified-agent-catalog
           path: ${{ runner.temp }}/agent-release
+      - name: Download the verified SSH Agent archive for the smoke test
+        if: runner.os == 'macOS'
+        uses: actions/download-artifact@v4
+        with:
+          name: ssh-deploy-darwin-${{ matrix.arch }}
+          path: ${{ runner.temp }}/ssh-deploy
       - name: Build installers without publishing
         env:
           ALUNE_STAGE_RELEASE_CATALOG: ${{ runner.temp }}/agent-release/agent-catalog.json
@@ -97,6 +103,8 @@ jobs:
       # PR coverage, so it keeps the full suite here.
       - name: Packaged application smoke test (full suite)
         if: runner.os == 'macOS'
+        env:
+          ALUNE_TEST_SSH_BUNDLE_DIR: ${{ runner.temp }}/ssh-deploy
         run: node apps/desktop/scripts/test-packaged.mjs
       - name: Packaged application smoke test (terminals focus)
         if: runner.os == 'Windows'

@@ -27,32 +27,40 @@ export async function directoryAccessFixture(directory) {
   });
   const runtime = path.join(desktop, 'dist/agent-runtime');
   const target = process.platform + '-' + process.arch;
-  const bundle = path.join(directory, 'agent', 'ssh-bundles', target);
+  // A release build pins the exact archive produced by the Agent job.
+  const releaseBundle = process.env.ALUNE_TEST_SSH_BUNDLE_DIR;
+  const bundle = releaseBundle || path.join(directory, 'agent', 'ssh-bundles', target);
   let downloads = 0;
-  const mirror = createServer((request, response) => {
-    const { version } = JSON.parse(fs.readFileSync(path.join(bundle, 'release.json'), 'utf8'));
-    if (request.url !== `/alune-agent-${version}-${target}.tar.gz`) {
-      response.writeHead(404).end();
-      return;
-    }
-    downloads++;
-    const archive = path.join(bundle, 'agent.tar.gz');
-    response.setHeader('Content-Length', fs.statSync(archive).size);
-    fs.createReadStream(archive).pipe(response);
-  });
+  let mirror;
   try {
-    execFileSync(
-      process.execPath,
-      [
-        path.resolve(desktop, '../../scripts/agent/ssh-bundle.mjs'),
-        runtime,
-        path.join(directory, 'agent'),
-      ],
-      { stdio: 'pipe' },
-    );
+    if (!releaseBundle) {
+      execFileSync(
+        process.execPath,
+        [
+          path.resolve(desktop, '../../scripts/agent/ssh-bundle.mjs'),
+          runtime,
+          path.join(directory, 'agent'),
+        ],
+        { stdio: 'pipe' },
+      );
+    }
+    const pin = JSON.parse(fs.readFileSync(path.join(bundle, 'release.json'), 'utf8'));
+    assert.equal(pin.target, target, 'The SSH fixture archive must match the runner target');
+    const archive = path.join(bundle, 'agent.tar.gz');
+    const archiveSize = fs.statSync(archive).size;
+    mirror = createServer((request, response) => {
+      if (request.url !== `/alune-agent-${pin.version}-${target}.tar.gz`) {
+        response.writeHead(404).end();
+        return;
+      }
+      downloads++;
+      response.setHeader('Content-Length', archiveSize);
+      fs.createReadStream(archive).pipe(response);
+    });
     mirror.listen(0, '127.0.0.1');
     await once(mirror, 'listening');
   } catch (e) {
+    mirror?.close();
     peer.close();
     throw e;
   }
