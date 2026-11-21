@@ -10,13 +10,12 @@ import type { RpcMessage } from '@alune/protocol';
 import type { MessageTransport } from './transport';
 
 interface Write {
-  frame: string;
+  frame: string | Buffer;
   bytes: number;
   resolve(): void;
   reject(error: Error): void;
 }
 export class StdioTransport implements MessageTransport {
-  private decoder = new FrameDecoder();
   private messages = new Set<(message: RpcMessage) => void>();
   private closures = new Set<(error: Error) => void>();
   private queue: Write[] = [];
@@ -27,6 +26,8 @@ export class StdioTransport implements MessageTransport {
     private input: Readable,
     private output: Writable,
     private limits = { bytes: MAX_FRAME_BYTES + 1, messages: 128 },
+    private decoder: Pick<FrameDecoder, 'push' | 'end'> = new FrameDecoder(),
+    private encode: (message: RpcMessage) => string | Buffer = encodeMessage,
   ) {
     input.on('data', this.data);
     input.once('end', this.end);
@@ -70,9 +71,9 @@ export class StdioTransport implements MessageTransport {
   }
   send(message: RpcMessage): Promise<void> {
     if (this.ended) return Promise.reject(new ProtocolError('disconnected', 'Transport closed'));
-    let frame: string;
+    let frame: string | Buffer;
     try {
-      frame = encodeMessage(message);
+      frame = this.encode(message);
     } catch (error) {
       return Promise.reject(error);
     }

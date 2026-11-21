@@ -243,6 +243,9 @@ try {
   assert.equal(catalog.local.length, 1);
   assert.equal(catalog.hosts[0].repositories.length, 1);
   assert.equal(catalog.hosts[0].gitAvailable, true);
+  const firstPid = catalog.hosts[0].daemonPid;
+  assert.equal(catalog.hosts[0].mode, windows ? 'stdio' : 'daemon');
+  if (!windows) assert.ok(firstPid > 0);
   secondPeer = await fixtures.forwardingSSH({
     deny: true,
     password: sshPassword,
@@ -268,6 +271,9 @@ try {
     hostId: profile2.id,
     hostKey: createHash('sha256').update(Buffer.from(secondPeer.publicKey, 'base64')).digest('hex'),
   });
+  const otherStatus = (await local.request('hosts.catalog')).hosts.find(h => h.hostId === profile2.id);
+  assert.equal(otherStatus.mode, 'stdio');
+  if (!windows) assert.match(otherStatus.fallbackReason, /端口转发/);
   await assert.rejects(
     other.request('files.read', { grant, path: 'note.txt' }),
     (e) => e.kind === 'permission-denied',
@@ -511,6 +517,7 @@ try {
   );
   remote = await openRemoteAgent(local, { ...policy });
   assert.equal(remote.initialized.agentId, owner);
+  assert.equal((await local.request('hosts.catalog')).hosts[0].daemonPid, firstPid);
   assert.deepEqual(await remote.getTask({ taskId: commit.operationId }), receipt);
   assert.equal(
     (await local.request('hosts.catalog')).hosts.find((h) => h.hostId === host.id).stale,
@@ -523,6 +530,10 @@ try {
     (e) => e.kind === 'duplicate-request',
   );
   assert.equal(heldFetches, 2);
+  git('remote', 'set-url', 'proxied', 'http://p7-git.invalid/reconnected.git');
+  const beforeReconnectFetch = proxy.records.length;
+  await assert.rejects(write('fetch', ['proxied']));
+  assert(proxy.records.slice(beforeReconnectFetch).some(r => r.host === 'p7-git.invalid' && r.authorized));
   const release = path.join(
     localDir,
     'ssh-bundles',
@@ -609,6 +620,8 @@ try {
   await localProc.close();
   secondPeer?.close();
   ssh.close();
+  const runtime = path.join(login, '.alune-ssh/daemon/server-runtime.json');
+  if (fs.existsSync(runtime)) process.kill(JSON.parse(fs.readFileSync(runtime)).pid, 'SIGTERM');
   mirror.close();
   proxy.close();
   gitEndpoint.close();

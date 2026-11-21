@@ -100,9 +100,26 @@ const PHASE_LABELS: Record<string, string> = {
 const formatSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 
-function RuntimeVersion({ connection }: { connection: { targetVersion?: string; actualVersion?: string; source?: string } }) {
+function RuntimeVersion({ connection }: {
+  connection: {
+    mode?: string;
+    daemonPid?: number;
+    fallbackReason?: string;
+    targetVersion?: string;
+    actualVersion?: string;
+    source?: string;
+  };
+}) {
   if (!connection.targetVersion) return null;
-  return <small>Agent 目标 {connection.targetVersion}{connection.actualVersion && ` · 上次连接 ${connection.actualVersion}（${connection.source === 'system' ? '系统' : '受管'}）`}</small>;
+  return (
+    <small>
+      Agent 目标 {connection.targetVersion}
+      {connection.actualVersion && ` · 上次连接 ${connection.actualVersion}（${connection.source === 'system' ? '系统' : '受管'}）`}
+      {connection.mode && ` · ${connection.mode === 'daemon' ? '常驻' : 'stdio'}`}
+      {connection.daemonPid && ` · PID ${connection.daemonPid}`}
+      {connection.fallbackReason && ` · ${connection.fallbackReason}`}
+    </small>
+  );
 }
 
 function ConnectionProgressPanel({ progress }: { progress: ConnectionProgress }) {

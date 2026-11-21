@@ -111,6 +111,16 @@ async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, 
         const port = listener.address().port; forwards.set(port, listener); owned.add(port); accept(port);
       });
     });
+    client.on('tcpip', (accept, reject, info) => {
+      if (deny || info.destIP !== '127.0.0.1') return reject();
+      const channel = accept();
+      const socket = net.connect(info.destPort, info.destIP);
+      socket.on('error', () => channel.destroy());
+      channel.on('error', () => socket.destroy());
+      channel.once('close', () => socket.destroy());
+      socket.once('close', () => channel.end());
+      socket.pipe(channel).pipe(socket);
+    });
     client.on('session', (accept) => {
       const session = accept();
       session.on('exec', (accept, _reject, info) => {
