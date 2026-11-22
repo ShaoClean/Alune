@@ -57,7 +57,10 @@ try {
   $p=(& "$stage/package/bin/alune-agent.cmd" --version | ConvertFrom-Json)
   if ($LASTEXITCODE -or $p.name -cne 'alune-agent' -or $p.version -cne '${version}' -or $p.protocol.major -ne ${protocol.major} -or $p.protocol.minor -ne ${protocol.minor}) { throw 'Agent version mismatch' }
   [Console]::WriteLine('ready'); [Console]::Out.Flush()
-  if ([Console]::ReadLine() -cne 'publish') { throw 'Installation cancelled' }
+  $reader=New-Object IO.StreamReader([Console]::OpenStandardInput())
+  $decision=$reader.ReadLineAsync()
+  if (!$decision.Wait(30000)) { throw 'Timed out waiting for SSH install confirmation' }
+  if ($decision.Result -cne 'publish') { throw 'Installation cancelled' }
   [IO.File]::WriteAllText("$stage/package/.install-complete",'${marker}')
   $retired="$dest.retired-${nonce}"
   if ([IO.Directory]::Exists($dest)) {

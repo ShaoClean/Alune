@@ -191,7 +191,7 @@ async function sshSession(
       }, timeoutMs);
       ch.on('data', (b: Buffer) => {
         output += b.toString();
-        if (install && output.trim() === 'ready' && !signal.aborted && !ch.writableEnded) {
+        if (install && /(?:^|\n)ready\r?\n/.test(output) && !signal.aborted && !ch.writableEnded) {
           ch.end('publish\n');
         }
         if (output.length > (phase === 'starting' ? 131072 : 8192)) {
