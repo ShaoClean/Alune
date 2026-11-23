@@ -3,16 +3,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
 const { GitBlame } = require('../dist/modules/git/git-blame');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
 const { parentLine } = require('../dist/modules/git/git-blame');
 
-for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']) {
+for (const source of ['local']) {
   test(`${source}: blame matches Git, follows renames, maps parent lines, and supports worktrees`, async () => {
     const fixture = createRepository();
-    const ssh = source === 'ssh' ? await connectFixture(fixture) : null;
-    const blame = new GitBlame(ssh?.connection ?? new LocalConnection());
+    const blame = new GitBlame(new LocalConnection());
     const { repo, write } = fixture;
     const git = (...args) => fixture.git(...args).trim();
     const file = process.platform === 'win32' ? "中文 ' file.txt" : '中文 " file.txt';
@@ -69,15 +67,13 @@ for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']
         [first, second, first, first],
       );
     } finally {
-      await ssh?.close();
       fixture.close();
     }
   });
 
   test(`${source}: whitespace and ignore-revs file take effect, including ignored line markers`, async () => {
     const fixture = createRepository();
-    const ssh = source === 'ssh' ? await connectFixture(fixture) : null;
-    const blame = new GitBlame(ssh?.connection ?? new LocalConnection());
+    const blame = new GitBlame(new LocalConnection());
     const { repo, write } = fixture;
     const git = (...args) => fixture.git(...args).trim();
     try {
@@ -108,7 +104,6 @@ for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']
         'ready',
       );
     } finally {
-      await ssh?.close();
       fixture.close();
     }
   });

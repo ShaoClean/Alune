@@ -4,13 +4,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { SSHConnection } = require('../dist/adapters/ssh/connection-manager');
+const { NativeRepositoryConnection } = require('../dist/adapters/git/native');
 const { GitCommands, DIFF_PREVIEW_MAX_BYTES } = require('../dist/modules/git/git-commands-writes');
-const { startSSHServer } = require('./helpers/ssh-server.cjs');
-// This server executes /bin/sh and these cases include POSIX-only filenames,
+// These native executor cases include POSIX-only filenames,
 // links and permissions. Windows command transport has git-diff-windows.test.cjs.
-describe('POSIX SSH diff', { skip: process.platform === 'win32' }, () => {
-let remote, connection, git, root;
+describe('POSIX native diff', { skip: process.platform === 'win32' }, () => {
+let connection, git, root;
 const run = (repo, ...args) =>
   execFileSync('git', ['-C', repo, ...args], {
     env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' },
@@ -53,14 +52,11 @@ const readOnlyDiff = async (dir, options) => {
 
 before(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-diff-'));
-  remote = await startSSHServer();
-  connection = new SSHConnection(remote.options);
-  await connection.connect();
+  connection = new NativeRepositoryConnection();
   git = new GitCommands(connection);
 });
 after(async () => {
-  connection?.disconnect();
-  await remote?.close();
+  await connection?.close();
   if (root) fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -129,32 +125,32 @@ test('patch output is bounded even when a file itself is within the size limit',
   await assert.rejects(git.diff(dir, { file: 'many-lines' }), /1 MiB/);
   write(dir, 'many-lines', '\n'.repeat(10_000));
   await assert.rejects(git.diff(dir, { file: 'many-lines' }), /10,000 行/);
-  assert.equal(connection.connected, true);
+  assert.equal(connection.signal.aborted, false);
   assert.equal((await git.status(dir)).files[0].path, 'many-lines');
 });
 
 test('a file disappearing after preflight is an error even when no-index exits with code 1', async () => {
   const dir = repo();
   write(dir, 'vanishing', 'content\n');
-  const execute = connection.execCommand;
-  connection.execCommand = async function (command, ...args) {
+  const execute = connection.execGit;
+  connection.execGit = async function (directory, command, ...args) {
     if (command.includes('--no-index')) fs.unlinkSync(path.join(dir, 'vanishing'));
-    return execute.call(this, command, ...args);
+    return execute.call(this, directory, command, ...args);
   };
   try {
     await assert.rejects(git.diff(dir, { file: 'vanishing' }), /无法读取差异/);
   } finally {
-    connection.execCommand = execute;
+    connection.execGit = execute;
   }
 });
 
 test('SFTP preflight distinguishes a vanished file from a directory and preserves dangling links', async () => {
   const dir = repo();
-  const execute = connection.execCommand;
+  const execute = connection.execGit;
   for (const replacement of ['missing', 'directory']) {
     write(dir, 'changing', 'content\n');
-    connection.execCommand = async function (command, ...args) {
-      const result = await execute.call(this, command, ...args);
+    connection.execGit = async function (directory, command, ...args) {
+      const result = await execute.call(this, directory, command, ...args);
       if (command.includes('--others')) {
         fs.unlinkSync(path.join(dir, 'changing'));
         if (replacement === 'directory') fs.mkdirSync(path.join(dir, 'changing'));
@@ -167,7 +163,7 @@ test('SFTP preflight distinguishes a vanished file from a directory and preserve
         replacement === 'missing' ? /文件已不存在/ : /普通文件或符号链接/,
       );
     } finally {
-      connection.execCommand = execute;
+      connection.execGit = execute;
     }
   }
   fs.symlinkSync('missing-target', path.join(dir, 'dangling'));

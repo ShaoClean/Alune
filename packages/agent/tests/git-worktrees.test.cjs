@@ -7,7 +7,7 @@ const { parseWorktrees } = require('../dist/modules/git/worktrees');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 const { createWorktreeRepository } = require('./helpers/worktree-repository.cjs');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
+const { createNativeFixture } = require('./helpers/native-fixture.cjs');
 
 test('SFTP drive paths become native Git paths without rewriting POSIX or UNC paths', async () => {
   for (const [input, expected] of [
@@ -42,9 +42,9 @@ test('NUL records preserve literal paths, optional reasons, bare and detached st
   assert.notEqual(worktreePathKey('/repo\\name'), worktreePathKey('/repo/name'));
 });
 
-test('real SSH discovers siblings and isolates staged, unstaged, untracked diffs and writes', async (t) => {
+test('native executor discovers siblings and isolates staged, unstaged, untracked diffs and writes', async (t) => {
   const fixture = createWorktreeRepository();
-  const remote = await connectFixture(fixture);
+  const remote = await createNativeFixture(fixture);
   t.after(async () => {
     await remote.close();
     fixture.close();

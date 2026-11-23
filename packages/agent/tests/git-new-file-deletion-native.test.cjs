@@ -3,20 +3,20 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
+const { createNativeFixture } = require('./helpers/native-fixture.cjs');
 const { NewFileDeletion } = require('../dist/modules/git/new-file-deletion');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 
 test(
-  'real SSH/SFTP previews and deletes new files, preserves parents, and reports permission failures',
+  'native executor previews and deletes new files, preserves parents, and reports permission failures',
   { timeout: 60000 },
   async (t) => {
     const fixture = createRepository({ initial: false });
     t.after(fixture.close);
-    const ssh = await connectFixture(fixture);
-    t.after(ssh.close);
-    const deletion = new NewFileDeletion(ssh.connection);
-    const git = new GitCommands(ssh.connection);
+    const native = await createNativeFixture(fixture);
+    t.after(native.close);
+    const deletion = new NewFileDeletion(native.connection);
+    const git = new GitCommands(native.connection);
     for (const stage of ['untracked', 'staged', 'mixed']) {
       const name = process.platform === 'win32'
         ? `目录/中文 $ ' [x] ${stage}.txt`

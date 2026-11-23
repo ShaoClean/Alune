@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
 const { ConflictResolution } = require('../dist/modules/git/conflict-resolution-writes');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
@@ -40,15 +39,12 @@ function failing(f, ...args) {
 }
 
 // "exec" drives Git through shell command strings and SFTP calls like SSH, without a socket.
-for (const transport of ['local', 'exec', 'ssh']) {
+for (const transport of ['local', 'exec']) {
   const setup = async (t) => {
     const f = createRepository();
     t.after(f.close);
     f.git('checkout', '-qB', 'master');
-    const remote = transport === 'ssh' ? await connectFixture(f) : null;
-    if (remote) t.after(remote.close);
     const connection =
-      remote?.connection ||
       (transport === 'exec'
         ? {
             execCommand: f.connection.execCommand,
@@ -60,7 +56,7 @@ for (const transport of ['local', 'exec', 'ssh']) {
 
   test(
     `${transport}: merge conflicts report kinds, resolve per block and continue`,
-    { skip: transport === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const { f, conflicts, git } = await setup(t);
       diverged(f);
@@ -110,7 +106,7 @@ for (const transport of ['local', 'exec', 'ssh']) {
 
   test(
     `${transport}: rebase reports progress, stops again on the next conflict, skips and aborts`,
-    { skip: transport === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const { f, conflicts } = await setup(t);
       diverged(f);
@@ -154,7 +150,7 @@ for (const transport of ['local', 'exec', 'ssh']) {
 
   test(
     `${transport}: cherry-pick and revert conflicts continue or abort like the CLI`,
-    { skip: transport === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const { f, conflicts, git } = await setup(t);
       diverged(f);
@@ -191,7 +187,7 @@ for (const transport of ['local', 'exec', 'ssh']) {
 
   test(
     `${transport}: linked worktrees and stash conflicts`,
-    { skip: transport === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const { f, conflicts, git } = await setup(t);
       diverged(f);

@@ -6,7 +6,6 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
-const { SSHConnection } = require('../dist/adapters/ssh/connection-manager');
 const { GitSubmodules } = require('../dist/modules/git/submodules-writes');
 const { GitLfs } = require('../dist/modules/git/lfs');
 const { DiffImages } = require('../dist/modules/git/diff-images');
@@ -14,8 +13,7 @@ const { RepositoryFiles } = require('../dist/modules/git/repository-files');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 const { runGit } = require('../dist/modules/git/repository-transport');
 const { parseLfsPointer } = require('@alune/domain');
-const { startSSHServer } = require('./helpers/ssh-server.cjs');
-let root, remote, ssh;
+let root;
 const env = {
   ...process.env,
   GIT_CONFIG_NOSYSTEM: '1',
@@ -53,15 +51,8 @@ const noLfs = (connection) => ({
 before(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-submodules-lfs-'));
   process.env.GIT_ALLOW_PROTOCOL = 'file';
-  if (process.platform !== 'win32') {
-    remote = await startSSHServer();
-    ssh = new SSHConnection(remote.options);
-    await ssh.connect();
-  }
 });
 after(async () => {
-  ssh?.disconnect();
-  await remote?.close();
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -80,10 +71,10 @@ test('strict LFS pointer parsing does not reinterpret ordinary text', () => {
   assert.equal(parseLfsPointer(`hello\noid sha256:${oid}\nsize 12\n`), null);
 });
 
-// The /bin/sh SSH fixture runs on POSIX hosts; native Git stays covered on Windows.
-for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']) {
+// The Agent uses native Git on both local and remote hosts.
+for (const source of ['local']) {
   test(`${source}: LFS detection excludes ignored untracked files but retains tracked ones`, async () => {
-    const connection = noLfs(source === 'local' ? new LocalConnection() : ssh);
+    const connection = noLfs(new LocalConnection());
     const dir = repo();
     write(dir, '.gitignore', 'ignored/\n');
     write(dir, '.gitattributes', '*.bin filter=lfs -text\n');
@@ -99,7 +90,7 @@ for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']
   });
 
   test(`${source}: nested submodule initialization, state, summaries, sync and open validation`, async () => {
-    const connection = source === 'local' ? new LocalConnection() : ssh;
+    const connection = new LocalConnection();
     const leaf = repo();
     write(leaf, 'hello.txt', 'first');
     commit(leaf, 'nested content');
@@ -151,7 +142,7 @@ for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']
   });
 
   test(`${source}: absent git-lfs, cached images, OID verification and historical versions`, async () => {
-    const connection = noLfs(source === 'local' ? new LocalConnection() : ssh);
+    const connection = noLfs(new LocalConnection());
     const dir = repo();
     write(
       dir,
@@ -209,7 +200,7 @@ for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']
   });
 
   test(`${source}: missing required LFS filter leaves status and ordinary file diffs usable`, async () => {
-    const connection = source === 'local' ? new LocalConnection() : ssh;
+    const connection = new LocalConnection();
     const dir = repo();
     write(dir, '.gitattributes', '*.png filter=lfs -text\n');
     write(
@@ -240,7 +231,7 @@ for (const source of process.platform === 'win32' ? ['local'] : ['local', 'ssh']
           : false,
     },
     async () => {
-      const connection = source === 'local' ? new LocalConnection() : ssh;
+      const connection = new LocalConnection();
       const dir = repo();
       git(dir, 'lfs', 'install', '--local');
       git(dir, 'lfs', 'track', '*.png', '*.bin');

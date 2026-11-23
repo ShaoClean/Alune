@@ -3,20 +3,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
 const { WorkspaceFileActions, validateWorkspaceName } = require('../dist/modules/git/workspace-file-actions');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
 
-for (const remote of [false, true]) {
+for (const remote of [false]) {
   test(
-    `workspace file actions preserve index and target only the requested file (${remote ? 'SSH/SFTP' : 'local'})`,
+    `workspace file actions preserve index and target only the requested file (native)`,
     { timeout: 60000 },
     async (t) => {
       const f = createRepository();
       t.after(f.close);
-      const ssh = remote ? await connectFixture(f) : null;
-      if (ssh) t.after(ssh.close);
-      const connection = ssh?.connection || new LocalConnection();
+      const connection = new LocalConnection();
       const actions = new WorkspaceFileActions(connection);
       for (const state of ['untracked', 'modified', 'staged', 'mixed', 'intent']) {
         const name = `目录/中文 ' $ [${process.platform === 'win32' ? 'x' : '*'}] ${state}.txt`;

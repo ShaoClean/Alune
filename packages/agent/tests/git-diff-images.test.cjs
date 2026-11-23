@@ -4,14 +4,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { SSHConnection } = require('../dist/adapters/ssh/connection-manager');
+const { NativeRepositoryConnection } = require('../dist/adapters/git/native');
 const { DiffImages, DiffImageAbsentError } = require('../dist/modules/git/diff-images');
 const { DIFF_IMAGE_MAX_BYTES } = require('@alune/domain');
-const { startSSHServer } = require('./helpers/ssh-server.cjs');
-// Exercise a POSIX SSH host (/bin/sh), independently of native Windows Git.
-describe('POSIX SSH image previews', { skip: process.platform === 'win32' }, () => {
+// Exercise a POSIX native host (/bin/sh), independently of native Windows Git.
+describe('POSIX native image previews', { skip: process.platform === 'win32' }, () => {
 
-let remote, connection, images, root;
+let connection, images, root;
 
 // Real 1x1 PNGs, so the bytes returned by a preview can be compared exactly.
 const redPixel = Buffer.from(
@@ -43,15 +42,12 @@ const repo = () => {
 
 before(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-image-'));
-  remote = await startSSHServer();
-  connection = new SSHConnection(remote.options);
-  await connection.connect();
+  connection = new NativeRepositoryConnection();
   images = new DiffImages(connection);
 });
 
 after(async () => {
-  connection?.disconnect();
-  await remote?.close();
+  await connection?.close();
   if (root) fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -151,7 +147,7 @@ test('unsupported types, oversized files, directories, missing paths and travers
     images.read(dir, { file: 'huge.png', side: 'after', staged: true }),
     /超出预览限制/,
   );
-  assert.equal(connection.connected, true);
+  assert.equal(connection.signal.aborted, false);
 });
 
 });

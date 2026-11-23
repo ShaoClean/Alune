@@ -4,7 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
 const { InteractiveRebase } = require('../dist/modules/git/interactive-rebase');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
 
@@ -18,11 +17,6 @@ async function fixture(t, mode = 'local') {
     fs.writeFileSync(path.join(f.repo, 'tracked.txt'), 'keep main working change\n');
   }
   let connection = new LocalConnection();
-  if (mode === 'ssh') {
-    const server = await connectFixture(f);
-    t.after(server.close);
-    connection = server.connection;
-  }
   const git = (...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
   const commit = (name, content = name, message = name) => {
     fs.writeFileSync(path.join(repo, name), content);
@@ -73,7 +67,7 @@ test('idle state does not require SFTP, but recovery markers still fail closed',
   await assert.rejects(rebase.state(f.repo), /SFTP unavailable/);
 });
 
-for (const mode of ['local', 'worktree', 'ssh']) {
+for (const mode of ['local', 'worktree']) {
   test(
     `${mode}: reorder, reword, consecutive squash/fixup and drop use real Git`,
     { timeout: 120_000 },

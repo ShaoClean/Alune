@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
 const { DiscardChanges } = require('../dist/modules/git/discard-changes');
@@ -20,16 +19,14 @@ function nested(f, name) {
   f.git('-C', name, 'commit', '-qm', 'nested');
 }
 
-for (const transport of ['local', 'ssh']) {
+for (const transport of ['local']) {
   test(
     `${transport}: classify, stage, discard and locally ignore directory entries without traversing them`,
-    { skip: transport === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const f = createRepository();
       t.after(f.close);
-      const remote = transport === 'ssh' ? await connectFixture(f) : null;
-      if (remote) t.after(remote.close);
-      const connection = remote?.connection || new LocalConnection();
+      const connection = new LocalConnection();
       const commands = new GitCommands(connection);
       nested(f, 'nested repo');
       f.git('worktree', 'add', '-qb', 'demo', '.claude/worktrees/demo');
@@ -112,13 +109,11 @@ for (const transport of ['local', 'ssh']) {
 
   test(
     `${transport}: identifies worktrees registered through a path alias with missing siblings`,
-    { skip: transport === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const f = createRepository();
       t.after(f.close);
-      const remote = transport === 'ssh' ? await connectFixture(f) : null;
-      if (remote) t.after(remote.close);
-      const connection = remote?.connection || new LocalConnection();
+      const connection = new LocalConnection();
       nested(f, 'nested repo');
       f.git('worktree', 'add', '-qb', 'missing', '../missing');
       fs.rmSync(path.join(f.root, 'missing'), { recursive: true });

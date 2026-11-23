@@ -3,10 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { startSSHServer } = require('./helpers/ssh-server.cjs');
 const { PartialChanges } = require('../dist/modules/git/partial-changes-writes');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
-const { SSHConnection } = require('../dist/adapters/ssh/connection-manager');
 const { parsePatchHunks } = require('@alune/domain');
 process.env.GIT_CONFIG_GLOBAL = '/dev/null';
 process.env.GIT_CONFIG_NOSYSTEM = '1';
@@ -19,16 +17,6 @@ async function setup(t, kind = 'local') {
   if (kind === 'worktree') {
     root = path.join(f.root, 'linked worktree');
     f.git('worktree', 'add', '-qb', 'partial-test', root);
-  }
-  if (kind === 'ssh') {
-    const server = await startSSHServer();
-    transport = new SSHConnection(server.options);
-    transport.on('error', () => {});
-    await transport.connect();
-    t.after(async () => {
-      transport.disconnect();
-      await server.close();
-    });
   }
   const { execFileSync } = require('node:child_process');
   return {
@@ -62,10 +50,10 @@ const kindRows = (kind) => (hunks) => ({
   lines: hunks.flatMap((h) => h.rows.filter((r) => r.kind === kind).map((r) => r.index)),
 });
 
-for (const kind of ['local', 'worktree', 'ssh']) {
+for (const kind of ['local', 'worktree']) {
   test(
     `${kind}: hunk stage / unstage / discard preserve other hunks and both diff sides`,
-    { skip: kind === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const f = await setup(t, kind);
       const file = process.platform === 'win32' ? "目录/中文 '$HOME' [x].txt" : "目录/中文 '$HOME' [*].txt";
@@ -92,7 +80,7 @@ for (const kind of ['local', 'worktree', 'ssh']) {
 
   test(
     `${kind}: line selections, CRLF, no final newline and late external changes`,
-    { skip: kind === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const f = await setup(t, kind);
       const file = 'lines.txt';
@@ -313,9 +301,9 @@ test('preview reuses immutable blobs while still rejecting an index change betwe
 });
 
 
-for (const kind of ['local', 'worktree', 'ssh']) {
+for (const kind of ['local', 'worktree']) {
   test(`${kind}: full-file line actions preserve untouched context and reject mismatched scope`,
-    { skip: kind === 'ssh' && process.platform === 'win32' }, async (t) => {
+    {}, async (t) => {
     const f = await setup(t, kind);
     const file = 'full-context.txt';
     const original = Array.from({ length: 40 }, (_, i) => `line ${i}\n`).join('');

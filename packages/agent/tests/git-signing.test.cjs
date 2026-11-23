@@ -4,34 +4,21 @@ const fs = require('node:fs');
 const { join } = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { startSSHServer } = require('./helpers/ssh-server.cjs');
 const { GitSigning, signatureStatus, signingFailure } = require('../dist/modules/git/git-signing-writes');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 const { GitTags } = require('../dist/modules/git/git-tags-writes');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
-const { SSHConnection } = require('../dist/adapters/ssh/connection-manager');
 process.env.GIT_CONFIG_GLOBAL = process.platform === 'win32' ? 'NUL' : '/dev/null';
 process.env.GIT_CONFIG_NOSYSTEM = '1';
 
 async function setup(t, kind) {
   const f = createRepository();
   let transport = new LocalConnection();
-  let remote;
   const cleanup = [];
   t.after(async () => {
     for (const clean of cleanup) await clean();
-    if (remote) {
-      transport.disconnect();
-      await remote.close();
-    }
     f.close();
   });
-  if (kind === 'ssh') {
-    remote = await startSSHServer();
-    transport = new SSHConnection(remote.options);
-    transport.on('error', () => {});
-    await transport.connect();
-  }
   return {
     ...f,
     cleanup,
@@ -53,10 +40,10 @@ async function commit(f, message, amend) {
   assert.equal(result.exitCode, 0, result.stderr);
   return f.git('rev-parse', 'HEAD').trim();
 }
-for (const kind of ['local', 'ssh']) {
+for (const kind of ['local']) {
   test(
     `${kind}: SSH signed commit/amend/tag, trust changes, tampering and failure integrity`,
-    { skip: kind === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const f = await setup(t, kind);
       const { key, allowed } = sshKey(f);
@@ -161,8 +148,7 @@ for (const kind of ['local', 'ssh']) {
     `${kind}: real GPG signing, amend and tags`,
     {
       skip:
-        spawnSync('gpg', ['--version']).status !== 0 ||
-        (kind === 'ssh' && process.platform === 'win32'),
+        spawnSync('gpg', ['--version']).status !== 0,
     },
     async (t) => {
       const f = await setup(t, kind);

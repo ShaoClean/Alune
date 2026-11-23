@@ -7,14 +7,11 @@ const { GitTags } = require('../dist/modules/git/git-tags-writes');
 const { GitCommands } = require('../dist/modules/git/git-commands-writes');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
 
-for (const mode of ['local', 'worktree', 'ssh', 'ssh-worktree']) {
+for (const mode of ['local', 'worktree']) {
   test(`${mode}: real Git tag create, history, single/all push, checkout and confirmed deletion`, async (t) => {
     const fixture = createRepository();
-    let remote;
     t.after(async () => {
-      await remote?.close();
       fixture.close();
     });
     fixture.git('branch', '-m', 'main');
@@ -28,8 +25,7 @@ for (const mode of ['local', 'worktree', 'ssh', 'ssh-worktree']) {
       repo = join(fixture.root, 'linked 中文 worktree');
       fixture.git('worktree', 'add', '-qb', 'linked', repo);
     }
-    if (mode.startsWith('ssh')) remote = await connectFixture(fixture);
-    const connection = remote?.connection ?? new LocalConnection();
+    const connection = new LocalConnection();
     const tags = new GitTags(connection);
     const git = new GitCommands(connection);
     const bare = join(fixture.root, 'remote.git');
