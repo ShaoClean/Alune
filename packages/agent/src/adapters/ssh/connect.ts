@@ -12,6 +12,7 @@ import { readBundle } from './bundles';
 import {
   connectProxySocket,
   createProxyBridge,
+  ProxyTransportError,
   type ProxySnapshot,
 } from '../network/proxy-transport';
 import type { HostProfilesStore } from '../../modules/accounts/hosts';
@@ -24,12 +25,45 @@ async function authenticate(
   proxy: ProxySnapshot,
   signal: AbortSignal,
 ) {
-  const keyPath = profile.privateKeyPath?.replace(/^~[/\\]/, homedir() + '/');
-  const privateKey =
-    profile.authType === 'privateKey'
-      ? await readFile(keyPath ?? join(homedir(), '.ssh', 'id_rsa'))
-      : undefined;
-  const sock = await connectProxySocket(proxy, profile.host, profile.port, signal);
+  signal.throwIfAborted();
+  let privateKey: Buffer | undefined;
+  if (profile.authType === 'privateKey') {
+    const keyPath = profile.privateKeyPath?.replace(/^~[/\\]/, homedir() + '/');
+    try {
+      privateKey = await readFile(keyPath ?? join(homedir(), '.ssh', 'id_rsa'), { signal });
+    } catch {
+      signal.throwIfAborted();
+      throw new ProtocolError(
+        'unavailable',
+        '无法读取 SSH 私钥，请检查文件路径和读取权限。',
+        'not-started',
+        {
+          code: 'SSH_KEY_READ_FAILED',
+        },
+      );
+    }
+  }
+  const agent = profile.authType === 'sshAgent' ? process.env.SSH_AUTH_SOCK : undefined;
+  if (profile.authType === 'sshAgent' && !agent)
+    throw new ProtocolError('unavailable', '找不到本机 SSH Agent，请检查 SSH_AUTH_SOCK。');
+
+  let sock: Socket;
+  try {
+    sock = await connectProxySocket(proxy, profile.host, profile.port, signal);
+  } catch (error) {
+    if (!(error instanceof ProxyTransportError)) throw error;
+    const timeout = error.code === 'PROXY_TIMEOUT';
+    throw new ProtocolError(
+      timeout ? 'timeout' : 'unavailable',
+      proxy.enabled
+        ? error.message
+        : timeout
+          ? '连接 SSH 服务器超时，请检查网络。'
+          : '无法连接 SSH 服务器，请检查服务器地址、端口与网络。',
+      'not-started',
+      { code: proxy.enabled ? error.code : timeout ? 'SSH_CONNECT_TIMEOUT' : 'SSH_CONNECT' },
+    );
+  }
   const abandon = () => {
     sock.destroy();
     ssh.destroy();
@@ -54,7 +88,7 @@ async function authenticate(
         privateKey,
         password: profile.password,
         passphrase: profile.passphrase,
-        agent: profile.authType === 'sshAgent' ? process.env.SSH_AUTH_SOCK : undefined,
+        agent,
         hostHash: 'sha256',
         hostVerifier: (key: string) => {
           verifiedHostKey ??= key;
@@ -71,9 +105,35 @@ async function authenticate(
     return { socket: sock, hostKey: verifiedHostKey };
   } catch (error) {
     abandon();
+    signal.throwIfAborted();
     if (keyMismatch)
       throw new ProtocolError('permission-denied', '服务器提供的 SSH 主机公钥指纹与预期不一致。');
-    throw error;
+    if (error instanceof ProtocolError) throw error;
+    const level = (error as { level?: string } | undefined)?.level;
+    if (level === 'client-authentication') {
+      const recovery = {
+        password: '请检查 SSH 用户名和密码。',
+        privateKey: '请检查 SSH 用户名和服务器授权的公钥。',
+        sshAgent: '请检查 SSH 用户名并确认本机 SSH Agent 已加载服务器授权的密钥。',
+      }[profile.authType];
+      throw new ProtocolError('permission-denied', `SSH 身份认证失败，${recovery}`, 'not-started', {
+        code: 'SSH_AUTH_REJECTED',
+      });
+    }
+    if (level === 'agent')
+      throw new ProtocolError(
+        'unavailable',
+        '本机 SSH Agent 不可用或无法签名，请检查 Agent 和已加载的密钥。',
+      );
+    if (level === 'client-timeout')
+      throw new ProtocolError('timeout', 'SSH 握手或认证超时，请检查网络和服务器状态。');
+    if (
+      privateKey &&
+      error instanceof Error &&
+      /^(Cannot parse privateKey:|privateKey value)/.test(error.message)
+    )
+      throw new ProtocolError('invalid-params', 'SSH 私钥无效，请检查文件格式和私钥口令。');
+    throw new ProtocolError('unavailable', '无法建立 SSH 会话，请检查网络和服务器的 SSH 服务。');
   } finally {
     signal.removeEventListener('abort', abandon);
   }
