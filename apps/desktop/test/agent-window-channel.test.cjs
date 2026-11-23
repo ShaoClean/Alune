@@ -185,3 +185,19 @@ test('current Electron navigation also retires an uncompleted acquisition', asyn
   assert.equal(c.closed, 1);
   assert.equal(f.channels.size, 0);
 });
+
+test('navigation commit releases a lease acquired after navigation started', async () => {
+  const f = fixture();
+  f.contents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false });
+  const stale = assert.rejects(f.open(), /window changed/);
+  f.contents.emit('did-navigate');
+  const fresh = f.open();
+  const old = f.channel();
+  f.waiting[0](old);
+  f.waiting[1](f.channel());
+  await stale;
+  assert.equal(old.closed, 1);
+  assert.equal(await fresh, f.channels.get(f.contents).generation);
+  f.channels.get(f.contents).cleanup();
+  assert.equal(f.contents.listenerCount('did-navigate'), 0);
+});
