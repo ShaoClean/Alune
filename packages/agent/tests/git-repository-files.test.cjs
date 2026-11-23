@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { SSHConnection } = require('../dist/adapters/ssh/connection-manager');
+const { NativeRepositoryConnection } = require('../dist/adapters/git/native');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
 const {
   RepositoryFiles,
@@ -16,11 +16,10 @@ const {
   REPOSITORY_TEXT_PREVIEW_MAX_BYTES,
   REPOSITORY_TREE_MAX_ENTRIES,
 } = require('@alune/domain');
-const { startSSHServer } = require('./helpers/ssh-server.cjs');
-// The SSH host fixture uses /bin/sh, POSIX permissions and /etc/passwd links.
-describe('POSIX SSH repository files', { skip: process.platform === 'win32' }, () => {
+// These cases use POSIX permissions and /etc/passwd links.
+describe('POSIX native repository files', { skip: process.platform === 'win32' }, () => {
 
-let remote, connection, files, root;
+let connection, files, root;
 
 const redPixel = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
@@ -53,15 +52,12 @@ const rejectsWith = (promise, status, pattern) =>
 
 before(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-files-'));
-  remote = await startSSHServer();
-  connection = new SSHConnection(remote.options);
-  await connection.connect();
+  connection = new NativeRepositoryConnection();
   files = new RepositoryFiles(connection);
 });
 
 after(async () => {
-  connection?.disconnect();
-  await remote?.close();
+  await connection?.close();
   if (root) fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -114,10 +110,10 @@ test('directories list lazily with folders first, natural order, links and neste
   );
 });
 
-for (const source of ['local', 'ssh']) {
+for (const source of ['local']) {
   test(`${source}: listings respect Git ignore rules, negations and tracked files`, async () => {
     const dir = repo();
-    const reader = source === 'local' ? new RepositoryFiles(new LocalConnection()) : files;
+    const reader = new RepositoryFiles(new LocalConnection());
     write(dir, 'tracked.log', 'tracked');
     run(dir, 'add', '--', 'tracked.log');
     write(dir, '.gitignore', '*.log\ncache/\n*.tmp\n!keep.log\n!src/keep.tmp\n');

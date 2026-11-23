@@ -105,10 +105,6 @@
     "./ssh/*": {
       "types": "./dist/adapters/ssh/*.d.ts",
       "default": "./dist/adapters/ssh/*.js"
-    },
-    "./host-connections": {
-      "types": "./dist/modules/hosts/connections.d.ts",
-      "default": "./dist/modules/hosts/connections.js"
     }
   },
   "typesVersions": {
@@ -166,9 +162,6 @@
       ],
       "ssh/*": [
         "dist/adapters/ssh/*.d.ts"
-      ],
-      "host-connections": [
-        "dist/modules/hosts/connections.d.ts"
       ]
     }
   }

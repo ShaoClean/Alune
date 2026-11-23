@@ -2,8 +2,8 @@
 
 类型化 Agent 通信与连接状态，不保存仓库业务真相，也不自动重连或重放请求。
 
-- 默认入口与 `/browser` 只导出 `AgentClient` 和 `MessageTransport`，没有 Node/SSH/数据库依赖。
-- `/node` 额外提供 `StdioTransport` 和 `spawnAgent`；Agent 间通信也可复用客户端。
+- 默认入口与 `/browser` 提供 `AgentClient`、帧传输、终端通道、`openRemoteAgent` 和 `HostWorkspace`，没有 Node/SSH/数据库依赖。
+- `/node` 额外提供 `StdioTransport`、`spawnAgent`、`superviseUiAgent` 和 `SocketTransport`；分别支持 stdio、宿主 IPC 和远端 daemon 连接。
 
 ```ts
 import { spawnAgent } from '@alune/agent-client/node';
@@ -18,7 +18,7 @@ try {
 }
 ```
 
-浏览器传入自己的受限通信桥实现 MessageTransport，再使用同一 `AgentClient`。`initialize` 协商版本/身份/能力；`request` 返回 Promise，`startRequest` 还返回 requestId，便于超时后在同一会话查询 `tasks.get`。跨会话任务不存在持久保证，不能凭“未找到”重放写操作。
+浏览器传入自己的受限通信桥实现 MessageTransport，再使用同一 `AgentClient`。`initialize` 协商版本/身份/能力；`request` 返回 Promise，`startRequest` 还返回 requestId，便于超时后在同一会话查询 `tasks.get`。持久写任务可向同一 Agent 查询回执；daemon 重连可用 `tasks.reconcile` 对账，但不能凭“未找到”重放写操作。
 
 AbortSignal 只发出取消请求，Promise 等待实际响应或超时。取消与成功响应竞态时保留实际结果；超时和断线可能是 outcome=unknown。SDK 不自动重试，包括所谓只读方法（它们也可能涉及对象补取或外部请求）。发送前已取消或本地队列拒绝为 not-started。
 
@@ -47,4 +47,4 @@ const diff = await client.readRepository(repository.resource, 'diff', {
 
 `readRepository` 自动重组大结果并释放快照，日期使用 JSON 字符串，支持每次调用的 `signal` 和 `timeoutMs`。
 `repositoryAnalytics(resources, collect, refresh)` 保留仅看缓存/显式采集语义。
-混用旧写入口时，在写入前后调用 `invalidateRepository(resource)`；这只使读取缓存失效，不执行、回滚或重放 Git 写入。
+外部修改仓库后，可调用 `invalidateRepository(resource)`；这只使读取缓存失效，不执行、回滚或重放 Git 写入。

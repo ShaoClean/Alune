@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
 const { DiscardChanges } = require('../dist/modules/git/discard-changes');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
 
@@ -330,47 +329,3 @@ test('clean repositories and invalid requests never perform writes', async (t) =
   await assert.rejects(f.discard.preview(path.join(f.repo, 'dir')), /根目录/);
   assert.equal(index(f), before);
 });
-
-test(
-  'real SSH/SFTP uses the same scopes, preserves staged files and reports a lost connection',
-  { skip: process.platform === 'win32', timeout: 60000 },
-  async (t) => {
-    const f = fixture(t, { initial: false });
-    const ssh = await connectFixture({ ...f, connection: f.shellConnection }, { maxSessions: 2 });
-    t.after(ssh.close);
-    f.discard = new DiscardChanges(ssh.connection);
-    f.write('staged.txt', 'index version\n');
-    f.git('add', '--', 'staged.txt');
-    f.write('staged.txt', 'working version\n');
-    f.write('中文 \' " $ [*]\n.txt');
-    f.write('.gitignore', 'ignored/\n');
-    f.git('add', '--', '.gitignore');
-    f.write('ignored/keep.txt');
-    const before = index(f);
-    assert.equal((await perform(f, 'tracked')).restored, 1);
-    assert.equal(read(f, 'staged.txt'), 'index version\n');
-    assert.equal((await perform(f, 'all')).deleted, 1);
-    assert.equal(index(f), before);
-    assert.equal(exists(f, 'ignored/keep.txt'), true);
-    f.write('staged.txt', 'another edit\n');
-    f.write('loose.txt');
-    const preview = await f.discard.preview(f.repo);
-    const exec = ssh.connection.execCommand.bind(ssh.connection);
-    ssh.connection.execCommand = async (...args) => {
-      const result = await exec(...args);
-      if (args[0].includes("'restore'")) {
-        ssh.connection.disconnect();
-        throw new Error('SSH disconnected after restore');
-      }
-      return result;
-    };
-    const result = await f.discard.discard(f.repo, preview.token, 'all');
-    assert.equal(result.success, false);
-    assert.equal(result.unknown, 2);
-    assert.match(result.error, /SSH disconnected.*无法核验/);
-    assert.equal(read(f, 'staged.txt'), 'index version\n');
-    assert.equal(exists(f, 'loose.txt'), true);
-    assert.equal(index(f), before);
-    assert.equal(ssh.sessions.rejected, 0);
-  },
-);

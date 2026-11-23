@@ -163,15 +163,15 @@ test('octopus parents and nested annotated tags retain exact identities', async 
 });
 
 test(
-  'real SSH preserves Unicode, NUL-delimited parents and page boundaries',
+  'native executor preserves Unicode, NUL-delimited parents and page boundaries',
   { timeout: 60000 },
   async (t) => {
     const fixture = createHistoryRepository(51);
     t.after(fixture.close);
-    const { connectFixture } = require('./helpers/ssh-server.cjs');
-    const ssh = await connectFixture(fixture);
-    t.after(ssh.close);
-    const commits = await readAll(new GitCommands(ssh.connection), fixture.repo);
+    const { createNativeFixture } = require('./helpers/native-fixture.cjs');
+    const native = await createNativeFixture(fixture);
+    t.after(native.close);
+    const commits = await readAll(new GitCommands(native.connection), fixture.repo);
     const expected = fixture
       .git('log', '--all', 'HEAD', '--topo-order', '--format=%H')
       .trim()

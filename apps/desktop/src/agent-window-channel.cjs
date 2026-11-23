@@ -13,6 +13,7 @@ async function openWindowAgentChannel({ host, contents, frame, name, channels, i
   const cleanup = () => {
     if (channels.get(contents) === endpoint) channels.delete(contents);
     contents.off('did-start-navigation', navigate);
+    contents.off('did-navigate', cleanup);
     contents.off('destroyed', cleanup);
     contents.off('render-process-gone', cleanup);
     const channel = endpoint.channel;
@@ -35,6 +36,9 @@ async function openWindowAgentChannel({ host, contents, frame, name, channels, i
   endpoint.cleanup = cleanup;
   channels.set(contents, endpoint);
   contents.on('did-start-navigation', navigate);
+  // The outgoing document can still invoke IPC after did-start-navigation.
+  // Retire any such lease when the main-frame document commits.
+  contents.once('did-navigate', cleanup);
   contents.once('destroyed', cleanup);
   contents.once('render-process-gone', cleanup);
   try {

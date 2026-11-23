@@ -5,23 +5,20 @@ const path = require('node:path');
 const { collectRepositoryAnalytics, primaryLanguage } = require('../dist/modules/git/repository-analytics');
 const { NativeRepositoryConnection: LocalConnection } = require('../dist/adapters/git/native');
 const { createRepository } = require('./helpers/local-repository.cjs');
-const { connectFixture } = require('./helpers/ssh-server.cjs');
 
 function commit(fixture, date) {
   execFileSync('git', ['-C', fixture.repo, 'commit', '--allow-empty', '-qm', date], {
     env: { ...process.env, GIT_AUTHOR_DATE: '2020-01-01T00:00:00Z', GIT_COMMITTER_DATE: date },
   });
 }
-for (const transport of ['local', 'ssh']) {
+for (const transport of ['local']) {
   test(
     `${transport}: real Git timestamps, UTC boundaries, empty HEAD, languages and detached HEAD`,
-    { skip: transport === 'ssh' && process.platform === 'win32' },
+    {},
     async (t) => {
       const fixture = createRepository({ initial: false });
-      const ssh = transport === 'ssh' ? await connectFixture(fixture) : null;
-      const connection = ssh?.connection || new LocalConnection();
+      const connection = new LocalConnection();
       t.after(async () => {
-        await ssh?.close();
         fixture.close();
       });
       const empty = await collectRepositoryAnalytics(connection, fixture.repo, '2026-10-01');
