@@ -6,6 +6,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { RepositoryToolbar } from '../src/components/RepositoryToolbar.tsx';
 import { RepositorySwitcher, filterRepositories } from '../src/components/RepositorySwitcher.tsx';
+import {
+  describeSyncCounts,
+  RepositorySyncCounts,
+  repositorySyncStatus,
+} from '../src/components/RepositorySyncCounts.tsx';
 import { toolbarTier } from '../src/hooks/useToolbarTier.ts';
 import { AluneConfirmProvider } from '../src/components/AluneModal.tsx';
 
@@ -87,6 +92,34 @@ const status = (overrides = {}) => ({
     { path: 'b', staged: false },
   ],
   ...overrides,
+});
+
+test('同步计数使用已知的上游，忽略过期和失败的仓库状态', () => {
+  const data = status({ upstream: 'origin/main' });
+  const entry = { phase: 'success', data, updatedAt: 1 };
+  assert.equal(repositorySyncStatus(), undefined);
+  assert.equal(repositorySyncStatus({ phase: 'success', data: status() }), undefined);
+  assert.equal(repositorySyncStatus({ ...entry, stale: true }), undefined);
+  assert.equal(repositorySyncStatus({ ...entry, phase: 'error' }), undefined);
+  assert.equal(
+    repositorySyncStatus({ ...entry, data: { ...data, upstreamComparisonUnavailable: true } }),
+    undefined,
+  );
+  assert.equal(repositorySyncStatus(entry, 'disconnected'), undefined);
+  assert.equal(repositorySyncStatus(entry, 'connecting'), undefined);
+  assert.equal(repositorySyncStatus(entry, 'connected'), data);
+  assert.equal(describeSyncCounts(data), '相对 origin/main 领先 2 个提交，落后 3 个提交');
+});
+
+test('仓库标签省略零计数，底栏显示领先和落后的实际数量', () => {
+  const data = status({ ahead: 0, behind: 3, upstream: 'origin/main' });
+  const tab = renderToStaticMarkup(createElement(RepositorySyncCounts, { status: data }));
+  const bottom = renderToStaticMarkup(
+    createElement(RepositorySyncCounts, { status: data, showZero: true }),
+  );
+  assert.doesNotMatch(tab, /↑0/);
+  assert.match(tab, /↓3/);
+  assert.match(bottom, /↑0.*↓3/);
 });
 
 test('工具条按导航 / 上下文 / 动作三段排列，改动数按路径去重', () => {

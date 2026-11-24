@@ -22,6 +22,8 @@ export interface RepositoryStatus {
   files: FileStatus[];
   unborn?: boolean;
   upstream?: string;
+  /** Git reported a tracking branch without a usable ahead/behind comparison. */
+  upstreamComparisonUnavailable?: true;
   operation?: RepositoryOperationState;
 }
 

@@ -7,6 +7,7 @@ const { execFileSync } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { setTimeout: delay } = require('node:timers/promises');
 const { spawnAgent } = require('@alune/agent-client/node');
+const { httpProxy } = require('./helpers/proxy-fixture.cjs');
 
 async function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'alune-write-')),
@@ -79,6 +80,131 @@ async function fixture(t) {
   };
 }
 const rejectsKind = (promise, kind) => assert.rejects(promise, (e) => e.kind === kind);
+
+function advanceRemote(f) {
+  const remote = path.join(f.root, 'origin.git');
+  const other = path.join(f.root, 'other');
+  f.git('init', '--bare', '-b', 'main', remote);
+  f.git('remote', 'add', 'origin', remote);
+  f.git('push', '-u', 'origin', 'main');
+  f.git('fetch');
+  f.git('clone', remote, other);
+  fs.writeFileSync(path.join(other, 'upstream.txt'), 'upstream only\n');
+  f.git('-C', other, 'add', '.');
+  f.git('-C', other, 'commit', '-m', 'upstream');
+  f.git('-C', other, 'push');
+  return f.git('-C', other, 'rev-parse', 'HEAD');
+}
+
+test('background fetch reports new upstream commits and preserves the working tree and index', async (t) => {
+  const f = await fixture(t);
+  assert.deepEqual(await f.write('backgroundFetch'), { fetched: false });
+  const upstreamHead = advanceRemote(f);
+  const head = f.git('rev-parse', 'HEAD');
+  const fetchHead = fs.readFileSync(path.join(f.repo, '.git', 'FETCH_HEAD'));
+  const request = await f.prepare('backgroundFetch');
+  f.file('a.txt', 'staged\n');
+  f.git('add', 'a.txt');
+  f.file('a.txt', 'edited again\n');
+  f.file('untracked.txt', 'untracked\n');
+  const index = fs.readFileSync(path.join(f.repo, '.git', 'index'));
+
+  assert.deepEqual(await f.client.writeRepository(request), {
+    fetched: true,
+    update: { branch: 'main', head, upstream: 'origin/main', upstreamHead, behind: 1 },
+  });
+  assert.equal(f.git('rev-parse', 'HEAD'), head);
+  assert.equal(f.git('rev-parse', '@{upstream}'), upstreamHead);
+  assert.equal(fs.readFileSync(path.join(f.repo, 'a.txt'), 'utf8'), 'edited again\n');
+  assert.equal(fs.readFileSync(path.join(f.repo, 'untracked.txt'), 'utf8'), 'untracked\n');
+  assert.equal(fs.existsSync(path.join(f.repo, 'upstream.txt')), false);
+  assert.deepEqual(fs.readFileSync(path.join(f.repo, '.git', 'index')), index);
+  assert.deepEqual(fs.readFileSync(path.join(f.repo, '.git', 'FETCH_HEAD')), fetchHead);
+  assert.deepEqual(await f.write('backgroundFetch'), { fetched: true });
+
+  await assert.rejects(
+    f.write('pull', [null, null, 'stale', head, 'origin/main']),
+    (error) =>
+      error.kind === 'conflict' &&
+      error.outcome === 'not-started' &&
+      error.details?.code === 'SYNC_TARGET_CHANGED',
+  );
+  await f.write('pull', [null, null, 'main', head, 'origin/main']);
+  assert.equal(f.git('rev-parse', 'HEAD'), upstreamHead);
+});
+
+test('background fetch pauses for the Agent proxy and can retry after settings recover', async (t) => {
+  const f = await fixture(t);
+  const upstreamHead = advanceRemote(f);
+  const localUrl = f.git('remote', 'get-url', 'origin');
+  f.git('remote', 'set-url', 'origin', 'http://git.fixture.test/repo.git');
+  const proxy = await httpProxy({ status: 407 });
+  t.after(proxy.close);
+  const current = await f.client.getProxySettings();
+  const enabled = await f.client.saveProxySettings({
+    ...current,
+    enabled: true,
+    protocol: 'http',
+    host: '127.0.0.1',
+    port: proxy.port,
+    credentials: { action: 'keep' },
+  });
+  await assert.rejects(
+    f.write('backgroundFetch'),
+    (error) =>
+      error.kind === 'unavailable' &&
+      error.details?.code === 'PROXY_UNAVAILABLE' &&
+      /代理认证失败/.test(error.message),
+  );
+  assert(proxy.records.length > 0);
+  await f.client.saveProxySettings({
+    ...enabled,
+    enabled: false,
+    credentials: { action: 'keep' },
+  });
+  f.git('remote', 'set-url', 'origin', localUrl);
+  assert.equal((await f.write('backgroundFetch')).update.upstreamHead, upstreamHead);
+});
+
+test(
+  'background fetch shares repository and Worktree write locks and can be cancelled',
+  { timeout: 60000 },
+  async (t) => {
+    const f = await fixture(t);
+    const link = await f.write('createWorktree', [path.join(f.root, 'linked'), 'other']);
+    advanceRemote(f);
+    const head = f.git('rev-parse', '@{upstream}');
+    const requests = await Promise.all([
+      f.prepare('createBranch', ['same-repository']),
+      f.prepare('createBranch', ['linked-repository'], link.resource),
+    ]);
+    const hook = path.join(f.repo, '.git', 'hooks', 'reference-transaction');
+    fs.writeFileSync(
+      hook,
+      '#!/bin/sh\nif [ "$1" = prepared ]; then printf ready > fetch-ready; sleep 40; fi\n',
+      { mode: 0o755 },
+    );
+    const controller = new AbortController();
+    const fetch = f.client.writeRepository(await f.prepare('backgroundFetch'), {
+      signal: controller.signal,
+    });
+    const failure = assert.rejects(fetch, (error) => error.kind === 'cancelled');
+    for (let n = 0; !fs.existsSync(path.join(f.repo, 'fetch-ready')); n++) {
+      if (n > 400) throw new Error('fetch hook did not start');
+      await delay(50);
+    }
+    assert.equal((await f.client.repositoryOperation(f.resource)).kind, 'backgroundFetch');
+    await rejectsKind(f.client.writeRepository(requests[0]), 'busy');
+    await rejectsKind(f.client.writeRepository(requests[1]), 'busy');
+    controller.abort();
+    await failure;
+    assert.equal(await f.client.repositoryOperation(f.resource), null);
+    fs.unlinkSync(hook);
+    assert.equal(f.git('rev-parse', '@{upstream}'), head);
+    await f.write('backgroundFetch');
+    assert.notEqual(f.git('rev-parse', '@{upstream}'), head);
+  },
+);
 
 test('Agent checks file bytes, index and shared refs and never replays a committed operation after restart', async (t) => {
   const f = await fixture(t);

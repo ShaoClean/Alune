@@ -188,6 +188,7 @@ export function collaborationKernel(
   register('catalog.reviews.list', (p) => center.list(p.input));
   register('catalog.reviews.context', (p) => center.context(p.resource.resourceId, p.input));
   register('reviews.remotes', (p) => reviews.remotes(p.resource.resourceId));
+  register('reviews.activity', (p) => reviews.activity(p.resource.resourceId, p.input));
   register('reviews.preview', (p) => creation.preview(p.resource.resourceId, p.input));
   register('reviews.create', (p) => creation.create(p.resource.resourceId, p.input), 'mutation');
   register('reviews.mutate', (p) => reviews.mutate(p.resource.resourceId, p.input), 'mutation');

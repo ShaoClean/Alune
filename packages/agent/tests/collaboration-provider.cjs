@@ -20,6 +20,25 @@ globalThis.fetch = async (input, init = {}) => {
       choices: [{ message: { content: '{"message":"fixture commit","description":""}' } }],
     });
   }
+  if (url.host === 'gitlab.fixture.invalid') {
+    if (init.headers['PRIVATE-TOKEN'] !== 'fixture-gitlab-secret' || init.method)
+      throw Error('invalid GitLab scope');
+    if (url.pathname.endsWith('/notes') && url.searchParams.get('sort') === 'desc')
+      return Response.json(
+        [
+          { id: 21, body: 'private comment', created_at: '2026-11-04T00:00:00Z' },
+          { id: 22, body: 'system update', system: true, created_at: '2026-11-04T00:00:00Z' },
+          { id: 23, body: 'old comment', created_at: '2026-11-02T00:00:00Z' },
+        ],
+        { headers: { 'x-next-page': '2' } },
+      );
+    if (url.pathname.endsWith('/approvals'))
+      return json({
+        approved: true,
+        approved_by: [{ user: { id: 10 }, approved_at: '2026-11-04T00:00:00Z' }],
+      });
+    throw Error('unexpected GitLab fixture request');
+  }
   if (
     url.host !== 'api.github.com' ||
     init.headers.Authorization !== 'Bearer fixture-review-secret'
@@ -27,6 +46,33 @@ globalThis.fetch = async (input, init = {}) => {
     throw Error('invalid platform route');
   if (url.pathname === '/user') return json({ login: 'fixture' });
   if (url.pathname === '/repos/team/repo') return json({ permissions: { push: true } });
+  if (url.pathname === '/repos/team/repo/pulls')
+    return json([
+      {
+        number: 12,
+        title: 'test',
+        state: 'closed',
+        updated_at: '2026-11-05T00:00:00Z',
+        merged_at: '2026-11-05T00:00:00Z',
+      },
+    ]);
+  if (url.pathname === '/repos/team/repo/pulls/12/reviews')
+    return json([
+      { id: 13, state: 'PENDING' },
+      { id: 14, state: 'APPROVED', submitted_at: '2026-11-02T00:00:00Z', body: 'private review' },
+    ]);
+  if (
+    url.pathname === '/repos/team/repo/issues/12/comments' &&
+    !init.method &&
+    url.searchParams.has('since')
+  )
+    return Response.json(
+      [
+        { id: 11, created_at: '2026-11-02T00:00:00Z', body: 'edited old comment' },
+        { id: 12, created_at: '2026-11-04T00:00:00Z', body: 'private comment' },
+      ],
+      { headers: { link: '<https://api.github.com/next>; rel="next"' } },
+    );
   if (url.pathname === '/repos/team/repo/pulls/12')
     return json({
       number: 12,

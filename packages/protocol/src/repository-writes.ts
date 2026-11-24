@@ -29,8 +29,9 @@ const signatures = {
   ignoreDirectory: ['text'],
   submodules: ['sync|update'],
   push: ['text?', 'text?', 'bool?', 'bool?', 'bool?'],
-  pull: ['text?', 'text?'],
+  pull: ['text?', 'text?', 'text?', 'text?', 'text?'],
   fetch: ['text?'],
+  backgroundFetch: [],
   deepen: ['text?'],
   addRemote: ['text', 'text'],
   createTag: ['createTag'],
@@ -198,6 +199,19 @@ export function validateWriteIntent(value: unknown, execute = false) {
   const signature = signatures[value.kind],
     args = value.args;
   if (args.length > signature.length || !signature.every((type, i) => valid(type, args[i])))
+    return invalid();
+  if (
+    value.kind === 'pull' &&
+    args.length > 2 &&
+    (args[0] != null ||
+      args[1] != null ||
+      typeof args[2] !== 'string' ||
+      !args[2] ||
+      typeof args[3] !== 'string' ||
+      !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(args[3]) ||
+      typeof args[4] !== 'string' ||
+      !args[4])
+  )
     return invalid();
   if (
     execute &&

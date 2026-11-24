@@ -23,6 +23,8 @@ import type {
   PullRequestResourceQuery,
   PullRequestDiscussionQuery,
   PullRequestDiscussion,
+  PullRequestActivityQuery,
+  PullRequestActivityPage,
   PullRequestFile,
   PullRequestResourcePage,
   PullRequestActions,
@@ -197,6 +199,9 @@ export function normalizeItem(
     sourceBranch: text(github ? value.head?.label || value.head?.ref : value.source_branch),
     targetBranch: text(github ? value.base?.ref : value.target_branch),
     updatedAt: value.updated_at,
+    ...(typeof value.merged_at === 'string' && Number.isFinite(Date.parse(value.merged_at))
+      ? { mergedAt: value.merged_at }
+      : {}),
   };
 }
 
@@ -434,6 +439,75 @@ export class PullRequestsService {
         page: query.page,
         hasMore,
       };
+    });
+  }
+
+  activity(id: string, input: PullRequestActivityQuery): Promise<PullRequestActivityPage> {
+    const query = validateResourceQuery(input) as PullRequestActivityQuery;
+    const github = query.provider === 'github';
+    const since = Date.parse(query.since);
+    if (
+      !query.selectionVersion ||
+      typeof query.since !== 'string' ||
+      query.since.length > 40 ||
+      'token' in query ||
+      !Number.isFinite(since) ||
+      !(github ? ['comments', 'code', 'reviews'] : ['comments', 'approvals']).includes(query.kind)
+    )
+      throw new BadRequestException('PR/MR 动态查询无效。');
+    return this.withRequest(id, query, async (remote, request, authenticated) => {
+      if (!authenticated) throw new ForbiddenException('请关联访问令牌后读取 PR/MR 动态。');
+      if (query.kind === 'approvals') {
+        const { data } = await request(resourceUrl(remote, query, '/approvals'));
+        const value = data as {
+          approved?: unknown;
+          approved_by?: { user?: { id?: number }; approved_at?: unknown }[];
+        };
+        if (typeof value?.approved !== 'boolean' || !Array.isArray(value.approved_by))
+          throw new BadGatewayException('GitLab 返回的审批数据格式不正确。');
+        if (!value.approved_by.every((entry) => Number.isSafeInteger(entry?.user?.id)))
+          throw new BadGatewayException('GitLab 返回的审批用户格式不正确。');
+        const approvers = value.approved_by.map((entry) =>
+          JSON.stringify([entry.user?.id, text(entry.approved_at)]),
+        );
+        const fingerprint = createHash('sha256')
+          .update(JSON.stringify([value.approved, [...new Set(approvers)].sort()]))
+          .digest('hex');
+        return { entries: [], hasMore: false, approvalState: fingerprint };
+      }
+      const suffix = github ? (query.kind === 'reviews' ? '/reviews' : '/comments') : '/notes';
+      const url = paged(
+        resourceUrl(remote, query, suffix, github && query.kind === 'comments'),
+        query.page,
+      );
+      if (github && query.kind !== 'reviews')
+        url.searchParams.set(
+          'since',
+          new Date(Math.floor(since / 1_000) * 1_000).toISOString().replace('.000Z', 'Z'),
+        );
+      if (!github) {
+        url.searchParams.set('sort', 'desc');
+        url.searchParams.set('order_by', 'created_at');
+      }
+      const { data, hasMore } = await request(url);
+      const rows = array(data);
+      const entries = rows.flatMap((row) => {
+        const createdAt = text(query.kind === 'reviews' ? row?.submitted_at : row?.created_at);
+        const state = query.kind === 'reviews' ? text(row?.state) : undefined;
+        if (
+          row?.system ||
+          state === 'PENDING' ||
+          !Number.isFinite(Date.parse(createdAt)) ||
+          (!Number.isSafeInteger(row?.id) && !text(row?.id)) ||
+          (query.kind !== 'reviews' && Date.parse(createdAt) < since)
+        )
+          return [];
+        return [{ id: String(row.id), createdAt, ...(state ? { state } : {}) }];
+      });
+      // GitLab returns newest notes first, including system notes. Their dates
+      // can end the scan even when there is nothing to show in this page.
+      const last = Date.parse(rows.at(-1)?.created_at);
+      return { entries, hasMore: hasMore && (github || !Number.isFinite(last) || last >= since) };
     });
   }
 

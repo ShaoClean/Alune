@@ -30,16 +30,28 @@ export async function writeRevision(
   repo: RepositoryResource,
   intent: RepositoryWriteIntent,
 ) {
-  const snapshot = await reader.snapshot(repo);
   const hash = createHash('sha256');
   const add = (v: unknown) => hash.update(JSON.stringify(canonical(v))).update('\0');
-  add([snapshot.revision, intent.kind, intent.args]);
   const git = async (args: string[], absent = false) => {
     const result = await runGit(reader.connection, repo.path, args);
     if (result.exitCode !== 0 && !(absent && result.exitCode === 1))
       throw new Error('无法核验仓库快照。');
     return result.stdout;
   };
+  if (intent.kind === 'backgroundFetch') {
+    if ((await git(['rev-parse', '--show-prefix'])).trim())
+      throw new ProtocolError('conflict', 'Registered repository root moved');
+    // Fetch does not stage or integrate anything. An edited worktree/index
+    // should not invalidate a scheduled operation that only updates refs.
+    add([repo.resource, intent.kind]);
+    add(await git(['rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir']));
+    add(await git(['symbolic-ref', '--quiet', 'HEAD'], true));
+    add(await git(['rev-parse', '--verify', '--quiet', 'HEAD'], true));
+    add(await git(['config', '--local', '--null', '--list', '--includes']));
+    return hash.digest('hex');
+  }
+  const snapshot = await reader.snapshot(repo);
+  add([snapshot.revision, intent.kind, intent.args]);
   if ((await git(['rev-parse', '--show-prefix'])).trim())
     throw new ProtocolError('conflict', 'Registered repository root moved');
   add(await git(['symbolic-ref', '--quiet', 'HEAD'], true));

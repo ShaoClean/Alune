@@ -22,6 +22,9 @@ import { repositoryWorkspaceLabels } from '../stores/repositoryLabels';
 import { useDesktopUpdates } from '../hooks/useDesktopUpdates';
 import { useRepositoryTray } from '../hooks/useRepositoryTray';
 import { useConnectionStatusSync } from '../hooks/useConnectionStatusSync';
+import { useBackgroundFetch } from '../hooks/useBackgroundFetch';
+import { usePullRequestActivity } from '../hooks/usePullRequestActivity';
+import { useBackgroundSyncStore } from '../stores/backgroundSyncStore';
 import { WorkspaceTree } from './WorkspaceTree';
 import { useWorkspaceStorageStatus } from '../stores/workspaceStorage';
 import { useWorkspaceLayout } from '../hooks/useWorkspaceLayout';
@@ -131,6 +134,22 @@ export function Layout() {
   const { state: updateState, isDesktop } = updates;
   const { connections, statuses, fetchConnections } = useConnectionStore();
   useConnectionStatusSync();
+  const backgroundSync = useWorkspaceStore((state) => state.backgroundSync);
+  useBackgroundFetch((repositoryId, target) => {
+    const id = crypto.randomUUID();
+    useBackgroundSyncStore.setState({ pendingPull: { id, repositoryId, target } });
+    navigate(`/repositories/${repositoryId}`, { state: { backgroundPull: id } });
+  });
+  usePullRequestActivity(
+    backgroundSync.enabled,
+    backgroundSync.intervalMinutes,
+    backgroundSync.excludedRepositoryIds,
+  );
+  useEffect(() => {
+    const pending = useBackgroundSyncStore.getState().pendingPull;
+    if (pending && pending.id !== location.state?.backgroundPull)
+      useBackgroundSyncStore.setState({ pendingPull: undefined });
+  }, [location]);
   const {
     repositories,
     openRepositories,
@@ -624,7 +643,7 @@ export function Layout() {
           repositories={openRepositories}
           version={`v${updateState?.currentVersion || __APP_VERSION__}`}
           inert={compact && mobileNavOpen}
-          onSettings={() => openSettings()}
+          onSettings={openSettings}
           onUpdates={isDesktop ? () => openSettings('updates') : undefined}
         />
       </div>

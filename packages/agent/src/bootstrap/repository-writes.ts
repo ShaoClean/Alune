@@ -9,6 +9,7 @@ import {
   type RepositoryResource,
 } from '@alune/protocol';
 import type { WriteCatalog } from '../modules/git/actions';
+import { readTrackingBranch } from '../modules/git/background-fetch';
 import { GitWorktrees, worktreePathKey } from '../modules/git/worktrees';
 import { runGit } from '../modules/git/repository-transport';
 import { RepositoryCatalog } from '../modules/repositories/catalog';
@@ -16,6 +17,7 @@ import { RepositoryReader } from '../modules/repositories/reads';
 import type { RepositoryTransport } from '../ports/repository-files';
 import type { Handler, HandlerContext } from '../ports/handler';
 import { redactText } from '../adapters/logging/redact';
+import { GitProxyError } from '../adapters/git/local-git-proxy';
 import { commandObserver } from '../runtime/command-events';
 
 const key = (path: string) =>
@@ -119,6 +121,7 @@ export function repositoryWrites(
       async run(p, c) {
         const intent = validateWriteIntent(p, true),
           repo = catalog.get(intent.resource);
+        const background = intent.kind === 'backgroundFetch';
         if (active.has(repo.id)) throw new ProtocolError('busy', '此仓库正在执行写操作。');
         const controller = new AbortController(),
           signal = AbortSignal.any([controller.signal, c.signal, AbortSignal.timeout(300000)]);
@@ -187,7 +190,9 @@ export function repositoryWrites(
             execGit: (root, args, abort, options) =>
               native.execGit!(root, args, abort, {
                 ...options,
-                observe: commandObserver(c, repo.resource, intent.operationId),
+                observe: background
+                  ? undefined
+                  : commandObserver(c, repo.resource, intent.operationId),
                 environment: {
                   ...options?.environment,
                   ...(['push', 'pull'].includes(intent.kind)
@@ -233,7 +238,24 @@ export function repositoryWrites(
                 : intent.kind;
           signal.throwIfAborted();
           catalog.get(repo.resource);
-          for (const resource of affected.values()) changed(c, resource);
+          if (intent.kind === 'pull' && intent.args.length > 2) {
+            const [, , branch, head, upstream] = intent.args;
+            const current = await readTrackingBranch(reader, repo.path);
+            if (
+              current?.branch !== branch ||
+              current?.head !== head ||
+              current?.upstream !== upstream
+            )
+              throw new ProtocolError(
+                'conflict',
+                '当前分支或上游已变化，请刷新后再拉取。',
+                'not-started',
+                {
+                  code: 'SYNC_TARGET_CHANGED',
+                },
+              );
+          }
+          if (!background) for (const resource of affected.values()) changed(c, resource);
           executing = true;
           // validateWriteIntent restricted method and arguments to the public allowlist.
           const invoke = actions[method] as (id: string, ...args: unknown[]) => Promise<unknown>;
@@ -241,7 +263,9 @@ export function repositoryWrites(
             await invoke.call(
               actions,
               repo.id,
-              ...intent.args.map((v) => (v === null ? undefined : v)),
+              ...(intent.kind === 'pull' ? intent.args.slice(0, 2) : intent.args).map((v) =>
+                v === null ? undefined : v,
+              ),
             ),
           );
         } catch (error) {
@@ -251,6 +275,10 @@ export function repositoryWrites(
               '操作已中断，请核对仓库状态。',
               executing ? 'unknown' : 'not-started',
             );
+          if (background && error instanceof GitProxyError)
+            throw new ProtocolError('unavailable', redactText(error.message), 'unknown', {
+              code: 'PROXY_UNAVAILABLE',
+            });
           if (error instanceof ProtocolError) {
             if (!executing || error.details || error.outcome === 'unknown') throw error;
             throw new ProtocolError(error.kind, redactText(error.message), 'unknown');

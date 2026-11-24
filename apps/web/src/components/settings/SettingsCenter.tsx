@@ -12,6 +12,7 @@ import {
   KeyOutlined,
   GlobalOutlined,
   ProfileOutlined,
+  SyncOutlined,
 } from '@alune/ui/icons';
 import { useAiSettingsStore } from '../../stores/aiSettingsStore';
 import type { useDesktopUpdates } from '../../hooks/useDesktopUpdates';
@@ -23,12 +24,14 @@ import { Sparkles } from '../Sparkles';
 import { AccessTokenSettings } from './AccessTokenSettings';
 import { ProxySettings } from './ProxySettings';
 import { LoggingSettings } from './LoggingSettings';
+import { RepositorySyncSettings } from './RepositorySyncSettings';
 import '../../settings.css';
 
 const categories = [
   { id: 'providers', name: 'AI 服务商', icon: <ApartmentOutlined /> },
   { id: 'commit', name: '提交生成', icon: <Sparkles /> },
   { id: 'tokens', name: '访问令牌', icon: <KeyOutlined /> },
+  { id: 'sync', name: '仓库同步', icon: <SyncOutlined /> },
   { id: 'layout', name: '布局', icon: <LayoutOutlined /> },
   { id: 'appearance', name: '外观', icon: <SkinOutlined /> },
   ...(globalThis.window?.aluneTray ? [{ id: 'desktop', name: '桌面', icon: <LayoutOutlined /> }] : []),
@@ -94,6 +97,8 @@ export function SettingsCenter({
         <DesktopSettings />
       ) : category.id === 'tokens' ? (
         <AccessTokenSettings returnTo={returnTo} />
+      ) : category.id === 'sync' ? (
+        <RepositorySyncSettings />
       ) : category.id === 'proxy' ? (
         <ProxySettings />
       ) : category.id === 'logs' ? (

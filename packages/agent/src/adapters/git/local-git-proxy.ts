@@ -1,7 +1,7 @@
 import { quotePosixArgument } from '../../modules/git/git-shell';
 import type { CommandOptions } from '../../modules/git/repository-transport';
 import type { CommandResult } from '../../ports/process';
-import type { ProxySnapshot } from '../network/proxy-transport';
+import type { ProxySnapshot, ProxyTransportError } from '../network/proxy-transport';
 export class GitProxyError extends Error {}
 
 // Run with the application's Node/Electron runtime, so local SSH remotes do not
@@ -48,7 +48,15 @@ export async function withLocalGitProxy(
   );
   if (config.exitCode !== 0 && config.exitCode !== 1)
     throw new GitProxyError('无法读取本地仓库的代理覆盖项，已中止网络操作。');
-  const bridge = await createProxyBridge(() => snapshot);
+  let proxyError: ProxyTransportError | undefined;
+  const bridge = await createProxyBridge(
+    () => snapshot,
+    options.nonInteractive
+      ? (error) => {
+          proxyError ??= error;
+        }
+      : undefined,
+  );
   try {
     const proxy = `http://127.0.0.1:${bridge.port}`;
     const overrides = config.stdout
@@ -62,7 +70,7 @@ export async function withLocalGitProxy(
     const script = `eval(Buffer.from('${Buffer.from(connectScript).toString('base64')}','base64').toString())`;
     const helper = `${executable} -e "${script}" %h %p ${bridge.port}`;
     const ssh = `ssh -o ${quotePosixArgument(`ProxyCommand=${helper}`)} -o ProxyJump=none -o ControlMaster=no -o ControlPath=none -o CanonicalizeHostname=no -o ProxyUseFdpass=no -o BatchMode=yes -o ConnectTimeout=20 -o PermitLocalCommand=no`;
-    return await execute(
+    const result = await execute(
       [
         '-c',
         `http.proxy=${proxy}`,
@@ -93,6 +101,8 @@ export async function withLocalGitProxy(
         },
       },
     );
+    if (result.exitCode !== 0 && proxyError) throw new GitProxyError(proxyError.message);
+    return result;
   } finally {
     bridge.close();
   }

@@ -293,7 +293,14 @@ export const gitApi = {
     _setUpstream?: boolean,
     _tags?: boolean,
   ): Promise<any> => Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.push。')),
-  pull: (_id: string, _remote?: string, _branch?: string): Promise<any> =>
+  pull: (
+    _id: string,
+    _remote?: string,
+    _branch?: string,
+    _expectedBranch?: string,
+    _expectedHead?: string,
+    _expectedUpstream?: string,
+  ): Promise<any> =>
     Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.pull。')),
   fetch: (_id: string, _remote?: string): Promise<any> =>
     Promise.reject(new Error('Agent 尚未连接，无法执行 gitApi.fetch。')),

@@ -32,6 +32,7 @@ test('stdio collaboration keeps staged data and credentials scoped; an ambiguous
   git('add', 'tracked');
   git('commit', '-m', 'base');
   git('remote', 'add', 'origin', 'https://github.com/team/repo.git');
+  git('remote', 'add', 'gitlab', 'https://gitlab.fixture.invalid/team/repo.git');
   file('tracked', 'STAGED_ONLY');
   git('add', 'tracked');
   file('tracked', 'PRIVATE_UNSTAGED');
@@ -105,6 +106,59 @@ test('stdio collaboration keeps staged data and credentials scoped; an ambiguous
   });
   assert.ok(!JSON.stringify(bound).includes('fixture-review-secret'));
   const detail = { ...q, number: 12 };
+  const savedRemotes = () => client.collaboration('reviews.remotes', { resource });
+  const selectionVersion = (await savedRemotes()).find((remote) => remote.name === 'origin')
+    .selection.version;
+  const activity = { ...detail, selectionVersion, page: 1, since: '2026-11-03T00:00:00Z' };
+  assert.deepEqual(await call('reviews.activity', { ...activity, kind: 'comments' }), {
+    entries: [{ id: '12', createdAt: '2026-11-04T00:00:00Z' }],
+    hasMore: true,
+  });
+  assert.deepEqual(await call('reviews.activity', { ...activity, kind: 'reviews' }), {
+    entries: [{ id: '14', createdAt: '2026-11-02T00:00:00Z', state: 'APPROVED' }],
+    hasMore: false,
+  });
+  assert.throws(
+    () => call('reviews.activity', { ...activity, kind: 'comments', token: 'temporary' }),
+    { kind: 'invalid-params' },
+  );
+  await assert.rejects(
+    call('reviews.activity', { ...activity, kind: 'comments', selectionVersion: 'stale' }),
+    { kind: 'conflict' },
+  );
+  const merged = (await call('reviews.list', { ...q, state: 'all', page: 1 })).items[0];
+  assert.equal(merged.state, 'merged');
+  assert.equal(merged.mergedAt, '2026-11-05T00:00:00Z');
+
+  const gitlabToken = await client.saveAccessToken(null, {
+    name: 'GitLab',
+    value: 'fixture-gitlab-secret',
+    revision: bound.revision,
+  });
+  const gitlab = {
+    remote: 'gitlab',
+    target: 'https://gitlab.fixture.invalid/team/repo',
+    provider: 'gitlab',
+  };
+  await call('reviews.applyToken', {
+    ...gitlab,
+    tokenId: gitlabToken.tokens.find((token) => token.name === 'GitLab').id,
+    revision: gitlabToken.revision,
+  });
+  const gitlabActivity = {
+    ...activity,
+    ...gitlab,
+    selectionVersion: (await savedRemotes()).find((remote) => remote.name === 'gitlab').selection
+      .version,
+  };
+  assert.deepEqual(await call('reviews.activity', { ...gitlabActivity, kind: 'comments' }), {
+    entries: [{ id: '21', createdAt: '2026-11-04T00:00:00Z' }],
+    hasMore: false,
+  });
+  const approvals = await call('reviews.activity', { ...gitlabActivity, kind: 'approvals' });
+  assert.deepEqual(approvals.entries, []);
+  assert.match(approvals.approvalState, /^[a-f0-9]{64}$/);
+
   const actions = await call('reviews.actions', detail);
   const write = {
     ...detail,

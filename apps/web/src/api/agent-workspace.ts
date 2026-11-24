@@ -23,7 +23,7 @@ import { createAgentCollaboration } from './agent-collaboration';
 import { workspaceTopics } from './ui-agent';
 import { hostConsent } from '../features/connections/HostConsent';
 import { fileAccessApi } from './file-access';
-import type { ConnectionProgress } from '@alune/domain';
+import type { ConnectionProgress, Repository, RepositoryStatus } from '@alune/domain';
 import type { DirectoryGrant } from '@alune/protocol';
 
 type Binding = { localId: string; resource: ResourceRef };
@@ -56,8 +56,29 @@ export let manageHost: ((id: string, action: string) => Promise<string>) | undef
 export let repositoryTarget: (id: string) => Promise<Target>;
 // Tray polling must never enter the interactive connection / legacy registration path.
 export let readConnectedHead: (
-  id: string, hostId: string | undefined, signal: AbortSignal,
+  id: string,
+  hostId: string | undefined,
+  signal: AbortSignal,
 ) => Promise<import('@alune/protocol').RepositoryQueryResult<'head'> | null>;
+export type BackgroundPullTarget = {
+  branch: string;
+  head: string;
+  upstream: string;
+};
+export type BackgroundFetchResult = {
+  fetched: boolean;
+  update?: BackgroundPullTarget & { upstreamHead: string; behind: number };
+};
+export let fetchConnectedRepository: (
+  repo: Repository,
+  signal: AbortSignal,
+) => Promise<BackgroundFetchResult>;
+export let readConnectedRepositoryStatus: (
+  repo: Repository,
+  signal: AbortSignal,
+  foreground: boolean,
+) => Promise<RepositoryStatus>;
+export let isBackgroundSyncConnected: (repo: Repository) => boolean = () => false;
 export const remoteTerminalHosts = new WeakMap<AgentClient, Host>();
 export const agentOwners = new Set<AgentClient>();
 const ownerListeners = new Set<(client: AgentClient) => void>();
@@ -106,21 +127,34 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
   if (logsOnly) return;
   manageHost = async (hostId, action) => String(await local.request('hosts.manage', {hostId, action}, {timeoutMs: 120000}));
   addOwner(local);
-  const catalog = async () =>
-    (await local.request('hosts.catalog', {})) as unknown as { hosts: Host[] };
+  const catalog = async (signal?: AbortSignal) =>
+    (await local.request('hosts.catalog', {}, { signal })) as unknown as { hosts: Host[] };
   const clients = new Map<string, AgentClient>(),
     opening = new Map<string, Promise<AgentClient>>();
+  const readyClient = (hostId?: string) => {
+    const client = hostId ? clients.get(hostId) : local;
+    return client?.state === 'ready' ? client : undefined;
+  };
+  async function connectedResource(id: string, hostId: string | undefined, signal: AbortSignal) {
+    signal.throwIfAborted();
+    const client = readyClient(hostId);
+    if (!client) return null;
+    const resource = hostId
+      ? (await catalog(signal)).hosts
+          .find((host) => host.hostId === hostId)
+          ?.bindings.find((binding) => binding.localId === id)?.resource
+      : ref(id);
+    if (client !== readyClient(hostId)) return null;
+    if (!resource || resource.agentId !== client.initialized?.agentId)
+      throw new ProtocolError('not-found', '请先打开仓库工作区，以便绑定当前 Agent。');
+    return { client, resource };
+  }
   const withoutHeadQuery = new WeakSet<AgentClient>();
   readConnectedHead = async (id, hostId, signal) => {
-    const client = hostId ? clients.get(hostId) : local;
-    if (client?.state !== 'ready') return null;
+    const target = await connectedResource(id, hostId, signal);
+    if (!target) return null;
+    const { client, resource } = target;
     if (withoutHeadQuery.has(client)) throw new Error('当前 Agent 未提供 HEAD 查询');
-    // Bindings may have been created after this SSH session was opened.
-    const resource = hostId
-      ? (await catalog()).hosts.find(h => h.hostId === hostId)?.bindings.find(b => b.localId === id)?.resource
-      : ref(id);
-    if (!resource || resource.agentId !== client.initialized?.agentId)
-      throw new Error('仓库尚未绑定当前 Agent');
     try {
       return await client.readRepository(resource, 'head', {}, { signal, timeoutMs: 8000 });
     } catch (error) {
@@ -128,6 +162,65 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
         withoutHeadQuery.add(client);
       throw error;
     }
+  };
+  const syncConnected = (repo: Repository) =>
+    (repo.source !== 'ssh' || !!repo.connectionId) && !!readyClient(repo.connectionId);
+  isBackgroundSyncConnected = syncConnected;
+  const syncTarget = async (repo: Repository, signal: AbortSignal) => {
+    const target = syncConnected(repo)
+      ? await connectedResource(repo.id, repo.connectionId, signal)
+      : null;
+    if (!target) throw new ProtocolError('disconnected', 'Agent 连接已断开。');
+    return target;
+  };
+  fetchConnectedRepository = async (repo, signal) => {
+    const { client, resource } = await syncTarget(repo, signal);
+    const intent = { resource, kind: 'backgroundFetch' as const, args: [] as [] };
+    const revision = await client
+      .prepareRepositoryWrite(intent, { signal, timeoutMs: 15_000 })
+      .catch((error: unknown) => {
+        if (
+          error instanceof ProtocolError &&
+          error.kind === 'invalid-params' &&
+          error.message === 'Invalid repository write arguments'
+        )
+          throw new ProtocolError('unavailable', '当前 Agent 版本不支持后台获取，请升级后重新连接。');
+        throw error;
+      });
+    signal.throwIfAborted();
+    const result = await client.writeRepository(
+      { ...intent, revision, operationId: crypto.randomUUID() },
+      { signal, timeoutMs: 90_000 },
+    );
+    if (!isRecord(result) || typeof result.fetched !== 'boolean')
+      throw new ProtocolError('invalid-request', 'Agent 返回的后台获取结果无效。');
+    const update = result.update;
+    if (!result.fetched || update === undefined) return { fetched: result.fetched };
+    if (
+      !isRecord(update) ||
+      typeof update.branch !== 'string' ||
+      typeof update.head !== 'string' ||
+      typeof update.upstream !== 'string' ||
+      typeof update.upstreamHead !== 'string' ||
+      typeof update.behind !== 'number' ||
+      !Number.isSafeInteger(update.behind) ||
+      update.behind <= 0
+    )
+      throw new ProtocolError('invalid-request', 'Agent 返回的上游更新无效。');
+    return {
+      fetched: true,
+      update: {
+        branch: update.branch,
+        head: update.head,
+        upstream: update.upstream,
+        upstreamHead: update.upstreamHead,
+        behind: update.behind,
+      },
+    };
+  };
+  readConnectedRepositoryStatus = async (repo, signal, foreground) => {
+    const { client, resource } = await syncTarget(repo, signal);
+    return adapter(client).repository.status(resource.resourceId, signal, foreground);
   };
   function connect(id: string, interactive = false, reconnectRevision?: string) {
     const active = clients.get(id);
