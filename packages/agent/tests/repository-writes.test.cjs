@@ -178,28 +178,28 @@ test(
       f.prepare('createBranch', ['same-repository']),
       f.prepare('createBranch', ['linked-repository'], link.resource),
     ]);
-    const hook = path.join(f.repo, '.git', 'hooks', 'reference-transaction');
-    fs.writeFileSync(
-      hook,
-      '#!/bin/sh\nif [ "$1" = prepared ]; then printf ready > fetch-ready; sleep 40; fi\n',
-      { mode: 0o755 },
-    );
+    const localUrl = f.git('remote', 'get-url', 'origin');
+    const server = require('node:http').createServer();
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((resolve) => server.close(resolve));
+    });
+    f.git('remote', 'set-url', 'origin', `http://127.0.0.1:${server.address().port}/origin.git`);
+    const requested = new Promise((resolve) => server.once('request', resolve));
     const controller = new AbortController();
     const fetch = f.client.writeRepository(await f.prepare('backgroundFetch'), {
       signal: controller.signal,
     });
     const failure = assert.rejects(fetch, (error) => error.kind === 'cancelled');
-    for (let n = 0; !fs.existsSync(path.join(f.repo, 'fetch-ready')); n++) {
-      if (n > 400) throw new Error('fetch hook did not start');
-      await delay(50);
-    }
+    await requested;
     assert.equal((await f.client.repositoryOperation(f.resource)).kind, 'backgroundFetch');
     await rejectsKind(f.client.writeRepository(requests[0]), 'busy');
     await rejectsKind(f.client.writeRepository(requests[1]), 'busy');
     controller.abort();
     await failure;
     assert.equal(await f.client.repositoryOperation(f.resource), null);
-    fs.unlinkSync(hook);
+    f.git('remote', 'set-url', 'origin', localUrl);
     assert.equal(f.git('rev-parse', '@{upstream}'), head);
     await f.write('backgroundFetch');
     assert.notEqual(f.git('rev-parse', '@{upstream}'), head);
