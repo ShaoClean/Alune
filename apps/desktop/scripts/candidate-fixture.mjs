@@ -5,7 +5,7 @@ import { loadIdentity } from '../../../packages/agent/dist/adapters/identity.js'
 import { AgentState } from '../../../packages/agent/dist/adapters/sqlite/state.js';
 import { RepositoryCatalog } from '../../../packages/agent/dist/modules/repositories/catalog.js';
 
-export async function workspaceFixture(directory) {
+export async function workspaceFixture(directory, { tray = false } = {}) {
   const repo = path.join(directory, 'candidate Git 仓库');
   mkdirSync(repo);
   const env = {
@@ -41,18 +41,26 @@ export async function workspaceFixture(directory) {
   try {
     const catalog = new RepositoryCatalog(state.database, agentId);
     const { id, resource } = catalog.register(repo, path.basename(repo), 'main');
+    let linkedId;
+    if (tray) {
+      const parent = path.join(directory, 'second');
+      mkdirSync(parent);
+      const linked = path.join(parent, path.basename(repo));
+      git('worktree', 'add', '-qb', 'tray-linked', linked);
+      linkedId = catalog.register(linked, path.basename(linked), 'linked').id;
+    }
     catalog.pin(resource, true);
     writeFileSync(
       path.join(agentDirectory, 'workspace.json'),
       JSON.stringify({
         version: 1,
         state: {
-          repositorySession: { ids: [id], activeId: id },
+          repositorySession: { ids: linkedId ? [id, linkedId] : [id], activeId: id },
           appearance: { theme: 'dark' },
         },
       }),
     );
-    return { repo, id };
+    return { repo, id, linkedId };
   } finally {
     await state.close();
   }

@@ -12,7 +12,8 @@ export function useConnectionStatusSync() {
   const fetchConnections = useConnectionStore((state) => state.fetchConnections);
 
   useSocket({
-    'repository:changed': () => {
+    'repository:changed': (id?: string) => {
+      if (id) window.aluneTray?.repositoryChanged(id);
       void useRepositoryStore.getState().fetchRepositories();
     },
     'connection:status': (event) => {

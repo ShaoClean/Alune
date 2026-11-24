@@ -83,7 +83,7 @@ async function startDesktopAgent({
           failures.push(error);
         }
       };
-      for (const name of handlers) await release(() => ipcMain.removeHandler(name));
+      for (const dispose of handlers) await release(dispose);
       handlers.clear();
       for (const channel of channels.values()) await release(() => channel.cleanup());
       if (server)
@@ -102,7 +102,7 @@ async function startDesktopAgent({
     })());
   const handle = (name, handler) => {
     ipcMain.handle(name, handler);
-    handlers.add(name);
+    handlers.add(() => ipcMain.removeHandler(name));
   };
   try {
     server = createServer((request, response) => {
@@ -173,10 +173,13 @@ async function startDesktopAgent({
       await endpoint.channel.send(value);
       return true;
     });
-    handle('agent:close', (e, generation) => {
+    // A window can unload after the Agent is already gone during application quit.
+    const closeWindowChannel = (e, generation) => {
       const endpoint = role(e) && channels.get(e.sender);
       if (endpoint && generation === endpoint.generation) endpoint.cleanup();
-    });
+    };
+    ipcMain.on('agent:close', closeWindowChannel);
+    handlers.add(() => ipcMain.off('agent:close', closeWindowChannel));
     const { ProxyAgent, fetch: networkFetch } = require('undici');
     const networkProxy = {
       updaterBridge: () => host.client.updaterBridge(),

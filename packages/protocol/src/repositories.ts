@@ -53,6 +53,10 @@ export interface RepositorySnapshot {
   revision: string;
 }
 export interface RepositoryQueryMap {
+  head: {
+    params: {};
+    result: { kind: 'branch' | 'unborn'; name: string } | { kind: 'detached'; oid: string };
+  };
   status: { params: { foreground?: boolean }; result: RepositoryStatus };
   context: { params: {}; result: RepositoryContext };
   worktrees: { params: {}; result: WorktreeInfo[] };
@@ -105,6 +109,7 @@ export type RepositoryReadReceipt = {
   generation: number;
 } & ({ value: JsonValue } | { snapshotId: string; bytes: number; chunks: number });
 const fields: Record<RepositoryQueryKind, string[]> = {
+  head: [],
   status: ['foreground'],
   context: [],
   worktrees: [],
@@ -291,6 +296,12 @@ export function validateRepositoryValue<K extends RepositoryQueryKind>(
     Array.isArray(v) &&
     v.every((item) => isRecord(item) && keys.every((k) => typeof item[k] === 'string'));
   switch (kind) {
+    case 'head':
+      if (!isRecord(value) || !(value.kind === 'detached'
+        ? typeof value.oid === 'string' && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value.oid)
+        : (value.kind === 'branch' || value.kind === 'unborn') && repositoryString(value.name)))
+        invalid();
+      break;
     case 'diff':
     case 'stashDiff':
       if (typeof value !== 'string') invalid();

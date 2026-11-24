@@ -100,6 +100,8 @@ function terminateWindowsTree(pid: number): Promise<void> {
 // disable lazy fetching for this narrow set, so they need no proxy-discovery
 // subprocess. Object reads still probe promisor settings before every command.
 function metadataRead(args: string[]): boolean {
+  if (args.length === 4 && args[0] === 'rev-parse' && args[1] === '--verify' &&
+      args[2] === '--quiet' && args[3] === 'HEAD') return true;
   if (args[0] === 'config')
     return (
       !args.some((arg) => arg === '--blob' || arg.startsWith('--blob=')) &&

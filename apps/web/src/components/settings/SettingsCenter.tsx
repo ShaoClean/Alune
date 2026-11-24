@@ -1,6 +1,7 @@
 import { FeedbackAlert } from '@alune/ui';
 import { FeedbackNotice } from '@alune/ui';
 import { AppearanceSettings } from './AppearanceSettings';
+import { DesktopSettings } from './DesktopSettings';
 import { useEffect } from 'react';
 import { Button } from '@alune/ui';
 import {
@@ -30,6 +31,7 @@ const categories = [
   { id: 'tokens', name: '访问令牌', icon: <KeyOutlined /> },
   { id: 'layout', name: '布局', icon: <LayoutOutlined /> },
   { id: 'appearance', name: '外观', icon: <SkinOutlined /> },
+  ...(globalThis.window?.aluneTray ? [{ id: 'desktop', name: '桌面', icon: <LayoutOutlined /> }] : []),
   { id: 'proxy', name: '网络代理', icon: <GlobalOutlined /> },
   { id: 'logs', name: '日志', icon: <ProfileOutlined /> },
   { id: 'updates', name: '版本更新', icon: <ReloadOutlined /> },
@@ -88,7 +90,9 @@ export function SettingsCenter({
       className={`app-content settings-main settings-main--${category.id}`}
       aria-label={`${category.name}设置`}
     >
-      {category.id === 'tokens' ? (
+      {category.id === 'desktop' ? (
+        <DesktopSettings />
+      ) : category.id === 'tokens' ? (
         <AccessTokenSettings returnTo={returnTo} />
       ) : category.id === 'proxy' ? (
         <ProxySettings />

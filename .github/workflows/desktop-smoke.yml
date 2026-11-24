@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest]
+        os: [ubuntu-22.04, windows-latest, macos-15]
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       ALUNE_SMOKE_VISIBLE: '1'
@@ -48,9 +48,15 @@ jobs:
       - name: 打包已构建的应用
         # desktop:build already staged the app and Agent runtime.
         run: npm --ignore-scripts run pack -w desktop -- --publish never
+      - name: 托盘唤回与后台分支刷新
+        if: runner.os != 'Linux'
+        run: node apps/desktop/scripts/test-packaged.mjs --focus tray
+      - name: 托盘唤回与后台分支刷新 (Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node apps/desktop/scripts/test-packaged.mjs --focus tray
       # Packaged smoke also exercises the real PTY and terminal UI.
       - name: 原生包界面、终端与再次启动
-        if: runner.os != 'Linux'
+        if: runner.os == 'Windows'
         run: node apps/desktop/scripts/test-packaged.mjs
         env:
           ALUNE_CANDIDATE_EVIDENCE: ${{ runner.temp }}/candidate-ui
@@ -60,6 +66,7 @@ jobs:
         env:
           ALUNE_CANDIDATE_EVIDENCE: ${{ runner.temp }}/candidate-ui
       - uses: actions/upload-artifact@v4
+        if: runner.os != 'macOS'
         with:
           name: candidate-ui-${{ matrix.os }}
           path: ${{ runner.temp }}/candidate-ui

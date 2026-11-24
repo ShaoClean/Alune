@@ -54,6 +54,10 @@ export type Target = {
 };
 export let manageHost: ((id: string, action: string) => Promise<string>) | undefined;
 export let repositoryTarget: (id: string) => Promise<Target>;
+// Tray polling must never enter the interactive connection / legacy registration path.
+export let readConnectedHead: (
+  id: string, hostId: string | undefined, signal: AbortSignal,
+) => Promise<import('@alune/protocol').RepositoryQueryResult<'head'> | null>;
 export const remoteTerminalHosts = new WeakMap<AgentClient, Host>();
 export const agentOwners = new Set<AgentClient>();
 const ownerListeners = new Set<(client: AgentClient) => void>();
@@ -106,6 +110,25 @@ export async function installWorkspaceAgent(local: AgentClient, logsOnly = false
     (await local.request('hosts.catalog', {})) as unknown as { hosts: Host[] };
   const clients = new Map<string, AgentClient>(),
     opening = new Map<string, Promise<AgentClient>>();
+  const withoutHeadQuery = new WeakSet<AgentClient>();
+  readConnectedHead = async (id, hostId, signal) => {
+    const client = hostId ? clients.get(hostId) : local;
+    if (client?.state !== 'ready') return null;
+    if (withoutHeadQuery.has(client)) throw new Error('当前 Agent 未提供 HEAD 查询');
+    // Bindings may have been created after this SSH session was opened.
+    const resource = hostId
+      ? (await catalog()).hosts.find(h => h.hostId === hostId)?.bindings.find(b => b.localId === id)?.resource
+      : ref(id);
+    if (!resource || resource.agentId !== client.initialized?.agentId)
+      throw new Error('仓库尚未绑定当前 Agent');
+    try {
+      return await client.readRepository(resource, 'head', {}, { signal, timeoutMs: 8000 });
+    } catch (error) {
+      if (error instanceof ProtocolError && error.kind === 'invalid-params')
+        withoutHeadQuery.add(client);
+      throw error;
+    }
+  };
   function connect(id: string, interactive = false, reconnectRevision?: string) {
     const active = clients.get(id);
     if (!reconnectRevision && active?.state === 'ready') return Promise.resolve(active);
