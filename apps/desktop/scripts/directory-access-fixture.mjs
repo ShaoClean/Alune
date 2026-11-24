@@ -6,7 +6,7 @@ import { once } from 'node:events';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { utils } from 'ssh2';
+import ssh2 from 'ssh2';
 import fixtures from '../../../packages/agent/tests/helpers/proxy-fixture.cjs';
 
 export async function directoryAccessFixture(directory) {
@@ -17,7 +17,7 @@ export async function directoryAccessFixture(directory) {
   fs.mkdirSync(login);
   fs.writeFileSync(path.join(notes, 'note.txt'), 'keep outside bytes\n');
   // The restore phase initializes the test vault after the write phase.
-  const key = utils.generateKeyPairSync('ed25519');
+  const key = ssh2.utils.generateKeyPairSync('ed25519');
   const privateKeyPath = path.join(directory, 'directory-access-key');
   fs.writeFileSync(privateKeyPath, key.private, { mode: 0o600 });
   const peer = await fixtures.forwardingSSH({
