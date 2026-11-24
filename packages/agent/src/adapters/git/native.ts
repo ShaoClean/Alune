@@ -5,7 +5,7 @@ import type { CommandResult } from '../../ports/process';
 import { CommandOutputLimitError } from '../../ports/process';
 import type { RepositoryFileSystem as SFTPWrapper } from '../../ports/repository-files';
 import type { ProxySnapshot } from '../network/proxy-transport';
-import { withLocalGitProxy } from './local-git-proxy';
+import { GitProxyError, withLocalGitProxy } from './local-git-proxy';
 import { join } from 'node:path';
 
 // Adapt the small, callback-based filesystem surface used by the shared file
@@ -100,8 +100,14 @@ function terminateWindowsTree(pid: number): Promise<void> {
 // disable lazy fetching for this narrow set, so they need no proxy-discovery
 // subprocess. Object reads still probe promisor settings before every command.
 function metadataRead(args: string[]): boolean {
-  if (args.length === 4 && args[0] === 'rev-parse' && args[1] === '--verify' &&
-      args[2] === '--quiet' && args[3] === 'HEAD') return true;
+  if (
+    args.length === 4 &&
+    args[0] === 'rev-parse' &&
+    args[1] === '--verify' &&
+    args[2] === '--quiet' &&
+    args[3] === 'HEAD'
+  )
+    return true;
   if (args[0] === 'config')
     return (
       !args.some((arg) => arg === '--blob' || arg.startsWith('--blob=')) &&
@@ -287,13 +293,32 @@ export class NativeRepositoryConnection implements RepositoryTransport {
       }
       // Capture once per command: saving affects the next operation, never a
       // running transfer. A corrupt/unreadable enabled setting fails closed.
-      const snapshot = network ? await this.proxySnapshot() : undefined;
+      let snapshot: ProxySnapshot | undefined;
+      if (network) {
+        try {
+          snapshot = await this.proxySnapshot();
+        } catch (error) {
+          if (!options.nonInteractive) throw error;
+          throw new GitProxyError('无法读取 Git 代理配置，请检查连接与代理设置。', {
+            cause: error,
+          });
+        }
+      }
       if (snapshot?.enabled)
         return withLocalGitProxy(snapshot, args, options, (argv, commandOptions) =>
           this.executeGit(path, argv, signal, commandOptions),
         );
     }
-    return this.executeGit(path, args, signal, options);
+    const result = await this.executeGit(path, args, signal, options);
+    if (
+      options.nonInteractive &&
+      result.exitCode !== 0 &&
+      /Could not resolve proxy|CONNECT tunnel failed|HTTP code \d{3} from proxy/i.test(
+        result.stderr,
+      )
+    )
+      throw new GitProxyError('Git 代理无法建立连接，请检查网络代理。');
+    return result;
   }
 
   private executeGit(
@@ -317,7 +342,15 @@ export class NativeRepositoryConnection implements RepositoryTransport {
       GCM_INTERACTIVE: 'Never',
       LC_ALL: 'C',
       ...options.environment,
+      ...(options.nonInteractive
+        ? {
+            GIT_ASKPASS: '',
+            SSH_ASKPASS: '',
+            SSH_ASKPASS_REQUIRE: 'never',
+          }
+        : {}),
     };
+    if (options.nonInteractive) args = ['-c', 'credential.interactive=false', ...args];
     // The desktop may have been launched from another repository's Git hook.
     for (const key of [
       'GIT_DIR',

@@ -75,6 +75,7 @@
     "reviews.detail",
     "reviews.discussions",
     "reviews.files",
+    "reviews.activity",
     "reviews.list",
     "reviews.mutate",
     "reviews.preview",

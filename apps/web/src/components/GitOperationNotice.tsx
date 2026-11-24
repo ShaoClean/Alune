@@ -71,7 +71,8 @@ export function GitOperationNotice({
     let timer: ReturnType<typeof setTimeout>;
     const read = async () => {
       try {
-        const value = await gitApi.operation(repoId);
+        const snapshot = await gitApi.operation(repoId);
+        const value = snapshot?.kind === 'backgroundFetch' ? null : snapshot;
         if (stopped) return;
         setOperation(value);
         report.current?.(value);

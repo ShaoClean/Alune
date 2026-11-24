@@ -23,6 +23,7 @@ export interface CommandOptions {
   strictUtf8?: boolean;
   binary?: boolean;
   environment?: Record<string, string>;
+  nonInteractive?: boolean;
 }
 export interface GitProcessPort {
   execGit(

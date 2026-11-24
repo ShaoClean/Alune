@@ -44,6 +44,20 @@ test('desktop hydration completes before either list can validate saved order', 
   assert.deepEqual(JSON.parse(writes.at(-1)).state.repositorySession, { ids: ['r2', 'r1'], activeId: 'r2' });
 });
 
+test('background sync is opt-in and shares the desktop workspace preferences file', () => {
+  assert.deepEqual(workspace.getState().backgroundSync, {
+    enabled: false, intervalMinutes: 10, excludedRepositoryIds: [],
+  });
+  workspace.getState().updateBackgroundSync({
+    enabled: true, intervalMinutes: 30, excludedRepositoryIds: ['r1', 'r1'],
+  });
+  const saved = JSON.parse(writes.at(-1)).state;
+  assert.deepEqual(saved.backgroundSync, {
+    enabled: true, intervalMinutes: 30, excludedRepositoryIds: ['r1'],
+  });
+  assert.deepEqual(saved.repositorySession, { ids: ['r2', 'r1'], activeId: 'r2' });
+});
+
 test('storage failures are reported without rejecting UI updates, and later writes recover', async () => {
   let fail = true;
   const storage = createWorkspaceStorage({

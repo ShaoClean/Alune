@@ -29,3 +29,30 @@ test('only foreground status permits Git to refresh index metadata', async () =>
   assert.ok(calls[0].args.includes('--no-optional-locks'));
   assert.ok(!calls[1].args.includes('--no-optional-locks'));
 });
+
+test('status distinguishes synchronized branches from missing tracking references', async (t) => {
+  const fixture = createRepository();
+  const connection = new NativeRepositoryConnection();
+  t.after(async () => {
+    await connection.close();
+    fixture.close();
+  });
+  const branch = fixture.git('symbolic-ref', '--short', 'HEAD').trim();
+  const upstream = 'refs/remotes/origin/main';
+  fixture.git('remote', 'add', 'origin', 'https://example.invalid/git');
+  fixture.git('config', `branch.${branch}.remote`, 'origin');
+  fixture.git('config', `branch.${branch}.merge`, 'refs/heads/main');
+  fixture.git('update-ref', upstream, 'HEAD');
+
+  const git = new GitCommands(connection);
+  const synced = await git.status(fixture.repo);
+  assert.equal(synced.upstream, 'origin/main');
+  assert.equal(synced.ahead, 0);
+  assert.equal(synced.behind, 0);
+  assert.equal(synced.upstreamComparisonUnavailable, undefined);
+
+  fixture.git('update-ref', '-d', upstream);
+  const gone = await git.status(fixture.repo);
+  assert.equal(gone.upstream, 'origin/main');
+  assert.equal(gone.upstreamComparisonUnavailable, true);
+});

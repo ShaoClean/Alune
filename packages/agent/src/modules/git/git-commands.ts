@@ -2,10 +2,10 @@ import type {
   BranchInfo,
   CommitFile,
   DiffOptions,
-  FileStatus,
   LogOptions,
   LogPage,
   RemoteInfo,
+  RepositoryStatus,
   StashEntry,
 } from '@alune/domain';
 import { promisify } from 'util';
@@ -27,14 +27,7 @@ export class GitReads {
     repoPath: string,
     signal?: AbortSignal,
     refreshIndex = false,
-  ): Promise<{
-    branch: string;
-    ahead: number;
-    behind: number;
-    files: FileStatus[];
-    unborn?: boolean;
-    upstream?: string;
-  }> {
+  ): Promise<RepositoryStatus> {
     const result = await runGit(
       this.connection,
       repoPath,
@@ -53,7 +46,8 @@ export class GitReads {
       throw new Error(`git status failed: ${result.stderr}`);
     }
 
-    const { branch, ahead, behind, files, head, upstream } = parseStatus(result.stdout);
+    const { branch, ahead, behind, files, head, upstream, upstreamComparisonUnavailable } =
+      parseStatus(result.stdout);
     await classifyChanges(this.connection, repoPath, files, signal);
     return {
       branch,
@@ -62,6 +56,7 @@ export class GitReads {
       files,
       ...(head === '(initial)' ? { unborn: true } : {}),
       ...(upstream ? { upstream } : {}),
+      ...(upstreamComparisonUnavailable ? { upstreamComparisonUnavailable } : {}),
     };
   }
 

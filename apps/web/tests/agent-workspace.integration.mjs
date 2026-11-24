@@ -11,7 +11,12 @@ import { AgentState } from '../../../packages/agent/dist/adapters/sqlite/state.j
 import { settingsKernel } from '../../../packages/agent/dist/bootstrap/settings-kernel.js';
 import { RepositoryCatalog } from '../../../packages/agent/dist/modules/repositories/catalog.js';
 import { superviseUiAgent, AgentClient, frameTransport } from '@alune/agent-client/node';
-import { installWorkspaceAgent, readConnectedHead } from '../src/api/agent-workspace.ts';
+import {
+  fetchConnectedRepository,
+  installWorkspaceAgent,
+  isBackgroundSyncConnected,
+  readConnectedHead,
+} from '../src/api/agent-workspace.ts';
 import { repositoryApi, connectionApi, gitApi } from '../src/api/index.ts';
 import { registerTerminalRemovalConfirmation } from '../src/stores/terminalRemoval.ts';
 import { repositoryFileStatus, repositoryHistoryChanged } from '../src/api/repository-errors.ts';
@@ -76,6 +81,12 @@ test('UI facade keeps mixed-host analytics, Git writes, Worktree aliases, termin
     const signal = new AbortController().signal;
     assert.deepEqual(await readConnectedHead(localId, undefined, signal), { kind: 'branch', name: 'main' });
     assert.equal(await readConnectedHead(remoteId, hostId, signal), null);
+    const localRepository = await repositoryApi.get(localId);
+    const remoteRepository = await repositoryApi.get(remoteId);
+    assert.equal(isBackgroundSyncConnected(localRepository), true);
+    assert.deepEqual(await fetchConnectedRepository(localRepository, signal), { fetched: false });
+    assert.equal(isBackgroundSyncConnected(remoteRepository), false);
+    await assert.rejects(fetchConnectedRepository(remoteRepository, signal), { kind: 'disconnected' });
     const [offline] = await connectionApi.list();
     assert.equal(offline.status, 'unknown');
     assert.equal(offline.hasAuth, false);

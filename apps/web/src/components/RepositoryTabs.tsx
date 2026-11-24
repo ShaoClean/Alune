@@ -15,6 +15,13 @@ import { horizontalPlacement, moveBeforeOrAfter } from '../stores/sidebarOrder';
 import type { Placement } from '../stores/sidebarOrder';
 import { tabsToClose } from '../stores/tabCommands';
 import type { TabCloseCommand } from '../stores/tabCommands';
+import { useConnectionStore } from '../stores/connectionStore';
+import { useRepositoryStore } from '../stores/repositoryStore';
+import {
+  describeSyncCounts,
+  RepositorySyncCounts,
+  repositorySyncStatus,
+} from './RepositorySyncCounts';
 
 interface Props {
   repositories: Repository[];
@@ -53,6 +60,8 @@ export function RepositoryTabs({
   onCloseMany,
   onOpenRepository,
 }: Props) {
+  const statuses = useRepositoryStore((state) => state.repositoryStatuses);
+  const connectionsStatus = useConnectionStore((state) => state.statuses);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [menu, setMenu] = useState<TabMenu | null>(null);
@@ -425,6 +434,11 @@ export function RepositoryTabs({
           const active = repo.id === activeId;
           const source = sourceLabel(repo);
           const accessibleName = repositoryAccessibleName(repo, source);
+          const syncStatus = repositorySyncStatus(
+            statuses[repo.id],
+            repo.connectionId ? connectionsStatus[repo.connectionId]?.status : undefined,
+          );
+          const syncDescription = syncStatus ? describeSyncCounts(syncStatus) : undefined;
           const shift =
             destinationIndex > sourceIndex && index > sourceIndex && index <= destinationIndex
               ? -dragStep.current
@@ -450,6 +464,7 @@ export function RepositoryTabs({
               <RepositoryIdentityTooltip
                 repo={repo}
                 source={source}
+                syncDescription={syncDescription}
                 disabled={Boolean(dragging || menu)}
               >
                 <button
@@ -459,6 +474,7 @@ export function RepositoryTabs({
                   aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight Shift+F10 ContextMenu"
                   className="repository-tab__select"
                   aria-label={accessibleName}
+                  aria-description={syncDescription}
                   onClick={() => onSelect(repo.id)}
                   onKeyDown={(event) => keyboardMove(event, repo.id, accessibleName)}
                 >
@@ -473,6 +489,9 @@ export function RepositoryTabs({
                       </>
                     )}
                   </span>
+                  {syncStatus && (syncStatus.ahead > 0 || syncStatus.behind > 0) && (
+                    <RepositorySyncCounts status={syncStatus} />
+                  )}
                   {repo.isDirty && <span className="repository-tab__dirty" aria-label="有改动" />}
                 </button>
               </RepositoryIdentityTooltip>

@@ -15,6 +15,8 @@ import type {
   PullRequestResourceQuery,
   PullRequestDiscussionQuery,
   PullRequestDiscussion,
+  PullRequestActivityQuery,
+  PullRequestActivityPage,
   PullRequestActions,
   PullRequestMutation,
   PullRequestMutationResult,
@@ -49,6 +51,7 @@ export interface CollaborationMethods {
     Repo<PullRequestDiscussionQuery>,
     PullRequestResourcePage<PullRequestDiscussion>,
   ];
+  'reviews.activity': [Repo<PullRequestActivityQuery>, PullRequestActivityPage];
   'reviews.actions': [Repo<PullRequestDetailQuery>, PullRequestActions];
   'reviews.mutate': [Repo<PullRequestMutation>, PullRequestMutationResult];
   'reviews.applyToken': [Repo<ApplyAccessToken>, AccessTokenSettings];
@@ -87,6 +90,16 @@ const fields: Record<Key, string[] | null> = {
   'reviews.detail': detail,
   'reviews.files': [...detail, 'page', 'revision'],
   'reviews.discussions': [...detail, 'page', 'kind', 'revision'],
+  'reviews.activity': [
+    'remote',
+    'target',
+    'provider',
+    'selectionVersion',
+    'number',
+    'kind',
+    'page',
+    'since',
+  ],
   'reviews.actions': detail,
   'reviews.mutate': [...detail, 'operationId', 'revision', 'action', 'body', 'position', 'method'],
   'reviews.applyToken': ['remote', 'target', 'provider', 'tokenId', 'revision'],

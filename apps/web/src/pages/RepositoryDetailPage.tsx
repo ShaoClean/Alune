@@ -20,6 +20,8 @@ import { DialogCard, DialogNote, RepoRow } from '@alune/ui';
 import { FeedbackNotice, FeedbackScope } from '@alune/ui';
 import { ArrowLeftOutlined } from '@alune/ui/icons';
 import { gitApi, repositoryApi } from '../api';
+import type { BackgroundPullTarget } from '../api/agent-workspace';
+import { useBackgroundSyncStore } from '../stores/backgroundSyncStore';
 import {
   useRepositoryStatusData,
   useRepositoryStore,
@@ -439,6 +441,7 @@ function RepositoryWorkspace({
       branch?: string;
       setUpstream?: boolean;
       tags?: boolean;
+      target?: BackgroundPullTarget;
     },
   ) => {
     if (syncing) return;
@@ -459,8 +462,12 @@ function RepositoryWorkspace({
           options?.setUpstream,
           options?.tags,
         );
-      else if (operation === 'pull') await gitApi.pull(id, options?.remote, options?.branch);
-      else await gitApi.fetch(id, options?.remote);
+      else if (operation === 'pull') {
+        const target = options?.target;
+        if (target)
+          await gitApi.pull(id, undefined, undefined, target.branch, target.head, target.upstream);
+        else await gitApi.pull(id, options?.remote, options?.branch);
+      } else await gitApi.fetch(id, options?.remote);
       if (operation === 'push' && !options?.tags && (options?.branch || status?.branch))
         setPushedBranch({ branch: options?.branch || status!.branch, remote: options?.remote });
       await handleRefresh(true);
@@ -570,6 +577,19 @@ function RepositoryWorkspace({
       });
     } else execute();
   };
+
+  useEffect(() => {
+    if (!active || loading || !repository) return;
+    const request = useBackgroundSyncStore.getState().pendingPull;
+    if (request?.repositoryId !== id || request.id !== routerLocation.state?.backgroundPull) return;
+    useBackgroundSyncStore.setState({ pendingPull: undefined });
+    if (syncing) {
+      message.info('仓库正在同步，请在当前操作完成后拉取。');
+      return;
+    }
+    setSyncAttempt((value) => value + 1);
+    void runSync('pull', { target: request.target });
+  }, [active, loading, repository, id, routerLocation.state, syncing, message, runSync]);
 
   const handleSelectFile = (file: any) => {
     returnTarget.current =

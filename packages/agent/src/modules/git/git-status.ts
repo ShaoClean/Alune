@@ -40,6 +40,7 @@ export function parseStatus(output: string): RepositoryStatus & {
     DU: 'deleted-by-us',
     UD: 'deleted-by-them',
   };
+  let hasUpstreamComparison = false;
   for (let i = 0; i < tokens.length; i++) {
     const raw = tokens[i];
     if (raw.startsWith('# branch.head '))
@@ -49,6 +50,7 @@ export function parseStatus(output: string): RepositoryStatus & {
     else if (raw.startsWith('# branch.ab ')) {
       const match = raw.match(/\+(\d+) -(\d+)/);
       if (match) {
+        hasUpstreamComparison = true;
         result.ahead = Number(match[1]);
         result.behind = Number(match[2]);
       }
@@ -108,5 +110,6 @@ export function parseStatus(output: string): RepositoryStatus & {
       });
     }
   }
+  if (result.upstream && !hasUpstreamComparison) result.upstreamComparisonUnavailable = true;
   return result;
 }

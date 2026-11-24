@@ -183,7 +183,10 @@ export function createProxyDispatcher(proxy: ProxySnapshot): Agent {
 // A credential-free HTTP endpoint for Electron and reverse SSH forwarding.
 // Each accepted request captures its own immutable configuration; saving never
 // destroys sockets that belong to work already in progress.
-export async function createProxyBridge(snapshot: () => ProxySnapshot) {
+export async function createProxyBridge(
+  snapshot: () => ProxySnapshot,
+  onConnectError?: (error: ProxyTransportError) => void,
+) {
   const sockets = new Set<net.Socket>();
   const controllers = new Set<AbortController>();
   const track = (socket: net.Socket) => {
@@ -199,6 +202,9 @@ export async function createProxyBridge(snapshot: () => ProxySnapshot) {
     downstream.once('close', abort);
     try {
       return track(await connectProxySocket(snapshot(), host, port, controller.signal));
+    } catch (error) {
+      if (error instanceof ProxyTransportError) onConnectError?.(error);
+      throw error;
     } finally {
       controllers.delete(controller);
       downstream.removeListener('close', abort);

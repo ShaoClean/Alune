@@ -28,12 +28,19 @@ import type { RepositorySession } from './repositorySession';
 type RepositoryIdentity = { id: string; connectionId?: string; source?: 'local' | 'ssh' };
 export type CollectionView = 'grid' | 'list' | 'overview';
 export type CollectionPage = 'repositories' | 'connections';
+export type SyncInterval = 5 | 10 | 30;
+export type BackgroundSyncPreferences = {
+  enabled: boolean;
+  intervalMinutes: SyncInterval;
+  excludedRepositoryIds: string[];
+};
 type Preferences = {
   repositorySession: RepositorySession;
   collectionViews: Record<CollectionPage, CollectionView>;
   appearance: AppearancePreferences;
   codeAppearance: CodeAppearancePreferences;
   layout: LayoutPreferences;
+  backgroundSync: BackgroundSyncPreferences;
   collapsedConnectionIds: string[];
   connectionOrder: string[];
   repositoryOrderByConnection: Record<string, string[]>;
@@ -58,6 +65,7 @@ interface WorkspaceState extends Preferences {
   updateAppearance: (patch: Partial<AppearancePreferences>) => void;
   updateLayout: (patch: Partial<LayoutPreferences>) => void;
   resetLayout: () => void;
+  updateBackgroundSync: (patch: Partial<BackgroundSyncPreferences>) => void;
   validatedConnectionIds: string[] | null;
   reconcileRepositories: (repositories: RepositoryIdentity[]) => void;
   reconcileConnections: (ids: string[]) => void;
@@ -75,6 +83,7 @@ const defaults: Preferences = {
   appearance: DEFAULT_APPEARANCE,
   codeAppearance: DEFAULT_CODE_APPEARANCE,
   layout: DEFAULT_LAYOUT,
+  backgroundSync: { enabled: false, intervalMinutes: 10, excludedRepositoryIds: [] },
   collapsedConnectionIds: [],
   connectionOrder: [],
   repositoryOrderByConnection: {},
@@ -88,6 +97,17 @@ const record = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+
+function readBackgroundSync(value: unknown): BackgroundSyncPreferences {
+  const saved = record(value);
+  return {
+    enabled: saved.enabled === true,
+    intervalMinutes: saved.intervalMinutes === 5 || saved.intervalMinutes === 30
+      ? saved.intervalMinutes
+      : 10,
+    excludedRepositoryIds: stringIds(saved.excludedRepositoryIds),
+  };
+}
 
 // Browser storage is untrusted and may belong to an older app version.
 function readPreferences(value: unknown): Preferences & { codeAppearanceNotice: string | null } {
@@ -109,6 +129,7 @@ function readPreferences(value: unknown): Preferences & { codeAppearanceNotice: 
     codeAppearance: code.preferences,
     codeAppearanceNotice: code.notice,
     layout: readLayoutPreferences(saved.layout),
+    backgroundSync: readBackgroundSync(saved.backgroundSync),
     collapsedConnectionIds: stringIds(saved.collapsedConnectionIds),
     connectionOrder: stringIds(saved.connectionOrder),
     repositoryOrderByConnection: Object.fromEntries(
@@ -224,6 +245,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       updateLayout: (patch) =>
         set((state) => ({ layout: readLayoutPreferences({ ...state.layout, ...patch }) })),
       resetLayout: () => set({ layout: { ...DEFAULT_LAYOUT } }),
+      updateBackgroundSync: (patch) =>
+        set((state) => ({ backgroundSync: readBackgroundSync({ ...state.backgroundSync, ...patch }) })),
       validatedConnectionIds: null,
       // Call only after a successful, unfiltered response from the backend.
       reconcileRepositories: (repositories) =>
@@ -350,6 +373,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         appearance,
         codeAppearance,
         collectionViews,
+        backgroundSync,
       }) => ({
         repositorySession,
         collapsedConnectionIds,
@@ -359,6 +383,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         appearance,
         codeAppearance,
         collectionViews,
+        backgroundSync,
       }),
       merge: (saved, current) => ({ ...current, ...readPreferences(saved) }),
     },

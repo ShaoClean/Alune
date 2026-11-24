@@ -26,6 +26,7 @@ export interface PullRequestItem {
   sourceBranch: string;
   targetBranch: string;
   updatedAt: string;
+  mergedAt?: string;
 }
 
 export interface PullRequestPage {
@@ -47,6 +48,19 @@ export type PullRequestDiscussionKind = 'comments' | 'reviews' | 'code';
 
 export interface PullRequestDiscussionQuery extends PullRequestResourceQuery {
   kind: PullRequestDiscussionKind;
+}
+
+export interface PullRequestActivityQuery extends Omit<PullRequestDetailQuery, 'token'> {
+  selectionVersion: string;
+  kind: PullRequestDiscussionKind | 'approvals';
+  page: number;
+  since: string;
+}
+
+export interface PullRequestActivityPage {
+  entries: { id: string; createdAt: string; state?: string }[];
+  hasMore: boolean;
+  approvalState?: string;
 }
 
 export interface PullRequestDetail extends PullRequestItem {

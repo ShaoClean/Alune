@@ -58,10 +58,12 @@ const diffComparisonKey = (id: string, params?: DiffOptions) =>
     params?.parentCommit ?? null,
   ]);
 
+type BackgroundStatusRead = (signal: AbortSignal) => Promise<RepositoryStatus>;
 type StatusJob = {
   id: string;
   foreground: boolean;
   refreshDiff: boolean;
+  backgroundRead?: BackgroundStatusRead;
   started: boolean;
   controller: AbortController;
   promise: Promise<void>;
@@ -222,6 +224,7 @@ interface RepositoryState {
   /** Drops a closed or removed tab's data and stops its requests. */
   disposeWorkspaces: (ids: string[]) => void;
   fetchStatus: (id: string, afterMutation?: boolean) => Promise<void>;
+  refreshAfterBackgroundFetch: (id: string, read: BackgroundStatusRead, signal: AbortSignal) => Promise<void>;
   cancelStatus: (id: string) => void;
   /** A `branch` (a jump to one commit's ancestry) clears the history filter. */
   fetchLog: (id: string, mode?: 'refresh' | 'more', branch?: string) => Promise<void>;
@@ -342,19 +345,24 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       active++;
       const background = !job.foreground;
       if (background) activeBackground++;
-      updateStatus(job.id, {
-        ...get().repositoryStatuses[job.id],
-        phase: 'loading',
-        slow: false,
-        error: undefined,
-      });
-      const slowTimer = setTimeout(() => {
-        if (jobs.get(job.id) === job)
-          updateStatus(job.id, { ...get().repositoryStatuses[job.id], slow: true });
-      }, 10_000);
+      let slowTimer: ReturnType<typeof setTimeout> | undefined;
+      if (!job.backgroundRead) {
+        updateStatus(job.id, {
+          ...get().repositoryStatuses[job.id],
+          phase: 'loading',
+          slow: false,
+          error: undefined,
+        });
+        slowTimer = setTimeout(() => {
+          if (jobs.get(job.id) === job)
+            updateStatus(job.id, { ...get().repositoryStatuses[job.id], slow: true });
+        }, 10_000);
+      }
       void (async () => {
         try {
-          const data = await repositoryApi.status(job.id, job.controller.signal, job.foreground);
+          const data = job.backgroundRead
+            ? await job.backgroundRead(job.controller.signal)
+            : await repositoryApi.status(job.id, job.controller.signal, job.foreground);
           if (jobs.get(job.id) !== job || removed.has(job.id)) return;
           const entry: RepositoryStatusEntry = {
             phase: 'success',
@@ -378,7 +386,7 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
           }));
           if (job.refreshDiff) invalidateDiff(job.id);
         } catch (error) {
-          if (jobs.get(job.id) !== job || removed.has(job.id)) return;
+          if (job.backgroundRead || jobs.get(job.id) !== job || removed.has(job.id)) return;
           updateStatus(job.id, {
             ...get().repositoryStatuses[job.id],
             phase: 'error',
@@ -403,10 +411,11 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
     force = false,
     foreground = false,
     refreshDiff = false,
+    backgroundRead?: BackgroundStatusRead,
   ): Promise<void> => {
     if (removed.has(id)) return Promise.resolve();
     let pending = jobs.get(id);
-    if (pending?.started && !pending.foreground && foreground) {
+    if (pending && !pending.foreground && foreground && (pending.started || pending.backgroundRead)) {
       // Replace the short background HTTP deadline with the explicit-open budget.
       cancelStatus(id);
       pending = undefined;
@@ -434,13 +443,14 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
       id,
       foreground,
       refreshDiff,
+      backgroundRead,
       started: false,
       controller: new AbortController(),
       promise,
       resolve,
     };
     jobs.set(id, job);
-    updateStatus(id, { ...cached, phase: 'queued', error: undefined });
+    if (!backgroundRead) updateStatus(id, { ...cached, phase: 'queued', error: undefined });
     // Batch observers from the same paint so the current workspace can go first.
     queueMicrotask(drain);
     return promise;
@@ -771,6 +781,18 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
         if (removed.has(id)) return;
       }
       await requestStatus(id, true, workspaceId === id, afterMutation);
+    },
+    refreshAfterBackgroundFetch: async (id, read, signal) => {
+      if (!visible.has(id) && !get().openRepositories.some((repo) => repo.id === id)) return;
+      await jobs.get(id)?.promise;
+      if (signal.aborted || removed.has(id)) return;
+      await requestStatus(id, true, false, false, async (requestSignal) => {
+        const combined = AbortSignal.any([signal, requestSignal]);
+        combined.throwIfAborted();
+        const result = await read(combined);
+        combined.throwIfAborted();
+        return result;
+      });
     },
 
     fetchLog: async (id, mode = 'refresh', branch) => {

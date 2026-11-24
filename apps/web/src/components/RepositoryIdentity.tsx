@@ -37,11 +37,13 @@ export function RepositoryIdentity({ repo, label }: { repo: Repository; label?: 
 export function RepositoryIdentityTooltip({
   repo,
   source,
+  syncDescription,
   disabled = false,
   children,
 }: {
   repo: Repository;
   source: string;
+  syncDescription?: string;
   disabled?: boolean;
   children: ReactElement<{ onClick?: MouseEventHandler<HTMLElement> }>;
 }) {
@@ -89,6 +91,12 @@ export function RepositoryIdentityTooltip({
               <>
                 <dt>分支</dt>
                 <dd>{repo.currentBranch}</dd>
+              </>
+            )}
+            {syncDescription && (
+              <>
+                <dt>上游同步</dt>
+                <dd>{syncDescription}</dd>
               </>
             )}
             <dt>路径</dt>

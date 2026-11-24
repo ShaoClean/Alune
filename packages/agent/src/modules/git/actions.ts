@@ -17,6 +17,7 @@ import { GitWorktrees, worktreePathKey } from './worktrees';
 import { assertFileChanges, ignoreDirectory } from './change-entries-writes';
 import { InteractiveRebase } from './interactive-rebase';
 import { ConflictResolution, ConflictResolutionError } from './conflict-resolution-writes';
+import { backgroundFetch } from './background-fetch';
 import type { RepositoryTransport } from './repository-transport';
 import type {
   SigningConfig,
@@ -261,6 +262,12 @@ export abstract class GitActions {
   fetch(id: string, remote?: string) {
     return this.write(id, 'fetch', (git, repo) =>
       this.checked(git, repo.path, ['fetch', ...(remote ? [this.value(remote, '远程名称')] : [])]),
+    );
+  }
+
+  backgroundFetch(id: string) {
+    return this.write(id, 'backgroundFetch', (_git, repo, connection) =>
+      backgroundFetch(connection, repo.path),
     );
   }
 

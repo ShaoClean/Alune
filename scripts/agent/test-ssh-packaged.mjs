@@ -421,6 +421,31 @@ try {
     });
     return { result, operationId };
   };
+  const syncOrigin = path.join(root, 'sync-origin.git');
+  const syncRepo = path.join(root, 'sync-repo');
+  const syncWriter = path.join(root, 'sync-writer');
+  git('clone', '--bare', repo, syncOrigin);
+  git('clone', syncOrigin, syncRepo);
+  git('clone', syncOrigin, syncWriter);
+  const oldHead = git('-C', syncRepo, 'rev-parse', 'HEAD');
+  git('-C', syncWriter, 'commit', '--allow-empty', '-m', 'remote update');
+  git('-C', syncWriter, 'push', 'origin', 'main');
+  const upstreamHead = git('-C', syncWriter, 'rev-parse', 'HEAD');
+  fs.writeFileSync(path.join(syncRepo, 'file.txt'), 'uncommitted change\n');
+  const syncTarget = await remote.registerRepository(syncRepo);
+  try {
+    assert.deepEqual((await write('backgroundFetch', [], syncTarget.resource)).result, {
+      fetched: true,
+      update: { branch: 'main', head: oldHead, upstream: 'origin/main', upstreamHead, behind: 1 },
+    });
+    assert.equal(git('-C', syncRepo, 'rev-parse', 'HEAD'), oldHead);
+    assert.equal(git('-C', syncRepo, 'rev-parse', 'origin/main'), upstreamHead);
+    assert.equal(fs.readFileSync(path.join(syncRepo, 'file.txt'), 'utf8'), 'uncommitted change\n');
+    assert.equal((await remote.readRepository(syncTarget.resource, 'status', {})).behind, 1);
+    assert.deepEqual((await write('backgroundFetch', [], syncTarget.resource)).result, { fetched: true });
+  } finally {
+    await remote.unregisterRepository(syncTarget.resource);
+  }
   const tree = (await write('createWorktree', [linked, 'new-tree'])).result;
   await assert.rejects(write('removeWorktree', [target.path, true]));
   git('worktree', 'lock', linked);
@@ -601,6 +626,7 @@ try {
         'worktree safeguards',
         'PTY ACK',
         'proxy fetch',
+        'background fetch',
         'submodule sync/update',
         'cancel',
         'interrupted write not replayed',
