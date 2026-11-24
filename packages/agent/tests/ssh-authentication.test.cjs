@@ -5,8 +5,7 @@ const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { ProtocolError } = require('@alune/protocol');
 const { connectHost, probeAuthentication } = require('../dist/adapters/ssh/connect');
-const { httpProxy } = require('./helpers/proxy-fixture.cjs');
-const { startSSHServer } = require('./helpers/ssh-server.cjs');
+const { forwardingSSH, httpProxy } = require('./helpers/proxy-fixture.cjs');
 
 const direct = { revision: 'fixture', enabled: false, protocol: 'http', host: '', port: 0 };
 const passwordProfile = {
@@ -54,9 +53,10 @@ test(
   'SSH reconnect distinguishes rejected credentials from a changed host key',
   { timeout: 10000 },
   async (t) => {
-    const fixture = await startSSHServer();
+    const password = 'test-only';
+    const fixture = await forwardingSSH({ password });
     t.after(fixture.close);
-    const profile = { ...fixture.options, authType: 'password' };
+    const profile = { ...passwordProfile, host: '127.0.0.1', port: fixture.port, password };
     await assert.rejects(
       connectHost(
         '',

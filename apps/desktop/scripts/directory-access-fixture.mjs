@@ -15,8 +15,10 @@ export async function directoryAccessFixture(directory) {
   fs.mkdirSync(notes);
   fs.mkdirSync(login);
   fs.writeFileSync(path.join(notes, 'note.txt'), 'keep outside bytes\n');
+  const password = 'directory-access-test-only';
   const peer = await fixtures.forwardingSSH({
     cwd: login,
+    password,
     environment: {
       HOME: login,
       USERPROFILE: login,
@@ -69,6 +71,7 @@ export async function directoryAccessFixture(directory) {
       ALUNE_AGENT_RELEASE_MIRROR: `http://127.0.0.1:${mirror.address().port}/`,
       ALUNE_TEST_DIRECTORY_ACCESS: JSON.stringify({
         port: peer.port,
+        password,
         hostKey: createHash('sha256').update(Buffer.from(peer.publicKey, 'base64')).digest('hex'),
         notes: fs.realpathSync.native(notes),
       }),
