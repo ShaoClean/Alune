@@ -20,6 +20,7 @@ import { useRepositoryStore } from '../stores/repositoryStore';
 import { RepositoryTabs } from './RepositoryTabs';
 import { repositoryWorkspaceLabels } from '../stores/repositoryLabels';
 import { useDesktopUpdates } from '../hooks/useDesktopUpdates';
+import { useRepositoryTray } from '../hooks/useRepositoryTray';
 import { useConnectionStatusSync } from '../hooks/useConnectionStatusSync';
 import { WorkspaceTree } from './WorkspaceTree';
 import { useWorkspaceStorageStatus } from '../stores/workspaceStorage';
@@ -133,6 +134,7 @@ export function Layout() {
   const {
     repositories,
     openRepositories,
+    repositoryStatuses,
     currentRepo,
     fetchRepositories,
     openRepository,
@@ -144,6 +146,11 @@ export function Layout() {
     listLoaded,
   } = useRepositoryStore();
   const workspaceLabels = useMemo(() => repositoryWorkspaceLabels(repositories), [repositories]);
+  const selectTab = useCallback((id: string) => {
+    activateRepositoryTab(id);
+    navigate(`/repositories/${id}`);
+  }, [activateRepositoryTab, navigate]);
+  useRepositoryTray(openRepositories, workspaceLabels, connections, statuses, repositoryStatuses, selectTab);
 
   useEffect(() => {
     void fetchConnections();
@@ -402,10 +409,7 @@ export function Layout() {
               workspaceLabels={workspaceLabels}
               connections={connections}
               activeId={activeRepository?.id}
-              onSelect={(id) => {
-                activateRepositoryTab(id);
-                navigate(`/repositories/${id}`);
-              }}
+              onSelect={selectTab}
               onMove={moveOpenRepository}
               onClose={handleCloseRepository}
               onCloseMany={handleCloseRepositories}

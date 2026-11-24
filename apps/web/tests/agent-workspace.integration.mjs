@@ -11,7 +11,7 @@ import { AgentState } from '../../../packages/agent/dist/adapters/sqlite/state.j
 import { settingsKernel } from '../../../packages/agent/dist/bootstrap/settings-kernel.js';
 import { RepositoryCatalog } from '../../../packages/agent/dist/modules/repositories/catalog.js';
 import { superviseUiAgent, AgentClient, frameTransport } from '@alune/agent-client/node';
-import { installWorkspaceAgent } from '../src/api/agent-workspace.ts';
+import { installWorkspaceAgent, readConnectedHead } from '../src/api/agent-workspace.ts';
 import { repositoryApi, connectionApi, gitApi } from '../src/api/index.ts';
 import { registerTerminalRemovalConfirmation } from '../src/stores/terminalRemoval.ts';
 import { repositoryFileStatus, repositoryHistoryChanged } from '../src/api/repository-errors.ts';
@@ -73,6 +73,9 @@ test('UI facade keeps mixed-host analytics, Git writes, Worktree aliases, termin
     await client.initialize();
     await client.subscribe(workspaceTopics);
     await installWorkspaceAgent(client);
+    const signal = new AbortController().signal;
+    assert.deepEqual(await readConnectedHead(localId, undefined, signal), { kind: 'branch', name: 'main' });
+    assert.equal(await readConnectedHead(remoteId, hostId, signal), null);
     const [offline] = await connectionApi.list();
     assert.equal(offline.status, 'unknown');
     assert.equal(offline.hasAuth, false);

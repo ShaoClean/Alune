@@ -103,3 +103,19 @@ test('directory resolution is fresh per read, falls back for symlinks and reject
     await f.close();
   }
 });
+
+test('tray HEAD reads follow local checkouts, orphan branches and linked worktrees without scanning files', async (t) => {
+  const f = fixture();
+  t.after(() => f.close());
+  const query = path => f.reader.query({ path }, { kind: 'head', params: {} });
+  const oid = f.git('rev-parse', 'HEAD');
+  assert.deepEqual(await query(f.repo), { kind: 'branch', name: 'main' });
+  const linked = path.join(f.root, 'linked');
+  f.git('worktree', 'add', '-qb', 'feature/topic', linked);
+  assert.deepEqual(await query(linked), { kind: 'branch', name: 'feature/topic' });
+  f.git('switch', '--detach', '-q', oid);
+  assert.deepEqual(await query(f.repo), { kind: 'detached', oid });
+  f.git('switch', '--orphan', 'empty');
+  assert.deepEqual(await query(f.repo), { kind: 'unborn', name: 'empty' });
+  assert.ok(f.calls.every(args => ['symbolic-ref', 'rev-parse'].includes(args[0])));
+});

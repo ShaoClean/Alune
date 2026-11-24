@@ -1,5 +1,22 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+function subscribe(channel, callback) {
+  const listener = (_event, payload) => callback(payload);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+}
+
+contextBridge.exposeInMainWorld('aluneTray', {
+  getPreferences: () => ipcRenderer.invoke('tray:preferences'),
+  setPreferences: (patch) => ipcRenderer.invoke('tray:set-preferences', patch),
+  onPreferences: (callback) => subscribe('tray:preferences-changed', callback),
+  publish: (snapshot) => ipcRenderer.send('tray:tabs', snapshot),
+  repositoryChanged: (id) => ipcRenderer.send('tray:repository-changed', id),
+  onSelect: (callback) => subscribe('tray:select', callback),
+  onReadHead: (callback) => subscribe('tray:read-head', callback),
+  replyHead: (reply) => ipcRenderer.send('tray:head', reply),
+});
+
 contextBridge.exposeInMainWorld('aluneTerminal', {
   onShutdownRequested: (callback) => {
     const listener = (_event, request) => callback(request);
@@ -59,7 +76,7 @@ if (process.argv.includes('--alune-agent-ui')) {
         throw new Error('工作区连接已关闭。');
     },
     close: () => {
-      void ipcRenderer.invoke('agent:close', generation).catch(() => {});
+      if (generation) ipcRenderer.send('agent:close', generation);
       generation = undefined;
     },
     onFrame: (fn) => listen('agent:frame', fn),

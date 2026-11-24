@@ -201,6 +201,14 @@ export class RepositoryReader {
   async query(repo: RepositoryResource, query: RepositoryQuery): Promise<unknown> {
     const path = repo.path;
     switch (query.kind) {
+      case 'head': {
+        const ref = await this.text(path, ['symbolic-ref', '--quiet', 'HEAD'], true);
+        const oid = await this.text(path, ['rev-parse', '--verify', '--quiet', 'HEAD'], true);
+        if (ref.startsWith('refs/heads/'))
+          return { kind: oid ? 'branch' : 'unborn', name: ref.slice('refs/heads/'.length) };
+        if (oid) return { kind: 'detached', oid };
+        throw new Error('无法读取当前 HEAD');
+      }
       case 'status':
         return this.status(path);
       case 'context':

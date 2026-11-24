@@ -6,7 +6,7 @@ const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { registerUpdateIPC } = require('../src/update-ipc.cjs');
 
-function fixture() {
+function fixture(argv = []) {
   const exposed = {}, calls = [], ipc = new EventEmitter();
   let reply, failure, syncError;
   ipc.invoke = async (...args) => { calls.push(args); if (failure) throw failure; return reply; };
@@ -14,13 +14,14 @@ function fixture() {
   ipc.sendSync = (...args) => { calls.push(args); return syncError; };
   const electron = { ipcRenderer: ipc, contextBridge: { exposeInMainWorld: (name, value) => { exposed[name] = value; } } };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8'), {
-    require: (name) => { assert.equal(name, 'electron'); return electron; }, process: { argv: [] },
+    require: (name) => { assert.equal(name, 'electron'); return electron; }, process: { argv },
   }, { filename: 'preload.cjs' });
   return { exposed, calls, ipc, setReply: (value) => { reply = value; },
     setFailure: (value) => { failure = value; }, setSyncError: (value) => { syncError = value; } };
 }
 
 const invokes = [
+  ['aluneTray', 'getPreferences', 'tray:preferences'],
   ['desktopUpdates', 'getState', 'updates:state'],
   ['desktopUpdates', 'check', 'updates:check'],
   ['desktopUpdates', 'download', 'updates:download'],
@@ -49,6 +50,8 @@ for (const [bridge, method, channel] of invokes) {
 }
 
 for (const [bridge, method, channel] of [
+  ['aluneTray', 'onSelect', 'tray:select'],
+  ['aluneTray', 'onReadHead', 'tray:read-head'],
   ['aluneTerminal', 'onShutdownRequested', 'terminal:shutdown-request'],
   ['desktopUpdates', 'subscribe', 'updates:changed'],
 ]) {
@@ -81,6 +84,18 @@ test('preload terminal:shutdown-response only accepts literal true confirmation'
     ['terminal:shutdown-response', 'request-123', false],
     ['terminal:shutdown-response', 'request-123', false],
   ]);
+});
+
+test('window unload releases its Agent generation once without requesting an IPC reply', async () => {
+  const f = fixture(['--alune-agent-ui']);
+  const notifications = [];
+  f.ipc.send = (...args) => notifications.push(args);
+  f.setReply('generation-1');
+  await f.exposed.aluneAgent.open();
+  f.exposed.aluneAgent.close();
+  f.exposed.aluneAgent.close();
+  assert.deepEqual(notifications, [['agent:close', 'generation-1']]);
+  assert.deepEqual(f.calls, [['agent:open']]);
 });
 
 test('preload workspace:save-sync preserves data and rejects a synchronous main-process error', async () => {

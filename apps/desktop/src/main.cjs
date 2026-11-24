@@ -3,6 +3,8 @@ const {
   BrowserWindow,
   nativeTheme,
   Menu,
+  Tray,
+  powerMonitor,
   dialog,
   session,
   ipcMain,
@@ -112,6 +114,10 @@ let quitRequested = false;
 let updates;
 let closingBackend;
 let terminalClosePending = false;
+let shutdownConfirmation;
+let desktopSettings;
+let repositoryTray;
+let workspaceReady = false;
 const token = randomBytes(32).toString('hex');
 const windowStatePath = path.join(app.getPath('userData'), 'window.json');
 const iconPath = path.join(
@@ -126,6 +132,37 @@ const logWindow = createLogWindow({
   openExternal: smokeTest ? async () => {} : (url) => shell.openExternal(url),
   show: !smokeTest,
 });
+
+function revealWindow(target) {
+  if (backgroundSmoke || !target || target.isDestroyed()) return;
+  if (target.isMinimized()) target.restore();
+  target.show();
+  target.focus();
+}
+
+function showWorkspace() {
+  if (backgroundSmoke || quitting || quitRequested || !workspaceReady) return;
+  if (window) revealWindow(window);
+  else void createWindow().catch(fail);
+}
+
+function sendToWorkspace(channel, payload) {
+  const contents = window?.webContents;
+  if (contents && !contents.isDestroyed() && contents.getURL().startsWith(origin + '/'))
+    contents.send(channel, payload);
+}
+
+function trayPreferences() {
+  return { ...desktopSettings.get(), platform: process.platform, available: Boolean(repositoryTray) };
+}
+
+function updateTrayPreferences(patch) {
+  desktopSettings.update(patch);
+  repositoryTray?.render();
+  const value = trayPreferences();
+  sendToWorkspace('tray:preferences-changed', value);
+  return value;
+}
 
 function createWindow() {
   let state = {};
@@ -179,19 +216,36 @@ function createWindow() {
     if (!smokeTest) window.show();
   });
   let closeApproved = false;
+  const target = window;
+  async function closeWindow() {
+    let mode = repositoryTray ? desktopSettings.get().closeMode : 'system';
+    if (mode === 'ask') {
+      const { response } = await dialog.showMessageBox(target, {
+        type: 'question', message: '以后关闭主窗口时如何处理？',
+        detail: '隐藏后，任务和终端会继续运行。按系统方式关闭将' +
+          (process.platform === 'darwin' ? '关闭窗口并保留应用。' : '退出 Alune。') +
+          '你可以在「设置 → 桌面」修改此选择。',
+        buttons: ['隐藏到托盘', '按系统方式关闭', '取消'], cancelId: 2, defaultId: 0, noLink: true,
+      });
+      if (response === 2 || target.isDestroyed() || quitting || quitRequested) return;
+      mode = response === 0 ? 'hide' : 'system';
+      updateTrayPreferences({ closeMode: mode });
+    }
+    if (updates?.getState().status === 'installing') return;
+    if (mode === 'hide') return target.hide();
+    if (process.platform !== 'darwin') return app.quit();
+    if (await confirmTerminalShutdown() && !target.isDestroyed() && !quitRequested && !quitting) {
+      closeApproved = true;
+      target.close();
+    }
+  }
   window.on('close', (event) => {
     if (!quitting && !closeApproved) {
       event.preventDefault();
-      if (!terminalClosePending) {
+      if (!terminalClosePending && !quitRequested && updates?.getState().status !== 'installing') {
         terminalClosePending = true;
-        void confirmTerminalShutdown()
-          .then((confirmed) => {
-            if (confirmed) {
-              closeApproved = true;
-              window?.close();
-            }
-          })
-          .catch(fail)
+        void closeWindow()
+          .catch(error => dialog.showErrorBox('无法关闭窗口', error.message))
           .finally(() => {
             terminalClosePending = false;
           });
@@ -206,8 +260,13 @@ function createWindow() {
       );
     } catch {}
   });
+  window.on('session-end', endSystemSession);
+  const clearTray = () => repositoryTray?.setTabs({ activeId: null, tabs: [] });
+  window.webContents.on('render-process-gone', clearTray);
+  window.webContents.on('did-navigate', clearTray);
   window.on('closed', () => {
     window = null;
+    clearTray();
     // The log viewer belongs to the main window; it must not keep the app alive alone.
     logWindow.close();
   });
@@ -234,6 +293,42 @@ async function start() {
   registry = service.registry;
   const networkProxy = service.networkProxy;
   const { logger, errorContext } = appLog();
+  const { desktopPreferences, createRepositoryTray } = require('./repository-tray.cjs');
+  desktopSettings = desktopPreferences(dataDir, error =>
+    logger.warn('app', '无法读取桌面设置，使用默认值', errorContext(error)));
+  if (!backgroundSmoke || process.env.ALUNE_CANDIDATE_FOCUS === 'tray') {
+    let icon;
+    try {
+      icon = new Tray(path.join(__dirname, 'assets', process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png'));
+      repositoryTray = createRepositoryTray({
+        tray: icon, Menu, platform: process.platform, preferences: desktopSettings,
+        show: showWorkspace, quit: () => app.quit(), send: sendToWorkspace,
+      });
+    } catch (error) {
+      icon?.destroy();
+      logger.warn('app', '无法创建系统托盘，使用系统关闭方式', errorContext(error));
+    }
+  }
+  const trusted = event => isTrustedWorkspaceSender(event, window?.webContents, origin);
+  ipcMain.on('tray:tabs', (event, snapshot) => { if (trusted(event)) repositoryTray?.setTabs(snapshot); });
+  ipcMain.on('tray:repository-changed', (event, id) => {
+    if (trusted(event) && typeof id === 'string') repositoryTray?.refresh(id);
+  });
+  ipcMain.on('tray:head', (event, reply) => { if (trusted(event)) repositoryTray?.acceptHead(reply); });
+  ipcMain.handle('tray:preferences', event => {
+    if (!trusted(event)) throw new Error('Desktop access denied');
+    return trayPreferences();
+  });
+  ipcMain.handle('tray:set-preferences', (event, patch) => {
+    if (!trusted(event)) throw new Error('Desktop access denied');
+    return updateTrayPreferences(patch);
+  });
+  powerMonitor.on('resume', () => repositoryTray?.refresh());
+  powerMonitor.on('shutdown', event => {
+    event.preventDefault();
+    void endSystemSession().finally(() => app.quit());
+  });
+  app.once('will-quit', () => repositoryTray?.destroy());
   logger.info('app', 'Alune 启动', {
     version: app.getVersion(),
     platform: process.platform,
@@ -467,6 +562,7 @@ async function start() {
       },
     ]),
   );
+  workspaceReady = true;
   await createWindow();
   if (!smokeTest && supported && !installError) {
     const timer = setTimeout(() => {
@@ -476,7 +572,7 @@ async function start() {
     app.once('before-quit', () => clearTimeout(timer));
   }
   if (smokeTest) {
-    await require('./candidate-smoke.cjs')({ window, origin, logWindow, backend, updates });
+    await require('./candidate-smoke.cjs')({ window, origin, logWindow, backend, updates, repositoryTray });
     if (process.env.ALUNE_CANDIDATE_EVIDENCE) {
       mkdirSync(process.env.ALUNE_CANDIDATE_EVIDENCE, { recursive: true });
       writeFileSync(path.join(process.env.ALUNE_CANDIDATE_EVIDENCE,
@@ -494,18 +590,9 @@ async function start() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (backgroundSmoke) return;
-    if (window) {
-      if (window.isMinimized()) window.restore();
-      window.show();
-      window.focus();
-    } else if (origin) void createWindow().catch(fail);
-  });
+  app.on('second-instance', showWorkspace);
   app.whenReady().then(start).catch(fail);
-  app.on('activate', () => {
-    if (!window && origin && !quitting) void createWindow().catch(fail);
-  });
+  app.on('activate', showWorkspace);
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
   });
@@ -514,9 +601,9 @@ if (!app.requestSingleInstanceLock()) {
       event.preventDefault();
       return;
     }
-    if (quitting || !backend) return;
+    if (quitting || !backend) { quitting = true; return; }
     event.preventDefault();
-    if (quitRequested || terminalClosePending) return;
+    if (quitRequested) return;
     quitRequested = true;
     appLog().logger.info('app', 'Alune 正在退出');
     closeBackend()
@@ -529,6 +616,11 @@ if (!app.requestSingleInstanceLock()) {
         if (!error.cancelled) fail(error);
       });
   });
+}
+
+function endSystemSession() {
+  quitting = true;
+  return closeBackend(true).catch(error => reportProcessError('系统退出时清理失败', error));
 }
 
 function closeBackend(confirmed = false) {
@@ -567,11 +659,17 @@ async function openLogDirectory() {
   return directory;
 }
 
-async function confirmTerminalShutdown() {
+function confirmTerminalShutdown() {
+  shutdownConfirmation ??= askTerminalShutdown().finally(() => { shutdownConfirmation = null; });
+  return shutdownConfirmation;
+}
+
+async function askTerminalShutdown() {
   if (backend?.client) {
     const tasks = await backend.client.request('desktop.tasks.impact', {});
     if (tasks.length) {
       if (backgroundSmoke) throw new Error('Background smoke shutdown has active tasks');
+      revealWindow(window);
       const result = await dialog.showMessageBox({
         type: 'warning',
         title: '仍有操作正在执行',
@@ -589,6 +687,7 @@ async function confirmTerminalShutdown() {
   }
   const sessions = (await registry?.impact({})) || [];
   if (!sessions.length) return true;
+  revealWindow(window);
   if (window && !window.isDestroyed() && !window.webContents.isCrashed()) {
     const target = window;
     const requestId = randomBytes(16).toString('hex');

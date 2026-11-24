@@ -2,8 +2,8 @@ const assert = require('node:assert/strict');
 const { readFileSync, writeFileSync, mkdirSync } = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
-module.exports = async ({ window, origin, backend, logWindow, updates }) => {
-  const { repo, id } = JSON.parse(process.env.ALUNE_CANDIDATE_FIXTURE);
+module.exports = async ({ window, origin, backend, logWindow, updates, repositoryTray }) => {
+  const { repo, id, linkedId } = JSON.parse(process.env.ALUNE_CANDIDATE_FIXTURE);
   const phase = process.env.ALUNE_SMOKE_PHASE;
   const wait = (contents, test, label = test, timeoutMs = 20_000) =>
     contents.executeJavaScript(`new Promise((resolve,reject)=>{
@@ -19,6 +19,10 @@ module.exports = async ({ window, origin, backend, logWindow, updates }) => {
     })`);
   const wc=window.webContents;const {measure}=require('./candidate-ui-audit.cjs');
   await wait(wc, "document.querySelector('.app-shell')");
+  if (process.env.ALUNE_CANDIDATE_FOCUS === 'tray') {
+    await require('./candidate-tray.cjs')({ window, repositoryTray, repo, id, linkedId, wait });
+    return;
+  }
   assert.equal(await wc.executeJavaScript('typeof window.require'), 'undefined');
   assert.equal(await wc.executeJavaScript("fetch('/api/connections').then(r=>r.status)"), 404);
   assert.equal(
