@@ -6,6 +6,7 @@ import { once } from 'node:events';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { utils } from 'ssh2';
 import fixtures from '../../../packages/agent/tests/helpers/proxy-fixture.cjs';
 
 export async function directoryAccessFixture(directory) {
@@ -15,10 +16,13 @@ export async function directoryAccessFixture(directory) {
   fs.mkdirSync(notes);
   fs.mkdirSync(login);
   fs.writeFileSync(path.join(notes, 'note.txt'), 'keep outside bytes\n');
-  const password = 'directory-access-test-only';
+  // The restore phase initializes the test vault after the write phase.
+  const key = utils.generateKeyPairSync('ed25519');
+  const privateKeyPath = path.join(directory, 'directory-access-key');
+  fs.writeFileSync(privateKeyPath, key.private, { mode: 0o600 });
   const peer = await fixtures.forwardingSSH({
     cwd: login,
-    password,
+    authorizedKey: key.public,
     environment: {
       HOME: login,
       USERPROFILE: login,
@@ -71,7 +75,7 @@ export async function directoryAccessFixture(directory) {
       ALUNE_AGENT_RELEASE_MIRROR: `http://127.0.0.1:${mirror.address().port}/`,
       ALUNE_TEST_DIRECTORY_ACCESS: JSON.stringify({
         port: peer.port,
-        password,
+        privateKeyPath,
         hostKey: createHash('sha256').update(Buffer.from(peer.publicKey, 'base64')).digest('hex'),
         notes: fs.realpathSync.native(notes),
       }),

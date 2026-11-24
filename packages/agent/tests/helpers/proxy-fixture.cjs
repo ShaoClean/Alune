@@ -83,8 +83,10 @@ async function socksProxy({ credentials, map = (_host, port) => ({ host: '127.0.
   return { ...await listen(server), records };
 }
 
-async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, password, environment = {} } = {}) {
+async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, password, authorizedKey, environment = {} } = {}) {
   const key = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' });
+  const allowedKey = authorizedKey === undefined ? undefined : utils.parseKey(authorizedKey);
+  if (allowedKey instanceof Error) throw allowedKey;
   const forwards = new Map();
   const clients = new Set();
   const commands = [];
@@ -93,6 +95,15 @@ async function forwardingSSH({ deny = false, wildcard = false, originator, cwd, 
     const owned = new Set();
     client.on('close', () => { clients.delete(client); for (const port of owned) { forwards.get(port)?.close(); forwards.delete(port); } });
     client.on('authentication', (context) => {
+      if (allowedKey) {
+        if (
+          context.method !== 'publickey' ||
+          context.key.algo !== allowedKey.type ||
+          !context.key.data.equals(allowedKey.getPublicSSH()) ||
+          (context.signature && allowedKey.verify(context.blob, context.signature, context.hashAlgo) !== true)
+        ) return context.reject(['publickey']);
+        return context.accept();
+      }
       if (password !== undefined && (context.method !== 'password' || context.password !== password)) return context.reject(['password']);
       context.accept();
     });

@@ -6,7 +6,7 @@ module.exports = async ({ window, origin, wait, pass }) => {
     wc,
     wait,
   );
-  const { port, password, hostKey, notes } = JSON.parse(process.env.ALUNE_TEST_DIRECTORY_ACCESS);
+  const { port, privateKeyPath, hostKey, notes } = JSON.parse(process.env.ALUNE_TEST_DIRECTORY_ACCESS);
   const name = 'Explicit directory fixture',
     primary = (t) => textButton(t, '.a-dlg-actions button');
   await window.loadURL(origin + '/connections');
@@ -19,8 +19,8 @@ module.exports = async ({ window, origin, wait, pass }) => {
       ['username', 'fixture'],
     ])
       await input(element('#' + field), value);
-    await click(element('[role=radio][data-value=password]'));
-    await input(element('#password'), password);
+    await click(element('[role=radio][data-value=privateKey]'));
+    await input(element('#privateKeyPath'), privateKeyPath);
     await click(primary('保存连接'));
   };
   await addProfile();
