@@ -91,7 +91,7 @@ export function RepositoriesPage() {
   const refresh = () => {
     setOverviewRevision((value) => value + 1);
     void fetchRepositories();
-    void refreshRepositoryStatuses();
+    void refreshRepositoryStatuses(visibleRepositories.map((repo) => repo.id));
   };
 
   const chooseConnection = (value: string) => {

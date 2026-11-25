@@ -23,7 +23,7 @@ export function useRepositoryStatus(id: string) {
   };
 }
 
-// Cards and sidebar rows share requests; clipped and folded rows are not fetched.
+// Branch overview cells request status only while in view.
 export function useRepositoryVisibility(id: string) {
   const [element, setElement] = useState<HTMLElement | null>(null);
   useEffect(() => {

@@ -93,6 +93,27 @@ test('the registry becomes available without starting or waiting for remote read
   assert.equal(store.getState().repositories.length, 2);
 });
 
+test('reconnect refreshes the active view and an explicit refresh respects its repository scope', async () => {
+  const calls = [];
+  repositoryApi.status = async (id) => {
+    calls.push(id);
+    return status();
+  };
+  await store.getState().fetchRepositories();
+  store.getState().openRepository(repo('a'));
+  store.getState().activateWorkspace('a');
+  await store.getState().refreshRepositoryStatuses();
+  assert.deepEqual(calls.splice(0), ['a']);
+
+  await store.getState().refreshRepositoryStatuses(['b']);
+  assert.deepEqual(calls.splice(0), ['b']);
+
+  // Leaving the workspace keeps the tab open but the registry has no status observers.
+  store.getState().activateWorkspace();
+  await store.getState().refreshRepositoryStatuses();
+  assert.deepEqual(calls, []);
+});
+
 test('background concurrency is bounded, the current repository has a reserved slot, and failures are independent', async () => {
   await store.getState().fetchRepositories();
   const calls = [];

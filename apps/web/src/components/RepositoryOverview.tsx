@@ -183,6 +183,14 @@ export function RepositoryOverview({
   };
   const statuses = useRepositoryStore((state) => state.repositoryStatuses);
   const ids = useMemo(() => repositories.map((repo) => repo.id), [repositories]);
+  // Status results update repository objects. Only membership changes restart observation.
+  const scopeKey = JSON.stringify([...ids].sort());
+  const observeRepository = useRepositoryStore((state) => state.observeRepository);
+  useEffect(() => {
+    const scope: string[] = JSON.parse(scopeKey);
+    const stops = scope.map((id) => observeRepository(id));
+    return () => stops.forEach((stop) => stop());
+  }, [scopeKey, observeRepository]);
   const { entries, busy, progress, collect, cancel, retry } = useRepositoryAnalytics(ids, revision);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -273,7 +281,7 @@ export function RepositoryOverview({
         <span>
           {collectedTimes.length
             ? `统计更新时间：${dateTime(Math.min(...collectedTimes))}${dateTime(Math.min(...collectedTimes)) !== dateTime(Math.max(...collectedTimes)) ? ` — ${dateTime(Math.max(...collectedTimes))}` : ''}`
-            : '点击“采集统计”读取当前范围；打开页面仅使用缓存。'}
+            : '工作区状态自动更新，点击“采集统计”读取提交与语言统计。'}
         </span>
       </div>
       <div className="overview-metrics">

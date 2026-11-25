@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { usePullRequestCenter } from '../stores/pullRequestCenter';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useRepositoryStore } from '../stores/repositoryStore';
@@ -10,6 +11,8 @@ import { useAccessTokensStore } from '../stores/accessTokensStore';
 export function useConnectionStatusSync() {
   const applyConnectionStatus = useConnectionStore((state) => state.applyConnectionStatus);
   const fetchConnections = useConnectionStore((state) => state.fetchConnections);
+
+  const previousAgent = useRef<typeof uiAgent>(undefined);
 
   useSocket({
     'repository:changed': (id?: string) => {
@@ -24,10 +27,16 @@ export function useConnectionStatusSync() {
       void useAccessTokensStore.getState().load();
       usePullRequestCenter.getState().invalidate();
     },
-    connect: () => {
+    connect: (reason) => {
       if (uiAgent) {
         const store = useRepositoryStore.getState();
-        void store.fetchRepositories().then(() => store.refreshRepositoryStatuses());
+        // The active view owns initial status reads. Later connections resync missed changes.
+        const resync =
+          reason === 'resync' || (previousAgent.current && previousAgent.current !== uiAgent);
+        previousAgent.current = uiAgent;
+        void store.fetchRepositories().then(() => {
+          if (resync) return store.refreshRepositoryStatuses();
+        });
       }
       void fetchConnections();
       void useAccessTokensStore.getState().load();
