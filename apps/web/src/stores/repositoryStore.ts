@@ -501,8 +501,8 @@ const repositoryState: StateCreator<RepositoryState> = (set, get) => {
 
     refreshRepositoryStatuses: async (ids) => {
       const targets = new Set(ids ?? visible.keys());
-      const currentId = workspaceId || get().currentRepo?.id;
-      if (currentId) targets.add(currentId);
+      const currentId = workspaceId;
+      if (!ids && currentId) targets.add(currentId);
       await Promise.all([...targets].map((id) => requestStatus(id, true, id === currentId, true)));
     },
 

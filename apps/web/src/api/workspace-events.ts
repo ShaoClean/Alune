@@ -64,7 +64,7 @@ export function subscribeWorkspaceEvents(
       }
     }
     if (event.type === 'events.resync-required' || event.type === 'accounts.hosts.changed')
-      events.connect?.();
+      events.connect?.('resync');
     if (event.type === workspaceEventSuccessors['connection:status']) {
       const p = event.payload;
       const validProgress = (value: unknown) => {
@@ -101,7 +101,7 @@ export function subscribeWorkspaceEvents(
     decoders.clear();
     events.disconnect?.();
   });
-  events.connect?.();
+  events.connect?.('subscribe');
   return () => {
     decoders.clear();
     dispose();

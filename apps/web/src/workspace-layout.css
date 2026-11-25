@@ -1368,14 +1368,6 @@
   flex: 0 0 14px;
   font-size: 13px;
 }
-/* Keep an observable pixel so clean rows still participate in status refreshes. */
-.tree-node--repo .repository-status--quiet {
-  flex-basis: 1px;
-  width: 1px;
-  min-width: 1px;
-  overflow: hidden;
-  opacity: 0;
-}
 .repository-identity {
   display: flex;
   align-items: center;

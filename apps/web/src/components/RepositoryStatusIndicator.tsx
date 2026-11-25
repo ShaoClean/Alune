@@ -4,7 +4,7 @@ import {
   QuestionCircleOutlined,
   WarningOutlined,
 } from '@alune/ui/icons';
-import { useRepositoryStatus, useRepositoryVisibility } from '../hooks/useRepositoryStatus';
+import { useRepositoryStatus } from '../hooks/useRepositoryStatus';
 import { MoonLoader, StatusBadge } from '@alune/ui';
 
 export function RepositoryStatusIndicator({
@@ -16,12 +16,11 @@ export function RepositoryStatusIndicator({
   compact?: boolean;
   quiet?: boolean;
 }) {
-  const observe = useRepositoryVisibility(id);
   const { entry, stale } = useRepositoryStatus(id);
   const busy = entry?.phase === 'loading' || entry?.phase === 'queued';
   const failed = entry?.phase === 'error';
   const dirty = Boolean(entry?.data?.files.length);
-  const quietClean = quiet && !busy && !failed && !stale && entry?.data && !dirty;
+  if (quiet && !failed && !stale && !dirty && entry?.phase !== 'loading') return null;
   const label = busy
     ? entry?.data
       ? '更新中 · 缓存'
@@ -44,7 +43,7 @@ export function RepositoryStatusIndicator({
       ? ''
       : `更新于 ${new Date(entry.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}`;
   const title = [label, updated, entry?.error].filter(Boolean).join(' · ');
-  const Icon = busy
+  const Icon = entry?.phase === 'loading'
     ? MoonLoader
     : failed || stale
       ? WarningOutlined
@@ -55,8 +54,7 @@ export function RepositoryStatusIndicator({
           : CheckCircleOutlined;
   return (
     <span
-      ref={observe}
-      className={`repository-status${compact ? ' repository-status--compact' : ''}${quietClean ? ' repository-status--quiet' : ''}`}
+      className={`repository-status${compact ? ' repository-status--compact' : ''}`}
       title={title}
       aria-label={title}
     >
