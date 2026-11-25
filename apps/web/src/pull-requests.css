@@ -1108,15 +1108,6 @@
   }
 }
 
-.repository-push-followup {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 16px;
-  flex-wrap: wrap;
-  font-size: 12px;
-}
-
 .pr-create__draft {
   display: flex;
   gap: 8px;

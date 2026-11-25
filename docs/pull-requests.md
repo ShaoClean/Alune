@@ -1,6 +1,6 @@
 # 创建 PR/MR
 
-Alune 可在 GitHub、GitLab.com 和使用 HTTPS 的自建 GitLab 仓库中，基于本地分支创建同仓库 PR/MR。入口位于 PR/MR 页、分支菜单、分支列表，以及分支推送完成后的提示。跨仓库 fork PR 暂不支持。
+Alune 可在 GitHub、GitLab.com 和使用 HTTPS 的自建 GitLab 仓库中，基于本地分支创建同仓库 PR/MR。入口位于 PR/MR 页、分支菜单和分支列表。跨仓库 fork PR 暂不支持。
 
 ## 创建流程
 
