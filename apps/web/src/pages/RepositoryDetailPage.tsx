@@ -221,9 +221,6 @@ function RepositoryWorkspace({
       setActivePanel('pull-requests');
     }
   }, [active, location]);
-  const [pushedBranch, setPushedBranch] = useState<{ branch: string; remote?: string } | null>(
-    null,
-  );
   const [syncing, setSyncing] = useState<SyncOperation | null>(null);
   const [syncingForce, setSyncingForce] = useState(false);
   const [syncCancelling, setSyncCancelling] = useState(false);
@@ -468,8 +465,6 @@ function RepositoryWorkspace({
           await gitApi.pull(id, undefined, undefined, target.branch, target.head, target.upstream);
         else await gitApi.pull(id, options?.remote, options?.branch);
       } else await gitApi.fetch(id, options?.remote);
-      if (operation === 'push' && !options?.tags && (options?.branch || status?.branch))
-        setPushedBranch({ branch: options?.branch || status!.branch, remote: options?.remote });
       await handleRefresh(true);
     } catch (err: any) {
       setSyncError(err.message || `${label}失败`);
@@ -722,25 +717,6 @@ function RepositoryWorkspace({
             onRemotes={() => selectPanel('remotes')}
             onRefresh={() => void handleRefresh()}
           />
-          {pushedBranch && (
-            <div className="repository-push-followup" role="status">
-              <span>{pushedBranch.branch} 已推送</span>
-              <Button
-                type="link"
-                onClick={() => {
-                  navigate(
-                    `/repositories/${id}?${new URLSearchParams({ panel: 'pull-requests', createPr: '1', sourceBranch: pushedBranch.branch, ...(pushedBranch.remote ? { remote: pushedBranch.remote } : {}) })}`,
-                  );
-                  setPushedBranch(null);
-                }}
-              >
-                创建 PR/MR
-              </Button>
-              <Button type="text" aria-label="关闭推送提示" onClick={() => setPushedBranch(null)}>
-                关闭
-              </Button>
-            </div>
-          )}
           <GitOperationNotice
             key={id}
             repoId={id}
