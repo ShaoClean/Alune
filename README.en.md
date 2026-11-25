@@ -23,7 +23,7 @@
   <a href="https://github.com/users/ShaoClean/projects/1">Public TODO</a>
 </p>
 
-![Light workspace](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/workspace-light.png)
+![Light workspace](apps/website/src/assets/screenshots/workspace-light.png)
 
 <p align="center">From file diff to staging and commit, all in one Git workspace.</p>
 
@@ -31,6 +31,16 @@
 > The Alune interface is currently available in Simplified Chinese only. This README gives each UI label in Chinese followed by an English gloss, e.g. “改动” (Changes), so you can find it in the app. The detailed guides under `docs/` are written in Chinese.
 
 [Alune-UI docs](https://shaoclean.github.io/Alune/ui/) · [Shared component source](packages/ui/README.md)
+
+## New in 0.15.0
+
+- **Switch repositories from the system tray.** The tray menu lists each open repository and its branch. Select one to return to its workspace. On macOS, you can also show the active repository and branch in the menu bar.
+- **Fetch remote updates on a schedule.** In Settings → Application → Repository sync, enable automatic fetch, choose repositories and set a 5, 10 or 30 minute interval. Automatic fetch is off by default. Tabs and the status bar show how many commits the current branch is ahead or behind its upstream. A notification lets you pull when new commits arrive.
+- **Follow PR and MR activity.** For repositories with automatic fetch and an access token, status bar notifications link to requests with new comments, review status changes or merges.
+
+![Repository sync settings with fetch interval and per-repository switches](apps/website/src/assets/screenshots/repository-sync.png)
+
+SSH connection errors now distinguish proxy connection failures from SSH authentication failures. After a successful branch push, the workspace updates the sync status without displaying a success banner.
 
 ## Features
 
@@ -60,7 +70,7 @@ The workspace is laid out as **tab bar → repository toolbar → content area �
 <details>
 <summary><strong>Dark workspace, file reading and commit history</strong></summary>
 
-![Dark workspace](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/workspace-dark.png)
+![Dark workspace](apps/website/src/assets/screenshots/workspace-dark.png)
 
 ![Branch overview](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/branches.png)
 
@@ -84,7 +94,7 @@ The workspace is laid out as **tab bar → repository toolbar → content area �
 
 </details>
 
-Screenshots show the Peach glow desktop workspace with a demo repository.
+The light and dark workspace views and repository sync settings were captured in the Alune 0.15.0 desktop app using a local demo repository.
 
 ## Download
 
