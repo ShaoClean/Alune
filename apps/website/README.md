@@ -34,13 +34,14 @@ npm run website:preview
 
 ## 文案、截图与品牌资产
 
-文案按 [README](../../README.md)、[工作区说明](../../docs/workspace.md) 和稳定版核验，当前核对版本为 v0.10.0（截图为 v0.10.0 基线）。新增描述时注意：SSH Worktree 仅支持发现和打开；代码主题、字体和字号同时用于文件与文本 Diff；PR/MR 中心只汇总已添加仓库的受支持远端；AI 是可选功能，提交起草发送已暂存差异，PR/MR 起草发送所选分支的提交、Diff 与模板；代理覆盖范围见网络代理文档。
+文案按 [README](../../README.md)、[工作区说明](../../docs/workspace.md) 与 v0.15.0 的桌面端实现核对。新增描述时注意：SSH Worktree 仅支持发现和打开；代码主题、字体和字号同时用于文件与文本 Diff；PR/MR 中心只汇总已添加仓库的受支持远端；AI 是可选功能，提交起草发送已暂存差异，PR/MR 起草发送所选分支的提交、Diff 与模板；代理覆盖范围见网络代理文档。
 
-`src/assets/screenshots/` 的八张 PNG 均直接来自 [README-Screenshots-v0.10.0](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.10.0)，下载原址为 `https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/readme-v0.10.0/<文件名>.png`：
+`src/assets/screenshots/` 保存九张产品截图。浅色工作区、深色工作区和仓库同步设置三张图均在 v0.15.0 桌面端以后台模式截取，使用隔离的本地演示仓库。
 
 | 文件                                         | 展示内容                    |
 | -------------------------------------------- | --------------------------- |
-| `workspace-light.png` / `workspace-dark.png` | Diff、暂存与提交            |
+| `workspace-light.png` / `workspace-dark.png` | 浅色和深色工作区的文本差异与提交面板 |
+| `repository-sync.png`                        | 自动获取开关、获取间隔和参与同步的仓库 |
 | `repositories.png`                           | 本机／SSH 仓库列表          |
 | `files.png`                                  | 文件阅读、代码主题与查找    |
 | `history.png`                                | 提交历史与分支图            |
@@ -48,9 +49,9 @@ npm run website:preview
 | `pull-requests.png`                          | PR/MR 应用内审阅            |
 | `pull-request-center.png`                    | 跨仓库 PR/MR 中心与筛选     |
 
-截图对应 v0.10.0（界面代码基线 `a0bd6fd`），使用临时仓库、本机测试 SSH 服务和演示数据，展示真实网页界面；PR/MR 托管平台响应为测试数据，终端使用认证隔离服务与真实演示仓库。桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
+表中从 `repositories.png` 到 `pull-request-center.png` 的六张截图沿用 [v0.10.0 Wiki 截图库](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.10.0)，原图位于 `assets/readme-v0.10.0/`。该批截图对应界面代码基线 `a0bd6fd`，使用临时仓库、本机测试 SSH 服务和演示数据，展示真实网页界面；PR/MR 托管平台响应为测试数据，终端使用认证隔离服务与真实演示仓库。桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
 
-官网页头沿用头像与文字组合，下载区使用透明的小月兽。运行以下命令同步 favicon、角色、README 组合标与分享图。分享图保留历史工作区截图，生成中文标题需要本机中文字体。
+官网页头沿用头像与文字组合，下载区使用透明的小月兽。运行以下命令同步 favicon、角色、README 组合标与分享图。分享图 `public/og-image.png` 由 `generate-brand.mjs` 使用更新后的 v0.15.0 浅色工作区截图 `workspace-light.png` 生成。中文标题需要本机中文字体。
 
 ```sh
 npm run icons:generate
