@@ -23,11 +23,21 @@
   <a href="https://github.com/users/ShaoClean/projects/1">公开 TODO</a>
 </p>
 
-![浅色工作区](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/workspace-light.png)
+![浅色工作区](apps/website/src/assets/screenshots/workspace-light.png)
 
 <p align="center">从文件差异到暂存与提交，在同一个 Git 工作区完成。</p>
 
 [Alune-UI 文档](https://shaoclean.github.io/Alune/ui/) · [共享组件源码](packages/ui/README.md)
+
+## 0.15.0 新功能
+
+- **从系统托盘切换仓库。** 打开托盘菜单即可查看已打开仓库及其当前分支，点选仓库即可返回对应工作区。macOS 菜单栏还可直接显示当前仓库和分支。
+- **按仓库获取远程更新。** 在「设置 → 应用 → 仓库同步」开启自动获取，选择参与的仓库和 5、10 或 30 分钟的间隔。此功能默认关闭。标签和底栏显示当前分支领先、落后上游的提交数，发现新提交时可从通知发起拉取。
+- **从通知跟进 PR/MR。** 参与自动获取且已配置访问令牌的仓库有新评论、审阅状态变化或合并时，可从底栏通知直接打开请求详情。
+
+![仓库同步设置，可选择获取间隔和参与的仓库](apps/website/src/assets/screenshots/repository-sync.png)
+
+SSH 连接失败时，错误提示会区分代理连接问题与 SSH 认证失败。分支推送成功后，工作区会更新同步状态，省去额外的成功提示条。
 
 ## 核心功能
 
@@ -57,7 +67,7 @@
 <details>
 <summary><strong>查看深色工作区、文件阅读与提交历史</strong></summary>
 
-![深色工作区](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/workspace-dark.png)
+![深色工作区](apps/website/src/assets/screenshots/workspace-dark.png)
 
 ![分支总览](https://raw.githubusercontent.com/wiki/ShaoClean/Alune/assets/issue-247/after/branches.png)
 
@@ -81,7 +91,7 @@
 
 </details>
 
-截图取自 Alune 桌面端的 Peach glow 工作区，使用演示仓库。
+浅色、深色工作区与仓库同步截图取自 Alune 0.15.0 桌面端，使用本地演示仓库。
 
 ## 下载安装
 
