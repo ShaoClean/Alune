@@ -8,7 +8,24 @@ export async function runRepositoryPagesChecks(page, base = 'http://127.0.0.1:51
   await page.click('button[aria-label="暂存 src/App.tsx"]');
   await page.waitForFunction(() => !!document.querySelector('button[aria-label="取消暂存 src/App.tsx"]'));
   await page.click('button[aria-label="文件"]');
-  assert.match(await text('[aria-label="文件面板"]'), /src\/App\.tsx/);
+  await page.click('[role="treeitem"][title="src"]');
+  await page.click('[role="treeitem"][title="src/App.tsx"]');
+  await page.waitForSelector('.files-preview__body code');
+  await page.click('button[aria-label="隐藏工作区文件"]');
+  await page.waitForSelector('[role="tree"]', { state: 'hidden' });
+  assert.equal(await page.evaluate(() => {
+    const panel = document.querySelector('.files-view');
+    return panel.clientWidth === panel.querySelector('.files-view__preview').clientWidth
+      && !panel.querySelector('[role="separator"]');
+  }), true);
+  assert.equal(await text('.files-preview__body code'), 'fixture');
+  await page.press('button[aria-label="显示工作区文件"]', 'Enter');
+  await page.waitForSelector('[role="treeitem"][title="src/App.tsx"][aria-selected="true"]');
+  await page.click('button[aria-label="隐藏工作区文件"]');
+  await page.reload();
+  await page.click('button[aria-label="文件"]');
+  await page.click('button[aria-label="显示工作区文件"]');
+  await page.waitForSelector('[role="treeitem"][title="src"]');
   await page.click('[aria-label="Diff 视图"] label >> nth=1');
   await page.waitForSelector('[aria-label="分栏差异"]');
   assert.match(await text('[aria-label="分栏差异"]'), /old[\s\S]*new/);

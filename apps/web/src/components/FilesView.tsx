@@ -97,6 +97,9 @@ export function FilesView({
   const gitIndex = useMemo(() => fileStatusIndex(gitFiles), [gitFiles]);
   const gitRevision = useMemo(() => filesStatusRevision(gitFiles), [gitFiles]);
   const snapshot = sessions.get(repoId);
+  const treeCollapsed = useWorkspaceStore((state) => state.layout.filesTreeCollapsed);
+  const treePanelId = `files-tree-panel-${repoId}`;
+  const toggleLabel = treeCollapsed ? '显示工作区文件' : '隐藏工作区文件';
   const savedTreeWidth = useWorkspaceStore((state) => state.layout.filesTreeWidth);
   const updateLayout = useWorkspaceStore((state) => state.updateLayout);
   const [directories, setDirectories] = useState<Record<string, DirectoryState>>(
@@ -408,7 +411,7 @@ export function FilesView({
     if (focusPath?.includes('/')) setFocused(focusPath.slice(0, focusPath.indexOf('/')));
   };
 
-  const stacked = width !== null && width < FILES_STACKED_WIDTH;
+  const stacked = treeCollapsed || (width !== null && width < FILES_STACKED_WIDTH);
   const treeMax =
     width === null
       ? FILES_TREE_MAX
@@ -422,104 +425,115 @@ export function FilesView({
       className={`workspace-panel files-view${stacked ? ' files-view--stacked' : ''}`}
       aria-label="仓库文件"
     >
-      <div
-        id="files-tree-panel"
-        className="files-view__tree"
-        style={stacked ? undefined : { width: treeWidth }}
-      >
-        <RepositoryExtensions
-          key={repoId}
-          repoId={repoId}
-          revision={`${refreshToken}:${gitRevision}`}
-          onChanged={() => {
-            void loadDirectory(ROOT);
-          }}
-        />
+      <div className="files-view__tree" style={stacked ? undefined : { width: treeWidth }}>
         <div className="files-tree__header">
-          <div className="files-tree__title">
-            <span>工作区文件</span>
-            <span className="files-badge" title="右键或 Shift+F10 打开文件操作">
-              文件操作
-            </span>
-          </div>
-          <CommandButton label="折叠全部文件夹" onClick={collapseAll} disabled={!expanded.size}>
-            <MinusSquareOutlined />
-          </CommandButton>
+          <button
+            type="button"
+            className="files-tree__toggle"
+            title={toggleLabel}
+            aria-label={toggleLabel}
+            aria-expanded={!treeCollapsed}
+            aria-controls={treePanelId}
+            onClick={() => updateLayout({ filesTreeCollapsed: !treeCollapsed })}
+          >
+            <RightOutlined rotate={treeCollapsed ? 0 : 90} />
+            工作区文件
+          </button>
+          {!treeCollapsed && (
+            <>
+              <span className="files-badge" title="右键或 Shift+F10 打开文件操作">
+                文件操作
+              </span>
+              <CommandButton label="折叠全部文件夹" onClick={collapseAll} disabled={!expanded.size}>
+                <MinusSquareOutlined />
+              </CommandButton>
+            </>
+          )}
         </div>
-        {!root?.listing ? (
-          root?.phase === 'error' ? (
-            <FilesNotice
-              tone="error"
-              icon={<FileExclamationOutlined />}
-              title={root.status === 403 ? '没有读取仓库目录的权限' : '无法读取仓库目录'}
-              action={{ label: '重试', onClick: () => loadDirectory(ROOT) }}
-            >
-              {root.message}
-            </FilesNotice>
-          ) : (
-            <div className="files-tree__loading" role="status">
-              <Spin size="small" />
-              <span>正在读取目录…</span>
-            </div>
-          )
-        ) : (
-          <>
-            <FeedbackNotice
-              source="files-refresh"
-              title={root.phase === 'error' ? '刷新目录失败' : null}
-              description={root.phase === 'error' ? root.message : undefined}
-              actionLabel="重试"
-              busy={root.phase === 'loading'}
-              onAction={() => loadDirectory(ROOT)}
-            />
-            {root.listing.entries.length === 0 ? (
-              <p className="files-tree__empty">此仓库工作区没有可显示的文件。</p>
-            ) : (
-              <div
-                className="files-tree"
-                role="tree"
-                aria-label="仓库文件树"
-                aria-busy={root.phase === 'loading'}
-                onKeyDown={onTreeKeyDown}
+        <div id={treePanelId} className="files-tree__content" hidden={treeCollapsed}>
+          <RepositoryExtensions
+            key={repoId}
+            repoId={repoId}
+            revision={`${refreshToken}:${gitRevision}`}
+            onChanged={() => {
+              void loadDirectory(ROOT);
+            }}
+          />
+          {!root?.listing ? (
+            root?.phase === 'error' ? (
+              <FilesNotice
+                tone="error"
+                icon={<FileExclamationOutlined />}
+                title={root.status === 403 ? '没有读取仓库目录的权限' : '无法读取仓库目录'}
+                action={{ label: '重试', onClick: () => loadDirectory(ROOT) }}
               >
-                {rows.map((row) =>
-                  row.type === 'entry' ? (
-                    <TreeItem
-                      key={row.entry.path}
-                      row={row}
-                      decoration={fileDecoration(gitIndex, row.entry)}
-                      selected={selected?.path === row.entry.path}
-                      focusable={focusPath === row.entry.path}
-                      loading={directories[row.entry.path]?.phase === 'loading'}
-                      failed={directories[row.entry.path]?.phase === 'error'}
-                      itemRef={(element) => {
-                        if (element) items.current.set(row.entry.path, element);
-                        else items.current.delete(row.entry.path);
-                      }}
-                      menuBindings={fileMenu.bindings(
-                        row.entry.path,
-                        row.entry.kind === 'file' || row.entry.kind === 'symlink',
-                      )}
-                      onOpen={() => open(row.entry)}
-                    />
-                  ) : (
-                    <TreeNotice
-                      key={`${row.directory}\0${row.notice}`}
-                      row={row}
-                      state={directories[row.directory]}
-                      onRetry={() => loadDirectory(row.directory)}
-                    />
-                  ),
-                )}
+                {root.message}
+              </FilesNotice>
+            ) : (
+              <div className="files-tree__loading" role="status">
+                <Spin size="small" />
+                <span>正在读取目录…</span>
               </div>
-            )}
-          </>
-        )}
+            )
+          ) : (
+            <>
+              <FeedbackNotice
+                source="files-refresh"
+                title={root.phase === 'error' ? '刷新目录失败' : null}
+                description={root.phase === 'error' ? root.message : undefined}
+                actionLabel="重试"
+                busy={root.phase === 'loading'}
+                onAction={() => loadDirectory(ROOT)}
+              />
+              {root.listing.entries.length === 0 ? (
+                <p className="files-tree__empty">此仓库工作区没有可显示的文件。</p>
+              ) : (
+                <div
+                  className="files-tree"
+                  role="tree"
+                  aria-label="仓库文件树"
+                  aria-busy={root.phase === 'loading'}
+                  onKeyDown={onTreeKeyDown}
+                >
+                  {rows.map((row) =>
+                    row.type === 'entry' ? (
+                      <TreeItem
+                        key={row.entry.path}
+                        row={row}
+                        decoration={fileDecoration(gitIndex, row.entry)}
+                        selected={selected?.path === row.entry.path}
+                        focusable={focusPath === row.entry.path}
+                        loading={directories[row.entry.path]?.phase === 'loading'}
+                        failed={directories[row.entry.path]?.phase === 'error'}
+                        itemRef={(element) => {
+                          if (element) items.current.set(row.entry.path, element);
+                          else items.current.delete(row.entry.path);
+                        }}
+                        menuBindings={fileMenu.bindings(
+                          row.entry.path,
+                          row.entry.kind === 'file' || row.entry.kind === 'symlink',
+                        )}
+                        onOpen={() => open(row.entry)}
+                      />
+                    ) : (
+                      <TreeNotice
+                        key={`${row.directory}\0${row.notice}`}
+                        row={row}
+                        state={directories[row.directory]}
+                        onRetry={() => loadDirectory(row.directory)}
+                      />
+                    ),
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
       {!stacked && (
         <PanelResizeHandle
           label="调整文件树宽度"
-          controls="files-tree-panel"
+          controls={treePanelId}
           value={treeWidth}
           min={FILES_TREE_MIN}
           max={treeMax}
@@ -741,7 +755,7 @@ export function FilePreviewPane({
     return (
       <div className="files-view__preview">
         <FilesNotice empty icon={<FileSearchOutlined />} title="选择文件以预览">
-          在左侧目录树中选择文件以预览内容。右键文件可重命名、删除或复制路径。
+          展开工作区文件并选择文件以预览内容。右键文件可重命名、删除或复制路径。
         </FilesNotice>
       </div>
     );
