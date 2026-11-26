@@ -1,3 +1,4 @@
+import { BrandIcon } from './BrandIcon';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactElement, WheelEvent } from 'react';
 import { SigningSettingsDialog } from './SigningSettingsDialog';
@@ -22,7 +23,6 @@ import {
 import type { RepositoryStatus } from '@alune/domain';
 import { ToolbarButton } from '@alune/ui';
 import { WorktreesMenu } from './WorktreesMenu';
-import { CodeOutlined } from '@alune/ui/icons';
 import { useTerminalStore } from '../stores/terminalState';
 import { BranchPicker } from './BranchPicker';
 import { useToolbarTier } from '../hooks/useToolbarTier';
@@ -289,7 +289,7 @@ export function RepositoryToolbar({
           aria-controls="repository-terminal"
           onClick={() => useTerminalStore.getState().toggle()}
         >
-          <CodeOutlined />
+          <BrandIcon className="terminal-entry-mark" />
         </ToolbarButton>
         <ToolbarButton
           variant="icon"

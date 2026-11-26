@@ -1,38 +1,18 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
-import type { CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
-import { Button, Tooltip, Dropdown, AluneModal, MoonLoader, useFeedbackMessage, useAluneConfirm } from '@alune/ui';
-import {
-  CodeOutlined,
-  PlusOutlined,
-  CloseOutlined,
-  CopyOutlined,
-  MinusOutlined,
-  ExpandOutlined,
-  CompressOutlined,
-  UnorderedListOutlined,
-  CheckCircleOutlined,
-  WarningOutlined,
-  EllipsisOutlined,
-} from '@alune/ui/icons';
+import { useFeedbackMessage, useAluneConfirm } from '@alune/ui';
 import type { Repository, TerminalSession } from '@alune/domain';
-import { TERMINAL_LIMITS, terminalNeedsConfirmation } from '@alune/domain';
+import { terminalNeedsConfirmation } from '@alune/domain';
 import {
   useTerminalStore,
   connectTerminals,
-  createTerminal,
   closeTerminal,
-  getTerminalRuntime,
-  fitTerminal,
-  terminalStateLabel,
-  pasteTerminal,
   setTerminalPasteConfirmation,
 } from '../stores/terminalStore';
-import { useRepositoryStore } from '../stores/repositoryStore';
-import { useWorkspaceStore } from '../stores/workspaceStore';
-import { useAppearance } from '../appearance';
 import { registerTerminalRemovalConfirmation } from '../stores/terminalRemoval';
+import { tabNumber, terminalName, type ViewSession } from '../stores/terminalState';
+import { TerminalPanel } from './terminal/TerminalPanel';
+import { TerminalPicker } from './terminal/TerminalPicker';
 import '@xterm/xterm/css/xterm.css';
 import '../terminal.css';
 
@@ -48,8 +28,23 @@ export function TerminalWorkspace({
   switching: boolean;
 }) {
   const store = useTerminalStore();
+  const [retained, setRetained] = useState(store.visible);
+  useEffect(() => {
+    if (store.visible) {
+      setRetained(true);
+      return;
+    }
+    if (
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      document.documentElement.dataset.reduceMotion === 'true'
+    ) {
+      setRetained(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setRetained(false), 220);
+    return () => window.clearTimeout(timer);
+  }, [store.visible]);
   const confirm = useAluneConfirm();
-  const navigate = useNavigate();
   const feedback = useFeedbackMessage();
   useEffect(() => connectTerminals(feedback.info), [feedback]);
   useEffect(
@@ -98,6 +93,7 @@ export function TerminalWorkspace({
       if (
         event.isComposing ||
         event.defaultPrevented ||
+        document.querySelector('dialog:modal, .ant-modal-wrap:not([style*="display: none"])') ||
         !event.ctrlKey ||
         event.code !== 'Backquote'
       )
@@ -144,450 +140,33 @@ export function TerminalWorkspace({
   return (
     <>
       {slot &&
-        store.visible &&
+        (store.visible || retained) &&
         createPortal(
-          <TerminalPanel repository={repository} switching={switching} onClose={close} />,
+          <TerminalPanel
+            key={repository?.id}
+            repository={repository}
+            switching={switching}
+            onClose={close}
+          />,
           slot,
         )}
-      <AluneModal
-        open={store.allOpen}
-        title="全部终端会话"
-        description="切换仓库、收起面板和关闭仓库标签均保留会话。"
-        onCancel={() => useTerminalStore.setState({ allOpen: false })}
-        footer={null}
-      >
-        {!store.sessions.length ? (
-          <p>暂无终端。请先打开仓库，再从工具栏选择“终端”。</p>
-        ) : (
-          <ul className="terminal-all-sessions">
-            {store.sessions.map((session, index) => (
-              <li key={session.id}>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const repo = useRepositoryStore
-                        .getState()
-                        .repositories.find((repo) => repo.id === session.repositoryId);
-                      if (!repo) throw new Error('仓库登记已移除，请关闭此终端记录。');
-                      useRepositoryStore.getState().openRepository(repo);
-                      store.select(session);
-                      useTerminalStore.setState({ allOpen: false });
-                      navigate(`/repositories/${repo.id}`);
-                    } catch (error) {
-                      useTerminalStore.setState({ error: String(error) });
-                    }
-                  }}
-                >
-                  <strong>
-                    终端 {index + 1} · {session.repositoryName}
-                  </strong>
-                  <span>
-                    {session.environment} · {terminalStateLabel(session)}
-                  </span>
-                  <code title={session.initialPath}>{session.initialPath}</code>
-                </button>
-                <Button
-                  type="text"
-                  aria-label={`关闭会话 ${index + 1}`}
-                  icon={<CloseOutlined />}
-                  onClick={() => void close(session)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-        {store.error && <p role="status">{store.error}</p>}
-      </AluneModal>
+      {store.allOpen && <TerminalPicker repositoryId={repository?.id} onClose={close} />}
     </>
   );
 }
 
-function SessionSummary({ sessions }: { sessions: TerminalSession[] }) {
+function SessionSummary({ sessions }: { sessions: ViewSession[] }) {
   return (
     <ul className="terminal-session-summary">
       {sessions.map((session) => (
         <li key={session.id}>
           <strong>
+            {session.number && `${tabNumber(session)} · ${terminalName(session)} · `}
             {session.repositoryName} · {session.environment}
           </strong>
           <code>{session.initialPath}</code>
         </li>
       ))}
     </ul>
-  );
-}
-
-function TerminalPanel({
-  repository,
-  switching,
-  onClose,
-}: {
-  repository?: Repository | null;
-  switching: boolean;
-  onClose: (session: TerminalSession) => Promise<void>;
-}) {
-  const store = useTerminalStore();
-  const group = store.sessions.filter((session) => session.repositoryId === repository?.id);
-  const selected =
-    group.find((session) => session.id === store.selected[repository?.id || '']) || group.at(-1);
-  const host = useRef<HTMLDivElement>(null);
-  const panel = useRef<HTMLElement>(null);
-  const mode = useAppearance((state) => state.theme);
-  const preferences = useWorkspaceStore((state) => state.codeAppearance);
-  const creating = group.some((session) => session.state === 'connecting');
-  const reason = !repository
-    ? '请先选择仓库。'
-    : switching
-      ? '正在切换仓库，请稍候。'
-      : !store.connected
-        ? store.error || '正在连接终端服务…'
-        : store.sessions.length >= TERMINAL_LIMITS.sessions
-          ? '已达每窗口 8 个会话上限，请先关闭不需要的会话。'
-          : creating
-            ? '正在创建会话，可取消后重试。'
-            : '';
-  useLayoutEffect(() => {
-    const runtime = selected && getTerminalRuntime(selected.id);
-    if (!runtime || !host.current) return;
-    host.current.appendChild(runtime.element);
-    fitTerminal(selected.id);
-    runtime.terminal.focus();
-    const observer = new ResizeObserver(() => fitTerminal(selected.id));
-    observer.observe(host.current);
-    return () => {
-      observer.disconnect();
-      runtime.element.remove();
-    };
-  }, [selected?.id]);
-  useLayoutEffect(() => {
-    const runtime = selected && getTerminalRuntime(selected.id);
-    if (!runtime) return;
-    runtime.terminal.options.fontFamily = `"${preferences.fontFamily}", "Geist Mono Variable", monospace`;
-    runtime.terminal.options.fontSize = preferences.fontSize;
-    runtime.terminal.options.theme =
-      mode === 'dark'
-        ? {
-            background: '#171c27',
-            foreground: '#d7deeb',
-            cursor: '#a9c7ff',
-            selectionBackground: '#345076',
-            black: '#465166',
-            red: '#f29191',
-            green: '#9bd5b2',
-            yellow: '#ebcb8b',
-            blue: '#94b9ff',
-            magenta: '#cbb4ef',
-            cyan: '#8fd3de',
-            white: '#e4eaf4',
-            brightBlack: '#8792a8',
-            brightRed: '#ffb0ac',
-            brightGreen: '#b0eac0',
-            brightYellow: '#f5dca4',
-            brightBlue: '#bbd1ff',
-            brightMagenta: '#e3c7ff',
-            brightCyan: '#b0e7ed',
-            brightWhite: '#ffffff',
-          }
-        : {
-            background: '#f7f9fc',
-            foreground: '#293347',
-            cursor: '#315eb7',
-            selectionBackground: '#c8daf6',
-            black: '#344055',
-            red: '#ad343f',
-            green: '#276742',
-            yellow: '#7b5b14',
-            blue: '#2f59a7',
-            magenta: '#79509b',
-            cyan: '#236b79',
-            white: '#65738b',
-            brightBlack: '#61708a',
-            brightRed: '#a6313c',
-            brightGreen: '#235e3e',
-            brightYellow: '#765611',
-            brightBlue: '#284d99',
-            brightMagenta: '#73428e',
-            brightCyan: '#226271',
-            brightWhite: '#293347',
-          };
-    fitTerminal(selected.id);
-  }, [selected?.id, mode, preferences.fontFamily, preferences.fontSize]);
-
-  const minimumHeight = window.matchMedia('(max-width: 560px)').matches ? 260 : 220;
-  const resize = (height: number) => {
-    const available = panel.current?.parentElement?.parentElement?.clientHeight || 600;
-    useTerminalStore.setState({
-      height: Math.max(minimumHeight, Math.min(height, Math.max(minimumHeight, available - 150))),
-    });
-  };
-  const copy = async (text: string) => {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      useTerminalStore.setState({ error: '无法访问剪贴板，请选中文字后手动复制。' });
-    }
-  };
-  return (
-    <section
-      ref={panel}
-      id="repository-terminal"
-      className="terminal-panel"
-      aria-label="仓库终端"
-      data-maximized={store.maximized}
-      style={{ '--terminal-height': `${store.height}px` } as CSSProperties}
-    >
-      <div
-        className="terminal-resize"
-        role="separator"
-        tabIndex={0}
-        aria-label="调整终端高度"
-        aria-orientation="horizontal"
-        aria-valuemin={minimumHeight}
-        aria-valuemax={panel.current?.parentElement?.parentElement?.clientHeight || 900}
-        aria-valuenow={store.height}
-        onKeyDown={(event) => {
-          if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
-          event.preventDefault();
-          resize(
-            event.key === 'Home'
-              ? minimumHeight
-              : event.key === 'End'
-                ? 10000
-                : store.height + (event.key === 'ArrowUp' ? 1 : -1) * (event.shiftKey ? 50 : 10),
-          );
-        }}
-        onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId);
-          event.currentTarget.dataset.start = `${event.clientY},${store.height}`;
-        }}
-        onPointerMove={(event) => {
-          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-          const [start, height] = event.currentTarget.dataset.start!.split(',').map(Number);
-          resize(height + start - event.clientY);
-        }}
-        onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
-      />
-      <header className="terminal-heading">
-        <strong>
-          <CodeOutlined /> 终端
-        </strong>
-        <span className="terminal-heading__spacer" />
-        <span className="terminal-compact-actions">
-          <Dropdown
-            trigger={['click']}
-            menu={{
-              items: [
-                {
-                  key: 'path',
-                  label: '复制启动目录',
-                  disabled: !repository,
-                  onClick: () => void copy(selected?.initialPath || repository?.path || ''),
-                },
-                {
-                  key: 'copy',
-                  label: '复制选区',
-                  disabled: !selected,
-                  onClick: () => {
-                    const runtime = selected && getTerminalRuntime(selected.id);
-                    if (runtime) void copy(runtime.terminal.getSelection());
-                  },
-                },
-                {
-                  key: 'paste',
-                  label: '粘贴',
-                  disabled: selected?.state !== 'running',
-                  onClick: () => selected && void pasteTerminal(selected.id),
-                },
-                {
-                  key: 'close',
-                  label: selected?.state === 'connecting' ? '取消创建终端' : '关闭当前终端',
-                  disabled: !selected,
-                  danger: true,
-                  onClick: () => selected && void onClose(selected),
-                },
-              ],
-            }}
-          >
-            <Button type="text" size="small" aria-label="终端操作" icon={<EllipsisOutlined />} />
-          </Dropdown>
-        </span>
-        <Tooltip title={reason || '在当前仓库新建终端'}>
-          <Button
-            data-terminal-new
-            type="text"
-            size="small"
-            icon={<PlusOutlined />}
-            aria-label="新建终端"
-            disabled={!!reason}
-            onClick={() => repository && void createTerminal(repository)}
-          >
-            新建
-          </Button>
-        </Tooltip>
-        <Button
-          type="text"
-          size="small"
-          icon={<UnorderedListOutlined />}
-          aria-label="全部终端会话"
-          title="全部会话"
-          onClick={() => useTerminalStore.setState({ allOpen: true })}
-        />
-        <Button
-          type="text"
-          size="small"
-          icon={store.maximized ? <CompressOutlined /> : <ExpandOutlined />}
-          aria-label={store.maximized ? '还原终端' : '最大化终端'}
-          title={store.maximized ? '还原终端' : '最大化终端'}
-          onClick={() => useTerminalStore.setState({ maximized: !store.maximized })}
-        />
-        <Button
-          type="text"
-          size="small"
-          icon={<MinusOutlined />}
-          aria-label="收起终端"
-          title="收起终端 · Ctrl+`"
-          onClick={() => {
-            useTerminalStore.setState({ visible: false });
-            document.querySelector<HTMLButtonElement>('[data-terminal-toggle]')?.focus();
-          }}
-        />
-      </header>
-      {!!group.length && (
-        <div
-          className="terminal-tabs"
-          role="tablist"
-          aria-label="当前仓库终端"
-          onKeyDown={(event) => {
-            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-            const index = group.findIndex((session) => session.id === selected?.id);
-            const next =
-              event.key === 'Home'
-                ? 0
-                : event.key === 'End'
-                  ? group.length - 1
-                  : (index + (event.key === 'ArrowRight' ? 1 : -1) + group.length) % group.length;
-            event.preventDefault();
-            store.select(group[next]);
-            requestAnimationFrame(() =>
-              document
-                .querySelector<HTMLButtonElement>('.terminal-tab.is-active [role="tab"]')
-                ?.focus(),
-            );
-          }}
-        >
-          {group.map((session, index) => (
-            <div
-              key={session.id}
-              className={session.id === selected?.id ? 'terminal-tab is-active' : 'terminal-tab'}
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={session.id === selected?.id}
-                tabIndex={session.id === selected?.id ? 0 : -1}
-                aria-controls={`terminal-output-${session.id}`}
-                onClick={() => store.select(session)}
-              >
-                {session.state === 'running' ? (
-                  <CheckCircleOutlined />
-                ) : session.state === 'connecting' ? (
-                  <MoonLoader />
-                ) : (
-                  <WarningOutlined />
-                )}
-                终端 {index + 1} <span>{terminalStateLabel(session)}</span>
-              </button>
-              <button
-                type="button"
-                aria-label={
-                  session.state === 'connecting' ? '取消创建终端' : `关闭终端 ${index + 1}`
-                }
-                onClick={() => void onClose(session)}
-              >
-                <CloseOutlined />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="terminal-identity">
-        <span title={selected?.environment}>
-          {selected?.environment || (repository?.source === 'local' ? 'Alune 服务主机' : 'SSH')} ·{' '}
-          {selected?.repositoryName || repository?.name || '未选仓库'}
-        </span>
-        {selected && (
-          <span className={`terminal-state is-${selected.state}`} role="status">
-            {terminalStateLabel(selected)}
-          </span>
-        )}
-      </div>
-      <div className="terminal-path">
-        <span>启动目录</span>
-        <code title={selected?.initialPath || repository?.path}>
-          {selected?.initialPath || repository?.path || '—'}
-        </code>
-        <Button
-          type="text"
-          size="small"
-          icon={<CopyOutlined />}
-          aria-label="复制启动目录"
-          disabled={!repository}
-          onClick={() => void copy(selected?.initialPath || repository?.path || '')}
-        />
-      </div>
-      {(selected?.error || selected?.inputError || store.error) && (
-        <div className="terminal-notice" role="status">
-          {selected?.error || selected?.inputError || store.error}
-        </div>
-      )}
-      {selected?.truncated && (
-        <div className="terminal-truncated" role="status">
-          较早输出已截断（最多 10,000 行 / 2 MiB）。
-        </div>
-      )}
-      {selected ? (
-        <div
-          className="terminal-output"
-          id={`terminal-output-${selected.id}`}
-          role="tabpanel"
-          aria-label="终端输出"
-          ref={host}
-        />
-      ) : (
-        <div className="terminal-empty">
-          <CodeOutlined />
-          <strong>此仓库还没有终端</strong>
-          <p>{reason || '在上方启动目录打开交互式 shell。'}</p>
-          <Button disabled={!!reason} onClick={() => repository && void createTerminal(repository)}>
-            新建终端
-          </Button>
-        </div>
-      )}
-      <footer className="terminal-footnote">
-        <span>Ctrl+C 中断 · Ctrl+Shift+F6 离开输入区</span>
-        {selected && (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                const runtime = getTerminalRuntime(selected.id);
-                if (runtime) void copy(runtime.terminal.getSelection());
-              }}
-            >
-              复制选区
-            </button>
-            <button
-              type="button"
-              disabled={selected.state !== 'running'}
-              onClick={() => void pasteTerminal(selected.id)}
-            >
-              粘贴
-            </button>
-          </>
-        )}
-      </footer>
-    </section>
   );
 }

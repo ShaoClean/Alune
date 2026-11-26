@@ -88,3 +88,33 @@ test('terminal navigation keys suppress PTY key encoding but preserve ordinary k
   assert.equal(handleTerminalNavigationKey({ ...key, ctrlKey: false }, () => focused++), true);
   assert.equal(focused, 1);
 });
+
+test('split tabs keep pane ownership, names and order across selection and removal', () => {
+  const state = useTerminalStore;
+  const [a, b, c, other] = ['a', 'b', 'c', 'd'].map((id, index) => ({
+    id,
+    repositoryId: index === 3 ? 'other' : 'repo',
+    number: index + 1,
+  }));
+  state.setState({ sessions: [a, other, b, c], selected: { repo: 'a', other: 'd' }, splits: {} });
+  state.getState().setSplit('repo', { axis: 'rows', ids: ['a', 'b'], percent: 35 });
+  state.getState().select(c);
+  assert.deepEqual(state.getState().splits.repo.ids, ['c', 'b']);
+  state.getState().select(b);
+  state.getState().rename('c', '  build  ');
+  state.getState().move('c', 0);
+  assert.deepEqual(
+    state
+      .getState()
+      .sessions.filter((s) => s.repositoryId === 'repo')
+      .map((s) => s.id),
+    ['c', 'a', 'b'],
+  );
+  assert.equal(state.getState().sessions[0].number, 3);
+  assert.equal(state.getState().sessions[0].name, 'build');
+  state.getState().remove('a');
+  assert.equal(state.getState().splits.repo.percent, 35);
+  state.getState().remove('b');
+  assert.deepEqual(state.getState().selected, { repo: 'c', other: 'd' });
+  assert.equal(state.getState().splits.repo, undefined);
+});

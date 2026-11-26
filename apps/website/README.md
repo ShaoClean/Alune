@@ -45,11 +45,11 @@ npm run website:preview
 | `repositories.png`                           | 本机／SSH 仓库列表          |
 | `files.png`                                  | 文件阅读、代码主题与查找    |
 | `history.png`                                | 提交历史与分支图            |
-| `terminal.png`                               | 仓库终端与实际 Git 命令输出 |
+| `terminal.png`                               | 仓库终端分屏与两个独立 shell 的 Git 命令输出 |
 | `pull-requests.png`                          | PR/MR 应用内审阅            |
 | `pull-request-center.png`                    | 跨仓库 PR/MR 中心与筛选     |
 
-表中从 `repositories.png` 到 `pull-request-center.png` 的六张截图沿用 [v0.10.0 Wiki 截图库](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.10.0)，原图位于 `assets/readme-v0.10.0/`。该批截图对应界面代码基线 `a0bd6fd`，使用临时仓库、本机测试 SSH 服务和演示数据，展示真实网页界面；PR/MR 托管平台响应为测试数据，终端使用认证隔离服务与真实演示仓库。桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
+终端分屏图取自当前开发版的 macOS 后台桌面窗口，两个 shell 均在隔离的 Git 仓库中执行命令。其余五张功能截图沿用 [v0.10.0 Wiki 截图库](https://github.com/ShaoClean/Alune/wiki/README-Screenshots-v0.10.0)，原图位于 `assets/readme-v0.10.0/`。该批截图对应界面代码基线 `a0bd6fd`，使用临时仓库、本机测试 SSH 服务和演示数据，展示真实网页界面；PR/MR 托管平台响应为测试数据，终端使用认证隔离服务与真实演示仓库。桌面窗口边框与系统对话框以实际平台为准。版本与来源记录保留在本文，页面仅提供功能描述和替代文本；构建时输出多尺寸 WebP，首屏优先加载，其余延迟加载。它们是页面实际消费的产品素材，完整设计／验收记录仍维护在 Wiki。
 
 官网页头沿用头像与文字组合，下载区使用透明的小月兽。运行以下命令同步 favicon、角色、README 组合标与分享图。分享图 `public/og-image.png` 由 `generate-brand.mjs` 使用更新后的 v0.15.0 浅色工作区截图 `workspace-light.png` 生成。中文标题需要本机中文字体。
 

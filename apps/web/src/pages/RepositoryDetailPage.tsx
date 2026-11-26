@@ -977,11 +977,6 @@ function RepositoryWorkspace({
                     {retain(panel, renderPanel(panel))}
                   </div>
                 ))}
-              <div
-                className="terminal-dock"
-                ref={terminalDockRef}
-                style={{ '--terminal-height': `${terminalHeight}px` } as CSSProperties}
-              />
             </div>
             {hasInspector && !compact && !layout.changesCollapsed && (
               <PanelResizeHandle
@@ -1006,6 +1001,11 @@ function RepositoryWorkspace({
               </aside>
             )}
           </div>
+          <div
+            className="terminal-dock"
+            ref={terminalDockRef}
+            style={{ '--terminal-height': `${terminalHeight}px` } as CSSProperties}
+          />
         </div>
       </FeedbackScope>
     </RepositoryWorkspaceContext.Provider>

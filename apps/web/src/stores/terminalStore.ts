@@ -24,6 +24,7 @@ type Runtime = {
 };
 const runtimes = new Map<string, Runtime>();
 let references = 0;
+let nextNumber = 1;
 const patch = (id: string, update: Partial<ViewSession>) =>
   useTerminalStore.setState((state) => ({
     sessions: state.sessions.map((session) =>
@@ -59,6 +60,7 @@ async function request<T = undefined>(event: string, payload: unknown): Promise<
           environment: terminalEnvironment || (profile ? sshTerminalEnvironment(profile) : 'SSH'),
         });
       }
+      if (!runtimes.has(body.requestId)) throw new Error('终端创建已取消。');
       owners.set(body.requestId, client);
       return (await client.request('terminals.create', {
         ...input,
@@ -165,11 +167,15 @@ async function restoreTerminals(client: AgentClient) {
       source: 'ssh' as const,
       environment: host.terminalEnvironment || 'SSH',
     };
-    removeLocal(shell.id);
+    const existing = useTerminalStore.getState().sessions.find(s => s.id === shell.id);
+    // Attach replays remote history. Replace its parser, retaining the tab and split.
+    disposeRuntime(shell.id);
     owners.set(shell.id, client);
     ensureRuntime(shell.id);
     useTerminalStore.setState((state) => ({
-      sessions: [...state.sessions, view],
+      sessions: existing
+        ? state.sessions.map(s => s.id === shell.id ? { ...view, number: s.number, name: s.name, title: s.title } : s)
+        : [...state.sessions, { ...view, number: nextNumber++ }],
       selected: {
         ...state.selected,
         [binding.localId]: state.selected[binding.localId] ?? shell.id,
@@ -337,6 +343,10 @@ function ensureRuntime(id: string): Runtime {
   terminal.onWriteParsed(syncScrollable);
   terminal.onResize(syncScrollable);
   terminal.buffer.onBufferChange(syncScrollable);
+  terminal.onTitleChange(value => {
+    const title = value.trim().slice(0, 120);
+    if (useTerminalStore.getState().sessions.find(s => s.id === id)?.title !== title) patch(id, { title });
+  });
   terminal.onData((data) => {
     void request('terminal:input', { sessionId: id, data })
       .then(() => patch(id, { inputError: undefined }))
@@ -392,16 +402,15 @@ export function setTerminalPasteConfirmation(confirm?: (text: string) => Promise
 export async function pasteTerminal(id: string, value?: string) {
   try {
     const runtime = runtimes.get(id);
-    if (
-      !runtime ||
-      useTerminalStore.getState().sessions.find((item) => item.id === id)?.state !== 'running'
-    )
-      return;
+    const session = useTerminalStore.getState().sessions.find(item => item.id === id);
+    if (!runtime || session?.state !== 'running' || session.readOnly) return;
     const text = value ?? (await navigator.clipboard.readText());
     if (!text) return;
     if (new TextEncoder().encode(text).length > TERMINAL_LIMITS.inputBytes - 12)
       throw new Error('一次最多粘贴 16 KiB，请分批粘贴。');
     if (/[\r\n]/.test(text) && !(await confirmPaste?.(text))) return;
+    const latest = useTerminalStore.getState().sessions.find(item => item.id === id);
+    if (runtimes.get(id) !== runtime || latest?.state !== 'running' || latest.readOnly) return;
     // xterm adds bracketed-paste markers when the application has enabled them.
     runtime.terminal.paste(text);
     runtime.terminal.focus();
@@ -428,7 +437,7 @@ export function fitTerminal(id: string) {
       Math.max(1, Math.min(200, size.rows)),
     );
 }
-export async function createTerminal(repo: Repository) {
+export function createTerminal(repo: Repository) {
   const state = useTerminalStore.getState();
   if (
     state.sessions.length >= TERMINAL_LIMITS.sessions ||
@@ -438,6 +447,7 @@ export async function createTerminal(repo: Repository) {
   const id = crypto.randomUUID();
   const info: ViewSession = {
     id,
+    number: nextNumber++,
     requestId: id,
     repositoryId: repo.id,
     repositoryName: repo.name,
@@ -452,17 +462,14 @@ export async function createTerminal(repo: Repository) {
   useTerminalStore.setState((state) => ({
     sessions: [...state.sessions, info],
     error: '',
-    visible: true,
-    selected: { ...state.selected, [repo.id]: id },
   }));
-  try {
-    await request<TerminalSession>('terminal:create', {
-      repositoryId: repo.id,
-      requestId: id,
-      cols: 80,
-      rows: 24,
-    });
-  } catch (error) {
+  useTerminalStore.getState().select(info);
+  void request<TerminalSession>('terminal:create', {
+    repositoryId: repo.id,
+    requestId: id,
+    cols: 80,
+    rows: 24,
+  }).catch((error) => {
     patch(id, {
       state: 'failed',
       error: error instanceof Error ? error.message : '终端启动失败。',
@@ -470,19 +477,18 @@ export async function createTerminal(repo: Repository) {
     // A timed-out ACK is not proof that creation failed on the server.
     if (connected(id))
       void request('terminal:close', { sessionId: id, confirmed: true }).catch(() => {});
-  }
+  });
+  return info;
 }
-function removeLocal(id: string) {
-  owners.delete(id);
+function disposeRuntime(id: string) {
   runtimes.get(id)?.terminal.dispose();
   runtimes.get(id)?.element.remove();
   runtimes.delete(id);
-  useTerminalStore.setState((state) => ({
-    sessions: state.sessions.filter((session) => session.id !== id),
-    selected: Object.fromEntries(
-      Object.entries(state.selected).filter(([, value]) => value !== id),
-    ),
-  }));
+}
+function removeLocal(id: string) {
+  owners.delete(id);
+  disposeRuntime(id);
+  useTerminalStore.getState().remove(id);
 }
 export async function closeTerminal(session: TerminalSession) {
   const runtime = runtimes.get(session.id);

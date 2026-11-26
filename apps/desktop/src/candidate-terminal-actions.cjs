@@ -9,18 +9,25 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   fs.writeFileSync(file, marker + '\n');
   const ev = (s) => wc.executeJavaScript(s);
   await require('./smoke-window.cjs')(require('electron').BrowserWindow.fromWebContents(wc));
-  const { pressKey } = require('./candidate-ui-driver.cjs')(wc, wait);
+  const { pressKey, textButton, input } = require('./candidate-ui-driver.cjs')(wc, wait);
   const tab = '.terminal-tab [role=tab]',
     active = '.terminal-tab.is-active [role=tab]';
   const running = () =>
-    wait(wc, "document.querySelector('.terminal-state')?.textContent==='运行中'");
+    wait(
+      wc,
+      "document.querySelector('.terminal-tab.is-active [role=tab]')?.getAttribute('aria-label').endsWith('运行中')",
+    );
   const output = (t) =>
     "document.querySelector('.terminal-output .xterm-accessibility-tree')?.textContent.includes(" +
     JSON.stringify(t) +
     ')';
   // The live region confirms parser delivery even when the minimum viewport
   // fits only the prompt. Retention checks below still use rendered rows only.
-  const settledOutput = (token) => wait(wc, `(()=>{const tree=document.querySelector('.terminal-output .xterm-accessibility-tree');if(!tree)return false;const text=tree.textContent.trim();return document.querySelector('.terminal-output .xterm-accessibility')?.textContent.includes(${JSON.stringify(token)})&&text.endsWith(${JSON.stringify(process.platform === 'win32' ? '>' : '$')})})()`);
+  const settledOutput = (token) =>
+    wait(
+      wc,
+      `(()=>{const tree=document.querySelector('.terminal-output .xterm-accessibility-tree');if(!tree)return false;const text=tree.textContent.trim();return document.querySelector('.terminal-output .xterm-accessibility')?.textContent.includes(${JSON.stringify(token)})&&text.endsWith(${JSON.stringify(process.platform === 'win32' ? '>' : '$')})})()`,
+    );
   async function retainedOutput() {
     // The accessibility tree represents the viewport, not the scrollback.
     // Long packaged runtime paths can scroll the probe off screen. Reveal the
@@ -35,7 +42,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
       await key(element('.terminal-output .xterm-helper-textarea'), 'PageUp', 'PageUp', 33, {
         shiftKey: true,
       });
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
     await wait(wc, output(marker));
   }
@@ -54,11 +61,15 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   await click(element('[data-terminal-toggle]'));
   await click(element('.terminal-empty button'));
   await running();
+  await click(button('全部终端会话'));
   assert.equal(await ev("document.querySelector('.terminal-identity > span').title"), '本机');
   assert.equal(
-    fs.realpathSync.native(await ev("document.querySelector('.terminal-path code').textContent")),
+    fs.realpathSync.native(
+      await ev("document.querySelector('.terminal-identity code').textContent"),
+    ),
     fs.realpathSync.native(work),
   );
+  await pressKey(element('.terminal-all-sessions button'), 'Escape');
   await send(process.platform === 'win32' ? 'type terminal-probe.txt' : 'cat terminal-probe.txt');
   await settledOutput(marker);
   const resize = button('调整终端高度');
@@ -73,20 +84,34 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     process.platform === 'win32' ? 'runtime/node.exe' : 'runtime/bin/node',
   );
   const probeScript = path.join(work, 'terminal-dimensions.cjs');
-  const probeLauncher = path.join(work, process.platform === 'win32' ? 'terminal-dimensions.cmd' : 'terminal-dimensions.sh');
-  const quotedNode = process.platform === 'win32'
-    ? '"' + node.replaceAll('%', '%%') + '"'
-    : "'" + node.replaceAll("'", "'\"'\"'") + "'";
-  fs.writeFileSync(probeLauncher, process.platform === 'win32'
-    ? '@echo off\r\n' + quotedNode + ' terminal-dimensions.cjs\r\n@echo on\r\n'
-    : 'exec ' + quotedNode + ' terminal-dimensions.cjs\n');
+  const probeLauncher = path.join(
+    work,
+    process.platform === 'win32' ? 'terminal-dimensions.cmd' : 'terminal-dimensions.sh',
+  );
+  const quotedNode =
+    process.platform === 'win32'
+      ? '"' + node.replaceAll('%', '%%') + '"'
+      : "'" + node.replaceAll("'", "'\"'\"'") + "'";
+  fs.writeFileSync(
+    probeLauncher,
+    process.platform === 'win32'
+      ? '@echo off\r\n' + quotedNode + ' terminal-dimensions.cjs\r\n@echo on\r\n'
+      : 'exec ' + quotedNode + ' terminal-dimensions.cjs\n',
+  );
   async function dimensions() {
     fs.rmSync(dimensionsFile, { force: true });
     const done = 'SIZE_' + require('node:crypto').randomBytes(4).toString('hex');
-    fs.writeFileSync(probeScript, "require('node:fs').writeFileSync('terminal-dimensions.json',JSON.stringify({cols:process.stdout.columns,rows:process.stdout.rows}));console.log(" + JSON.stringify(done) + ")");
+    fs.writeFileSync(
+      probeScript,
+      "require('node:fs').writeFileSync('terminal-dimensions.json',JSON.stringify({cols:process.stdout.columns,rows:process.stdout.rows}));console.log(" +
+        JSON.stringify(done) +
+        ')',
+    );
     // A short launcher measures the bundled runtime without filling a tiny
     // viewport with the runner's long executable path and inline JavaScript.
-    await send(process.platform === 'win32' ? 'terminal-dimensions.cmd' : 'sh terminal-dimensions.sh');
+    await send(
+      process.platform === 'win32' ? 'terminal-dimensions.cmd' : 'sh terminal-dimensions.sh',
+    );
     const end = Date.now() + 15000;
     let actual;
     while (!actual && Date.now() < end) {
@@ -124,7 +149,16 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   await wait(wc, "document.querySelector('.terminal-emulator').clientHeight>" + smallRendered);
   await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   const large = await dimensions();
-  assert.ok(large.rows > small.rows, 'the real PTY must receive the rendered terminal resize: ' + JSON.stringify({small, large, smallRendered, largeRendered: await ev("document.querySelector('.terminal-emulator').clientHeight")}));
+  assert.ok(
+    large.rows > small.rows,
+    'the real PTY must receive the rendered terminal resize: ' +
+      JSON.stringify({
+        small,
+        large,
+        smallRendered,
+        largeRendered: await ev("document.querySelector('.terminal-emulator').clientHeight"),
+      }),
+  );
   const point = await ev(
     '(()=>{const r=(' +
       resize +
@@ -132,7 +166,13 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   );
   const to = point.y + (await height()) - originalHeight;
   wc.sendInputEvent({ type: 'mouseMove', ...point });
-  wc.sendInputEvent({ type: 'mouseDown', ...point, button: 'left', clickCount: 1, modifiers: ['leftbuttondown'] });
+  wc.sendInputEvent({
+    type: 'mouseDown',
+    ...point,
+    button: 'left',
+    clickCount: 1,
+    modifiers: ['leftbuttondown'],
+  });
   try {
     await wait(wc, '!!(' + resize + ')?.dataset.start');
     wc.sendInputEvent({
@@ -145,12 +185,22 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     try {
       await wait(wc, 'Number((' + resize + ')?.getAttribute("aria-valuenow"))===' + originalHeight);
     } catch (error) {
-      throw new Error(error.message + ' | resize: ' + JSON.stringify({ point, to, originalHeight,
-        current: await height(), start: await ev('(' + resize + ')?.dataset.start') }));
+      throw new Error(
+        error.message +
+          ' | resize: ' +
+          JSON.stringify({
+            point,
+            to,
+            originalHeight,
+            current: await height(),
+            start: await ev('(' + resize + ')?.dataset.start'),
+          }),
+      );
     }
   } finally {
     wc.sendInputEvent({ type: 'mouseUp', x: point.x, y: to, button: 'left', clickCount: 1 });
-    for (const file of [dimensionsFile, probeScript, probeLauncher]) fs.rmSync(file, { force: true });
+    for (const file of [dimensionsFile, probeScript, probeLauncher])
+      fs.rmSync(file, { force: true });
   }
   await retainedOutput();
   await pass(
@@ -159,14 +209,28 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   );
   // onData also carries ConPTY focus/cursor protocol replies. Verify key
   // consumption directly; the navigation handler's false return is unit-tested.
-  await key(element('.terminal-output .xterm-helper-textarea'), 'F6', 'F6', 117, {
-    ctrlKey: true,
-    shiftKey: true,
-  }, true);
+  await key(
+    element('.terminal-output .xterm-helper-textarea'),
+    'F6',
+    'F6',
+    117,
+    {
+      ctrlKey: true,
+      shiftKey: true,
+    },
+    true,
+  );
   await wait(wc, 'document.activeElement?.matches("[data-terminal-new]")');
-  await key(element('.terminal-output .xterm-helper-textarea'), '`', 'Backquote', 192, {
-    ctrlKey: true,
-  }, true);
+  await key(
+    element('.terminal-output .xterm-helper-textarea'),
+    '`',
+    'Backquote',
+    192,
+    {
+      ctrlKey: true,
+    },
+    true,
+  );
   await wait(wc, '!document.querySelector(".terminal-panel")');
   await click(element('[data-terminal-toggle]'));
   await retainedOutput();
@@ -201,6 +265,54 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   assert.notEqual(second, first);
   await wait(wc, element('.terminal-output .xterm-accessibility'));
   assert.ok(!(await ev(output(marker))));
+  // Place the second real shell to the right of the first, without activating it on pointer-down.
+  await click(element('.terminal-tab:not(.is-active) [role=tab]'));
+  const points = await ev(
+    `(()=>{const a=document.querySelector('.terminal-tab:not(.is-active) button').getBoundingClientRect(),b=document.querySelector('.terminal-panes').getBoundingClientRect();return [{x:Math.round(a.x+a.width/2),y:Math.round(a.y+a.height/2)},{x:Math.round(b.right-10),y:Math.round(b.y+b.height/2)}]})()`,
+  );
+  wc.sendInputEvent({ type: 'mouseMove', ...points[0] });
+  wc.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...points[0] });
+  wc.sendInputEvent({ type: 'mouseMove', modifiers: ['leftbuttondown'], ...points[1] });
+  await wait(wc, "!!document.querySelector('.terminal-drop[data-edge=right]')");
+  wc.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...points[1] });
+  await wait(wc, "document.querySelectorAll('.terminal-output .xterm').length===2");
+  assert.equal(await ev("document.querySelectorAll('.terminal-pane')[0].id"), first);
+  assert.equal(await ev("document.querySelectorAll('.terminal-pane')[1].id"), second);
+  const secondField = element('.terminal-pane[data-active=true] .xterm-helper-textarea');
+  const proof = 'SPLIT_' + require('node:crypto').randomBytes(4).toString('hex');
+  await wait(
+    wc,
+    `(()=>{const d=new DataTransfer();d.setData('text/plain',${JSON.stringify('echo ' + proof)});(${secondField}).dispatchEvent(new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:d}));return true})()`,
+  );
+  await key(secondField, 'Enter', 'Enter', 13);
+  await wait(
+    wc,
+    `document.querySelector('.terminal-pane[data-active=true] .xterm-accessibility-tree')?.textContent.includes(${JSON.stringify(proof)})`,
+  );
+  assert.ok(!(await ev(output(proof))));
+  await key(element('.terminal-divider'), 'ArrowLeft', 'ArrowLeft', 37);
+  await wait(
+    wc,
+    "document.querySelector('.terminal-divider')?.getAttribute('aria-valuenow')==='45'",
+  );
+  await key(element(active), 'F10', 'F10', 121, { shiftKey: true });
+  await click(textButton('重命名', '[role=menuitem]'));
+  await input(button('会话名称'), '测试输出');
+  await click(primary('保存'));
+  await wait(
+    wc,
+    "document.querySelector('.terminal-tab.is-active .terminal-name')?.textContent==='测试输出'",
+  );
+  await click(button('分屏布局'));
+  await click(textButton('上下分屏', '[role=menuitem]'));
+  await wait(wc, "!!document.querySelector('.terminal-panes[data-axis=rows]')");
+  await click(button('分屏布局'));
+  await click(textButton('单窗格', '[role=menuitem]'));
+  await wait(wc, "document.querySelectorAll('.terminal-output .xterm').length===1");
+  await pass(
+    ['UI-046'],
+    'tab edge drop mounts two distinct PTYs; selected-pane input is isolated, divider and layout changes retain both sessions, context rename updates its tab',
+  );
   await click(element('.terminal-tab:not(.is-active) [role=tab]'));
   await retainedOutput();
   await click(element('.terminal-tab:not(.is-active) [role=tab]'));
@@ -225,14 +337,17 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   assert.equal(await ev(`document.querySelectorAll('${tab}').length`), 2);
   await click(button('全部终端会话'));
   await click(element('.terminal-all-sessions li:first-child button'));
+  await click(textButton('进入会话'));
   await retainedOutput();
-  await click(button('关闭终端 1'));
+  await key(element(active), 'F10', 'F10', 121, { shiftKey: true });
+  await click(textButton('关闭会话…', '[role=menuitem]'));
   await wait(wc, '(' + primary('关闭会话') + ')?.disabled===true');
   await click(primary('取消'));
   await wait(wc, '!(' + primary('关闭会话') + ')');
   assert.equal(await ev('document.querySelectorAll(' + JSON.stringify(tab) + ').length'), 2);
   await click(button('全部终端会话'));
-  await click(button('关闭会话 2'));
+  await click(element('.terminal-all-sessions li:last-child button'));
+  await click(button('关闭所选会话'));
   await click(element('.a-dlg-shell input[type=checkbox]'));
   await click(primary('关闭会话'));
   await wait(
@@ -246,7 +361,8 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
     wc,
     "![...document.querySelectorAll('.terminal-all-sessions')].some(e=>e.getClientRects().length)",
   );
-  await click(button('关闭终端 1'));
+  await key(element(active), 'F10', 'F10', 121, { shiftKey: true });
+  await click(textButton('关闭会话…', '[role=menuitem]'));
   await click(element('.a-dlg-shell input[type=checkbox]'));
   await click(primary('关闭会话'));
   await wait(wc, `document.querySelectorAll('${tab}').length===0&&!(${primary('关闭会话')})`);
@@ -269,7 +385,7 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   await click(button('全部终端会话'));
   await wait(wc, "document.querySelectorAll('.terminal-all-sessions li').length===8");
   for (let count = 8; count > 0; count--) {
-    await click(button('关闭会话 1'));
+    await click(button('关闭所选会话'));
     await click(element('.a-dlg-shell input[type=checkbox]'));
     await click(primary('关闭会话'));
     await wait(
@@ -289,4 +405,4 @@ module.exports = async ({ wc, work, wait, element, button, click, primary, pass 
   );
   await click(button('收起终端'));
   fs.unlinkSync(file);
-};
+};;
