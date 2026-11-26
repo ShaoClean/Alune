@@ -3,6 +3,7 @@ export interface LayoutPreferences {
   changesCollapsed: boolean;
   sidebarWidth: number;
   changesWidth: number;
+  filesTreeCollapsed: boolean;
   filesTreeWidth: number;
   diffMode: 'unified' | 'split';
 }
@@ -12,6 +13,7 @@ export const DEFAULT_LAYOUT: LayoutPreferences = {
   changesCollapsed: false,
   sidebarWidth: 236,
   changesWidth: 320,
+  filesTreeCollapsed: false,
   filesTreeWidth: 280,
   diffMode: 'unified',
 };
@@ -41,6 +43,7 @@ export function readLayoutPreferences(value: unknown): LayoutPreferences {
     diffMode: saved.diffMode === 'split' ? 'split' : 'unified',
     sidebarWidth: width(saved.sidebarWidth, DEFAULT_LAYOUT.sidebarWidth, SIDEBAR_MIN, SIDEBAR_MAX),
     changesWidth: width(saved.changesWidth, DEFAULT_LAYOUT.changesWidth, CHANGES_MIN, CHANGES_MAX),
+    filesTreeCollapsed: saved.filesTreeCollapsed === true,
     filesTreeWidth: width(
       saved.filesTreeWidth,
       DEFAULT_LAYOUT.filesTreeWidth,

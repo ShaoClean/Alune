@@ -23,7 +23,7 @@ test('layout validates old, malformed and out-of-range preferences', () => {
     undefined,
     'broken',
     [],
-    { sidebarWidth: '300', changesWidth: NaN, sidebarCollapsed: 'true' },
+    { sidebarWidth: '300', changesWidth: NaN, sidebarCollapsed: 'true', filesTreeCollapsed: 'true' },
   ]) {
     assert.deepEqual(readLayoutPreferences(value), DEFAULT_LAYOUT);
   }
@@ -75,12 +75,14 @@ test('old tree preferences survive adding, saving, rehydrating and resetting lay
       changesWidth: 430,
       sidebarCollapsed: true,
       changesCollapsed: true,
+      filesTreeCollapsed: true,
       diffMode: 'split',
     });
   const persisted = saved.get('alune-workspace');
   assert.deepEqual(JSON.parse(persisted).state.layout, {
     ...DEFAULT_LAYOUT,
     changesCollapsed: true,
+    filesTreeCollapsed: true,
     diffMode: 'split',
     sidebarWidth: 310,
     changesWidth: 430,
@@ -90,6 +92,7 @@ test('old tree preferences survive adding, saving, rehydrating and resetting lay
   assert.equal(workspace.getState().layout.changesWidth, 430);
   assert.equal(workspace.getState().layout.changesCollapsed, true);
   assert.equal(workspace.getState().layout.diffMode, 'split');
+  assert.equal(workspace.getState().layout.filesTreeCollapsed, true);
   workspace.getState().resetLayout();
   assert.deepEqual(workspace.getState().layout, DEFAULT_LAYOUT);
   assert.equal('treeOpen' in workspace.getState(), false);

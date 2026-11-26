@@ -33,15 +33,41 @@
   padding: 5px 8px 5px 14px;
   border-bottom: 1px solid var(--line);
 }
-.files-tree__title {
+.files-tree__header {
+  justify-content: flex-start;
+  padding-left: 8px;
+}
+.files-tree__header > .icon-button {
+  margin-left: auto;
+}
+.files-tree__content:not([hidden]) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.files-tree__toggle {
   display: flex;
   align-items: center;
   gap: var(--space-control-gap);
   min-width: 0;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: var(--r-chip);
+  background: transparent;
+  cursor: pointer;
   color: var(--text);
+  font-family: inherit;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+}
+.files-tree__toggle:hover {
+  background: var(--surface-hover);
+}
+.files-tree__toggle:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
 }
 .files-badge {
   display: inline-flex;
