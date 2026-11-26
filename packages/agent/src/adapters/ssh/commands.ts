@@ -3,7 +3,7 @@ import { gzipSync } from 'node:zlib';
 import { PROTOCOL_VERSION } from '@alune/protocol';
 import type { readBundle } from './bundles';
 import { unixCache, unixInstall } from './runtime-unix';
-import { windowsCache, windowsInstall } from './runtime-windows';
+import { windowsCache, windowsInstall, windowsPublish } from './runtime-windows';
 
 const sh = (s: string) => "sh -c '" + s.replaceAll("'", "'\\''") + "'";
 const ps = (s: string) =>
@@ -77,6 +77,7 @@ export function runtimeCommands(bundle: Bundle, nonce: string, proxy?: number | 
         '[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); $exe=(Get-Command alune-agent -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source; [Console]::WriteLine($exe); & $exe --version; exit $LASTEXITCODE',
       ),
       cache: ps(`${windowsCache(spec)}; if (Valid) { [Console]::Write('present') }`),
+      publish: ps(windowsPublish(spec)),
       install: ps(
         `$ms=New-Object IO.MemoryStream(,[Convert]::FromBase64String('${compressed}')); $gz=New-Object IO.Compression.GZipStream($ms,[IO.Compression.CompressionMode]::Decompress); & ([scriptblock]::Create((New-Object IO.StreamReader($gz)).ReadToEnd()))`,
       ),

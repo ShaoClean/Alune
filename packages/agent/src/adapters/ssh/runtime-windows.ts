@@ -2,19 +2,18 @@ import type { RuntimeSpec } from './commands';
 
 export function windowsCache({ relative, marker, version, protocol }: RuntimeSpec) {
   return `$dest=Join-Path $env:USERPROFILE '${relative}'
-function Valid {
+function Valid($path=$dest) {
   try {
-    if (!(Test-Path "$dest/bin/alune-agent.cmd" -PathType Leaf) -or [IO.File]::ReadAllText("$dest/.install-complete") -cne '${marker}') { return $false }
-    $p=(& "$dest/bin/alune-agent.cmd" --version | ConvertFrom-Json)
+    if (!(Test-Path "$path/bin/alune-agent.cmd" -PathType Leaf) -or [IO.File]::ReadAllText("$path/.install-complete") -cne '${marker}') { return $false }
+    $p=(& "$path/bin/alune-agent.cmd" --version | ConvertFrom-Json)
     return ($LASTEXITCODE -eq 0 -and $p.name -ceq 'alune-agent' -and $p.version -ceq '${version}' -and $p.protocol.major -eq ${protocol.major} -and $p.protocol.minor -eq ${protocol.minor})
   } catch { return $false }
 }`;
 }
 
-export function windowsInstall(spec: RuntimeSpec) {
-  const { marker, sha256, version, protocol, nonce, url, proxy } = spec;
+function withInstallLock(spec: RuntimeSpec, body: string) {
   return `${windowsCache(spec)}
-$stage="$dest.stage-${nonce}"
+$pending="$dest.pending"
 [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($dest)) | Out-Null
 $deadline=[DateTime]::UtcNow.AddMinutes(10)
 while (!$lock) {
@@ -25,6 +24,15 @@ try {
   if (Valid) { exit 0 }
   $owner=[Text.Encoding]::UTF8.GetBytes("$PID $([DateTime]::UtcNow.ToString('o'))")
   $lock.SetLength(0); $lock.Write($owner,0,$owner.Length)
+  ${body}
+} finally { $lock.Dispose() }`;
+}
+
+export function windowsInstall(spec: RuntimeSpec) {
+  const { marker, sha256, version, protocol, nonce, url, proxy } = spec;
+  return withInstallLock(spec, `if (Valid $pending) { exit 0 }
+$stage="$dest.stage-${nonce}"
+try {
   ${proxy === 'blocked' ? "throw 'SSH proxy forwarding blocked'" : ''}
   [IO.Directory]::CreateDirectory("$stage/package") | Out-Null
   $req=[Net.HttpWebRequest]::Create('${url}')
@@ -56,22 +64,25 @@ try {
   } finally { Pop-Location }
   $p=(& "$stage/package/bin/alune-agent.cmd" --version | ConvertFrom-Json)
   if ($LASTEXITCODE -or $p.name -cne 'alune-agent' -or $p.version -cne '${version}' -or $p.protocol.major -ne ${protocol.major} -or $p.protocol.minor -ne ${protocol.minor}) { throw 'Agent version mismatch' }
-  [Console]::WriteLine('ready'); [Console]::Out.Flush()
-  $reader=New-Object IO.StreamReader([Console]::OpenStandardInput())
-  $decision=$reader.ReadLineAsync()
-  if (!$decision.Wait(30000)) { throw 'Timed out waiting for SSH install confirmation' }
-  if ($decision.Result -cne 'publish') { throw 'Installation cancelled' }
   [IO.File]::WriteAllText("$stage/package/.install-complete",'${marker}')
-  $retired="$dest.retired-${nonce}"
+  if ([IO.Directory]::Exists($pending)) { Remove-Item -Force -Recurse -LiteralPath $pending }
+  [IO.Directory]::Move("$stage/package",$pending)
+} finally {
+  if (Test-Path $stage) { Remove-Item -Force -Recurse -LiteralPath $stage }
+}`);
+}
+
+// A separate exec confirms publication after verification, even when the Windows
+// SSH shell buffers stdout or does not forward interactive stdin to PowerShell.
+export function windowsPublish(spec: RuntimeSpec) {
+  return withInstallLock(spec, `if (!(Valid $pending)) { throw 'Verified SSH Agent package unavailable' }
+  $retired="$dest.retired-${spec.nonce}"
   if ([IO.Directory]::Exists($dest)) {
     try { [IO.Directory]::Move($dest,$retired) } catch { throw 'Close active connections to this Agent version and retry' }
   }
-  try { [IO.Directory]::Move("$stage/package",$dest) }
+  try { [IO.Directory]::Move($pending,$dest) }
   catch {
     if ([IO.Directory]::Exists($retired)) { [IO.Directory]::Move($retired,$dest) }
     throw
-  }
-} finally {
-  try { if (Test-Path $stage) { Remove-Item -Force -Recurse -LiteralPath $stage } } finally { $lock.Dispose() }
-}`;
+  }`);
 }

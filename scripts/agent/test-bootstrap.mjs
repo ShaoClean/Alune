@@ -21,7 +21,11 @@ const run = (cmd, publish = true) => {
     timeout: 30000,
   });
   result.child.stdin.on('error', () => {});
-  // The SSH client keeps stdin open during native tar and launcher probes.
+  // Windows SSH exec commands must finish with stdin already closed.
+  if (win) {
+    result.child.stdin.end();
+    return result;
+  }
   let output = '';
   result.child.stdout.on('data', chunk => {
     output += chunk;
@@ -30,6 +34,10 @@ const run = (cmd, publish = true) => {
   });
   return result;
 };
+async function install(commands) {
+  await run(commands.install);
+  if (commands.publish) await run(commands.publish);
+}
 let downloads = 0;
 let archive;
 const server = http.createServer((_req, res) => {
@@ -60,18 +68,18 @@ try {
     return (proxy) => runtimeCommands(bundle, randomUUID(), proxy);
   }
   const first = release('1.0.0');
-  await assert.rejects(run(first('blocked').install), /forwarding blocked/);
+  await assert.rejects(install(first('blocked')), /forwarding blocked/);
   assert.equal(downloads, 0);
-  const installers = await Promise.allSettled([run(first().install), run(first().install)]);
+  const installers = await Promise.allSettled([install(first()), install(first())]);
   for (const result of installers) if (result.status === 'rejected') throw result.reason;
   assert.equal(downloads, 1);
   assert.equal((await run(first().cache)).stdout.trim(), 'present');
-  await run(first('blocked').install);
+  await install(first('blocked'));
   assert.equal(downloads, 1);
   const second = release('1.1.0-beta.2');
-  await run(second().install);
+  await install(second());
   assert.equal(downloads, 2);
-  await run(first().install);
+  await install(first());
   assert.equal(downloads, 2);
   const marker = path.join(
     home,
@@ -82,11 +90,22 @@ try {
   fs.writeFileSync(marker, 'corrupt');
   const good = archive;
   archive = Buffer.from('broken');
-  await assert.rejects(run(second().install), /checksum mismatch/);
+  await assert.rejects(install(second()), /checksum mismatch/);
   archive = good;
-  await assert.rejects(run(second().install, false), /cancelled/);
+  if (win) {
+    const commands = second();
+    await assert.rejects(run(commands.publish), /Verified SSH Agent package unavailable/);
+    await run(commands.install);
+    // Disconnect between execs. The verified candidate is reusable, but the
+    // active installation must stay untouched until a client confirms.
+    assert.equal((await run(commands.cache)).stdout.trim(), '');
+  } else {
+    await assert.rejects(run(second().install, false), /cancelled/);
+  }
   assert.equal(fs.readFileSync(marker, 'utf8'), 'corrupt');
-  await run(second().install);
+  const beforeRetry = downloads;
+  await install(second());
+  if (win) assert.equal(downloads, beforeRetry);
   assert.equal(JSON.parse(fs.readFileSync(marker)).target, target);
   // Keep the valid marker and break only the launcher.
   const executable = path.join(
@@ -96,7 +115,7 @@ try {
   );
   fs.writeFileSync(executable, win ? '@exit /b 1\r\n' : '#!/bin/sh\nexit 1\n');
   assert.equal((await run(second().cache)).stdout.trim(), '');
-  await run(second().install);
+  await install(second());
   assert.equal((await run(second().cache)).stdout.trim(), 'present');
   console.log(target + ' concurrent install, proxy denial, offline rollback and repair passed.');
 } finally {

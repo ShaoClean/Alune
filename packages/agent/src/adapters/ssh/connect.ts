@@ -355,7 +355,11 @@ async function sshSession(
       transition('verifying');
       if ((await command(commands.cache).catch(() => '')) !== 'present') {
         transition('downloading');
-        await command(commands.install, 900_000, true);
+        await command(commands.install, 900_000, !commands.publish);
+        if (commands.publish) {
+          signal.throwIfAborted();
+          await command(commands.publish, 900_000);
+        }
       }
     };
     if (!system) await ensureManaged();
