@@ -1,8 +1,8 @@
+import { BrandIcon } from './BrandIcon';
 import { useEffect, useState } from 'react';
 import {
   CloudDownloadOutlined,
   CloudServerOutlined,
-  CodeOutlined,
   LaptopOutlined,
   PauseOutlined,
   SyncOutlined,
@@ -156,7 +156,7 @@ export function WorkspaceStatusBar({
           tooltip="全部终端会话"
           onClick={() => useTerminalStore.setState({ allOpen: true })}
         >
-          <CodeOutlined />
+          <BrandIcon className="terminal-entry-mark" />
           <span>终端 {terminalCount}</span>
         </StatusButton>
         <StatusButton
