@@ -760,9 +760,8 @@
   min-width: 0;
   min-height: 0;
 }
-.markdown-outline-slot:empty,
-.markdown-outline[hidden] {
-  display: none;
+.markdown-outline-slot {
+  display: contents;
 }
 .markdown-outline-toggle {
   display: inline-flex;
@@ -791,7 +790,7 @@
   outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
-.markdown-outline {
+.markdown-outline:not([hidden]) {
   display: flex;
   flex-direction: column;
   flex: 0 0 216px;
