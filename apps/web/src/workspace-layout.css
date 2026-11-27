@@ -949,12 +949,34 @@
   gap: var(--space-control-gap);
   margin-bottom: 1px;
 }
-.commit-box__heading strong {
-  font-size: 12px;
-  font-weight: 600;
+.commit-box__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-row);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
 }
-.commit-box__heading span {
-  flex-shrink: 0;
+.commit-box__toggle:hover,
+.commit-box__toggle .anticon {
+  color: var(--accent);
+}
+.commit-box__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.commit-box__heading > span {
+  text-align: end;
+}
+.commit-box__form:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
 }
 .changes-panel .commit-box .ant-input {
   font-size: 12px;
@@ -1229,6 +1251,19 @@
   max-height: 65%;
   overflow: auto;
 }
+.changes-panel .commit-box--collapsed {
+  position: relative;
+  padding-block: 7px;
+}
+.commit-box--collapsed .commit-box__heading {
+  margin: 0;
+}
+.commit-box--collapsed .commit-box__toggle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
 .layout-settings__section {
   padding: 22px;
   border: 1px solid var(--line);
