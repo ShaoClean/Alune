@@ -107,6 +107,17 @@ module.exports = async ({
   await wait(wc, button('取消暂存 scratch.txt'));
   await fill(button('提交摘要'), 'commit from actual UI');
   await fill(button('提交描述'), 'body saved');
+  const listHeight = () =>
+    wc.executeJavaScript("document.querySelector('.changes-content').clientHeight");
+  const expandedHeight = await listHeight();
+  await click(button('收起提交改动'));
+  await wait(wc, button('展开提交改动'));
+  assert.ok((await listHeight()) > expandedHeight);
+  assert.ok(await wc.executeJavaScript(text('1 个文件已暂存')));
+  assert.ok(!(await wc.executeJavaScript(button('提交摘要'))));
+  await click(button('展开提交改动'));
+  await wait(wc, button('提交描述'));
+  assert.equal(await wc.executeJavaScript(`(${button('提交描述')}).value`), 'body saved');
   await click(textButton('提交已暂存内容 · 1'));
   await fact(
     () => git('log', '-1', '--format=%s') === 'commit from actual UI',

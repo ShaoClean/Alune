@@ -15,7 +15,7 @@ import {
   CountBadge,
 } from '@alune/ui';
 import { useFeedbackMessage } from '@alune/ui';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, MoonLoader, Tooltip, type TooltipProps } from '@alune/ui';
 import { AlunePopconfirm } from '@alune/ui';
 import { useNavigate } from 'react-router-dom';
@@ -145,6 +145,8 @@ export function ChangesView({
   const [query, setQuery] = useState('');
   const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
+  const [commitExpanded, setCommitExpanded] = useState(true);
+  const commitFormId = useId();
   const [amendOpen, setAmendOpen] = useState(false);
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const [discardAllOpen, setDiscardAllOpen] = useState(false);
@@ -972,98 +974,112 @@ export function ChangesView({
           onCommitted={onRefresh}
         />
       )}
-      <div className="commit-box">
+      <div className={commitExpanded ? 'commit-box' : 'commit-box commit-box--collapsed'}>
         <div className="commit-box__heading">
-          <strong>提交改动</strong>
-          <Button
-            type="text"
-            size="small"
-            disabled={busy || !!operation}
-            onClick={() => setAmendOpen(true)}
+          <button
+            type="button"
+            className="commit-box__toggle"
+            aria-expanded={commitExpanded}
+            aria-controls={commitFormId}
+            aria-label={commitExpanded ? '收起提交改动' : '展开提交改动'}
+            onClick={() => setCommitExpanded((expanded) => !expanded)}
           >
-            修改上一次提交
-          </Button>
+            {commitExpanded ? <DownOutlined /> : <RightOutlined />}
+            提交改动
+          </button>
+          {commitExpanded && (
+            <Button
+              type="text"
+              size="small"
+              disabled={busy || !!operation}
+              onClick={() => setAmendOpen(true)}
+            >
+              修改上一次提交
+            </Button>
+          )}
           <span>
             {operation ? '进行中的操作请用上方的“继续”完成' : `${stagedFiles.length} 个文件已暂存`}
           </span>
         </div>
-        <Input
-          aria-label="提交摘要"
-          placeholder="摘要 · 描述这次改动"
-          value={draft.message}
-          readOnly={busy}
-          onChange={(event) => updateDraft(repoId, { message: event.target.value })}
-          suffix={
-            <Tooltip title={ai.generating ? '正在生成提交信息' : '生成提交信息'}>
+        <div id={commitFormId} className="commit-box__form" hidden={!commitExpanded}>
+          <Input
+            aria-label="提交摘要"
+            placeholder="摘要 · 描述这次改动"
+            value={draft.message}
+            readOnly={busy}
+            onChange={(event) => updateDraft(repoId, { message: event.target.value })}
+            suffix={
+              <Tooltip title={ai.generating ? '正在生成提交信息' : '生成提交信息'}>
+                <button
+                  type="button"
+                  className="commit-ai-generate"
+                  aria-label="AI 生成提交信息"
+                  disabled={!status || busy || ai.generating}
+                  onClick={() => void ai.generate()}
+                >
+                  {ai.generating ? <MoonLoader /> : <Sparkles />}
+                </button>
+              </Tooltip>
+            }
+          />
+          <Input.TextArea
+            aria-label="提交描述"
+            placeholder="描述（可选）"
+            value={draft.description}
+            readOnly={busy}
+            onChange={(event) => updateDraft(repoId, { description: event.target.value })}
+            rows={2}
+          />
+          <div className="commit-ai-bar">
+            <Tooltip
+              title={
+                ai.model ? `${ai.model.provider.name} · ${ai.model.model.id}` : '尚未配置默认模型'
+              }
+            >
               <button
                 type="button"
-                className="commit-ai-generate"
-                aria-label="AI 生成提交信息"
-                disabled={!status || busy || ai.generating}
-                onClick={() => void ai.generate()}
+                className="commit-ai-bar__model"
+                aria-label={`AI 模型 ${modelLabel}，打开提交生成设置`}
+                onClick={() => ai.openSettings()}
               >
-                {ai.generating ? <MoonLoader /> : <Sparkles />}
+                <SettingOutlined />
+                <span>{modelLabel}</span>
               </button>
             </Tooltip>
-          }
-        />
-        <Input.TextArea
-          aria-label="提交描述"
-          placeholder="描述（可选）"
-          value={draft.description}
-          readOnly={busy}
-          onChange={(event) => updateDraft(repoId, { description: event.target.value })}
-          rows={2}
-        />
-        <div className="commit-ai-bar">
-          <Tooltip
-            title={
-              ai.model ? `${ai.model.provider.name} · ${ai.model.model.id}` : '尚未配置默认模型'
-            }
-          >
-            <button
-              type="button"
-              className="commit-ai-bar__model"
-              aria-label={`AI 模型 ${modelLabel}，打开提交生成设置`}
-              onClick={() => ai.openSettings()}
-            >
-              <SettingOutlined />
-              <span>{modelLabel}</span>
+            <span className="commit-ai-bar__hint">{GENERATION_SCOPE}</span>
+          </div>
+          <FeedbackNotice
+            source="commit-generation-progress"
+            type="info"
+            title={ai.generating ? '正在根据已暂存改动生成…' : null}
+            actionLabel="取消"
+            onAction={() => ai.cancel()}
+          />
+          <FeedbackNotice
+            source="commit-generation-result"
+            type={ai.feedback?.error ? 'error' : 'info'}
+            title={ai.feedback?.message}
+            eventKey={ai.feedback ?? undefined}
+            actionLabel={ai.feedback?.error ? '重试' : undefined}
+            onAction={() => ai.generate()}
+            busy={busy}
+          />
+          {ai.undo && !ai.generating && (
+            <button type="button" className="commit-ai-undo" onClick={ai.undoGeneration}>
+              <UndoOutlined /> 撤销生成
             </button>
-          </Tooltip>
-          <span className="commit-ai-bar__hint">{GENERATION_SCOPE}</span>
+          )}
+          <Button
+            type="primary"
+            block
+            icon={<CheckOutlined />}
+            loading={loading}
+            disabled={!!operation || commitDisabled(busy, stagedFiles.length, draft.message)}
+            onClick={() => void handleCommit()}
+          >
+            提交已暂存内容{stagedFiles.length > 0 ? ` · ${stagedFiles.length}` : ''}
+          </Button>
         </div>
-        <FeedbackNotice
-          source="commit-generation-progress"
-          type="info"
-          title={ai.generating ? '正在根据已暂存改动生成…' : null}
-          actionLabel="取消"
-          onAction={() => ai.cancel()}
-        />
-        <FeedbackNotice
-          source="commit-generation-result"
-          type={ai.feedback?.error ? 'error' : 'info'}
-          title={ai.feedback?.message}
-          eventKey={ai.feedback ?? undefined}
-          actionLabel={ai.feedback?.error ? '重试' : undefined}
-          onAction={() => ai.generate()}
-          busy={busy}
-        />
-        {ai.undo && !ai.generating && (
-          <button type="button" className="commit-ai-undo" onClick={ai.undoGeneration}>
-            <UndoOutlined /> 撤销生成
-          </button>
-        )}
-        <Button
-          type="primary"
-          block
-          icon={<CheckOutlined />}
-          loading={loading}
-          disabled={!!operation || commitDisabled(busy, stagedFiles.length, draft.message)}
-          onClick={() => void handleCommit()}
-        >
-          提交已暂存内容{stagedFiles.length > 0 ? ` · ${stagedFiles.length}` : ''}
-        </Button>
       </div>
     </section>
   );
