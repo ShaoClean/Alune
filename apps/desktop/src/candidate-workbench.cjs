@@ -119,6 +119,16 @@ module.exports = async ({ window, origin, id, repo, wait }) => {
   await click(treeItem('README.md'));
   await click(textButton('Preview'));
   await wait(wc, element('a[href="example.ts"]') + ' || ' + element('.markdown-preview a'));
+  const outlineToggle = element('.markdown-outline-toggle');
+  await wait(wc, outlineToggle);
+  if (!(await evaluate(outlineToggle + ".getAttribute('aria-expanded') === 'true'")))
+    await click(outlineToggle);
+  await click(element('.markdown-outline a[href="#file-markdown-candidate-fixture"]'));
+  await wait(wc, "document.activeElement?.id === 'file-markdown-candidate-fixture'");
+  await click(textButton('源码'));
+  await wait(wc, element('.files-code') + " && !document.querySelector('.markdown-outline-toggle')");
+  await click(textButton('Preview'));
+  await wait(wc, outlineToggle);
   const link =
     "[...document.querySelectorAll('a')].filter(" +
     visible +

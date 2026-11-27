@@ -7,6 +7,8 @@ export interface PanelToggleProps {
   onClick: () => void;
   disabled?: boolean;
   panelName?: string;
+  /** Set false for a local panel without the workspace keyboard shortcut. */
+  workspaceShortcut?: boolean;
 }
 
 export function PanelToggle({
@@ -16,12 +18,17 @@ export function PanelToggle({
   onClick,
   disabled = false,
   panelName,
+  workspaceShortcut = true,
 }: PanelToggleProps) {
   const label = `${expanded ? '隐藏' : '显示'}${panelName || (side === 'left' ? '左侧工作区' : '右侧面板')}`;
   return (
     <Tooltip
       title={
-        disabled ? '当前视图没有右侧面板' : `${label} · ⌘ / Ctrl ${side === 'right' ? '⇧ ' : ''}B`
+        disabled
+          ? '当前视图没有右侧面板'
+          : !workspaceShortcut
+            ? label
+            : `${label} · ⌘ / Ctrl ${side === 'right' ? '⇧ ' : ''}B`
       }
       trigger={['hover', 'focus']}
       placement="bottom"
@@ -33,7 +40,13 @@ export function PanelToggle({
         aria-label={label}
         aria-expanded={expanded}
         aria-controls={controls}
-        aria-keyshortcuts={side === 'left' ? 'Meta+B Control+B' : 'Meta+Shift+B Control+Shift+B'}
+        aria-keyshortcuts={
+          workspaceShortcut
+            ? side === 'left'
+              ? 'Meta+B Control+B'
+              : 'Meta+Shift+B Control+Shift+B'
+            : undefined
+        }
         onClick={() => {
           // Keep unavailable panels focusable so keyboard users can read the reason.
           if (!disabled) onClick();

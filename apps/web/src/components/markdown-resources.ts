@@ -66,15 +66,19 @@ export function markdownHeadingIds() {
         (node.children?.map(text).join('') ?? '');
     const visit = (node: MarkdownNode) => {
       if (/^h[1-6]$/.test(node.tagName ?? '')) {
-        const slug = text(node)
-          .trim()
+        const label = text(node).trim();
+        const slug = label
           .toLowerCase()
           .replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '')
           .replace(/\s/g, '-');
         let unique = slug;
         for (let suffix = 1; used.has(unique); suffix++) unique = `${slug}-${suffix}`;
         used.add(unique);
-        node.properties = { ...node.properties, id: `${MARKDOWN_HEADING_PREFIX}${unique}` };
+        node.properties = {
+          ...node.properties,
+          id: `${MARKDOWN_HEADING_PREFIX}${unique}`,
+          'data-outline-label': label,
+        };
       }
       node.children?.forEach(visit);
     };

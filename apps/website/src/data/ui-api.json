@@ -2198,6 +2198,13 @@
       "required": false,
       "default": "—",
       "description": "面板可访问名称。"
+    },
+    {
+      "name": "workspaceShortcut",
+      "type": "boolean",
+      "required": false,
+      "default": "true",
+      "description": "Set false for a local panel without the workspace keyboard shortcut."
     }
   ],
   "ToolbarButtonProps": [

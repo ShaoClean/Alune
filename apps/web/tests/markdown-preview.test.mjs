@@ -43,7 +43,10 @@ test('Markdown renders GFM, Chinese headings and literal fenced/indented code', 
   const html = render(
     readFileSync(new URL('./fixtures/markdown-preview.md', import.meta.url), 'utf8'),
   );
-  assert.match(html, /<h1 id="file-markdown-markdown-预览">Markdown 预览<\/h1>/);
+  assert.match(
+    html,
+    /<h1 id="file-markdown-markdown-预览" data-outline-label="Markdown 预览">Markdown 预览<\/h1>/,
+  );
   for (const fragment of [
     '<strong>粗体</strong>',
     '<em>斜体</em>',
@@ -190,4 +193,12 @@ test('external links are HTTP(S) only; image rendering starts with explicit, rea
   const local = render('[guide](docs/guide.MD#中文标题)\n\n![local](assets/sample.png)');
   assert.match(local, /title="docs\/guide.MD"/);
   assert.match(local, /local：正在读取图片/);
+});
+
+test('outline labels follow rendered headings, including image alt text and inline formatting', () => {
+  const html = render('## ![图片](logo.png) **标题** `code`\n\n```md\n# example\n```');
+  assert.deepEqual(
+    [...html.matchAll(/data-outline-label="([^"]*)"/g)].map((match) => match[1]),
+    ['图片 标题 code'],
+  );
 });
