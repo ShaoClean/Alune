@@ -234,7 +234,10 @@ test('directory-to-file replacements stage without deleting working contents; fi
   f.write('dir', 'replacement\n');
   const connection = new LocalConnection();
   await assert.rejects(assertFileChanges(connection, f.repo, ['dir/child']), /文件/);
-  await new GitCommands(connection).stage(f.repo, ['dir', 'dir/child']);
+  const git = new GitCommands(connection);
+  await assert.rejects(git.stage(f.repo, ['dir']), /dir\/child/);
+  await git.stage(f.repo, ['dir', 'dir/child']);
+  await assert.rejects(git.unstage(f.repo, ['dir/child']), /影响“dir”/);
   assert.equal(fs.readFileSync(path.join(f.repo, 'dir'), 'utf8'), 'replacement\n');
   assert.equal(f.git('ls-files', '--', 'dir').trim(), 'dir');
 });
@@ -254,3 +257,19 @@ test(
     assert.equal(fs.readFileSync(outside, 'utf8'), 'keep\n');
   },
 );
+
+test('unstaging a rename never resets an unselected file beneath the old name', async (t) => {
+  const f = createRepository();
+  t.after(f.close);
+  f.git('mv', 'tracked.txt', 'renamed.txt');
+  f.write('tracked.txt/keep', 'unrelated staged bytes\n');
+  f.git('add', '--', 'tracked.txt/keep');
+  const git = new GitCommands(new LocalConnection());
+  const before = f.git('ls-files', '--stage', '-z');
+  await assert.rejects(git.unstage(f.repo, ['tracked.txt', 'renamed.txt']), /tracked\.txt\/keep/);
+  assert.equal(f.git('ls-files', '--stage', '-z'), before);
+  await git.unstage(f.repo, ['tracked.txt/keep']);
+  await git.unstage(f.repo, ['tracked.txt', 'renamed.txt']);
+  assert.equal(f.git('diff', '--cached', '--name-only'), '');
+  assert.equal(fs.readFileSync(path.join(f.repo, 'tracked.txt/keep'), 'utf8'), 'unrelated staged bytes\n');
+});
