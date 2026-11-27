@@ -32,15 +32,13 @@
 
 [Alune-UI docs](https://shaoclean.github.io/Alune/ui/) · [Shared component source](packages/ui/README.md)
 
-## New in 0.15.0
+## New in 0.16.0
 
-- **Switch repositories from the system tray.** The tray menu lists each open repository and its branch. Select one to return to its workspace. On macOS, you can also show the active repository and branch in the menu bar.
-- **Fetch remote updates on a schedule.** In Settings → Application → Repository sync, enable automatic fetch, choose repositories and set a 5, 10 or 30 minute interval. Automatic fetch is off by default. Tabs and the status bar show how many commits the current branch is ahead or behind its upstream. A notification lets you pull when new commits arrive.
-- **Follow PR and MR activity.** For repositories with automatic fetch and an access token, status bar notifications link to requests with new comments, review status changes or merges.
+- **Split repository terminals.** Drag a terminal tab to the edge of the panel to keep two shells side by side.
+- **Navigate Markdown by heading.** Select a heading in the document outline to jump to that section. Collapse the file tree to give the preview more room.
+- **Refresh repository status on demand.** Refresh one repository or the current list from the repositories page.
 
-![Repository sync settings with fetch interval and per-repository switches](apps/website/src/assets/screenshots/repository-sync.png)
-
-SSH connection errors now distinguish proxy connection failures from SSH authentication failures. After a successful branch push, the workspace updates the sync status without displaying a success banner.
+![Markdown preview with the workspace file tree and document outline](apps/website/src/assets/screenshots/files.png)
 
 ## Features
 
@@ -94,7 +92,7 @@ The workspace is laid out as **tab bar → repository toolbar → content area �
 
 </details>
 
-The light and dark workspace views and repository sync settings were captured in the Alune 0.15.0 desktop app using a local demo repository.
+The light and dark workspace views and Markdown preview were captured in the Alune 0.16.0 web workspace using isolated local repositories.
 
 ## Download
 
