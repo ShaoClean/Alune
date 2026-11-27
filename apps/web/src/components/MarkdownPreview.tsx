@@ -1,5 +1,6 @@
 import { FeedbackAlert } from '@alune/ui';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MarkdownOutline, type MarkdownOutlineControls } from './MarkdownOutline';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { diffImageMediaType } from '@alune/domain';
@@ -113,6 +114,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   refreshToken = 0,
   fragment = '',
   onOpenFile,
+  outlineControls,
 }: {
   content: string;
   path: string;
@@ -120,6 +122,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   refreshToken?: number;
   fragment?: string;
   onOpenFile?: OpenFile;
+  outlineControls?: MarkdownOutlineControls | null;
 }) {
   const root = useRef<HTMLElement>(null);
   const [notice, setNotice] = useState<string>();
@@ -204,35 +207,42 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   );
 
   return (
-    <article
-      ref={root}
-      className="markdown-preview"
-      aria-label="Markdown 预览"
-      tabIndex={0}
-      data-find-unit
-    >
-      {notice && <FeedbackAlert source="markdown-link" context={path} type="info" title={notice} />}
-      {content.length > MARKDOWN_PREVIEW_MAX_CHARS ? (
-        <FeedbackAlert
-          source="markdown-limit"
-          context={path}
-          type="warning"
-          title="Markdown 内容较大，已暂停渲染。请切换到「源码」查看完整内容。"
-        />
-      ) : !content.trim() ? (
-        <p role="status">此文件只有空白内容。</p>
-      ) : (
-        <Markdown
-          skipHtml
-          remarkPlugins={remarkPlugins}
-          rehypePlugins={rehypePlugins}
-          // Both URL-bearing renderers resolve their input with the same policy.
-          urlTransform={(url) => url}
-          components={components}
-        >
-          {content}
-        </Markdown>
+    <div className="markdown-reader">
+      <article
+        ref={root}
+        className="markdown-preview"
+        aria-label="Markdown 预览"
+        tabIndex={0}
+        data-find-unit
+      >
+        {notice && (
+          <FeedbackAlert source="markdown-link" context={path} type="info" title={notice} />
+        )}
+        {content.length > MARKDOWN_PREVIEW_MAX_CHARS ? (
+          <FeedbackAlert
+            source="markdown-limit"
+            context={path}
+            type="warning"
+            title="Markdown 内容较大，已暂停渲染。请切换到「源码」查看完整内容。"
+          />
+        ) : !content.trim() ? (
+          <p role="status">此文件只有空白内容。</p>
+        ) : (
+          <Markdown
+            skipHtml
+            remarkPlugins={remarkPlugins}
+            rehypePlugins={rehypePlugins}
+            // Both URL-bearing renderers resolve their input with the same policy.
+            urlTransform={(url) => url}
+            components={components}
+          >
+            {content}
+          </Markdown>
+        )}
+      </article>
+      {outlineControls && content.length <= MARKDOWN_PREVIEW_MAX_CHARS && (
+        <MarkdownOutline articleRef={root} controls={outlineControls} content={content} />
       )}
-    </article>
+    </div>
   );
 });

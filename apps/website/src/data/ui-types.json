@@ -58,7 +58,7 @@
   "DialogProgressProps": "export type DialogProgressProps = { value?: number; label?: ReactNode };",
   "OptionCardsProps": "export type OptionCardsProps<T extends string> = {\n  value: T;\n  options: OptionCard<T>[];\n  onChange: (value: T) => void;\n  label: string;\n  columns?: number;\n  disabled?: boolean;\n};",
   "OrbButtonProps": "export type OrbButtonProps = Omit<ButtonProps, 'icon' | 'loading' | 'iconPlacement'> & {\n  icon: DialogIconName;\n  loading?: boolean;\n};",
-  "PanelToggleProps": "export interface PanelToggleProps {\n  side: 'left' | 'right';\n  expanded: boolean;\n  controls: string;\n  onClick: () => void;\n  disabled?: boolean;\n  panelName?: string;\n}",
+  "PanelToggleProps": "export interface PanelToggleProps {\n  side: 'left' | 'right';\n  expanded: boolean;\n  controls: string;\n  onClick: () => void;\n  disabled?: boolean;\n  panelName?: string;\n  /** Set false for a local panel without the workspace keyboard shortcut. */\n  workspaceShortcut?: boolean;\n}",
   "ToolbarButtonVariant": "export type ToolbarButtonVariant = 'nav' | 'action' | 'primary' | 'icon';",
   "ToolbarButtonProps": "export type ToolbarButtonProps = ComponentProps<'button'> & {\n  label: string;\n  tooltip?: string;\n  active?: boolean;\n  variant?: ToolbarButtonVariant;\n  /** Visible text after the icon; omit for icon-only buttons. */\n  text?: ReactNode;\n  /** Trailing count such as commits ahead or behind. */\n  count?: ReactNode;\n  countTone?: ToolbarCountProps['tone'];\n};",
   "ToolbarCountProps": "export type ToolbarCountProps = { tone?: 'behind'; children: ReactNode };",

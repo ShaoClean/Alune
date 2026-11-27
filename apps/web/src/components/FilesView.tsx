@@ -28,6 +28,7 @@ import { fileLanguage } from './file-language';
 import type { FileLanguage } from './file-language';
 import { CodeView } from './CodeView';
 import { BlameView } from './BlameView';
+import type { MarkdownOutlineControls } from './MarkdownOutline';
 import { MarkdownPreview } from './MarkdownPreview';
 import { FindScope } from './FindWidget';
 import { isMarkdownFile } from './markdown-resources';
@@ -749,6 +750,12 @@ export function FilePreviewPane({
   refreshToken?: number;
   onSelectCommit?: (hash: string) => void;
 }) {
+  const [outlineToolbar, setOutlineToolbar] = useState<HTMLDivElement | null>(null);
+  const [dockedOpen, setDockedOpen] = useState(true);
+  const outlineControls = useMemo(
+    () => outlineToolbar && { toolbar: outlineToolbar, dockedOpen, setDockedOpen },
+    [outlineToolbar, dockedOpen],
+  );
   const [blameEnabled, setBlameEnabled] = useState(false);
   const [blameVersion, setBlameVersion] = useState<{ path: string; lines?: number }>();
   if (!entry)
@@ -802,18 +809,23 @@ export function FilePreviewPane({
             entry.kind === 'file' &&
             isMarkdownFile(entry.path) &&
             preview?.kind === 'text' && (
-              <div className="files-preview__modes" role="group" aria-label="Markdown 显示模式">
-                {(['source', 'preview'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    aria-pressed={markdownMode === mode}
-                    onClick={() => onMarkdownModeChange?.(mode)}
-                  >
-                    {mode === 'source' ? '源码' : 'Preview'}
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="files-preview__modes" role="group" aria-label="Markdown 显示模式">
+                  {(['source', 'preview'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      aria-pressed={markdownMode === mode}
+                      onClick={() => onMarkdownModeChange?.(mode)}
+                    >
+                      {mode === 'source' ? '源码' : 'Preview'}
+                    </button>
+                  ))}
+                </div>
+                {markdownMode === 'preview' && (
+                  <div className="markdown-outline-slot" ref={setOutlineToolbar} />
+                )}
+              </>
             )}
           {repositoryId && entry.kind === 'file' && (
             <div className="files-preview__modes">
@@ -854,6 +866,7 @@ export function FilePreviewPane({
               preview={preview}
               text={text}
               language={language}
+              outlineControls={outlineControls}
               markdownMode={markdownMode}
               onOpenFile={onOpenFile}
               fragment={fragment}
@@ -875,6 +888,7 @@ function PreviewBody({
   text,
   language,
   onRetry,
+  outlineControls,
   markdownMode,
   onOpenFile,
   fragment,
@@ -888,6 +902,7 @@ function PreviewBody({
   language: FileLanguage | null;
   onRetry: () => void;
   markdownMode: MarkdownMode;
+  outlineControls: MarkdownOutlineControls | null;
   onOpenFile?: (path: string, fragment: string) => void;
   fragment?: string;
   refreshToken?: number;
@@ -955,6 +970,7 @@ function PreviewBody({
           repositoryId={repositoryId}
           path={entry.path}
           content={preview.content}
+          outlineControls={outlineControls}
           onOpenFile={onOpenFile}
           fragment={fragment}
           refreshToken={refreshToken}

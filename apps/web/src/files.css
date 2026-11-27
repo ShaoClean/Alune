@@ -752,3 +752,109 @@
     width: 200px;
   }
 }
+
+.markdown-reader {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.markdown-outline-slot:empty,
+.markdown-outline[hidden] {
+  display: none;
+}
+.markdown-outline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  cursor: pointer;
+}
+.markdown-outline-toggle:hover,
+.markdown-outline__links a:hover {
+  background: var(--surface-hover);
+}
+.markdown-outline-toggle[aria-expanded='true'],
+.markdown-outline__links a[aria-current] {
+  color: var(--blue);
+  background: var(--blue-soft);
+  font-weight: 600;
+}
+.markdown-outline-toggle:focus-visible,
+.markdown-outline__links a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.markdown-outline {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 216px;
+  min-height: 0;
+  background: var(--surface);
+  border-inline-start: 1px solid var(--line);
+}
+.markdown-outline--popup {
+  position: absolute;
+  z-index: 1;
+  inset: 6px 8px auto auto;
+  width: min(252px, calc(100% - 16px));
+  max-height: calc(100% - 14px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-md);
+}
+.markdown-outline__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  font-size: 13px;
+}
+.markdown-outline__header > .alune-icon {
+  color: var(--accent);
+}
+.markdown-outline__header > span:not(.alune-icon) {
+  color: var(--text-muted);
+  font: 11px var(--font-mono);
+}
+.markdown-outline__header .panel-toggle {
+  margin-inline-start: auto;
+}
+.markdown-outline__links {
+  min-height: 0;
+  overflow: auto;
+  padding: 0 8px 8px;
+}
+.markdown-outline__links a {
+  display: block;
+  position: relative;
+  margin: 2px 0;
+  padding: 7px 8px;
+  border-radius: var(--radius-row);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+.markdown-outline__links a[aria-current]::before {
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+  content: '';
+}
+.markdown-preview,
+.markdown-outline__links,
+.markdown-preview pre,
+.markdown-preview__table {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+}
