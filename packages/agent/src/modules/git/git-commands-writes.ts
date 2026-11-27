@@ -56,10 +56,43 @@ export class GitCommands extends GitReads {
     await this._changeIndex(repoPath, files, head.exitCode === 0 ? 'reset HEAD' : 'rm --cached -f');
   }
 
+  private async assertIndexScope(repoPath: string, files: string[], staging: boolean) {
+    // Literal pathspecs also match descendants. Installing a child in the index
+    // can evict an existing file at an ancestor even without matching it by name.
+    const changes = await runGit(this.connection, repoPath, [
+      'diff',
+      ...(staging ? [] : ['--cached']),
+      '--name-status',
+      '--no-renames',
+      '-z',
+      '--',
+    ]);
+    if (changes.exitCode !== 0) throw new Error(changes.stderr);
+    const requested = new Set(files);
+    const parents = new Set<string>();
+    const ancestors = function* (path: string) {
+      for (let i = path.indexOf('/'); i >= 0; i = path.indexOf('/', i + 1)) yield path.slice(0, i);
+    };
+    for (const file of files) {
+      for (const parent of ancestors(file)) parents.add(parent);
+    }
+    const entries = changes.stdout.split('\0');
+    for (let i = 0; i + 1 < entries.length; i += 2) {
+      const status = entries[i],
+        path = entries[i + 1];
+      if (requested.has(path)) continue;
+      const evicted = parents.has(path) && status === (staging ? 'D' : 'A');
+      if (evicted || [...ancestors(path)].some((parent) => requested.has(parent))) {
+        throw new Error(`此操作还会影响“${path}”，请一并选择相关改动后重试。`);
+      }
+    }
+  }
+
   private async _changeIndex(repoPath: string, files: string[], command: string): Promise<void> {
     if (!files.length) throw new Error('请选择文件。');
     files.forEach((file) => this._validateFilePath(file));
     if (command === 'add') await assertFileChanges(this.connection, repoPath, files, true);
+    await this.assertIndexScope(repoPath, files, command === 'add');
     const result = await runGit(this.connection, repoPath, [...command.split(' '), '--', ...files]);
     if (result.exitCode !== 0) throw new Error(result.stderr);
   }

@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { changeActions } from '@alune/domain';
 import { AluneConfirmProvider } from '../src/components/AluneModal.tsx';
+import { changeActionPaths } from '../src/components/change-action-paths.ts';
 import { ChangesView } from '../src/components/ChangesView.tsx';
 import { useRepositoryStore } from '../src/stores/repositoryStore.ts';
 
@@ -73,4 +74,13 @@ test('normal files and submodule pointer changes remain actionable; dirty-only s
   const html = render([module]);
   assert.ok(html.includes('aria-label="暂存 module"'));
   assert.ok(!html.includes('aria-label="丢弃 module"'));
+});
+
+test('index actions include both names of a rename and only the destination of a copy', () => {
+  const rename = { path: 'moved', oldPath: 'old', status: 'renamed' };
+  const copy = { path: 'copied', oldPath: 'source', status: 'copied' };
+  for (const action of ['stage', 'unstage']) {
+    assert.deepEqual(changeActionPaths(action, [rename, copy]), ['old', 'moved', 'copied']);
+  }
+  assert.deepEqual(changeActionPaths('checkout', [rename]), ['moved']);
 });

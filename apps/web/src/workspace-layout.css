@@ -740,6 +740,39 @@
 .changes-filter .ant-input-affix-wrapper {
   font-size: 12px;
 }
+.changes-selection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 12px 8px;
+}
+.changes-selection > span {
+  margin-inline-end: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.changes-selection .ant-btn {
+  font-size: 11px;
+}
+.changes-checkbox {
+  flex: 0 0 auto;
+  margin: 0 4px 0 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+.changes-checkbox:disabled {
+  cursor: default;
+}
+.changes-panel .change-group__header:has(.changes-checkbox) {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-inline: 6px;
+}
+.change-group__header .change-group__actions {
+  margin-inline-start: auto;
+}
 .changes-panel .changes-content {
   flex: 1;
   min-height: 40px;

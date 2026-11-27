@@ -1,3 +1,5 @@
+import { changeActionPaths, type FileAction } from './change-action-paths';
+import { canSelectChange, useChangeSelection } from './useChangeSelection';
 import { AmendCommitDialog } from './AmendCommitDialog';
 import { useWorkspaceFileMenu } from './WorkspaceFileMenu';
 import type { ShowHistory } from './WorkspaceFileMenu';
@@ -94,6 +96,10 @@ const kindIcon = (file: FileStatus): DialogIconName =>
 const excludeRule = (path: string) =>
   '/' + path.replace(/\/$/, '').replace(/[\\*?\[\]#! ]/g, '\\$&') + '/';
 
+const EMPTY_FILES: FileStatus[] = [];
+const groupName = (file: FileStatus) =>
+  file.conflicted ? '冲突' : file.staged ? '已暂存' : '未暂存';
+
 const GENERATION_SCOPE = '仅分析已暂存改动 · 由你确认后提交';
 
 // Pair foreground and background explicitly; dark-theme primary text is not a tooltip color.
@@ -142,6 +148,8 @@ export function ChangesView({
   const [amendOpen, setAmendOpen] = useState(false);
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const [discardAllOpen, setDiscardAllOpen] = useState(false);
+  const [discardTargets, setDiscardTargets] = useState<FileStatus[] | null>(null);
+  const fileActionPending = useRef(false);
   const discardAllTrigger = useRef<HTMLButtonElement>(null);
   const restoreDiscardFocus = useRef(false);
   const [directoryFile, setDirectoryFile] = useState<FileStatus | null>(null);
@@ -195,7 +203,28 @@ export function ChangesView({
     onShowHistory,
   );
 
-  const files = status?.files || [];
+  const files = status?.files ?? EMPTY_FILES;
+  const matchedFiles = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return files.filter((file) =>
+      `${file.path} ${file.oldPath || ''}`.toLowerCase().includes(needle),
+    );
+  }, [files, query]);
+  const visibleFiles = useMemo(
+    () => matchedFiles.filter((file) => !closedGroups[groupName(file)]),
+    [matchedFiles, closedGroups],
+  );
+  const selection = useChangeSelection(visibleFiles);
+  const toStage = selection.selected.filter((file) => changeActions(file).stage);
+  const toUnstage = selection.selected.filter((file) => changeActions(file).unstage);
+  const toDiscard = selection.selected.filter((file) => changeActions(file).discard);
+  const discardCurrent =
+    discardTargets &&
+    discardTargets.length === toDiscard.length &&
+    discardTargets.every(
+      (file, index) =>
+        file.path === toDiscard[index].path && file.status === toDiscard[index].status,
+    );
   const stagedFiles = useMemo(() => files.filter((file: any) => file.staged), [files]);
   const stagedSignature = JSON.stringify(
     stagedFiles.map((file) => [file.path, file.status, file.oldPath]),
@@ -218,16 +247,24 @@ export function ChangesView({
   };
   const markResolved = useMarkResolved(repoId, refreshStatus);
 
-  const runFileAction = async (action: 'stage' | 'unstage', paths: string[]) => {
-    if (busy) return;
-    ai.cancel('暂存内容正在变化，请在操作完成后重新生成。');
+  const runFileAction = async (action: FileAction, targets: FileStatus[]) => {
+    if (busy || fileActionPending.current || !targets.length) return;
+    const paths = changeActionPaths(action, targets);
+    fileActionPending.current = true;
+    if (action !== 'checkout') ai.cancel('暂存内容正在变化，请在操作完成后重新生成。');
     const element = document.activeElement;
-    if (element instanceof HTMLElement && panel.current?.contains(element)) {
+    if (
+      action !== 'checkout' &&
+      element instanceof HTMLElement &&
+      panel.current?.contains(element)
+    ) {
       const label = element.getAttribute('aria-label');
       actionFocus.current = {
         element,
-        nextLabel:
-          paths.length === 1 && label === `${action === 'stage' ? '暂存' : '取消暂存'} ${paths[0]}`
+        nextLabel: element.closest('.changes-selection')
+          ? '筛选改动文件'
+          : paths.length === 1 &&
+              label === `${action === 'stage' ? '暂存' : '取消暂存'} ${paths[0]}`
             ? `${action === 'stage' ? '取消暂存' : '暂存'} ${paths[0]}`
             : action === 'stage'
               ? '全部取消暂存'
@@ -238,11 +275,20 @@ export function ChangesView({
     setLoading(true);
     try {
       await gitApi[action](repoId, paths);
-      await fetchStatus(repoId, true);
+      if (origin.current === repoId) selection.remove(targets);
     } catch (err: any) {
-      message.error(err.message || 'Git 操作失败');
+      if (origin.current === repoId) message.error(err.message || 'Git 操作失败');
     } finally {
-      setLoading(false);
+      try {
+        await fetchStatus(repoId, true);
+        const latest = useRepositoryStore.getState().repositoryStatuses[repoId];
+        if (origin.current === repoId && latest?.phase === 'error') {
+          message.warning(`无法确认最新文件状态：${latest.error}。请刷新后重试。`);
+        }
+      } finally {
+        fileActionPending.current = false;
+        if (origin.current === repoId) setLoading(false);
+      }
     }
   };
 
@@ -252,10 +298,7 @@ export function ChangesView({
     const skipped = groupFiles.filter((file) => !changeActions(file)[action]);
     if (!actionable.length) return;
     if (!skipped.length) {
-      void runFileAction(
-        action,
-        actionable.map((file) => file.path),
-      );
+      void runFileAction(action, actionable);
       return;
     }
     setStagePlan({ actionable, skipped });
@@ -342,19 +385,6 @@ export function ChangesView({
     });
   };
 
-  const discardFile = async (path: string) => {
-    if (busy) return;
-    setLoading(true);
-    try {
-      await gitApi.checkout(repoId, [path]);
-      await fetchStatus(repoId, true);
-    } catch (err: any) {
-      message.error(err.message || '无法丢弃此文件的改动');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCommit = async () => {
     if (busy || stagedFiles.length === 0) return;
     if (!draft.message.trim()) {
@@ -380,6 +410,7 @@ export function ChangesView({
   const renderFileRow = (file: FileStatus) => {
     const actions = changeActions(file);
     const kind = changeKindLabel(file);
+    const selectable = canSelectChange(file);
     const displayPath = file.path.replace(/\/$/, '');
     return (
       <div
@@ -387,12 +418,30 @@ export function ChangesView({
         key={`${file.staged}-${file.path}`}
         {...fileMenu.bindings(file.path, !kind)}
       >
+        {!file.conflicted && (
+          <input
+            type="checkbox"
+            className="changes-checkbox"
+            aria-label={`选择 ${file.path}（${groupName(file)}）`}
+            checked={selection.isChecked(file)}
+            disabled={!selectable || busy}
+            onChange={(event) => selection.toggle(file, (event.nativeEvent as MouseEvent).shiftKey)}
+          />
+        )}
         <button
           type="button"
           className="file-row__select"
           aria-label={`${actions.diff ? '查看差异' : `查看${kind}`} ${file.path}（${file.staged ? '已暂存' : '未暂存'}）`}
           aria-pressed={selectedFile?.path === file.path && selectedFile?.staged === file.staged}
-          onClick={() => (actions.diff ? onSelectFile?.(file) : setDirectoryFile(file))}
+          onClick={(event) => {
+            if (!file.conflicted && (event.shiftKey || event.metaKey || event.ctrlKey)) {
+              if (selectable && !busy) selection.toggle(file, event.shiftKey);
+              return;
+            }
+            if (selectable && !busy) selection.anchorAt(file);
+            if (actions.diff) onSelectFile?.(file);
+            else setDirectoryFile(file);
+          }}
         >
           <span
             className={`file-row__status file-row__status--${file.status}`}
@@ -466,7 +515,7 @@ export function ChangesView({
                 aria-label={`取消暂存 ${file.path}`}
                 loading={loading}
                 disabled={busy}
-                onClick={() => void runFileAction('unstage', [file.path])}
+                onClick={() => void runFileAction('unstage', [file])}
               />
             </Tooltip>
           ) : actions.stage ? (
@@ -478,7 +527,7 @@ export function ChangesView({
                 aria-label={`暂存 ${file.path}`}
                 loading={loading}
                 disabled={busy}
-                onClick={() => void runFileAction('stage', [file.path])}
+                onClick={() => void runFileAction('stage', [file])}
               />
             </Tooltip>
           ) : null}
@@ -548,7 +597,7 @@ export function ChangesView({
               okDisabled={!discardConfirmed}
               okText="丢弃改动"
               disabled={busy}
-              onConfirm={() => discardFile(file.path)}
+              onConfirm={() => runFileAction('checkout', [file])}
             >
               <Tooltip
                 title={busy || discardOpenPath === file.path ? null : '丢弃未暂存改动'}
@@ -587,10 +636,33 @@ export function ChangesView({
     );
   };
 
-  const renderGroup = (title: string, groupFiles: any[], staged: boolean, conflicts = false) =>
-    groupFiles.length > 0 ? (
+  const renderGroup = (
+    title: string,
+    groupFiles: FileStatus[],
+    staged: boolean,
+    conflicts = false,
+  ) => {
+    if (!groupFiles.length) return null;
+    const visible = visibleFiles.filter((file) => groupName(file) === title);
+    const selectable = visible.filter(canSelectChange);
+    const checkedCount = selectable.filter(selection.isChecked).length;
+    return (
       <div className={`change-group${conflicts ? ' change-group--conflict' : ''}`} key={title}>
         <div className="change-group__header">
+          {!conflicts && (
+            <input
+              type="checkbox"
+              className="changes-checkbox"
+              aria-label={`全选可见的${title}改动`}
+              checked={checkedCount > 0 && checkedCount === selectable.length}
+              ref={(input) => {
+                if (input)
+                  input.indeterminate = checkedCount > 0 && checkedCount < selectable.length;
+              }}
+              disabled={busy || !selectable.length}
+              onChange={() => selection.toggleGroup(selectable)}
+            />
+          )}
           <button
             type="button"
             className="change-group__title"
@@ -634,16 +706,10 @@ export function ChangesView({
             </div>
           )}
         </div>
-        {!closedGroups[title] &&
-          groupFiles
-            .filter((file) =>
-              `${file.path} ${file.oldPath || ''}`
-                .toLowerCase()
-                .includes(query.trim().toLowerCase()),
-            )
-            .map(renderFileRow)}
+        {visible.map(renderFileRow)}
       </div>
-    ) : null;
+    );
+  };
 
   return (
     <section ref={panel} className="workspace-panel changes-panel">
@@ -715,8 +781,7 @@ export function ChangesView({
           busyText="正在暂存…"
           onCancel={() => setStagePlan(null)}
           onOk={async () => {
-            const paths = stagePlan.actionable.map((file) => file.path);
-            await runFileAction('stage', paths);
+            await runFileAction('stage', stagePlan.actionable);
             setStagePlan(null);
           }}
         >
@@ -750,6 +815,40 @@ export function ChangesView({
           </DialogCard>
         </AluneModal>
       )}
+      {discardTargets && (
+        <AluneModal
+          open
+          level={2}
+          glyph="undo"
+          title={`放弃 ${discardTargets.length} 项未暂存改动？`}
+          description="以下文件将恢复为暂存区内容。已暂存的改动保留，此操作不可撤销。"
+          acknowledge="我确认放弃这些文件的未暂存改动"
+          okText="放弃所选改动"
+          busyText="正在放弃…"
+          okDisabled={busy || !discardCurrent}
+          onCancel={() => setDiscardTargets(null)}
+          onOk={async () => {
+            if (!discardCurrent) return;
+            await runFileAction('checkout', discardTargets);
+            setDiscardTargets(null);
+          }}
+        >
+          <DialogCard>
+            <DialogList scroll>
+              {discardTargets.map((file) => (
+                <DialogListItem
+                  key={file.path}
+                  icon="file"
+                  title={<DialogPath path={file.path} />}
+                />
+              ))}
+            </DialogList>
+          </DialogCard>
+          {!discardCurrent && !loading && (
+            <DialogNote>文件状态已变化，请取消后重新选择。</DialogNote>
+          )}
+        </AluneModal>
+      )}
       {discardAllOpen && (
         <DiscardChangesDialog
           key={repoId}
@@ -781,6 +880,42 @@ export function ChangesView({
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
+      {selection.selected.length > 0 && (
+        <div className="changes-selection" role="group" aria-label="批量文件操作">
+          <span aria-live="polite">已选 {selection.selected.length} 项</span>
+          {toStage.length > 0 && (
+            <Button
+              size="small"
+              disabled={busy}
+              onClick={() => void runFileAction('stage', toStage)}
+            >
+              暂存 {toStage.length} 项
+            </Button>
+          )}
+          {toUnstage.length > 0 && (
+            <Button
+              size="small"
+              disabled={busy}
+              onClick={() => void runFileAction('unstage', toUnstage)}
+            >
+              取消暂存 {toUnstage.length} 项
+            </Button>
+          )}
+          {toDiscard.length > 0 && (
+            <Button
+              size="small"
+              danger
+              disabled={busy}
+              onClick={() => setDiscardTargets(toDiscard)}
+            >
+              放弃 {toDiscard.length} 项
+            </Button>
+          )}
+          <Button type="text" size="small" disabled={busy} onClick={selection.clear}>
+            清除选择
+          </Button>
+        </div>
+      )}
       <div className="changes-content">
         {status && !managedRebase && (
           <ConflictOperationBar
@@ -825,12 +960,7 @@ export function ChangesView({
             {renderGroup('冲突', conflictFiles, false, true)}
             {renderGroup('未暂存', unstagedFiles, false)}
             {renderGroup('已暂存', stagedFiles, true)}
-            {query &&
-              !files.some((file: any) =>
-                `${file.path} ${file.oldPath || ''}`
-                  .toLowerCase()
-                  .includes(query.trim().toLowerCase()),
-              ) && <p className="changes-no-results">没有匹配的文件</p>}
+            {query && !matchedFiles.length && <p className="changes-no-results">没有匹配的文件</p>}
           </>
         )}
       </div>

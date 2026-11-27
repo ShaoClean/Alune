@@ -241,6 +241,90 @@ module.exports = async ({ window, origin, repo, wait, pass }) => {
     ['UI-007'],
     'single-file discard requires new consent after cancellation, restores the exact staged blob and preserves HEAD, all index entries and the other repository scopes',
   );
+  // A partially staged path has two selectable rows, but only one working file.
+  write('tracked.txt', 'selected working bytes\n');
+  write('staged-new.txt', 'unchecked working bytes\n');
+  write('batch-1.txt', 'one\n');
+  write('batch-2.txt', 'two\n');
+  write('batch-3.txt', 'three\n');
+  await click(button('刷新仓库'));
+  const checkedRow = (name, staged = false) =>
+    button(`选择 ${name}（${staged ? '已暂存' : '未暂存'}）`);
+  const batch = (label) => textButton(label, '.changes-selection button');
+  const filter = button('筛选改动文件');
+  const preview = button('查看差异 tracked.txt（未暂存）');
+  await click(preview);
+  await click(checkedRow('tracked.txt', true));
+  const stagedGroup = `(${button('全选可见的已暂存改动')}).parentElement.querySelector('.change-group__title')`;
+  await click(stagedGroup);
+  await wait(wc, `!(${element('.changes-selection')})`);
+  await click(stagedGroup);
+  await click(checkedRow('tracked.txt', true));
+  await input(filter, 'batch-');
+  await wait(wc, `!(${element('.changes-selection')})`);
+  await click(button('全选可见的未暂存改动'));
+  await input(filter, '');
+  await wait(wc, `(${button('全选可见的未暂存改动')})?.indeterminate`);
+  await click(batch('清除选择'));
+  await click(checkedRow('batch-1.txt'));
+  await ev(
+    `(${checkedRow('batch-3.txt')}).dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))`,
+  );
+  await wait(wc, batch('暂存 3 项'));
+  await pressKey(checkedRow('batch-3.txt'), ' ');
+  await wait(wc, batch('暂存 2 项'));
+  await click(checkedRow('tracked.txt', true));
+  await ev(`(${preview}).dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true }))`);
+  await wait(wc, batch('暂存 3 项'));
+  assert.equal(await ev(`(${preview}).ariaPressed`), 'true');
+  await click(batch('放弃 1 项'));
+  await wait(wc, primary('放弃所选改动'));
+  assert.deepEqual(
+    await ev(
+      `[...document.querySelectorAll('.a-dlg-shell .dlg-list-item .dlg-path')].map(e => e.title)`,
+    ),
+    ['tracked.txt'],
+  );
+  await click(primary('取消'));
+  await closed();
+  assert.equal(fs.readFileSync(path.join(work, 'tracked.txt'), 'utf8'), 'selected working bytes\n');
+  await click(batch('放弃 1 项'));
+  await click(check(0));
+  await click(primary('放弃所选改动'));
+  await closed();
+  await wait(wc, batch('暂存 2 项'));
+  unaffected();
+  assert.equal(fs.readFileSync(path.join(work, 'tracked.txt'), 'utf8'), 'staged bytes\n');
+  assert.equal(
+    fs.readFileSync(path.join(work, 'staged-new.txt'), 'utf8'),
+    'unchecked working bytes\n',
+  );
+  const indexLock = path.join(work, '.git/index.lock');
+  fs.writeFileSync(indexLock, '', { flag: 'wx' });
+  try {
+    await click(batch('暂存 2 项'));
+    await wait(wc, `(${element('.feedback-dialog[open]')})?.innerText.includes('index.lock')`);
+    assert.equal(git('ls-files', '--stage'), before.index);
+    await click(button('关闭提示'));
+  } finally {
+    fs.unlinkSync(indexLock);
+  }
+  await click(batch('暂存 2 项'));
+  await wait(wc, checkedRow('batch-2.txt', true));
+  assert.equal(git('show', ':batch-1.txt'), 'one');
+  assert.equal(git('show', ':batch-2.txt'), 'two');
+  await click(checkedRow('batch-1.txt', true));
+  await click(batch('取消暂存 2 项'));
+  await wait(wc, checkedRow('batch-1.txt'));
+  assert.equal(git('diff', '--cached', '--name-only', '--', 'batch-1.txt', 'tracked.txt'), '');
+  assert.equal(git('show', ':batch-2.txt'), 'two');
+  assert.equal(git('show', ':staged-new.txt'), 'staged new bytes');
+  assert.equal(fs.readFileSync(path.join(work, 'batch-1.txt'), 'utf8'), 'one\n');
+  await pass(
+    ['UI-007'],
+    'filtered and cross-group selection limits stage, unstage and confirmed discard to the indicated paths and preserves the active comparison and other working files',
+  );
+
   await require('./candidate-repository-navigation.cjs')({
     window,
     origin,

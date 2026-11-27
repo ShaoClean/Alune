@@ -621,6 +621,7 @@ function RepositoryWorkspace({
     if (panel === 'changes')
       return (
         <ChangesView
+          key={id}
           repoId={id}
           managedRebase={managedRebase === id}
           onRefresh={handleRefresh}
